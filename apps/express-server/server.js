@@ -33,6 +33,7 @@ app.get('/api/info', (req, res) => {
     hostname: hostname(),
     pid: process.pid,
     memory: process.memoryUsage(),
+    logLevel: process.env.LOG_LEVEL || 'not set',
   });
 });
 

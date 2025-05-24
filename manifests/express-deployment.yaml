@@ -16,15 +16,13 @@ spec:
     spec:
       containers:
       - name: express
-        image: discbaboons-express:v1
+        image: discbaboons-express:v3
         imagePullPolicy: Never  # Use local image from Kind
         ports:
         - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: PORT
-          value: "3000"
+        envFrom:
+        - configMapRef:
+            name: express-config
         resources:
           requests:
             memory: "128Mi"
