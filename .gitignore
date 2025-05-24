@@ -5,6 +5,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Never commit secrets to git
+manifests/*-secret.yaml
+*.secret.yaml
+
 # Runtime data
 pids
 *.pid

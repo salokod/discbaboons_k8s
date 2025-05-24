@@ -34,6 +34,10 @@ app.get('/api/info', (req, res) => {
     pid: process.pid,
     memory: process.memoryUsage(),
     logLevel: process.env.LOG_LEVEL || 'not set',
+    // Show we have secrets without exposing them
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    hasApiKey: !!process.env.API_KEY,
+    hasDbPassword: !!process.env.DB_PASSWORD,
   });
 });
 
