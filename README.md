@@ -189,9 +189,102 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
   - ✅ Environment variables from ConfigMaps using `envFrom`
   - ✅ ConfigMap updates require pod restarts with `kubectl rollout restart`
   - ✅ Separation of configuration from application code
-- ⏳ **Week 3**: PostgreSQL database with persistent volumes
-- ⏳ **Week 4**: Ingress controllers and HTTPS
-- ⏳ **Week 5**: Monitoring and logging
+  - ⏳ **Next**: Secrets for sensitive data (JWT tokens, API keys, database passwords)
+    - Create secrets using `kubectl create secret`
+    - Use secrets in deployments with `secretRef`
+    - Understand base64 encoding vs encryption
+    - Best practices: never log secrets, use separate secrets per environment
+
+- ⏳ **Week 3**: PostgreSQL Database with Persistent Storage + Database Migrations
+  - **Day 1**: Persistent Volumes and Claims (local Kind testing)
+    - Understand ephemeral vs persistent storage in Kubernetes
+    - Create PersistentVolume and PersistentVolumeClaim
+    - Volume types: hostPath (local), cloud providers (AWS EBS, GCP PD)
+    - Test volume persistence by deleting/recreating pods
+
+  - **Day 2**: PostgreSQL Deployment with Persistent Storage
+    - Deploy PostgreSQL with persistent storage
+    - Configure database with ConfigMaps and Secrets (database name, user, password)
+    - Database initialization scripts and environment variables
+    - Verify data persists across pod restarts
+
+  - **Day 3**: Init Containers - Database Readiness Patterns
+    - **Learn init containers**: Containers that run before your main app
+    - Create init container to wait for PostgreSQL to be ready
+    - Use `pg_isready` to check database connectivity
+    - Understand init container vs sidecar container patterns
+    - **Why this matters**: Prevents app crashes when database isn't ready yet
+
+  - **Day 4**: Flyway Database Migrations Setup
+    - **Learn Flyway**: Industry-standard database migration tool
+    - Create Flyway init container for schema management
+    - Write your first migration files (V1__initial_schema.sql)
+    - Configure Flyway with database connection from Secrets
+    - **Migration pattern**: Init container runs Flyway → Main app starts
+
+  - **Day 5**: Connect Express to PostgreSQL
+    - Add PostgreSQL client library to Express app (`pg` or `pg-pool`)
+    - Update Express app with database connection using environment variables
+    - Create database connection health checks
+    - **Deployment order**: PostgreSQL → Flyway migrations → Express app
+
+  - **Day 6**: Advanced Migration Patterns
+    - Create more complex migrations (tables, indexes, data seeding)
+    - Learn migration versioning and rollback strategies
+    - Handle migration failures and debugging
+    - Test the complete stack: PostgreSQL + Flyway + Express
+
+  - **Day 7**: Integration Testing and Troubleshooting
+    - End-to-end testing of the full stack locally
+    - Database connection pooling and optimization
+    - Common troubleshooting: connection timeouts, migration failures
+    - Prepare for production deployment patterns
+
+- ⏳ **Week 3.5**: Local Development Workflow & Production Preparation
+  - **Day 1**: Multi-environment configs (dev vs prod)
+    - Create separate ConfigMaps for local vs production
+    - Environment-specific secrets management
+    - Docker image tagging strategies (dev, staging, prod)
+  - **Day 2**: Local testing workflows
+    - Comprehensive local testing before production deployment
+    - Integration testing with PostgreSQL locally
+    - Load testing and performance validation in Kind
+  - **Day 3**: Production readiness checklist
+    - Resource limits and requests for production workloads
+    - Health check optimization for production traffic
+    - Security hardening (non-root containers, security contexts)
+
+- ⏳ **Week 4**: 🚀 **REAL DEPLOYMENT** - DigitalOcean Kubernetes + HTTPS + Domain
+  - **Day 1**: Setup DigitalOcean Kubernetes cluster
+    - Create DO Kubernetes cluster
+    - Configure kubectl for DO cluster
+    - Deploy your Express + PostgreSQL stack to production
+  - **Day 2**: Domain and DNS setup
+    - Configure your domain (buy one or use a subdomain)
+    - Point DNS to DigitalOcean Load Balancer
+    - Understand LoadBalancer vs NodePort in cloud environments
+  - **Day 3-4**: Ingress and HTTPS
+    - Install NGINX Ingress Controller on DO
+    - Configure Ingress for your domain
+    - Setup Let's Encrypt with cert-manager for free SSL
+  - **Day 5**: Production hardening
+    - Environment-specific configs for production
+    - Secrets management in production
+    - Basic monitoring setup
+  - **Day 6-7**: Celebrate and iterate! 🎉
+    - Test your live application
+    - Share your achievement
+    - Plan next features
+
+- ⏳ **Week 5**: Production Operations
+  - **Day 1-2**: Monitoring and Logging (on real cluster)
+  - **Day 3-4**: Backup and Recovery strategies
+  - **Day 5-7**: CI/CD pipeline (GitHub Actions → DigitalOcean)
+
+- ⏳ **Week 6**: Advanced Features
+  - **Day 1-2**: Add Redis caching layer
+  - **Day 3-4**: Database migrations and schema management
+  - **Day 5-7**: Performance optimization and scaling
 
 ## Key Learnings
 
