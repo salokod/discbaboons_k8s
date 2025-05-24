@@ -189,11 +189,13 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
   - ✅ Environment variables from ConfigMaps using `envFrom`
   - ✅ ConfigMap updates require pod restarts with `kubectl rollout restart`
   - ✅ Separation of configuration from application code
-  - ⏳ **Next**: Secrets for sensitive data (JWT tokens, API keys, database passwords)
-    - Create secrets using `kubectl create secret`
-    - Use secrets in deployments with `secretRef`
-    - Understand base64 encoding vs encryption
-    - Best practices: never log secrets, use separate secrets per environment
+  - ✅ **Secrets**: Sensitive data management (COMPLETE!)
+    - ✅ Create secrets using `kubectl create secret`
+    - ✅ Use secrets in deployments with `secretRef`
+    - ✅ Understand base64 encoding vs encryption
+    - ✅ Best practices: never log secrets, use separate secrets per environment
+    - ✅ Combined ConfigMap + Secret usage in single deployment
+    - ✅ Security awareness: base64 ≠ encryption, keep secret files out of git
 
 - ⏳ **Week 3**: PostgreSQL Database with Persistent Storage + Database Migrations
   - **Day 1**: Persistent Volumes and Claims (local Kind testing)
@@ -222,23 +224,35 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
     - Configure Flyway with database connection from Secrets
     - **Migration pattern**: Init container runs Flyway → Main app starts
 
-  - **Day 5**: Connect Express to PostgreSQL
+  - **Day 5**: Database Schema Design & Documentation
+    - **Learn database documentation standards**: Using DBML (Database Markup Language)
+    - **Create schema documentation**: Document table relationships and constraints
+    - **Initial schema design**: Users and user profiles tables
+    - **Migration V1**: Create users table with authentication fields
+    - **Migration V2**: Create user_profiles table with foreign key relationships
+    - **Best practices**: Migration naming, rollback strategies, and change documentation
+
+  - **Day 6**: Connect Express to PostgreSQL
     - Add PostgreSQL client library to Express app (`pg` or `pg-pool`)
     - Update Express app with database connection using environment variables
     - Create database connection health checks
     - **Deployment order**: PostgreSQL → Flyway migrations → Express app
+    - **API endpoints**: CRUD operations for users and profiles
 
-  - **Day 6**: Advanced Migration Patterns
-    - Create more complex migrations (tables, indexes, data seeding)
-    - Learn migration versioning and rollback strategies
-    - Handle migration failures and debugging
-    - Test the complete stack: PostgreSQL + Flyway + Express
+  - **Day 7**: Advanced Migration Patterns & Database Evolution
+    - **Iterative schema changes**: Adding tables over time with proper versioning
+    - **Migration V3**: Add indexes for performance optimization
+    - **Migration V4**: Add additional user fields (email, email_verified, etc.)
+    - **Learn migration rollback**: How to safely reverse database changes
+    - **Data migrations**: Seeding initial data vs schema-only migrations
+    - **Production considerations**: Zero-downtime migrations and backward compatibility
 
   - **Day 7**: Integration Testing and Troubleshooting
     - End-to-end testing of the full stack locally
     - Database connection pooling and optimization
     - Common troubleshooting: connection timeouts, migration failures
     - Prepare for production deployment patterns
+    - **Test complete user workflow**: Registration → Profile creation → API interactions
 
 - ⏳ **Week 3.5**: Local Development Workflow & Production Preparation
   - **Day 1**: Multi-environment configs (dev vs prod)
@@ -267,24 +281,69 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
     - Install NGINX Ingress Controller on DO
     - Configure Ingress for your domain
     - Setup Let's Encrypt with cert-manager for free SSL
-  - **Day 5**: Production hardening
-    - Environment-specific configs for production
-    - Secrets management in production
+  - **Day 5**: **Production Secret Management**
+    - **Learn external secret management**: Never store secrets in YAML files in production
+    - **DigitalOcean Spaces + SOPS**: Encrypted secret files
+    - **External Secrets Operator**: Connect to cloud secret stores
+    - **Environment-specific secrets**: Different secrets for dev/staging/prod
+    - **Secret rotation strategies**: How to update secrets without downtime
+  - **Day 6-7**: Production hardening and monitoring
+    - Security contexts and non-root containers
+    - Resource limits for production workloads
     - Basic monitoring setup
-  - **Day 6-7**: Celebrate and iterate! 🎉
-    - Test your live application
-    - Share your achievement
-    - Plan next features
 
-- ⏳ **Week 5**: Production Operations
-  - **Day 1-2**: Monitoring and Logging (on real cluster)
-  - **Day 3-4**: Backup and Recovery strategies
-  - **Day 5-7**: CI/CD pipeline (GitHub Actions → DigitalOcean)
+- ⏳ **Week 5**: Advanced Secret Management & Security
+  - **Day 1-2**: **Enterprise Secret Solutions**
+    - **HashiCorp Vault integration**: Industry-standard secret management
+    - **Sealed Secrets**: GitOps-friendly encrypted secrets
+    - **AWS Secrets Manager / Google Secret Manager**: Cloud-native solutions
+  - **Day 3-4**: **Secret Lifecycle Management**
+    - Automated secret rotation
+    - Secret versioning and rollback
+    - Audit logging for secret access
+  - **Day 5-7**: **Security Hardening**
+    - Pod Security Standards
+    - Network policies for service isolation
+    - RBAC (Role-Based Access Control) for secret access
 
-- ⏳ **Week 6**: Advanced Features
-  - **Day 1-2**: Add Redis caching layer
-  - **Day 3-4**: Database migrations and schema management
-  - **Day 5-7**: Performance optimization and scaling
+- ⏳ **Week 6**: Advanced Deployments
+  - **Day 1-2**: Rolling Updates and Rollbacks
+    - Deployment strategies (RollingUpdate vs Recreate)
+    - Rolling back failed deployments
+    - Deployment history and versioning
+  - **Day 3-4**: Resource Management
+    - Resource requests and limits fine-tuning
+    - Quality of Service classes (Guaranteed, Burstable, BestEffort)
+    - Horizontal Pod Autoscaling basics
+  - **Day 5-7**: Multi-Environment Setup
+    - Namespace-based environment separation (dev, staging, prod)
+    - Environment-specific ConfigMaps and Secrets
+    - Deployment pipelines and GitOps concepts
+
+- ⏳ **Week 7**: Production Readiness
+  - **Day 1-2**: Observability and Monitoring
+    - Centralized logging with kubectl logs
+    - Structured logging in Express app
+    - Application metrics and health checks
+  - **Day 3-4**: Backup and Recovery
+    - Database backup strategies
+    - Persistent volume backup
+    - Disaster recovery planning
+  - **Day 5-7**: Performance and Scaling
+    - Load testing your applications
+    - Database connection pooling
+    - Caching strategies with Redis
+    - Performance monitoring and optimization
+
+## Graduation Project: Full-Stack Application
+**Week 8**: Build a complete application demonstrating all learned concepts:
+- Express.js API with authentication (JWT from Secrets)
+- PostgreSQL database with migrations
+- Redis caching layer
+- Multi-environment deployment (dev/prod namespaces)
+- Ingress with TLS termination
+- Comprehensive monitoring and logging
+- Automated testing and deployment pipeline
 
 ## Key Learnings
 
@@ -302,27 +361,68 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
 - **Version Management**: Always increment image tag (v1 → v2 → v3) to track changes
 - **Workflow**: Edit code → Build image → Load to Kind → Update deployment
 
-## Endpoints
+### Secrets & Security
+- **Base64 Encoding**: Not encryption! Anyone can decode base64 values
+- **Local Development**: Use `kubectl create secret` commands, keep secret YAML files out of git
+- **Production**: Never store secrets in YAML files - use external secret management
+- **Security Principle**: Secrets should be injected at runtime, not baked into images or configs
+- **Best Practices**: 
+  - Use different secrets for each environment (dev/staging/prod)
+  - Rotate secrets regularly
+  - Audit secret access
+  - Use external secret stores in production (Vault, cloud providers)
 
-When port-forwarding is active (`kubectl port-forward service/express-service 8080:3000`):
-
-- **Main**: http://localhost:8080/
-- **Health**: http://localhost:8080/health  
-- **Info**: http://localhost:8080/api/info (shows ConfigMap values like `logLevel`)
-
-## Shutting Down
-
-### End of Day (Keep Cluster for Tomorrow)
+### Secret Management Security
 ```bash
-# Just stop port-forwarding (Ctrl+C)
-# Cluster and apps keep running
+# Create secrets imperatively (not stored in files)
+kubectl create secret generic express-secret \
+  --from-literal=JWT_SECRET=supersecretjwtkey123 \
+  --from-literal=API_KEY=mycompanyapikey456 \
+  --from-literal=DB_PASSWORD=postgres123
+
+# View secrets (base64 encoded)
+kubectl get secret express-secret -o yaml
+
+# Never commit secret YAML files to git!
+echo "manifests/*-secret.yaml" >> .gitignore
 ```
 
-### End of Week (Clean Shutdown)
-```bash
-# Delete applications
-kubectl delete -f manifests/
+**⚠️ Security Warning**: Base64 is encoding, NOT encryption. Anyone with access to secret YAML files can decode them easily.
 
-# Delete cluster
-kind delete cluster --name discbaboons-learning
+### Database Design & Migrations
+- **DBML Documentation**: Use Database Markup Language for clear schema documentation
+- **Migration Versioning**: Sequential numbering (V1, V2, V3) with descriptive names
+- **Schema Evolution**: Plan table relationships and constraints from the beginning
+- **Migration Best Practices**:
+  - One logical change per migration file
+  - Always test rollback procedures
+  - Document the purpose and impact of each migration
+  - Use descriptive migration names (V1__create_users_table.sql)
+
+### Database Schema Standards
+**Initial Schema Design:**
+```dbml
+Table users {
+    id INT [pk, increment] // Unique identifier for the user
+    username VARCHAR(50) [unique, not null] // Username, must be unique
+    password_hash TEXT [not null] // Hashed password
+    created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`] // When the user was created
+    last_password_change TIMESTAMP [default: `CURRENT_TIMESTAMP`] // Last time the password was changed
+}
+
+Table user_profiles {
+    id INT [pk, increment] // Unique identifier for the profile
+    user_id INT [not null, ref: > users.id] // Foreign key to the users table
+    name VARCHAR(100) // Full name of the user
+    location VARCHAR(100) // Location of the user
+    bio TEXT // Optional bio or description
+    created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`] // When the profile was created
+    updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`] // When the profile was last updated
+}
 ```
+
+**Migration Workflow:**
+- **V1__create_users_table.sql**: Core authentication table
+- **V2__create_user_profiles_table.sql**: Profile information with foreign key
+- **V3__add_user_indexes.sql**: Performance optimization
+- **V4__add_user_email_fields.sql**: Iterative feature additions
