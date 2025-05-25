@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+          - configMapRef:
+              name: postgres-config
+          - secretRef:
+              name: postgres-secret
+        volumeMounts: 
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data  # Where PostgreSQL stores data
+        resources:
+            requests:
+              memory: "256Mi"  
+              cpu: "250m"      
+            limits:
+              memory: "512Mi" 
+              cpu: "500m"    
+        livenessProbe:
+            exec:
+              command:
+              - pg_isready        # PostgreSQL's built-in health check command
+              - -U
+              - app_user         # Check as your app user
+              - -d
+              - discbaboons_db   # Check your specific database
+            initialDelaySeconds: 30  # Wait 30s after startup before checking
+            periodSeconds: 10        # Check every 10 seconds
+        readinessProbe:  # Add this section
+            exec:
+              command:
+              - pg_isready
+              - -U
+              - app_user
+              - -d
+              - discbaboons_db
+            initialDelaySeconds: 5   # Faster than liveness (ready to receive traffic)
+            periodSeconds: 5         # Check more frequently
+      volumes:  
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc

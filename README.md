@@ -163,20 +163,46 @@ kind load docker-image discbaboons-express:v3 --name discbaboons-learning
 kubectl set image deployment/express-deployment express=discbaboons-express:v3
 ```
 
+### PostgreSQL Database Management
+```bash
+# Create PostgreSQL service (for local development)
+kubectl apply -f manifests/postgres-service.yaml
+
+# Port forward for local database access (DEVELOPMENT ONLY!)
+kubectl port-forward service/postgres-service 5432:5432
+
+# Get database credentials
+kubectl get secret postgres-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
+
+# Connect via command line
+psql -h localhost -p 5432 -U app_user -d discbaboons_db
+
+# DBeaver connection settings:
+# Host: localhost, Port: 5432, Database: discbaboons_db, User: app_user
+
+# ⚠️ PRODUCTION: Never use port-forward to production databases!
+# Use bastion hosts, read replicas, or monitoring dashboards instead
+```
+
 ## Project Structure
 
 ```
 ├── kind-config.yaml           # Kind cluster configuration
 ├── apps/
 │   └── express-server/        # Express.js application
-│       ├── server.js         # Main application
+│       ├── server.js         # Main application with /api/info endpoint
 │       ├── server.test.js    # Jest tests
 │       ├── package.json      # Node.js dependencies
 │       └── Dockerfile        # Container definition
 └── manifests/                # Kubernetes YAML files
     ├── express-configmap.yaml # Application configuration
-    ├── express-deployment.yaml
+    ├── express-deployment.yaml # Express deployment (ConfigMap + Secret)
     ├── express-service.yaml
+    ├── postgres-pvc.yaml     # PostgreSQL persistent volume claim
+    ├── postgres-configmap.yaml # PostgreSQL configuration (non-sensitive)
+    ├── postgres-secret.yaml  # PostgreSQL credentials (gitignored)
+    ├── postgres-deployment.yaml # PostgreSQL with health checks + resources
+    ├── postgres-service.yaml # PostgreSQL service for local development access
     └── hello-*.yaml          # Learning examples
 ```
 
@@ -184,31 +210,47 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
 
 - ✅ **Week 1**: Kind setup, Pods, Services, Deployments
 - ✅ **Express App**: Modern Node.js 22 + ESM + Jest + Airbnb ESLint
-- ✅ **Week 2**: ConfigMaps, Secrets, Environment management
+- ✅ **Week 2**: ConfigMaps, Secrets, Environment management (COMPLETE!)
   - ✅ ConfigMaps: External configuration management
   - ✅ Environment variables from ConfigMaps using `envFrom`
   - ✅ ConfigMap updates require pod restarts with `kubectl rollout restart`
   - ✅ Separation of configuration from application code
-  - ✅ **Secrets**: Sensitive data management (COMPLETE!)
-    - ✅ Create secrets using `kubectl create secret`
+  - ✅ **Secrets**: Sensitive data management with production security
+    - ✅ Create secrets using `kubectl create secret` and YAML with `stringData`
     - ✅ Use secrets in deployments with `secretRef`
     - ✅ Understand base64 encoding vs encryption
     - ✅ Best practices: never log secrets, use separate secrets per environment
-    - ✅ Combined ConfigMap + Secret usage in single deployment
+    - ✅ Combined ConfigMap + Secret usage in single deployment (`/api/info` endpoint verification)
     - ✅ Security awareness: base64 ≠ encryption, keep secret files out of git
 
-- ⏳ **Week 3**: PostgreSQL Database with Persistent Storage + Database Migrations
-  - **Day 1**: Persistent Volumes and Claims (local Kind testing)
-    - Understand ephemeral vs persistent storage in Kubernetes
-    - Create PersistentVolume and PersistentVolumeClaim
-    - Volume types: hostPath (local), cloud providers (AWS EBS, GCP PD)
-    - Test volume persistence by deleting/recreating pods
+- ✅ **Week 3**: PostgreSQL Database with Persistent Storage + Database Migrations
+  - ✅ **Day 1**: Persistent Volumes and Claims (local Kind testing)
+    - ✅ **Dynamic Provisioning**: Created `postgres-pvc.yaml` with 1Gi storage using `WaitForFirstConsumer` binding mode
+    - ✅ **Volume Persistence Testing**: Used busybox test pod to verify data survives pod deletion
+    - ✅ **Storage Classes**: Leveraged Kind's default StorageClass for dynamic volume provisioning
+    - ✅ **Access Modes**: Implemented ReadWriteOnce (RWO) for single-node PostgreSQL access
+    - ✅ **Storage Best Practices**: Learned about ephemeral vs persistent storage patterns
 
-  - **Day 2**: PostgreSQL Deployment with Persistent Storage
-    - Deploy PostgreSQL with persistent storage
-    - Configure database with ConfigMaps and Secrets (database name, user, password)
-    - Database initialization scripts and environment variables
-    - Verify data persists across pod restarts
+  - ✅ **Day 2**: PostgreSQL Deployment with Persistent Storage (COMPLETE! ✅)
+    - ✅ **PostgreSQL 17-alpine**: Deployed latest PostgreSQL with minimal attack surface
+    - ✅ **Complete Configuration Management**: 
+      - `postgres-configmap.yaml`: Non-sensitive config (POSTGRES_DB="discbaboons_db", POSTGRES_USER="app_user")
+      - `postgres-secret.yaml`: Secure credentials using `stringData` (POSTGRES_PASSWORD, POSTGRES_ROOT_PASSWORD)
+    - ✅ **Production Volume Setup**: Persistent storage at `/var/lib/postgresql/data` without `subPath` complexity
+    - ✅ **Health Monitoring**: Comprehensive liveness and readiness probes using `pg_isready` command
+      - Liveness probe: 30s initial delay, 10s period - prevents unnecessary restarts
+      - Readiness probe: 5s initial delay, 5s period - ensures traffic only goes to ready pods
+    - ✅ **Resource Management**: Production resource limits (256Mi-512Mi memory, 250m-500m CPU)
+    - ✅ **Data Persistence Verified**: Created test tables, inserted data, verified survival across pod deletion/recreation
+    - ✅ **Security Patterns**: Updated `.gitignore` to exclude secret YAML files from version control
+    - ✅ **Local Database Access for Development** (WORKING! 🎉): 
+      - ✅ Created `postgres-service.yaml` for cluster communication
+      - ✅ Port-forward setup: `kubectl port-forward service/postgres-service 5432:5432`
+      - ✅ **Successfully connected via psql, DBeaver, and pgAdmin** - Database fully accessible locally!
+      - ✅ Database credentials retrieval: `kubectl get secret postgres-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d`
+      - ✅ **Connection Details**: localhost:5432, Database: discbaboons_db, User: app_user, Password: secure_password_123
+      - ✅ **Troubleshooting Experience**: Learned volume corruption recovery, PVC cleanup, and fresh deployment strategies
+      - **Security Note**: This is for local development only - production requires different patterns
 
   - **Day 3**: Init Containers - Database Readiness Patterns
     - **Learn init containers**: Containers that run before your main app
@@ -238,6 +280,15 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
     - Create database connection health checks
     - **Deployment order**: PostgreSQL → Flyway migrations → Express app
     - **API endpoints**: CRUD operations for users and profiles
+
+  - **Day 6.5**: Database Backup Strategies (Production Essential!)
+    - **Learn backup fundamentals**: Why backups are critical for production databases
+    - **Backup types**: Full backups vs incremental vs differential
+    - **PostgreSQL backup tools**: `pg_dump`, `pg_basebackup`, and continuous archiving
+    - **Kubernetes backup patterns**: CronJobs for automated backups
+    - **Storage considerations**: Where to store backups (separate from primary storage)
+    - **Testing backups**: Regular restore testing to verify backup integrity
+    - **Backup retention policies**: How long to keep backups and cleanup strategies
 
   - **Day 7**: Advanced Migration Patterns & Database Evolution
     - **Iterative schema changes**: Adding tables over time with proper versioning
@@ -287,7 +338,14 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
     - **External Secrets Operator**: Connect to cloud secret stores
     - **Environment-specific secrets**: Different secrets for dev/staging/prod
     - **Secret rotation strategies**: How to update secrets without downtime
-  - **Day 6-7**: Production hardening and monitoring
+  - **Day 6**: **Production Database Access & Security**
+    - **Database Security Best Practices**: Why direct production database access is dangerous
+    - **Secure Access Patterns**: Bastion hosts, jump servers, and database proxies
+    - **Read Replicas**: Create read-only database replicas for analytics and monitoring
+    - **Database Monitoring**: Set up database observability without direct access
+    - **Audit Trails**: Track database access and changes for compliance
+    - **Emergency Access**: Controlled break-glass procedures for critical issues
+  - **Day 7**: Production hardening and monitoring
     - Security contexts and non-root containers
     - Resource limits for production workloads
     - Basic monitoring setup
@@ -326,9 +384,15 @@ kubectl set image deployment/express-deployment express=discbaboons-express:v3
     - Structured logging in Express app
     - Application metrics and health checks
   - **Day 3-4**: Backup and Recovery
-    - Database backup strategies
-    - Persistent volume backup
-    - Disaster recovery planning
+    - **Production Backup Strategies**: Automated database backups with Kubernetes CronJobs
+    - **Backup Storage**: External storage solutions (cloud storage, NFS, S3-compatible)
+    - **Point-in-time Recovery**: PostgreSQL WAL archiving and continuous backup
+    - **Backup Testing**: Automated restore testing and backup validation
+    - **Cross-region Backups**: Disaster recovery with geographically distributed backups
+    - **Backup Monitoring**: Alerting on backup failures and monitoring backup health
+    - **Persistent Volume Snapshots**: Volume-level backups for complete system recovery
+    - **Recovery Procedures**: Step-by-step disaster recovery playbooks
+    - **Backup Retention**: Automated cleanup policies and long-term archival strategies
   - **Day 5-7**: Performance and Scaling
     - Load testing your applications
     - Database connection pooling
@@ -388,6 +452,49 @@ echo "manifests/*-secret.yaml" >> .gitignore
 ```
 
 **⚠️ Security Warning**: Base64 is encoding, NOT encryption. Anyone with access to secret YAML files can decode them easily.
+
+### PostgreSQL Production Deployment
+- **Image Selection**: PostgreSQL 17-alpine for latest features with minimal attack surface
+- **Persistent Storage**: Always use PersistentVolumeClaims for stateful workloads like databases
+- **Volume Mount Best Practices**: Use direct mount (`/var/lib/postgresql/data`) without `subPath` for simplicity
+- **Configuration Strategy**: Split sensitive (Secrets) from non-sensitive (ConfigMaps) configuration
+- **Health Monitoring**: Implement both liveness and readiness probes using `pg_isready`
+  - **Liveness probe**: Detects hung processes, restarts unhealthy containers
+  - **Readiness probe**: Controls traffic routing, removes unready pods from service
+- **Resource Management**: Set appropriate requests/limits based on workload (256Mi-512Mi memory)
+- **Data Persistence Testing**: Always verify data survives pod deletion/recreation
+- **Security**: Never store database passwords in ConfigMaps, always use Secrets
+- **Local Development Access**: Use Services + port-forward for database connectivity
+- **Troubleshooting Database Issues**: 
+  - **Volume corruption**: Delete PVC and recreate for fresh start
+  - **Initialization errors**: Check for leftover files in data directory
+  - **subPath complications**: Avoid unless specifically needed
+  - **Clean deployment**: `kubectl delete deployment && kubectl delete pvc` for complete reset
+
+```yaml
+# Example production-ready PostgreSQL deployment patterns
+# Health checks with proper timing
+livenessProbe:
+  exec:
+    command: ['pg_isready', '-U', 'app_user', '-d', 'discbaboons_db']
+  initialDelaySeconds: 30  # Give database time to initialize
+  periodSeconds: 5
+  
+readinessProbe:
+  exec:
+    command: ['pg_isready', '-U', 'app_user', '-d', 'discbaboons_db']
+  initialDelaySeconds: 5   # Quick readiness check
+  periodSeconds: 5
+
+# Resource limits for stable performance
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+```
 
 ### Database Design & Migrations
 - **DBML Documentation**: Use Database Markup Language for clear schema documentation
