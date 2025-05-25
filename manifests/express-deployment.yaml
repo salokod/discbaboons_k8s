@@ -14,10 +14,14 @@ spec:
       labels:
         app: express
     spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:17-alpine
+        command: ['sh', '-c', 'until pg_isready -h postgres-service -p 5432 -U app_user -d discbaboons_db; do echo "Waiting for PostgreSQL..."; sleep 2; done; echo "PostgreSQL is ready!"']
       containers:
       - name: express
         image: discbaboons-express:v4
-        imagePullPolicy: Never  # Use local image from Kind
+        imagePullPolicy: Never
         ports:
         - containerPort: 3000
         envFrom:

@@ -252,12 +252,34 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
       - ✅ **Troubleshooting Experience**: Learned volume corruption recovery, PVC cleanup, and fresh deployment strategies
       - **Security Note**: This is for local development only - production requires different patterns
 
-  - **Day 3**: Init Containers - Database Readiness Patterns
-    - **Learn init containers**: Containers that run before your main app
-    - Create init container to wait for PostgreSQL to be ready
-    - Use `pg_isready` to check database connectivity
-    - Understand init container vs sidecar container patterns
-    - **Why this matters**: Prevents app crashes when database isn't ready yet
+  - ✅ **Day 3**: Init Containers - Database Readiness Patterns (COMPLETE! ✅)
+    - ✅ **Learn init containers**: Containers that run before your main app
+      - ✅ **Sequential execution**: Init containers must complete before main containers start
+      - ✅ **Dependency management**: Perfect for checking external service readiness
+      - ✅ **Production pattern**: Industry-standard approach for startup ordering
+    - ✅ **Create init container to wait for PostgreSQL to be ready**
+      - ✅ **Implemented in [`express-deployment.yaml`](manifests/express-deployment.yaml )**: Added `wait-for-postgres` init container
+      - ✅ **Standard Kubernetes format**: Used single-line command following official documentation patterns
+      - ✅ **Real-world testing**: Scaled PostgreSQL down/up to demonstrate dependency protection
+    - ✅ **Use `pg_isready` to check database connectivity**
+      - ✅ **Command mastery**: `pg_isready -h postgres-service -p 5432 -U app_user -d discbaboons_db`
+      - ✅ **Live log analysis**: Witnessed "no response" → "accepting connections" → "PostgreSQL is ready!"
+      - ✅ **Production readiness**: Uses same connection details as main application
+    - ✅ **Understand init container vs sidecar container patterns**
+      - ✅ **Init containers**: Run once before main container, exit on completion
+      - ✅ **Sidecar containers**: Run alongside main container throughout pod lifecycle
+      - ✅ **Use cases**: Init for setup/dependencies, sidecars for ongoing support (logging, proxies)
+    - ✅ **Why this matters: Prevents app crashes when database isn't ready yet**
+      - ✅ **Race condition prevention**: Eliminates startup timing issues
+      - ✅ **Zero error logs**: No more "connection refused" spam in application logs
+      - ✅ **Production reliability**: Handles database restarts, maintenance, scaling events gracefully
+    - ✅ **Advanced patterns learned**:
+      - ✅ **Rolling update behavior**: Experienced how Kubernetes handles deployment updates with init containers
+      - ✅ **Debugging skills**: Learned to target specific containers (`-c wait-for-postgres`)
+      - ✅ **Pod status interpretation**: `Init:0/1` → `PodInitializing` → `Running`
+      - ✅ **Multiple init containers**: Understanding sequential execution for complex dependencies
+      - ✅ **Resource management**: Learned about setting limits for init containers
+      - ✅ **Timeout patterns**: Using `until` loops with proper sleep intervals
 
   - **Day 4**: Flyway Database Migrations Setup
     - **Learn Flyway**: Industry-standard database migration tool
@@ -452,6 +474,45 @@ echo "manifests/*-secret.yaml" >> .gitignore
 ```
 
 **⚠️ Security Warning**: Base64 is encoding, NOT encryption. Anyone with access to secret YAML files can decode them easily.
+
+### Init Containers & Dependency Management
+- **Purpose**: Run setup tasks before main application containers start
+- **Sequential Execution**: Each init container must complete successfully before the next starts
+- **Use Cases**: 
+  - Database readiness checking (prevents startup race conditions)
+  - Data preparation and file downloads
+  - Secret fetching from external systems
+  - Database migrations (coming in Day 4!)
+- **Production Benefits**:
+  - Eliminates application startup errors due to dependency unavailability
+  - Provides predictable startup behavior during scaling and updates
+  - Centralizes dependency checking logic outside application code
+
+**Standard Init Container Pattern:**
+```yaml
+initContainers:
+- name: wait-for-postgres
+  image: postgres:17-alpine
+  command: ['sh', '-c', 'until pg_isready -h postgres-service -p 5432 -U app_user -d discbaboons_db; do echo "Waiting for PostgreSQL..."; sleep 2; done; echo "PostgreSQL is ready!"']
+```
+
+**Key Commands:**
+```bash
+# Check init container logs
+kubectl logs pod-name -c init-container-name --follow
+
+# Watch pod status during init
+kubectl get pods -l app=express -w
+
+# Force deployment rollout to pick up init container changes
+kubectl rollout restart deployment/express-deployment
+```
+
+**Debugging Init Containers:**
+- **Pod status `Init:0/1`**: Init container running but not completed
+- **Pod status `PodInitializing`**: Init container completed, main container starting
+- **Rolling updates**: Old pods without init containers may coexist with new ones
+- **Target specific containers**: Use `-c container-name` for logs and debugging
 
 ### PostgreSQL Production Deployment
 - **Image Selection**: PostgreSQL 17-alpine for latest features with minimal attack surface
