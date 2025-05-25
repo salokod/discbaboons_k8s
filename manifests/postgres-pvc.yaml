@@ -1,0 +1,13 @@
+#persistent volume claim, the request for storage, think of it like the rental application (i need two bedrooms, a pool, etc.)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  labels:
+    app: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
