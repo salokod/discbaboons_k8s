@@ -18,6 +18,22 @@ spec:
       - name: wait-for-postgres
         image: postgres:17-alpine
         command: ['sh', '-c', 'until pg_isready -h postgres-service -p 5432 -U app_user -d discbaboons_db; do echo "Waiting for PostgreSQL..."; sleep 2; done; echo "PostgreSQL is ready!"']
+      - name: flyway-migrate
+        image: flyway/flyway:latest
+        command: ["flyway", "migrate"]
+        envFrom:
+        - configMapRef:
+            name: flyway-config
+        env:
+        - name: FLYWAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        volumeMounts:
+        - name: migrations-volume
+          mountPath: /flyway/sql
+          readOnly: true
       containers:
       - name: express
         image: discbaboons-express:v4
@@ -48,3 +64,7 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: migrations-volume
+        configMap:
+          name: flyway-migrations

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flyway-config
+  labels:
+    app: flyway
+data:
+  FLYWAY_URL: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
+  FLYWAY_USER: "app_user"
+  FLYWAY_LOCATIONS: "filesystem:/flyway/sql"
+  FLYWAY_BASELINE_ON_MIGRATE: "true"
