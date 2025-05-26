@@ -1,0 +1,14 @@
+apiVersion: v1
+data:
+  V1__create_users_table.sql: "-- migrations/V1__create_users_table.sql\n-- Description:
+    Create the basic users table for the discbaboons application\n-- Author: Spiro\n--
+    Date: Today\n\nCREATE TABLE users (\n    id SERIAL PRIMARY KEY,\n    username
+    VARCHAR(50) NOT NULL UNIQUE,\n    email VARCHAR(255) NOT NULL UNIQUE,\n    created_at
+    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n--
+    Create an index on email for faster lookups\nCREATE INDEX idx_users_email ON users(email);\n\n--
+    Insert some test data\nINSERT INTO users (username, email) VALUES \n    ('testuser1',
+    'test1@discbaboons.com'),\n    ('testuser2', 'test2@discbaboons.com');"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: flyway-migrations

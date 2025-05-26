@@ -281,20 +281,85 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
       - ✅ **Resource management**: Learned about setting limits for init containers
       - ✅ **Timeout patterns**: Using `until` loops with proper sleep intervals
 
-  - **Day 4**: Flyway Database Migrations Setup
-    - **Learn Flyway**: Industry-standard database migration tool
-    - Create Flyway init container for schema management
-    - Write your first migration files (V1__initial_schema.sql)
-    - Configure Flyway with database connection from Secrets
-    - **Migration pattern**: Init container runs Flyway → Main app starts
+  - ✅ **Day 4**: Flyway Database Migrations Setup (COMPLETE! ✅)
+    - ✅ **Learn Flyway**: Industry-standard database migration tool for version-controlled schema changes
+    - ✅ **Create Flyway init container for schema management**
+      - ✅ **Sequential init container pattern**: `wait-for-postgres` → `flyway-migrate` → `express` application
+      - ✅ **Flyway Docker image**: Used `flyway/flyway:10.8.1` for latest features and stability
+      - ✅ **Migration execution**: Flyway automatically applies pending migrations on container startup
+    - ✅ **Write your first migration files** 
+      - ✅ **Migration naming convention**: `V{version}__{description}.sql` (e.g., `V2__create_users_table.sql`)
+      - ✅ **Created V2__create_users_table.sql**: Users table with id, username, email, password_hash, created_at, updated_at
+      - ✅ **Why V2**: V1 was used for Flyway baseline, V2 contains actual schema changes
+    - ✅ **Configure Flyway with database connection from Secrets**
+      - ✅ **Flyway ConfigMap**: Created `flyway-configmap.yaml` with JDBC URL and connection settings
+      - ✅ **Environment variables**: `FLYWAY_URL`, `FLYWAY_USER`, `FLYWAY_PASSWORD` from existing postgres-secret
+      - ✅ **Connection string format**: `jdbc:postgresql://postgres-service:5432/discbaboons_db`
+    - ✅ **Migration files management with ConfigMaps**
+      - ✅ **ConfigMap automation**: `kubectl create configmap flyway-migrations --from-file=migrations/`
+      - ✅ **Volume mounting**: Migration files mounted at `/flyway/sql` in Flyway container
+      - ✅ **File structure**: All `.sql` files automatically discovered and executed in version order
+    - ✅ **Production-ready migration pattern**: Init container runs Flyway → Main app starts
+      - ✅ **Zero-downtime deployments**: Database schema updated before application starts
+      - ✅ **Migration safety**: Flyway tracks applied migrations in `flyway_schema_history` table
+      - ✅ **Rollback protection**: Prevents accidental re-execution of completed migrations
+    - ✅ **Advanced Flyway concepts learned**:
+      - ✅ **Baseline vs migrations**: Understanding Flyway's versioning system and baseline conflicts
+      - ✅ **Schema history tracking**: Flyway maintains metadata about applied migrations
+      - ✅ **Migration state management**: SUCCESS, FAILED, PENDING migration states
+      - ✅ **Debugging migrations**: Using Flyway logs to troubleshoot version conflicts
+      - ✅ **Production considerations**: Schema changes should be backward-compatible during rolling updates
+    - ✅ **Implementation breadcrumbs & troubleshooting experience**:
+      - ✅ **ConfigMap creation workflow**: `kubectl create configmap flyway-migrations --from-file=migrations/` (automated vs manual YAML)
+      - ✅ **Flyway baseline issue resolution**: Discovered V1 migration conflicts with baseline, solved by using V2__create_users_table.sql
+      - ✅ **Init container debugging**: Learned to check init container logs with `kubectl logs pod-name -c flyway-migrate`
+      - ✅ **File structure learned**: Flyway expects migrations at `/flyway/sql/` mount point with proper volume mapping
+      - ✅ **Environment variable patterns**: Reused existing `postgres-secret` for Flyway database connection
+      - ✅ **Verification workflow**: Confirmed working setup with `flyway_schema_history` table and `users` table creation
+      - ✅ **ConfigMap best practices**: Automation with `--from-file` prevents manual file duplication and sync issues
 
-  - **Day 5**: Database Schema Design & Documentation
-    - **Learn database documentation standards**: Using DBML (Database Markup Language)
-    - **Create schema documentation**: Document table relationships and constraints
-    - **Initial schema design**: Users and user profiles tables
-    - **Migration V1**: Create users table with authentication fields
-    - **Migration V2**: Create user_profiles table with foreign key relationships
-    - **Best practices**: Migration naming, rollback strategies, and change documentation
+  - ✅ **Day 5**: Database Schema Design & Documentation (COMPLETE! ✅)
+    - ✅ **Learn database documentation standards**: Industry-standard DBML (Database Markup Language) for clear schema visualization
+      - ✅ **DBML syntax mastery**: Tables, columns, relationships, and constraints documentation
+      - ✅ **Visual schema design**: DBML generates readable diagrams for stakeholder communication
+      - ✅ **Version control friendly**: Plain text format integrates well with git workflows
+    - ✅ **Create comprehensive schema documentation**: Document table relationships, constraints, and business logic
+      - ✅ **Users table design**: Core authentication fields (id, username, password_hash, timestamps)
+      - ✅ **User profiles separation**: Normalized design separating auth from profile data
+      - ✅ **Foreign key relationships**: Proper referential integrity between users and profiles
+      - ✅ **Index planning**: Strategic indexing for username lookups and profile queries
+    - ✅ **Database design best practices learned**:
+      - ✅ **Normalization principles**: Separating authentication data from profile information
+      - ✅ **Primary key strategies**: Auto-incrementing integers vs UUIDs trade-offs
+      - ✅ **Timestamp patterns**: created_at and updated_at for audit trails
+      - ✅ **Constraint design**: Unique constraints, NOT NULL validation, and data integrity
+      - ✅ **Performance considerations**: Index placement for common query patterns
+    - ✅ **Migration planning and execution**:
+      - ✅ **Migration V3**: Enhanced users table with additional authentication fields
+      - ✅ **Migration V4**: User profiles table with foreign key relationships and cascading rules
+      - ✅ **Migration V5**: Performance indexes for username and email lookups
+      - ✅ **Iterative schema evolution**: Building complex schemas through incremental migrations
+    - ✅ **Production database design patterns**:
+      - ✅ **Schema versioning**: Using migration numbers to track database evolution
+      - ✅ **Rollback planning**: Designing migrations with safe rollback strategies
+      - ✅ **Data migration vs schema migration**: Understanding when to include data changes
+      - ✅ **Backward compatibility**: Ensuring schema changes don't break existing application code
+      - ✅ **Change documentation**: Clear migration descriptions for team collaboration
+    - ✅ **Advanced schema design concepts learned**:
+      - ✅ **Referential integrity**: ON DELETE CASCADE vs RESTRICT patterns for data consistency
+      - ✅ **Email verification patterns**: Boolean flags vs verification token approaches
+      - ✅ **Password security**: Separate password_hash storage with salt considerations
+      - ✅ **User profile extensibility**: JSON columns vs separate tables for flexible user data
+      - ✅ **Audit trail design**: Tracking user actions and data changes over time
+    - ✅ **Implementation breadcrumbs & database design experience**:
+      - ✅ **DBML tooling workflow**: Created schema.dbml and learned visualization tools for database design
+      - ✅ **Migration file organization**: Established patterns for V3, V4, V5 migration numbering and descriptions
+      - ✅ **Schema validation**: Used PostgreSQL's built-in constraints to enforce data integrity rules
+      - ✅ **Performance testing approach**: Learned to plan indexes before table grows large
+      - ✅ **Team collaboration patterns**: DBML as documentation for both developers and stakeholders
+      - ✅ **Migration testing workflow**: Created test data to validate schema changes work correctly
+      - ✅ **Database design iteration**: Experienced the process of refining schema through multiple migration cycles
+      - ✅ **Production readiness**: Schema designed with scalability and maintainability in mind
 
   - **Day 6**: Connect Express to PostgreSQL
     - Add PostgreSQL client library to Express app (`pg` or `pg-pool`)
@@ -556,6 +621,16 @@ resources:
     memory: "512Mi"
     cpu: "500m"
 ```
+
+### Flyway & Database Migrations
+- **Industry Standard Tool**: Flyway provides version-controlled database schema management
+- **Migration File Naming**: `V{version}__{description}.sql` format (e.g., `V2__create_users_table.sql`)
+- **Sequential Init Container Pattern**: `wait-for-postgres` → `flyway-migrate` → `express` application startup
+- **ConfigMap Integration**: Use `kubectl create configmap flyway-migrations --from-file=migrations/` for automated file management
+- **Production Migration Safety**: Flyway tracks applied migrations in `flyway_schema_history` table to prevent re-execution
+- **Connection Configuration**: Reuse existing database secrets, configure JDBC URL format: `jdbc:postgresql://postgres-service:5432/dbname`
+- **Troubleshooting Experience**: V1 conflicts with baseline - use V2+ for actual schema changes
+- **Zero-downtime Deployments**: Database schema updated before application containers start
 
 ### Database Design & Migrations
 - **DBML Documentation**: Use Database Markup Language for clear schema documentation
