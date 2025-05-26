@@ -5,7 +5,7 @@ import {
   describe, test, expect, beforeEach,
 } from '@jest/globals';
 import request from 'supertest';
-import app from '../../server.js';
+import app from '../../../server.js';
 import { prisma } from '../setup.js';
 
 describe('Users API - TDD Learning', () => {
