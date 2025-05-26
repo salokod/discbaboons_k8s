@@ -1,0 +1,64 @@
+name: Test & Verify
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_USER: testuser
+          POSTGRES_DB: discbaboons_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/express-server/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: apps/express-server
+        run: npm ci
+        
+      - name: Generate Prisma client
+        working-directory: apps/express-server
+        run: npm run db:generate
+        
+      - name: Run database migrations
+        working-directory: apps/express-server
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/discbaboons_test
+        run: |
+          # Install Flyway CLI
+          wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
+          sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
+          
+          # Run migrations
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_test -user=testuser -password=testpassword -locations=filesystem:../../migrations migrate
+        
+      - name: Run tests
+        working-directory: apps/express-server
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/discbaboons_test
+          NODE_ENV: test
+        run: npm run verify

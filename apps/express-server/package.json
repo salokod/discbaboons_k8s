@@ -7,15 +7,16 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose",
-    "test:watch": "npm test -- --watch",
-    "test:integration": "npm test -- --testPathPattern=integration",
-    "test:unit": "npm test -- --testPathPattern=unit",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --config=jest.unit.config.js --verbose",
+    "test:integration": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --config=jest.integration.config.js --verbose",
+    "test:watch": "npm run test:unit -- --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "db:generate": "prisma generate",
     "db:pull": "prisma db pull",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "verify": "npm run lint && npm run test:unit && npm run test:integration"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -37,21 +38,5 @@
     "jest": "^29.7.0",
     "jest-environment-node": "^29.7.0",
     "supertest": "^7.0.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "testMatch": [
-      "**/tests/**/*.test.js",
-      "**/__tests__/**/*.test.js"
-    ],
-    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
-    "collectCoverageFrom": [
-      "**/*.js",
-      "!**/node_modules/**",
-      "!**/tests/**",
-      "!coverage/**",
-      "!**/prisma/**"
-    ],
-    "testTimeout": 10000
   }
 }
