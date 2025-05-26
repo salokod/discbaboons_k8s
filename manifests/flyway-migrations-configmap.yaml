@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  V1__create_users_table.sql: "-- migrations/V1__create_users_table.sql\n-- Description:
+  V2__create_users_table.sql: "-- migrations/V1__create_users_table.sql\n-- Description:
     Create the basic users table for the discbaboons application\n-- Author: Spiro\n--
     Date: Today\n\nCREATE TABLE users (\n    id SERIAL PRIMARY KEY,\n    username
     VARCHAR(50) NOT NULL UNIQUE,\n    email VARCHAR(255) NOT NULL UNIQUE,\n    created_at
@@ -8,6 +8,84 @@ data:
     Create an index on email for faster lookups\nCREATE INDEX idx_users_email ON users(email);\n\n--
     Insert some test data\nINSERT INTO users (username, email) VALUES \n    ('testuser1',
     'test1@discbaboons.com'),\n    ('testuser2', 'test2@discbaboons.com');"
+  V3__add_authentication_fields.sql: "-- migrations/V3__add_authentication_fields.sql\n--
+    Description: Add authentication fields to users table\n-- Author: Spiro  \n--
+    Date: 2025-05-25\n-- Purpose: Enhance users table for password-based authentication\n\n--
+    Step 1: Add new authentication columns (nullable initially)\nALTER TABLE users
+    \nADD COLUMN password_hash TEXT,\nADD COLUMN last_password_change TIMESTAMP DEFAULT
+    CURRENT_TIMESTAMP;\n\n-- Step 2: Populate existing test users with development
+    data\nUPDATE users \nSET password_hash = 'dummy_hash_for_development',\n    last_password_change
+    = CURRENT_TIMESTAMP\nWHERE password_hash IS NULL;\n\n-- Step 3: Make password_hash
+    required for future inserts\nALTER TABLE users ALTER COLUMN password_hash SET
+    NOT NULL;\n\n-- Step 4: Add performance index for security queries\nCREATE INDEX
+    idx_users_last_password_change ON users(last_password_change);\n\n-- Step 5: Add
+    a new test user with authentication fields\nINSERT INTO users (username, email,
+    password_hash, last_password_change) \nVALUES ('testbaboon', 'testbaboon@discbaboons.com',
+    'baboonpassword', CURRENT_TIMESTAMP);"
+  V4__create_user_profiles_table.sql: "-- migrations/V4__create_user_profiles_table.sql\n--
+    Description: Create user_profiles table with foreign key relationships\n-- Author:
+    Spiro\n-- Date: 2025-05-25\n-- Purpose: Separate user authentication data from
+    profile data with proper relationships\n\n-- This migration implements the normalization
+    strategy:\n-- users table = authentication & security data only\n-- user_profiles
+    table = user-facing profile information\n-- Relationship: One user has exactly
+    one profile (1:1)\n\n-- Step 1: Create user_profiles table with foreign key relationship\nCREATE
+    TABLE user_profiles (\n    id SERIAL PRIMARY KEY,                                    --
+    Unique profile ID\n    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    \ -- Foreign key with cascade\n    email VARCHAR(255),                                       --
+    Migrated from users table\n    name VARCHAR(100),                                        --
+    User's display name\n    location VARCHAR(100),                                    --
+    User's location\n    bio TEXT,                                                 --
+    User's biography\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,          --
+    Profile creation time\n    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP           --
+    Last profile update\n);\n\n-- Step 2: Ensure one profile per user (1:1 relationship)\nCREATE
+    UNIQUE INDEX idx_user_profiles_user_id ON user_profiles(user_id);\n\n-- Step 3:
+    Migrate existing email data from users to profiles\n-- This creates a profile
+    for every existing user\nINSERT INTO user_profiles (user_id, email, created_at)\nSELECT
+    id, email, created_at FROM users;\n\n\n-- Step 4: Add sample profile data for
+    existing test users\n-- Update profiles with personality data for development
+    and testing\n\n-- Profile for testuser1\nUPDATE user_profiles SET \n    name =
+    'Alice Baboon',\n    location = 'Baboon Forest Research Station',\n    bio = 'Senior
+    researcher studying baboon social dynamics. Loves bananas and complex algorithms.'\nWHERE
+    user_id = (SELECT id FROM users WHERE username = 'testuser1');\n\n-- Profile for
+    testuser2\nUPDATE user_profiles SET \n    name = 'Bob Baboon',\n    location =
+    'Banana Valley Tech Hub',\n    bio = 'Full-stack developer passionate about cloud
+    infrastructure. Dreams in YAML.'\nWHERE user_id = (SELECT id FROM users WHERE
+    username = 'testuser2');\n\n-- Profile for your awesome testbaboon\nUPDATE user_profiles
+    SET \n    name = 'The Alpha Baboon',\n    location = 'Kubernetes Cluster Tree
+    House',\n    bio = 'Master of database migrations and container orchestration.
+    The ultimate test subject.'\nWHERE user_id = (SELECT id FROM users WHERE username
+    = 'testbaboon');\n\n\n-- Step 5: Add performance indexes for common queries\nCREATE
+    INDEX idx_user_profiles_email ON user_profiles(email);\nCREATE INDEX idx_user_profiles_created_at
+    ON user_profiles(created_at);\n\n\n-- Step 6: Verification queries (for manual
+    testing after migration)\n-- Run these manually to verify the migration worked:\n--
+    \n-- 1. Check table structure: \\d user_profiles\n-- 2. Check relationships: SELECT
+    u.username, p.name, p.email FROM users u JOIN user_profiles p ON u.id = p.user_id;\n--
+    3. Check foreign key constraint: INSERT INTO user_profiles (user_id, name) VALUES
+    (999, 'Should Fail');\n-- 4. Check unique constraint: INSERT INTO user_profiles
+    (user_id, name) VALUES (1, 'Should Also Fail');"
+  V5__cleanup_users_table.sql: "-- migrations/V5__cleanup_users_table.sql\n-- Description:
+    Final cleanup - create pure authentication-focused users table\n-- Author: Spiro\n--
+    Date: 2025-05-25\n-- Purpose: Complete schema normalization by removing redundant
+    columns from users table\n\n-- This migration completes the separation of concerns:\n--
+    users table = pure authentication data only\n-- user_profiles table = all user-facing
+    profile information\n\n-- Step 1: Verification before cleanup (comment shows expected
+    result)\n-- Verify all email data is safely migrated to profiles:\n-- SELECT u.username,
+    u.email as users_email, p.email as profile_email \n-- FROM users u LEFT JOIN user_profiles
+    p ON u.id = p.user_id;\n-- Expected: All users should have matching email in both
+    tables\n\n-- Step 2: Remove redundant email column (data now in user_profiles)\nALTER
+    TABLE users DROP COLUMN email;\n\n-- Step 3: Remove updated_at column (authentication
+    data rarely updates)\nALTER TABLE users DROP COLUMN updated_at;\n\n-- Step 4:
+    Verification queries (for manual testing after migration)\n-- Run these manually
+    to verify the cleanup worked:\n-- \n-- 1. Check clean users table structure: \\d
+    users\n--    Expected columns: id, username, password_hash, created_at, last_password_change\n--
+    \n-- 2. Verify profiles contain all user data: SELECT * FROM user_profiles LIMIT
+    3;\n--    Expected: All profiles should have email, name, location, bio data\n--
+    \n-- 3. Test authentication query performance: \n--    SELECT id, username, password_hash
+    FROM users WHERE username = 'testbaboon';\n--    Expected: Fast query with only
+    authentication fields\n-- \n-- 4. Test full user data query with JOIN:\n--    SELECT
+    u.username, u.last_password_change, p.name, p.email, p.bio \n--    FROM users
+    u JOIN user_profiles p ON u.id = p.user_id WHERE u.username = 'testbaboon';\n--
+    \   Expected: Complete user data from both tables"
 kind: ConfigMap
 metadata:
   creationTimestamp: null
