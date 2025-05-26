@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model flyway_schema_history {
+  installed_rank Int      @id(map: "flyway_schema_history_pk")
+  version        String?  @db.VarChar(50)
+  description    String   @db.VarChar(200)
+  type           String   @db.VarChar(20)
+  script         String   @db.VarChar(1000)
+  checksum       Int?
+  installed_by   String   @db.VarChar(100)
+  installed_on   DateTime @default(now()) @db.Timestamp(6)
+  execution_time Int
+  success        Boolean
+
+  @@index([success], map: "flyway_schema_history_s_idx")
+}
+
+model user_profiles {
+  id         Int       @id @default(autoincrement())
+  user_id    Int       @unique(map: "idx_user_profiles_user_id")
+  email      String?   @db.VarChar(255)
+  name       String?   @db.VarChar(100)
+  location   String?   @db.VarChar(100)
+  bio        String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_user_profiles_created_at")
+  @@index([email], map: "idx_user_profiles_email")
+}
+
+model users {
+  id                   Int            @id @default(autoincrement())
+  username             String         @unique @db.VarChar(50)
+  created_at           DateTime?      @default(now()) @db.Timestamp(6)
+  password_hash        String
+  last_password_change DateTime?      @default(now()) @db.Timestamp(6)
+  user_profiles        user_profiles?
+
+  @@index([last_password_change], map: "idx_users_last_password_change")
+}
+
+model week3_success {
+  id           Int       @id @default(autoincrement())
+  milestone    String?
+  completed_at DateTime? @default(now()) @db.Timestamp(6)
+}

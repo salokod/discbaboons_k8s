@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from './server.js';
+import app from '../server.js';
 
 describe('Express Server', () => {
   describe('GET /', () => {
@@ -61,7 +61,7 @@ describe('Express Server', () => {
         .post('/api/info')
         .send('invalid json')
         .set('Content-Type', 'application/json')
-        .expect(500); // Express returns 500 for JSON parsing errors by default
+        .expect(400); // Express returns 500 for JSON parsing errors by default
 
       expect(response.body).toHaveProperty('error');
     });

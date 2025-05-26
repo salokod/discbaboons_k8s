@@ -1,11 +1,29 @@
 import express from 'express';
 import { hostname } from 'os';
+import dotenv from 'dotenv';
+import usersRouter from './routes/users.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(express.json());
+// Middleware with better error handling
+app.use(express.json({
+  strict: false, // Allow non-objects (strings, numbers)
+  limit: '10mb', // Set reasonable limit
+}));
+
+// Add error handler for JSON parsing
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON in request body',
+    });
+  }
+  return next();
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -25,6 +43,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ADD THE USERS ROUTE HERE
+app.use('/api/users', usersRouter);
 
 app.get('/api/info', (req, res) => {
   res.json({
@@ -51,7 +72,6 @@ app.use('*', (req, res) => {
 
 // Error handler
 app.use((err, req, res, _next) => {
-  console.error(err.stack);
   res.status(500).json({
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
