@@ -188,6 +188,17 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
 
 ```
 ├── kind-config.yaml           # Kind cluster configuration
+├── docs/                      # Project documentation
+│   └── database/             # Database schema and migration documentation
+│       ├── schema.dbml       # DBML schema documentation
+│       ├── migration-plan.md # Migration strategy and evolution plan
+│       └── README.md         # Database architecture overview
+├── migrations/               # Flyway database migrations
+│   ├── V1__create_users_table.sql           # Initial users table
+│   ├── V2__add_sample_data.sql              # Test data for development
+│   ├── V3__add_authentication_fields.sql    # Enhanced authentication
+│   ├── V4__create_user_profiles_table.sql   # Normalized profile table
+│   └── V5__cleanup_users_table.sql          # Final schema cleanup
 ├── apps/
 │   └── express-server/        # Express.js application
 │       ├── server.js         # Main application with /api/info endpoint
@@ -203,6 +214,8 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     ├── postgres-secret.yaml  # PostgreSQL credentials (gitignored)
     ├── postgres-deployment.yaml # PostgreSQL with health checks + resources
     ├── postgres-service.yaml # PostgreSQL service for local development access
+    ├── flyway-config.yaml    # Flyway migration configuration
+    ├── flyway-migrations-configmap.yaml # All migration files (V1-V5)
     └── hello-*.yaml          # Learning examples
 ```
 
@@ -282,91 +295,87 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
       - ✅ **Timeout patterns**: Using `until` loops with proper sleep intervals
 
   - ✅ **Day 4**: Flyway Database Migrations Setup (COMPLETE! ✅)
-    - ✅ **Learn Flyway**: Industry-standard database migration tool for version-controlled schema changes
+    - ✅ **Learn Flyway**: Industry-standard database migration tool
+      - ✅ **Migration file naming**: `V{version}__{description}.sql` format (e.g., `V2__create_users_table.sql`)
+      - ✅ **Schema history tracking**: Flyway creates `flyway_schema_history` table to track applied migrations
+      - ✅ **Version-controlled database**: Database schema changes managed like application code
+      - ✅ **Production safety**: Migrations run once and are tracked to prevent re-execution
     - ✅ **Create Flyway init container for schema management**
-      - ✅ **Sequential init container pattern**: `wait-for-postgres` → `flyway-migrate` → `express` application
-      - ✅ **Flyway Docker image**: Used `flyway/flyway:10.8.1` for latest features and stability
-      - ✅ **Migration execution**: Flyway automatically applies pending migrations on container startup
-    - ✅ **Write your first migration files** 
-      - ✅ **Migration naming convention**: `V{version}__{description}.sql` (e.g., `V2__create_users_table.sql`)
-      - ✅ **Created V2__create_users_table.sql**: Users table with id, username, email, password_hash, created_at, updated_at
-      - ✅ **Why V2**: V1 was used for Flyway baseline, V2 contains actual schema changes
+      - ✅ **Sequential init containers**: `wait-for-postgres` → `flyway-migrate` → `express` application startup
+      - ✅ **Flyway configuration**: Created `flyway-config` ConfigMap with JDBC URL and connection settings
+      - ✅ **Environment variable mapping**: `FLYWAY_PASSWORD` from existing `postgres-secret`
+      - ✅ **Init container pattern**: Flyway runs as second init container after database readiness check
+    - ✅ **Write your first migration files (V1__initial_schema.sql)**
+      - ✅ **Created `migrations/V1__create_users_table.sql`**: Complete users table with proper structure
+      - ✅ **Migration content**: Users table with id, username, email, timestamps, and indexes
+      - ✅ **Test data inclusion**: Added sample users for testing database connectivity
+      - ✅ **ConfigMap automation**: Used `kubectl create configmap flyway-migrations --from-file=migrations/` 
     - ✅ **Configure Flyway with database connection from Secrets**
-      - ✅ **Flyway ConfigMap**: Created `flyway-configmap.yaml` with JDBC URL and connection settings
-      - ✅ **Environment variables**: `FLYWAY_URL`, `FLYWAY_USER`, `FLYWAY_PASSWORD` from existing postgres-secret
-      - ✅ **Connection string format**: `jdbc:postgresql://postgres-service:5432/discbaboons_db`
-    - ✅ **Migration files management with ConfigMaps**
-      - ✅ **ConfigMap automation**: `kubectl create configmap flyway-migrations --from-file=migrations/`
-      - ✅ **Volume mounting**: Migration files mounted at `/flyway/sql` in Flyway container
-      - ✅ **File structure**: All `.sql` files automatically discovered and executed in version order
-    - ✅ **Production-ready migration pattern**: Init container runs Flyway → Main app starts
-      - ✅ **Zero-downtime deployments**: Database schema updated before application starts
-      - ✅ **Migration safety**: Flyway tracks applied migrations in `flyway_schema_history` table
-      - ✅ **Rollback protection**: Prevents accidental re-execution of completed migrations
-    - ✅ **Advanced Flyway concepts learned**:
-      - ✅ **Baseline vs migrations**: Understanding Flyway's versioning system and baseline conflicts
-      - ✅ **Schema history tracking**: Flyway maintains metadata about applied migrations
-      - ✅ **Migration state management**: SUCCESS, FAILED, PENDING migration states
-      - ✅ **Debugging migrations**: Using Flyway logs to troubleshoot version conflicts
-      - ✅ **Production considerations**: Schema changes should be backward-compatible during rolling updates
-    - ✅ **Implementation breadcrumbs & troubleshooting experience**:
-      - ✅ **ConfigMap creation workflow**: `kubectl create configmap flyway-migrations --from-file=migrations/` (automated vs manual YAML)
-      - ✅ **Flyway baseline issue resolution**: Discovered V1 migration conflicts with baseline, solved by using V2__create_users_table.sql
-      - ✅ **Init container debugging**: Learned to check init container logs with `kubectl logs pod-name -c flyway-migrate`
-      - ✅ **File structure learned**: Flyway expects migrations at `/flyway/sql/` mount point with proper volume mapping
-      - ✅ **Environment variable patterns**: Reused existing `postgres-secret` for Flyway database connection
-      - ✅ **Verification workflow**: Confirmed working setup with `flyway_schema_history` table and `users` table creation
-      - ✅ **ConfigMap best practices**: Automation with `--from-file` prevents manual file duplication and sync issues
+      - ✅ **JDBC URL configuration**: `jdbc:postgresql://postgres-service:5432/discbaboons_db`
+      - ✅ **Credential reuse**: Same database user and password as PostgreSQL deployment
+      - ✅ **ConfigMap integration**: `flyway-config` for connection settings, volume mount for migration files
+      - ✅ **Environment variables**: `FLYWAY_URL`, `FLYWAY_USER`, `FLYWAY_LOCATIONS`, `FLYWAY_BASELINE_ON_MIGRATE`
+    - ✅ **Migration pattern: Init container runs Flyway → Main app starts**
+      - ✅ **Zero-downtime potential**: Database schema guaranteed current before application startup
+      - ✅ **Production reliability**: Handles database restarts and ensures schema consistency
+      - ✅ **Dependency ordering**: PostgreSQL ready → migrations applied → application starts with current schema
+      - ✅ **Rolling update compatibility**: Works seamlessly with Kubernetes deployment updates
+    - ✅ **Advanced Flyway troubleshooting and concepts**:
+      - ✅ **Baseline conflict resolution**: Learned about `FLYWAY_BASELINE_ON_MIGRATE` and version conflicts
+      - ✅ **Migration versioning strategy**: V1 baseline vs V2+ actual migrations when database exists
+      - ✅ **ConfigMap file management**: Automated ConfigMap creation vs manual duplication
+      - ✅ **Init container debugging**: Reading Flyway logs, understanding schema history table
+      - ✅ **Production patterns**: Industry-standard migration practices and deployment safety
+      - ✅ **Volume mounting verification**: Ensuring migration files are properly accessible in containers
+      - ✅ **Schema validation**: Verifying successful migration execution and database table creation
 
   - ✅ **Day 5**: Database Schema Design & Documentation (COMPLETE! ✅)
-    - ✅ **Learn database documentation standards**: Industry-standard DBML (Database Markup Language) for clear schema visualization
-      - ✅ **DBML syntax mastery**: Tables, columns, relationships, and constraints documentation
-      - ✅ **Visual schema design**: DBML generates readable diagrams for stakeholder communication
-      - ✅ **Version control friendly**: Plain text format integrates well with git workflows
-    - ✅ **Create comprehensive schema documentation**: Document table relationships, constraints, and business logic
-      - ✅ **Users table design**: Core authentication fields (id, username, password_hash, timestamps)
-      - ✅ **User profiles separation**: Normalized design separating auth from profile data
-      - ✅ **Foreign key relationships**: Proper referential integrity between users and profiles
-      - ✅ **Index planning**: Strategic indexing for username lookups and profile queries
-    - ✅ **Database design best practices learned**:
-      - ✅ **Normalization principles**: Separating authentication data from profile information
-      - ✅ **Primary key strategies**: Auto-incrementing integers vs UUIDs trade-offs
-      - ✅ **Timestamp patterns**: created_at and updated_at for audit trails
-      - ✅ **Constraint design**: Unique constraints, NOT NULL validation, and data integrity
-      - ✅ **Performance considerations**: Index placement for common query patterns
-    - ✅ **Migration planning and execution**:
-      - ✅ **Migration V3**: Enhanced users table with additional authentication fields
-      - ✅ **Migration V4**: User profiles table with foreign key relationships and cascading rules
-      - ✅ **Migration V5**: Performance indexes for username and email lookups
-      - ✅ **Iterative schema evolution**: Building complex schemas through incremental migrations
-    - ✅ **Production database design patterns**:
-      - ✅ **Schema versioning**: Using migration numbers to track database evolution
-      - ✅ **Rollback planning**: Designing migrations with safe rollback strategies
-      - ✅ **Data migration vs schema migration**: Understanding when to include data changes
-      - ✅ **Backward compatibility**: Ensuring schema changes don't break existing application code
-      - ✅ **Change documentation**: Clear migration descriptions for team collaboration
-    - ✅ **Advanced schema design concepts learned**:
-      - ✅ **Referential integrity**: ON DELETE CASCADE vs RESTRICT patterns for data consistency
-      - ✅ **Email verification patterns**: Boolean flags vs verification token approaches
-      - ✅ **Password security**: Separate password_hash storage with salt considerations
-      - ✅ **User profile extensibility**: JSON columns vs separate tables for flexible user data
-      - ✅ **Audit trail design**: Tracking user actions and data changes over time
-    - ✅ **Implementation breadcrumbs & database design experience**:
-      - ✅ **DBML tooling workflow**: Created schema.dbml and learned visualization tools for database design
-      - ✅ **Migration file organization**: Established patterns for V3, V4, V5 migration numbering and descriptions
-      - ✅ **Schema validation**: Used PostgreSQL's built-in constraints to enforce data integrity rules
-      - ✅ **Performance testing approach**: Learned to plan indexes before table grows large
-      - ✅ **Team collaboration patterns**: DBML as documentation for both developers and stakeholders
-      - ✅ **Migration testing workflow**: Created test data to validate schema changes work correctly
-      - ✅ **Database design iteration**: Experienced the process of refining schema through multiple migration cycles
-      - ✅ **Production readiness**: Schema designed with scalability and maintainability in mind
+    - ✅ **Learn database documentation standards**: Using DBML (Database Markup Language)
+      - ✅ **DBML Mastery**: Complete Database Markup Language syntax for professional schema documentation
+      - ✅ **Table Definitions**: Primary keys, foreign keys, unique constraints, and data types
+      - ✅ **Relationship Modeling**: One-to-one and one-to-many relationships with proper referential integrity
+      - ✅ **Documentation Structure**: Created `docs/database/` directory with schema.dbml, migration-plan.md, and README.md
+    - ✅ **Database Design Principles**: Normalized architecture separating concerns
+      - ✅ **Authentication vs Profile Separation**: Pure authentication table (users) separate from profile data (user_profiles)
+      - ✅ **Foreign Key Relationships**: Proper 1:1 relationship between users and user_profiles with CASCADE behavior
+      - ✅ **Constraint Strategy**: Unique indexes, NOT NULL constraints, and referential integrity enforcement
+      - ✅ **Normalization Benefits**: Reduced data redundancy, improved data integrity, flexible schema evolution
+    - ✅ **Advanced Migration Evolution (V3→V4→V5)**:
+      - ✅ **V3 Migration**: Enhanced users table with authentication fields using nullable→populate→constrain pattern
+        - Added `password_hash TEXT NOT NULL` and `last_password_change TIMESTAMP` 
+        - Production-safe migration strategy avoiding downtime
+      - ✅ **V4 Migration**: Created normalized user_profiles table with comprehensive data migration
+        - Foreign key relationship: `user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE`
+        - Cross-table data migration using `INSERT INTO user_profiles (user_id, email) SELECT id, email FROM users`
+        - Baboon personality test data: Alice (Analytical), Bob (Expressive), Alpha Baboon (Driver leadership style)
+        - Unique constraint ensuring 1:1 relationship between users and profiles
+      - ✅ **V5 Migration**: Final cleanup removing redundant columns for pure authentication focus
+        - Dropped `email` and `updated_at` columns from users table (moved to profiles)
+        - Clean separation: users for authentication, user_profiles for all profile information
+    - ✅ **Advanced SQL Patterns & Production Techniques**:
+      - ✅ **Foreign Key Constraints**: `ON DELETE CASCADE` for data consistency and automatic cleanup
+      - ✅ **Unique Indexes**: Enforcing 1:1 relationships at database level
+      - ✅ **Cross-Table Data Migration**: Safe data movement using `INSERT...SELECT` patterns
+      - ✅ **Conditional Updates**: Using subqueries for targeted data modifications
+      - ✅ **Transaction Safety**: All migrations wrapped in implicit transactions for rollback safety
+    - ✅ **Production Migration Deployment**:
+      - ✅ **ConfigMap Generation**: Created comprehensive `flyway-migrations-configmap.yaml` with all 5 migrations (V1-V5)
+      - ✅ **Deployment Verification**: Successfully applied all migrations through Kubernetes Flyway init container
+      - ✅ **Schema Validation**: Confirmed perfect normalized database architecture in production
+      - ✅ **Flyway History Tracking**: All migrations tracked in `flyway_schema_history` table
+    - ✅ **Database Architecture Achievement**: Production-ready two-table authentication system
+      - ✅ **Pure Authentication Table**: `users` table focused solely on authentication with username, password_hash, timestamps
+      - ✅ **Complete Profile Table**: `user_profiles` table with foreign key, email, name, location, bio, personality data
+      - ✅ **Referential Integrity**: Foreign key constraints ensuring data consistency
+      - ✅ **Enterprise Migration Patterns**: Industry-standard versioned migration approach with proper documentation
 
-  - **Day 6**: Connect Express to PostgreSQL
+  - ⏳ **Day 6**: Connect Express to PostgreSQL
     - Add PostgreSQL client library to Express app (`pg` or `pg-pool`)
     - Update Express app with database connection using environment variables
     - Create database connection health checks
     - **Deployment order**: PostgreSQL → Flyway migrations → Express app
-    - **API endpoints**: CRUD operations for users and profiles
+    - **API endpoints**: CRUD operations for users and profiles using normalized schema
+    - **Database Integration**: Connect to production-ready two-table authentication system
 
   - **Day 6.5**: Database Backup Strategies (Production Essential!)
     - **Learn backup fundamentals**: Why backups are critical for production databases
@@ -489,12 +498,15 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
 ## Graduation Project: Full-Stack Application
 **Week 8**: Build a complete application demonstrating all learned concepts:
 - Express.js API with authentication (JWT from Secrets)
-- PostgreSQL database with migrations
+- PostgreSQL database with normalized schema and foreign key relationships
+- Database migrations using Flyway with proper versioning (V1-V5+)
+- DBML schema documentation and migration planning
 - Redis caching layer
 - Multi-environment deployment (dev/prod namespaces)
 - Ingress with TLS termination
 - Comprehensive monitoring and logging
 - Automated testing and deployment pipeline
+- Production-ready database backup and recovery strategies
 
 ## Key Learnings
 
@@ -622,15 +634,60 @@ resources:
     cpu: "500m"
 ```
 
-### Flyway & Database Migrations
-- **Industry Standard Tool**: Flyway provides version-controlled database schema management
-- **Migration File Naming**: `V{version}__{description}.sql` format (e.g., `V2__create_users_table.sql`)
-- **Sequential Init Container Pattern**: `wait-for-postgres` → `flyway-migrate` → `express` application startup
-- **ConfigMap Integration**: Use `kubectl create configmap flyway-migrations --from-file=migrations/` for automated file management
-- **Production Migration Safety**: Flyway tracks applied migrations in `flyway_schema_history` table to prevent re-execution
-- **Connection Configuration**: Reuse existing database secrets, configure JDBC URL format: `jdbc:postgresql://postgres-service:5432/dbname`
-- **Troubleshooting Experience**: V1 conflicts with baseline - use V2+ for actual schema changes
-- **Zero-downtime Deployments**: Database schema updated before application containers start
+### Database Schema Design & Foreign Key Relationships
+- **DBML Documentation Standards**: Professional schema documentation using Database Markup Language
+  - **Complete Table Definitions**: Primary keys, foreign keys, unique constraints, and comprehensive data types
+  - **Relationship Modeling**: Proper one-to-one and one-to-many relationships with referential integrity
+  - **Professional Structure**: Organized `docs/database/` with schema.dbml, migration-plan.md, and README.md
+- **Database Normalization Strategy**: Separation of authentication and profile concerns
+  - **Pure Authentication Table**: `users` table focused solely on login credentials and security
+  - **Profile Data Table**: `user_profiles` table with foreign key relationships for all profile information
+  - **Foreign Key Benefits**: Data consistency, automatic cleanup with CASCADE, enforced relationships
+- **Advanced Migration Patterns (V3→V4→V5 Evolution)**:
+  - **Nullable→Populate→Constrain Pattern**: Safe production migrations avoiding downtime
+  - **Cross-Table Data Migration**: Using `INSERT...SELECT` for data movement between tables
+  - **Schema Cleanup**: Removing redundant columns while maintaining data integrity
+  - **1:1 Relationship Enforcement**: Unique constraints ensuring one profile per user
+- **Production SQL Techniques**:
+  - **Foreign Key Constraints**: `REFERENCES users(id) ON DELETE CASCADE` for automatic cleanup
+  - **Unique Indexes**: Database-level relationship enforcement
+  - **Conditional Updates**: Subquery-based targeted data modifications
+  - **Transaction Safety**: All migrations atomically executed with rollback capability
+- **Enterprise Database Architecture**: Two-table normalized authentication system
+  - **Separation of Concerns**: Authentication data separate from profile/business data
+  - **Referential Integrity**: Foreign keys ensuring data consistency across tables
+  - **Scalable Design**: Schema evolution supporting future feature additions
+  - **Production Ready**: Industry-standard patterns with proper constraints and relationships
+
+**DBML Schema Documentation Example:**
+```dbml
+Table users {
+    id INT [pk, increment]
+    username VARCHAR(50) [unique, not null]
+    password_hash TEXT [not null]
+    created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+    last_password_change TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Table user_profiles {
+    id INT [pk, increment]
+    user_id INT [unique, not null, ref: > users.id]
+    email VARCHAR(255) [unique, not null]
+    name VARCHAR(100)
+    location VARCHAR(100)
+    bio TEXT
+    personality_type VARCHAR(50)
+    created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+    updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Ref: user_profiles.user_id > users.id [delete: cascade]
+```
+
+**Migration Evolution Strategy:**
+- **V3**: Add authentication fields to existing users table (password_hash, last_password_change)
+- **V4**: Create user_profiles table with foreign key, migrate email data, add personality test data
+- **V5**: Remove redundant columns from users table for clean separation of concerns
 
 ### Database Design & Migrations
 - **DBML Documentation**: Use Database Markup Language for clear schema documentation

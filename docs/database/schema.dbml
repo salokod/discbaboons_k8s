@@ -1,0 +1,50 @@
+// DiscBaboons Authentication System Schema
+// Project: Kubernetes Learning Journey
+// Author: Spiro
+// Date: 2025-05-25
+// Purpose: Authentication system with separate user profiles
+
+Project discbaboons_auth {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Authentication system for DiscBaboons application
+    Deployed on Kubernetes with Flyway migrations
+  '''
+}
+
+Table users {
+    id int [pk, increment] // Unique identifier for the user
+    username varchar(50) [unique, not null] // Username, must be unique
+    password_hash text [not null] // Hashed password (never store plain text!)
+    created_at timestamp [default: `CURRENT_TIMESTAMP`] // When the user was created
+    last_password_change timestamp [default: `CURRENT_TIMESTAMP`] // Last time the password was changed
+    
+    // Indexes for performance
+    indexes {
+        username [unique]
+        created_at
+    }
+    
+    Note: 'Core authentication table - contains login credentials only'
+}
+
+Table user_profiles {
+    id int [pk, increment] // Unique identifier for the profile
+    user_id int [not null, ref: > users.id] // Foreign key to the users table
+    name varchar(100) // Full name of the user
+    location varchar(100) // Location of the user
+    bio text // Optional bio or description
+    created_at timestamp [default: `CURRENT_TIMESTAMP`] // When the profile was created
+    updated_at timestamp [default: `CURRENT_TIMESTAMP`] // When the profile was last updated
+    
+    // Indexes for performance
+    indexes {
+        user_id [unique] // One profile per user
+        created_at
+    }
+    
+    Note: 'User-facing profile information - can be updated frequently'
+}
+
+// Define the relationship explicitly with cascade delete
+Ref: user_profiles.user_id > users.id [delete: cascade]
