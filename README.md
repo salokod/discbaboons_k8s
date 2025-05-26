@@ -369,13 +369,43 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
       - ✅ **Referential Integrity**: Foreign key constraints ensuring data consistency
       - ✅ **Enterprise Migration Patterns**: Industry-standard versioned migration approach with proper documentation
 
-  - ⏳ **Day 6**: Connect Express to PostgreSQL
-    - Add PostgreSQL client library to Express app (`pg` or `pg-pool`)
-    - Update Express app with database connection using environment variables
-    - Create database connection health checks
-    - **Deployment order**: PostgreSQL → Flyway migrations → Express app
-    - **API endpoints**: CRUD operations for users and profiles using normalized schema
-    - **Database Integration**: Connect to production-ready two-table authentication system
+  - ✅ **Day 6**: Express.js + PostgreSQL Integration with Prisma ORM (COMPLETE! ✅)
+    - ✅ **Prisma ORM Setup**: Type-safe database access with schema introspection
+      - ✅ **Database Introspection**: Generated Prisma schema from existing V5 database structure
+      - ✅ **Type Safety**: Auto-generated TypeScript types from database schema
+      - ✅ **Client Generation**: Created optimized Prisma client with foreign key relationships
+      - ✅ **Environment Configuration**: Database connection via environment variables with graceful shutdown
+    - ✅ **Test-Driven Development (TDD)**: Red-Green-Blue cycle implementation
+      - ✅ **Jest Configuration**: ES6 module support with comprehensive test setup
+      - ✅ **API Integration Testing**: Supertest for HTTP endpoint validation
+      - ✅ **TDD Workflow**: Write failing tests → implement features → refactor code
+      - ✅ **Test Coverage**: Complete test suite for all API endpoints
+    - ✅ **Production API Endpoints**: Type-safe database queries with security patterns
+      - ✅ **GET /api/users**: List all users with joined user_profiles using Prisma `include`
+      - ✅ **GET /api/users/:username**: Get specific user with profile data
+      - ✅ **Security Implementation**: Excluded password_hash from API responses
+      - ✅ **Error Handling**: Comprehensive JSON error responses with proper HTTP status codes
+      - ✅ **Foreign Key Navigation**: Utilized Prisma's relationship queries for normalized data access
+    - ✅ **Database Integration**: Connected to production-ready two-table authentication system
+      - ✅ **Prisma Schema**: Auto-generated models for users and user_profiles with proper relationships
+      - ✅ **Connection Management**: Environment-aware database connections with connection pooling
+      - ✅ **Query Optimization**: Type-safe queries leveraging database indexes and foreign keys
+      - ✅ **Data Validation**: Prisma's built-in validation and type checking
+    - ✅ **Production Patterns**: Industry-standard ORM integration with security best practices
+      - ✅ **Environment Variables**: Database credentials from Kubernetes secrets
+      - ✅ **Graceful Shutdown**: Proper Prisma client disconnection in server shutdown
+      - ✅ **Logging Integration**: Database operation logging for production debugging
+      - ✅ **Performance Monitoring**: Query introspection capabilities for optimization
+    - ✅ **Critical Production Lesson**: **Flyway + Prisma Synchronization Workflow**
+      - ✅ **The Challenge**: Maintaining consistency between Flyway migrations (V1-V5) and Prisma schema
+      - ✅ **The Workflow**: Database migrations → Schema introspection → Client generation
+      - ✅ **Production Pipeline**: 
+        1. Flyway applies versioned migrations to database (V1-V5)
+        2. Prisma introspects updated database schema
+        3. Prisma generates type-safe client from current database state
+        4. Application uses generated client with guaranteed schema consistency
+      - ✅ **Why This Matters**: Prevents schema drift between migration files and ORM models
+      - ✅ **CI/CD Integration**: Automated pipeline ensures Prisma client matches migrated database
 
   - **Day 6.5**: Database Backup Strategies (Production Essential!)
     - **Learn backup fundamentals**: Why backups are critical for production databases
@@ -441,6 +471,17 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     - **Database Monitoring**: Set up database observability without direct access
     - **Audit Trails**: Track database access and changes for compliance
     - **Emergency Access**: Controlled break-glass procedures for critical issues
+    - **🚨 CRITICAL: Flyway + Prisma Synchronization in Production Pipelines**
+      - **The Production Challenge**: Keeping database migrations (Flyway) in sync with ORM schema (Prisma)
+      - **Schema Drift Prevention**: Ensuring migration files and generated Prisma client are always consistent
+      - **CI/CD Pipeline Integration**: Automated workflow to maintain synchronization
+        1. **Flyway Migration**: Apply versioned migrations to database (V1-V5+)
+        2. **Prisma Introspection**: Generate schema from migrated database state
+        3. **Client Generation**: Create type-safe Prisma client matching current schema
+        4. **Deployment**: Use generated client guaranteed to match database structure
+      - **Why This Matters**: Prevents runtime errors from schema mismatches in production
+      - **Pipeline Safety**: Automated verification that Prisma schema matches migrated database
+      - **Team Coordination**: Clear workflow for developers adding new migrations and ORM changes
   - **Day 7**: Production hardening and monitoring
     - Security contexts and non-root containers
     - Resource limits for production workloads
@@ -698,6 +739,41 @@ Ref: user_profiles.user_id > users.id [delete: cascade]
   - Always test rollback procedures
   - Document the purpose and impact of each migration
   - Use descriptive migration names (V1__create_users_table.sql)
+
+### 🚨 Critical Production Pattern: Flyway + Prisma Synchronization
+**The Challenge**: In production, you need database migrations (Flyway) and ORM schema (Prisma) to stay perfectly synchronized.
+
+**The Solution**: Automated pipeline workflow that prevents schema drift:
+```bash
+# Production deployment pipeline
+1. Apply Flyway migrations → Database schema updated
+2. Run Prisma introspection → Schema file generated from database
+3. Generate Prisma client → Type-safe client matches database
+4. Deploy application → Guaranteed schema consistency
+```
+
+**Why This Matters**:
+- **Runtime Safety**: Prevents "table doesn't exist" errors in production
+- **Type Safety**: Generated Prisma client exactly matches migrated database
+- **Team Coordination**: Clear workflow for adding new migrations and ORM changes
+- **Schema Drift Prevention**: Database and ORM models never get out of sync
+
+**CI/CD Integration**:
+```yaml
+# Example pipeline step
+- name: Sync Database Schema
+  run: |
+    flyway migrate                    # Apply pending migrations
+    npx prisma db pull               # Update schema from database
+    npx prisma generate              # Generate client from schema
+    npm test                         # Verify everything works
+```
+
+**Production Benefits**:
+- Zero schema drift between teams
+- Automated verification of database-ORM consistency
+- Safe migrations with type-safe application code
+- Clear audit trail of schema changes
 
 ### Database Schema Standards
 **Initial Schema Design:**
