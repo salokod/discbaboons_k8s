@@ -43,8 +43,6 @@ spec:
         envFrom:
         - configMapRef:
             name: express-config
-        - secretRef:
-            name: express-secret
         env:
         - name: DATABASE_URL
           valueFrom:

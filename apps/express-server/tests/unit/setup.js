@@ -1,26 +1,40 @@
-// Unit test setup - no database, mocks only
 import { jest } from '@jest/globals';
 
-// Mock Prisma globally for unit tests
-jest.unstable_mockModule('@prisma/client', () => ({
-  PrismaClient: jest.fn(() => ({
-    users: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-    user_profiles: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-    $connect: jest.fn(),
-    $disconnect: jest.fn(),
-  })),
+// Clean, stable mocking approach
+const mockPrisma = {
+  users: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  user_profiles: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  $connect: jest.fn(),
+  $disconnect: jest.fn(),
+  $queryRaw: jest.fn(),
+};
+
+// Mock the entire @prisma/client module first
+jest.doMock('@prisma/client', () => ({
+  PrismaClient: jest.fn(() => mockPrisma),
 }));
 
-console.log('🔧 Unit test setup complete - Prisma mocked');
+// Mock the lib/prisma.js module - use relative path from test files
+jest.doMock('../../lib/prisma.js', () => ({
+  default: mockPrisma,
+}));
+
+console.log('🔧 Unit test setup complete - Clean Prisma mocks');
+
+// Export for use in tests
+// eslint-disable-next-line import/prefer-default-export
+export { mockPrisma };
