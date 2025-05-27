@@ -15,7 +15,7 @@
     "db:generate": "prisma generate",
     "db:pull": "prisma db pull",
     "db:studio": "prisma studio",
-    "verify": "npm run lint && npm run test:unit && npm run test:integration"
+    "verify": "npm run lint && npm run test && npm run test:integration"
   },
   "engines": {
     "node": ">=22.0.0"
