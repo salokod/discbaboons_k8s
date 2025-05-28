@@ -3,8 +3,29 @@
 
 set -e  # Exit on any error
 
+# Check if environment parameter is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <environment>"
+    echo "Available environments: dev, prod"
+    echo ""
+    echo "Examples:"
+    echo "  $0 dev    # Deploy development environment"
+    echo "  $0 prod   # Deploy production environment"
+    exit 1
+fi
+
+ENVIRONMENT=$1
+
+# Validate environment
+if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
+    echo "❌ Error: Environment must be 'dev' or 'prod'"
+    echo "You provided: $ENVIRONMENT"
+    exit 1
+fi
+
 echo "🔄 DiscBaboons K8s Application Rebuild Script"
 echo "============================================="
+echo "Environment: $ENVIRONMENT"
 echo "Keeping cluster alive, rebuilding applications..."
 
 # Colors for output
@@ -18,6 +39,7 @@ NC='\033[0m' # No Color
 EXPRESS_IMAGE="discbaboons-express:v6"
 EXPRESS_DIR="apps/express-server"
 CLUSTER_NAME="discbaboons-learning"
+MANIFEST_ENV_DIR="manifests/${ENVIRONMENT}"
 
 echo -e "${RED}🗑️  TEARDOWN PHASE${NC}"
 echo "==================="
@@ -37,6 +59,7 @@ echo -e "${YELLOW}Step 3: Deleting PostgreSQL...${NC}"
 kubectl delete deployment postgres-deployment --ignore-not-found=true
 kubectl delete service postgres-service --ignore-not-found=true
 kubectl delete configmap postgres-config --ignore-not-found=true
+# Note: postgres-secret is environment-specific now
 kubectl delete secret postgres-secret --ignore-not-found=true
 kubectl delete pvc postgres-pvc --ignore-not-found=true
 echo "✅ PostgreSQL removed"
@@ -73,15 +96,15 @@ echo -e "${GREEN}🚀 DEPLOYMENT PHASE${NC}"
 echo "==================="
 
 echo -e "${YELLOW}Step 8: Deploying PostgreSQL layer...${NC}"
-echo "  8a. Creating PVC..."
+echo "  8a. Creating PVC (shared resource)..."
 kubectl apply -f manifests/postgres-pvc.yaml
-echo "  8b. Creating ConfigMap..."
+echo "  8b. Creating ConfigMap (shared resource)..."
 kubectl apply -f manifests/postgres-configmap.yaml
-echo "  8c. Creating Secret..."
-kubectl apply -f manifests/postgres-secret.yaml
-echo "  8d. Creating Deployment..."
+echo "  8c. Creating Secret (environment-specific)..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-secret.yaml
+echo "  8d. Creating Deployment (shared resource)..."
 kubectl apply -f manifests/postgres-deployment.yaml
-echo "  8e. Creating Service..."
+echo "  8e. Creating Service (shared resource)..."
 kubectl apply -f manifests/postgres-service.yaml
 
 echo "  8f. Waiting for PostgreSQL to be ready..."
@@ -96,12 +119,12 @@ kubectl apply -f manifests/flyway-migrations-configmap.yaml
 echo "✅ Flyway configurations deployed"
 
 echo -e "${YELLOW}Step 10: Deploying Express application layer...${NC}"
-echo "  10a. Creating Express ConfigMap..."
-kubectl apply -f manifests/express-configmap.yaml
-echo "  10c. Creating Express Deployment (with init containers)..."
-kubectl apply -f manifests/express-deployment.yaml
-echo "  10d. Creating Express Service..."
-kubectl apply -f manifests/express-service.yaml
+echo "  10a. Creating Express ConfigMap (environment-specific)..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/express-configmap.yaml
+echo "  10b. Creating Express Deployment (environment-specific)..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/express-deployment.yaml
+echo "  10c. Creating Express Service (environment-specific)..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/express-service.yaml
 
 echo "  10e. Waiting for Express application to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/express-deployment
@@ -137,6 +160,7 @@ kubectl exec ${EXPRESS_POD} -- wget -qO- http://localhost:3000/health || echo "H
 echo ""
 echo -e "${GREEN}🎉 APPLICATION REBUILD COMPLETE!${NC}"
 echo "=================================="
+echo "Environment: $ENVIRONMENT"
 echo ""
 echo -e "${BLUE}🔧 Next steps:${NC}"
 echo "1. Start port forwarding:"
