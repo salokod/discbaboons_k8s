@@ -11,6 +11,44 @@ Learning Kubernetes fundamentals with Kind, building up to a full-stack applicat
 
 ## Daily Development Workflow
 
+### Multi-Environment Quick Start (Recommended)
+
+#### Development Environment (Fast Iteration)
+```bash
+# Quick development environment deployment
+./rebuild-dev.sh
+
+# Verify development configuration
+kubectl exec deployment/express-deployment -- env | grep -E '(NODE_ENV|LOG_LEVEL)'
+# Expected: NODE_ENV=development, LOG_LEVEL=debug
+
+# Check replica count (should be 1 for dev)
+kubectl get pods -l app=express
+```
+
+#### Production Environment (Testing Production Config)
+```bash
+# Deploy production environment (with safety confirmation)
+./rebuild-prod.sh
+
+# Verify production configuration
+kubectl exec deployment/express-deployment -- env | grep -E '(NODE_ENV|LOG_LEVEL)'
+# Expected: NODE_ENV=production, LOG_LEVEL=info
+
+# Check replica count (should be 3 for prod)
+kubectl get pods -l app=express
+```
+
+#### Environment-Specific Deployment
+```bash
+# Deploy specific environment using main script
+./rebuild-apps.sh dev     # Development environment
+./rebuild-apps.sh prod    # Production environment
+./rebuild-apps.sh staging # Error: Invalid environment (shows usage)
+```
+
+### Legacy Workflows (Manual Deployment)
+
 ### Option 1: Quick Resume (Cluster Already Running)
 ```bash
 # Check if cluster is running
@@ -188,35 +226,48 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
 
 ```
 ├── kind-config.yaml           # Kind cluster configuration
+├── rebuild-apps.sh           # Main environment-aware rebuild script
+├── rebuild-dev.sh           # Quick development environment script
+├── rebuild-prod.sh          # Production environment script with safety checks
 ├── docs/                      # Project documentation
+│   ├── multi-environment-setup.md  # Multi-environment configuration guide
 │   └── database/             # Database schema and migration documentation
 │       ├── schema.dbml       # DBML schema documentation
 │       ├── migration-plan.md # Migration strategy and evolution plan
 │       └── README.md         # Database architecture overview
 ├── migrations/               # Flyway database migrations
-│   ├── V1__create_users_table.sql           # Initial users table
-│   ├── V2__add_sample_data.sql              # Test data for development
+│   ├── V2__create_users_table.sql           # Initial users table
 │   ├── V3__add_authentication_fields.sql    # Enhanced authentication
 │   ├── V4__create_user_profiles_table.sql   # Normalized profile table
 │   └── V5__cleanup_users_table.sql          # Final schema cleanup
 ├── apps/
 │   └── express-server/        # Express.js application
-│       ├── server.js         # Main application with /api/info endpoint
+│       ├── server.js         # Main application with /api/info and /api/users endpoints
 │       ├── server.test.js    # Jest tests
 │       ├── package.json      # Node.js dependencies
-│       └── Dockerfile        # Container definition
+│       ├── Dockerfile        # Container definition
+│       ├── prisma/           # Prisma ORM configuration
+│       │   └── schema.prisma # Database schema and client generation
+│       └── routes/           # API route handlers
+│           └── users.js      # User API endpoints with database integration
 └── manifests/                # Kubernetes YAML files
-    ├── express-configmap.yaml # Application configuration
-    ├── express-deployment.yaml # Express deployment (ConfigMap + Secret)
-    ├── express-service.yaml
-    ├── postgres-pvc.yaml     # PostgreSQL persistent volume claim
-    ├── postgres-configmap.yaml # PostgreSQL configuration (non-sensitive)
-    ├── postgres-secret.yaml  # PostgreSQL credentials (gitignored)
-    ├── postgres-deployment.yaml # PostgreSQL with health checks + resources
-    ├── postgres-service.yaml # PostgreSQL service for local development access
-    ├── flyway-config.yaml    # Flyway migration configuration
-    ├── flyway-migrations-configmap.yaml # All migration files (V1-V5)
-    └── hello-*.yaml          # Learning examples
+    ├── [shared infrastructure]      # Environment-neutral resources
+    │   ├── postgres-configmap.yaml  # PostgreSQL configuration (shared)
+    │   ├── postgres-deployment.yaml # PostgreSQL deployment (shared)
+    │   ├── postgres-pvc.yaml       # Persistent storage (shared)
+    │   ├── postgres-service.yaml   # PostgreSQL service (shared)
+    │   ├── flyway-configmap.yaml   # Flyway migration configuration (shared)
+    │   └── flyway-migrations-configmap.yaml # All migration files V2-V5 (shared)
+    ├── dev/                   # Development environment
+    │   ├── express-configmap.yaml   # NODE_ENV=development, LOG_LEVEL=debug
+    │   ├── express-deployment.yaml  # 1 replica, lower resource limits
+    │   ├── express-service.yaml     # Development service configuration
+    │   └── postgres-secret.yaml     # Development database credentials
+    └── prod/                  # Production environment
+        ├── express-configmap.yaml   # NODE_ENV=production, LOG_LEVEL=info
+        ├── express-deployment.yaml  # 3 replicas, production resource limits
+        ├── express-service.yaml     # Production service configuration
+        └── postgres-secret.yaml     # Production database credentials
 ```
 
 ## Learning Progress
@@ -407,45 +458,32 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
       - ✅ **Why This Matters**: Prevents schema drift between migration files and ORM models
       - ✅ **CI/CD Integration**: Automated pipeline ensures Prisma client matches migrated database
 
-  - **Day 6.5**: Database Backup Strategies (Production Essential!)
-    - **Learn backup fundamentals**: Why backups are critical for production databases
-    - **Backup types**: Full backups vs incremental vs differential
-    - **PostgreSQL backup tools**: `pg_dump`, `pg_basebackup`, and continuous archiving
-    - **Kubernetes backup patterns**: CronJobs for automated backups
-    - **Storage considerations**: Where to store backups (separate from primary storage)
-    - **Testing backups**: Regular restore testing to verify backup integrity
-    - **Backup retention policies**: How long to keep backups and cleanup strategies
+- ✅ **Week 3.5**: Multi-Environment Configuration Management (COMPLETE! 🎯)
+  - ✅ **Folder-based Organization**: Separate `manifests/dev/` and `manifests/prod/` directories
+    - ✅ **Environment-specific Resources**: Express ConfigMaps, Deployments, Services, and Secrets per environment
+    - ✅ **Shared Infrastructure**: PostgreSQL, Flyway, and PVC resources remain environment-neutral
+    - ✅ **Clear Separation**: Development and production configurations isolated and maintainable
+  - ✅ **Environment-Specific Configuration Patterns**:
+    - ✅ **Development Environment**: `NODE_ENV=development`, `LOG_LEVEL=debug`, 1 replica for fast iteration
+    - ✅ **Production Environment**: `NODE_ENV=production`, `LOG_LEVEL=info`, 3 replicas for high availability
+    - ✅ **Resource Allocation**: Different CPU/memory limits appropriate for each environment's needs
+  - ✅ **Deployment Automation with Safety Checks**:
+    - ✅ **Main Script**: `./rebuild-apps.sh <environment>` with parameter validation and environment awareness
+    - ✅ **Development Script**: `./rebuild-dev.sh` for quick development iterations without parameters
+    - ✅ **Production Script**: `./rebuild-prod.sh` with safety confirmation and production-specific warnings
+    - ✅ **Environment Validation**: Scripts prevent deployment to invalid environments and provide clear usage instructions
+  - ✅ **Production-Ready Deployment Patterns**:
+    - ✅ **Replica Management**: 1 replica for dev (fast development), 3 replicas for prod (high availability)
+    - ✅ **Logging Strategy**: Debug logging in dev for troubleshooting, info logging in prod for performance
+    - ✅ **Configuration Validation**: Environment variables verified during deployment
+    - ✅ **Safety Features**: Production deployments require explicit confirmation to prevent accidents
+  - ✅ **DevOps Best Practices Implemented**:
+    - ✅ **Infrastructure as Code**: All environment configurations managed through version-controlled YAML files
+    - ✅ **Environment Promotion**: Clear path from development to production with configuration management
+    - ✅ **Deployment Consistency**: Shared infrastructure ensures environment parity while allowing environment-specific tuning
+    - ✅ **Documentation**: Comprehensive multi-environment setup guide created in `docs/multi-environment-setup.md`
 
-  - **Day 7**: Advanced Migration Patterns & Database Evolution
-    - **Iterative schema changes**: Adding tables over time with proper versioning
-    - **Migration V3**: Add indexes for performance optimization
-    - **Migration V4**: Add additional user fields (email, email_verified, etc.)
-    - **Learn migration rollback**: How to safely reverse database changes
-    - **Data migrations**: Seeding initial data vs schema-only migrations
-    - **Production considerations**: Zero-downtime migrations and backward compatibility
-
-  - **Day 7**: Integration Testing and Troubleshooting
-    - End-to-end testing of the full stack locally
-    - Database connection pooling and optimization
-    - Common troubleshooting: connection timeouts, migration failures
-    - Prepare for production deployment patterns
-    - **Test complete user workflow**: Registration → Profile creation → API interactions
-
-- ⏳ **Week 3.5**: Local Development Workflow & Production Preparation
-  - **Day 1**: Multi-environment configs (dev vs prod)
-    - Create separate ConfigMaps for local vs production
-    - Environment-specific secrets management
-    - Docker image tagging strategies (dev, staging, prod)
-  - **Day 2**: Local testing workflows
-    - Comprehensive local testing before production deployment
-    - Integration testing with PostgreSQL locally
-    - Load testing and performance validation in Kind
-  - **Day 3**: Production readiness checklist
-    - Resource limits and requests for production workloads
-    - Health check optimization for production traffic
-    - Security hardening (non-root containers, security contexts)
-
-- ⏳ **Week 4**: 🚀 **REAL DEPLOYMENT** - DigitalOcean Kubernetes + HTTPS + Domain
+- ⏳ **Week 4**: 🚀 **REAL DEPLOYMENT** - DigitalOcean Kubernetes + HTTPS + Domain (NEXT UP!)
   - **Day 1**: Setup DigitalOcean Kubernetes cluster
     - Create DO Kubernetes cluster
     - Configure kubectl for DO cluster
@@ -492,10 +530,18 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     - **HashiCorp Vault integration**: Industry-standard secret management
     - **Sealed Secrets**: GitOps-friendly encrypted secrets
     - **AWS Secrets Manager / Google Secret Manager**: Cloud-native solutions
-  - **Day 3-4**: **Secret Lifecycle Management**
-    - Automated secret rotation
-    - Secret versioning and rollback
-    - Audit logging for secret access
+    - **External Secrets Operator**: Kubernetes-native secret synchronization
+  - **Day 3**: **Database Backup Strategies** (Production Essential!)
+    - **Backup fundamentals**: Why backups are critical for production databases
+    - **PostgreSQL backup tools**: `pg_dump`, `pg_basebackup`, and continuous archiving
+    - **Kubernetes backup patterns**: CronJobs for automated backups with PersistentVolumes
+    - **Backup testing**: Regular restore testing to verify backup integrity
+    - **Storage strategies**: Cross-region backup storage and retention policies
+    - **Disaster recovery**: Point-in-time recovery and backup automation
+  - **Day 4**: **Secret Lifecycle Management**
+    - **Secret rotation strategies**: Automated secret updates without downtime
+    - **Audit trails**: Tracking secret access and modifications
+    - **Compliance patterns**: Meeting enterprise security requirements
   - **Day 5-7**: **Security Hardening**
     - Pod Security Standards
     - Network policies for service isolation
