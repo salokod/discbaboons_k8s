@@ -96,14 +96,14 @@ echo -e "${GREEN}🚀 DEPLOYMENT PHASE${NC}"
 echo "==================="
 
 echo -e "${YELLOW}Step 8: Deploying PostgreSQL layer...${NC}"
-echo "  8a. Creating PVC (shared resource)..."
-kubectl apply -f manifests/postgres-pvc.yaml
+echo "  8a. Creating PVC (environment-specific)..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-pvc.yaml  # Changed from manifests/postgres-pvc.yaml
 echo "  8b. Creating ConfigMap (shared resource)..."
 kubectl apply -f manifests/postgres-configmap.yaml
 echo "  8c. Creating Secret (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-secret.yaml
 echo "  8d. Creating Deployment (shared resource)..."
-kubectl apply -f manifests/postgres-deployment.yaml
+kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-deployment.yaml
 echo "  8e. Creating Service (shared resource)..."
 kubectl apply -f manifests/postgres-service.yaml
 

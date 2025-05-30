@@ -483,47 +483,40 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     - ✅ **Deployment Consistency**: Shared infrastructure ensures environment parity while allowing environment-specific tuning
     - ✅ **Documentation**: Comprehensive multi-environment setup guide created in `docs/multi-environment-setup.md`
 
-- ⏳ **Week 4**: 🚀 **REAL DEPLOYMENT** - DigitalOcean Kubernetes + HTTPS + Domain (NEXT UP!)
-  - **Day 1**: Setup DigitalOcean Kubernetes cluster
-    - Create DO Kubernetes cluster
-    - Configure kubectl for DO cluster
-    - Deploy your Express + PostgreSQL stack to production
-  - **Day 2**: Domain and DNS setup
-    - Configure your domain (buy one or use a subdomain)
-    - Point DNS to DigitalOcean Load Balancer
-    - Understand LoadBalancer vs NodePort in cloud environments
-  - **Day 3-4**: Ingress and HTTPS
+- ✅ **Week 4**: 🚀 **REAL DEPLOYMENT** - DigitalOcean Kubernetes Production (IN PROGRESS! 🎯)
+  - ✅ **Day 1**: DigitalOcean Kubernetes cluster setup (COMPLETE! ✅)
+    - ✅ **Created DigitalOcean Kubernetes cluster**: Version 1.32.2-do.1 (cloud-managed)
+    - ✅ **kubectl context management**: Configured for both Kind (local) and DigitalOcean (production)
+    - ✅ **Version compatibility analysis**: Kind 1.33.1 vs DigitalOcean 1.32.2-do.1 compatibility verified
+    - ✅ **Infrastructure foundation**: Production cluster ready for application deployment
+  - ✅ **Day 2**: Production PostgreSQL deployment (COMPLETE! ✅)
+    - ✅ **DigitalOcean block storage integration**: Fixed PGDATA subdirectory issue for DO persistent volumes
+    - ✅ **Production secret management**: Implemented secure secret creation via `kubectl create secret` (no YAML files)
+    - ✅ **Database deployment verification**: PostgreSQL running with persistent storage and health checks
+    - ✅ **Multi-environment storage separation**: Environment-specific PVCs with different storage classes and sizes
+  - ✅ **Day 3**: Container registry and application deployment (COMPLETE! ✅)
+    - ✅ **Architecture compatibility resolved**: Built AMD64-specific Docker images for DigitalOcean compatibility
+    - ✅ **Docker Hub registry setup**: Pushed production images as `salokod/discbaboons-express:v6-amd64`
+    - ✅ **ImagePullPolicy updates**: Changed from `Never` (local) to `Always` (registry) for production
+    - ✅ **Production stack verification**: Express app running with database connectivity and health checks passing
+    - ✅ **API endpoint validation**: All `/health`, `/api/info`, and `/api/users` endpoints responding correctly
+  - ⏳ **Day 4**: External access with LoadBalancers (CURRENT FOCUS! 🎯)
+    - Setup DigitalOcean LoadBalancer for external access
+    - Configure real internet connectivity for the application
+    - Test external API access and performance
+  - ⏳ **Day 5-6**: Domain and HTTPS setup (UPCOMING)
+    - Configure domain (buy one or use a subdomain)
     - Install NGINX Ingress Controller on DO
-    - Configure Ingress for your domain
     - Setup Let's Encrypt with cert-manager for free SSL
-  - **Day 5**: **Production Secret Management**
+    - Point DNS to DigitalOcean Load Balancer
+  - ⏳ **Day 7**: **Production Secret Management & Security Hardening**
     - **Learn external secret management**: Never store secrets in YAML files in production
     - **DigitalOcean Spaces + SOPS**: Encrypted secret files
     - **External Secrets Operator**: Connect to cloud secret stores
     - **Environment-specific secrets**: Different secrets for dev/staging/prod
     - **Secret rotation strategies**: How to update secrets without downtime
-  - **Day 6**: **Production Database Access & Security**
-    - **Database Security Best Practices**: Why direct production database access is dangerous
-    - **Secure Access Patterns**: Bastion hosts, jump servers, and database proxies
-    - **Read Replicas**: Create read-only database replicas for analytics and monitoring
-    - **Database Monitoring**: Set up database observability without direct access
-    - **Audit Trails**: Track database access and changes for compliance
-    - **Emergency Access**: Controlled break-glass procedures for critical issues
-    - **🚨 CRITICAL: Flyway + Prisma Synchronization in Production Pipelines**
-      - **The Production Challenge**: Keeping database migrations (Flyway) in sync with ORM schema (Prisma)
-      - **Schema Drift Prevention**: Ensuring migration files and generated Prisma client are always consistent
-      - **CI/CD Pipeline Integration**: Automated workflow to maintain synchronization
-        1. **Flyway Migration**: Apply versioned migrations to database (V1-V5+)
-        2. **Prisma Introspection**: Generate schema from migrated database state
-        3. **Client Generation**: Create type-safe Prisma client matching current schema
-        4. **Deployment**: Use generated client guaranteed to match database structure
-      - **Why This Matters**: Prevents runtime errors from schema mismatches in production
-      - **Pipeline Safety**: Automated verification that Prisma schema matches migrated database
-      - **Team Coordination**: Clear workflow for developers adding new migrations and ORM changes
-  - **Day 7**: Production hardening and monitoring
-    - Security contexts and non-root containers
-    - Resource limits for production workloads
-    - Basic monitoring setup
+    - **Security contexts and non-root containers**: Production hardening
+    - **Resource limits for production workloads**: Performance optimization
 
 - ⏳ **Week 5**: Advanced Secret Management & Security
   - **Day 1-2**: **Enterprise Secret Solutions**
@@ -776,75 +769,119 @@ Ref: user_profiles.user_id > users.id [delete: cascade]
 - **V4**: Create user_profiles table with foreign key, migrate email data, add personality test data
 - **V5**: Remove redundant columns from users table for clean separation of concerns
 
-### Database Design & Migrations
-- **DBML Documentation**: Use Database Markup Language for clear schema documentation
-- **Migration Versioning**: Sequential numbering (V1, V2, V3) with descriptive names
-- **Schema Evolution**: Plan table relationships and constraints from the beginning
-- **Migration Best Practices**:
-  - One logical change per migration file
-  - Always test rollback procedures
-  - Document the purpose and impact of each migration
-  - Use descriptive migration names (V1__create_users_table.sql)
+## Production Deployment Breadcrumbs 🍞
 
-### 🚨 Critical Production Pattern: Flyway + Prisma Synchronization
-**The Challenge**: In production, you need database migrations (Flyway) and ORM schema (Prisma) to stay perfectly synchronized.
+*Key learnings and challenges resolved during Week 4 DigitalOcean production deployment*
 
-**The Solution**: Automated pipeline workflow that prevents schema drift:
+### 🏗️ Week 4 Day 1: DigitalOcean Kubernetes Setup
+**Challenge**: Transitioning from local Kind cluster to cloud-managed Kubernetes
+**Solution**: DigitalOcean Kubernetes 1.32.2-do.1 with kubectl context switching
+
+**Key Learnings**:
+- **Version compatibility**: Kind 1.33.1 vs DigitalOcean 1.32.2-do.1 - minor version differences acceptable
+- **Context management**: `kubectl config get-contexts` and `kubectl config use-context` for multi-cluster workflows
+- **Cloud vs local differences**: Cloud-managed control plane vs local Kind cluster architecture
+- **Infrastructure foundation**: DigitalOcean provides managed master nodes, we manage worker node applications
+
 ```bash
-# Production deployment pipeline
-1. Apply Flyway migrations → Database schema updated
-2. Run Prisma introspection → Schema file generated from database
-3. Generate Prisma client → Type-safe client matches database
-4. Deploy application → Guaranteed schema consistency
+# Context switching mastery
+kubectl config get-contexts                    # List all available contexts
+kubectl config use-context do-sfo3-k8s-prod  # Switch to DigitalOcean production
+kubectl config use-context kind-discbaboons-learning  # Switch back to local Kind
 ```
 
-**Why This Matters**:
-- **Runtime Safety**: Prevents "table doesn't exist" errors in production
-- **Type Safety**: Generated Prisma client exactly matches migrated database
-- **Team Coordination**: Clear workflow for adding new migrations and ORM changes
-- **Schema Drift Prevention**: Database and ORM models never get out of sync
+### 🗄️ Week 4 Day 2: Production PostgreSQL Deployment
+**Challenge**: DigitalOcean block storage requires different configuration than Kind local storage
+**Solution**: PGDATA subdirectory fix and secure secret management patterns
 
-**CI/CD Integration**:
+**Key Learnings**:
+- **🚨 Critical Discovery**: DigitalOcean block storage requires PGDATA subdirectory (`/var/lib/postgresql/data/pgdata`)
+- **Storage class differences**: DigitalOcean uses `do-block-storage` vs Kind's `standard` storage class
+- **Production secret security**: Used `kubectl create secret` instead of YAML files for database credentials
+- **Multi-environment PVC strategy**: Separate storage configurations for dev (1Gi, standard) vs prod (10Gi, do-block-storage)
+- **Health check importance**: Production health probes prevent traffic to unready database pods
+
+**PGDATA Fix Pattern**:
 ```yaml
-# Example pipeline step
-- name: Sync Database Schema
-  run: |
-    flyway migrate                    # Apply pending migrations
-    npx prisma db pull               # Update schema from database
-    npx prisma generate              # Generate client from schema
-    npm test                         # Verify everything works
+# Production PostgreSQL deployment pattern for DigitalOcean
+env:
+- name: PGDATA
+  value: /var/lib/postgresql/data/pgdata  # Subdirectory required for DO block storage
+volumeMounts:
+- name: postgres-storage
+  mountPath: /var/lib/postgresql/data
 ```
 
-**Production Benefits**:
-- Zero schema drift between teams
-- Automated verification of database-ORM consistency
-- Safe migrations with type-safe application code
-- Clear audit trail of schema changes
-
-### Database Schema Standards
-**Initial Schema Design:**
-```dbml
-Table users {
-    id INT [pk, increment] // Unique identifier for the user
-    username VARCHAR(50) [unique, not null] // Username, must be unique
-    password_hash TEXT [not null] // Hashed password
-    created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`] // When the user was created
-    last_password_change TIMESTAMP [default: `CURRENT_TIMESTAMP`] // Last time the password was changed
-}
-
-Table user_profiles {
-    id INT [pk, increment] // Unique identifier for the profile
-    user_id INT [not null, ref: > users.id] // Foreign key to the users table
-    name VARCHAR(100) // Full name of the user
-    location VARCHAR(100) // Location of the user
-    bio TEXT // Optional bio or description
-    created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`] // When the profile was created
-    updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`] // When the profile was last updated
-}
+**Secure Secret Creation**:
+```bash
+# Production secret management (no YAML files!)
+kubectl create secret generic postgres-secret \
+  --from-literal=POSTGRES_PASSWORD=secure_production_password \
+  --from-literal=POSTGRES_USER=app_user \
+  --from-literal=POSTGRES_DB=discbaboons_db
 ```
 
-**Migration Workflow:**
-- **V1__create_users_table.sql**: Core authentication table
-- **V2__create_user_profiles_table.sql**: Profile information with foreign key
-- **V3__add_user_indexes.sql**: Performance optimization
-- **V4__add_user_email_fields.sql**: Iterative feature additions
+### 🚢 Week 4 Day 3: Container Registry & Application Deployment  
+**Challenge**: ARM64 vs AMD64 architecture mismatch between local development and DigitalOcean
+**Solution**: Docker Hub registry with platform-specific builds and updated image pull policies
+
+**Key Learnings**:
+- **🚨 Architecture Discovery**: Local Kind (ARM64 on Apple Silicon) vs DigitalOcean nodes (AMD64) incompatibility
+- **Registry strategy**: Transitioned from local images (`imagePullPolicy: Never`) to Docker Hub registry (`imagePullPolicy: Always`)
+- **Platform-specific builds**: Built and pushed `salokod/discbaboons-express:v6-amd64` for production compatibility
+- **Image pull policy importance**: `Never` for local development, `Always` for registry-based production deployments
+- **Production verification**: Verified Express app connectivity to PostgreSQL and API endpoint functionality
+
+**Docker Hub Deployment Pattern**:
+```bash
+# Build for specific architecture
+docker buildx build --platform linux/amd64 -t salokod/discbaboons-express:v6-amd64 .
+
+# Push to registry
+docker push salokod/discbaboons-express:v6-amd64
+
+# Update production deployment
+# manifests/prod/express-deployment.yaml
+spec:
+  template:
+    spec:
+      containers:
+      - name: express
+        image: salokod/discbaboons-express:v6-amd64
+        imagePullPolicy: Always  # Always pull from registry
+```
+
+**Health Check Verification**:
+```bash
+# Verify production deployment
+kubectl port-forward service/express-service 8080:3000
+curl http://localhost:8080/health        # ✅ {"status":"healthy"}
+curl http://localhost:8080/api/info      # ✅ Environment and config info
+curl http://localhost:8080/api/users     # ✅ Database connectivity confirmed
+```
+
+### 🎯 Production Deployment Success Metrics
+**✅ Infrastructure**: DigitalOcean Kubernetes cluster operational  
+**✅ Database**: PostgreSQL with persistent storage and migrations applied  
+**✅ Application**: Express.js API running with full database connectivity  
+**✅ Registry**: Docker Hub integration with cross-platform compatibility  
+**✅ Security**: Production secret management without YAML file exposure  
+**✅ Health**: All pods running and ready, API endpoints responding  
+
+### 🔍 Key Production Differences from Local Development
+| Aspect | Local Kind | DigitalOcean Production |
+|--------|------------|------------------------|
+| **Storage Class** | `standard` | `do-block-storage` |
+| **PGDATA Config** | `/var/lib/postgresql/data` | `/var/lib/postgresql/data/pgdata` |
+| **Secret Management** | YAML files (dev only) | `kubectl create secret` |
+| **Image Source** | Local (`imagePullPolicy: Never`) | Registry (`imagePullPolicy: Always`) |
+| **Architecture** | ARM64 (Apple Silicon) | AMD64 (Cloud VMs) |
+| **PVC Size** | 1Gi (dev testing) | 10Gi (production workload) |
+
+### 🧭 Next Steps: Week 4 Day 4+
+- **LoadBalancer setup**: External access configuration for real internet connectivity
+- **Domain configuration**: DNS setup and subdomain pointing
+- **HTTPS/TLS**: Let's Encrypt certificate management with NGINX Ingress
+- **Production hardening**: Security contexts, resource limits, monitoring setup
+
+---

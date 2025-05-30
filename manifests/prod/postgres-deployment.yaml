@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  labels:
+    app: postgres
+    environment: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        environment: production
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17
+        env:
+        - name: POSTGRES_DB
+          value: "discbaboons_db"
+        - name: POSTGRES_USER
+          value: "app_user"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_ROOT_PASSWORD
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"  # 🔑 This fixes the lost+found issue!
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "512Mi"    # Higher for production workloads
+            cpu: "250m"
+          limits:
+            memory: "1Gi"      # More memory for production
+            cpu: "500m"
+        livenessProbe:         # Production health monitoring
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - app_user
+            - -d
+            - discbaboons_db  # Add the correct database name!
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:        # When ready to serve traffic
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - app_user
+            - -d
+            - discbaboons_db  # Add the correct database name!
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc

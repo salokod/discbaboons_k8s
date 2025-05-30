@@ -36,8 +36,8 @@ spec:
           readOnly: true
       containers:
       - name: express
-        image: discbaboons-express:v6
-        imagePullPolicy: Never
+        image: salokod/discbaboons-express:v6-amd64
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         envFrom:

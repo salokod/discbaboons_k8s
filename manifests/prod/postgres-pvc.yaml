@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  labels:
+    app: postgres
+    environment: production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: do-block-storage  # DigitalOcean storage
+  resources:
+    requests:
+      storage: 2Gi  # Larger for production
