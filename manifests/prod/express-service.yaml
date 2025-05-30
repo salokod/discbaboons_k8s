@@ -5,11 +5,10 @@ metadata:
   labels:
     app: express
 spec:
+  type: LoadBalancer  # ← Changed from ClusterIP!
+  ports:
+  - port: 80          # ← Standard HTTP port
+    targetPort: 3000  # ← Your Express app port
+    protocol: TCP
   selector:
     app: express
-  ports:
-  - name: http
-    port: 3000
-    targetPort: 3000
-    protocol: TCP
-  type: ClusterIP

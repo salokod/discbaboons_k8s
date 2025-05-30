@@ -4,12 +4,13 @@ metadata:
   name: express-service
   labels:
     app: express
+    environment: production
 spec:
-  selector:
-    app: express
+  type: ClusterIP
   ports:
   - name: http
     port: 3000
     targetPort: 3000
     protocol: TCP
-  type: ClusterIP
+  selector:
+    app: express
