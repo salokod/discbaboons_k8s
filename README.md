@@ -500,16 +500,19 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     - ✅ **ImagePullPolicy updates**: Changed from `Never` (local) to `Always` (registry) for production
     - ✅ **Production stack verification**: Express app running with database connectivity and health checks passing
     - ✅ **API endpoint validation**: All `/health`, `/api/info`, and `/api/users` endpoints responding correctly
-  - ⏳ **Day 4**: External access with LoadBalancers (CURRENT FOCUS! 🎯)
-    - Setup DigitalOcean LoadBalancer for external access
-    - Configure real internet connectivity for the application
-    - Test external API access and performance
-  - ⏳ **Day 5-6**: Domain and HTTPS setup (UPCOMING)
-    - Configure domain (buy one or use a subdomain)
-    - Install NGINX Ingress Controller on DO
-    - Setup Let's Encrypt with cert-manager for free SSL
-    - Point DNS to DigitalOcean Load Balancer
-  - ⏳ **Day 7**: **Production Secret Management & Security Hardening**
+  - ✅ **Day 4**: External access with LoadBalancers (COMPLETE! ✅)
+    - ✅ **DigitalOcean LoadBalancer setup**: Configured external IP access (174.138.126.168)
+    - ✅ **Real internet connectivity**: Application accessible from public internet
+    - ✅ **API endpoint validation**: All endpoints responding via external LoadBalancer
+    - ✅ **Cost optimization discovery**: Identified need for Ingress to reduce LoadBalancer costs
+  - ✅ **Day 5**: Domain and HTTPS setup (COMPLETE! ✅)
+    - ✅ **Custom domain configuration**: Set up discbaboons.spirojohn.com subdomain
+    - ✅ **NGINX Ingress Controller**: Deployed production-ready ingress with SSL termination
+    - ✅ **Let's Encrypt automation**: Configured cert-manager for automatic SSL certificate provisioning
+    - ✅ **DNS management**: Created A records pointing subdomain to Ingress LoadBalancer (167.172.12.70)
+    - ✅ **HTTPS implementation**: Full SSL/TLS with automatic HTTP→HTTPS redirects
+    - ✅ **Production URL**: Application live at https://discbaboons.spirojohn.com with valid certificates
+  - ⏳ **Day 6-7**: **Production Secret Management & Security Hardening** (UPCOMING)
     - **Learn external secret management**: Never store secrets in YAML files in production
     - **DigitalOcean Spaces + SOPS**: Encrypted secret files
     - **External Secrets Operator**: Connect to cloud secret stores
@@ -878,10 +881,171 @@ curl http://localhost:8080/api/users     # ✅ Database connectivity confirmed
 | **Architecture** | ARM64 (Apple Silicon) | AMD64 (Cloud VMs) |
 | **PVC Size** | 1Gi (dev testing) | 10Gi (production workload) |
 
-### 🧭 Next Steps: Week 4 Day 4+
-- **LoadBalancer setup**: External access configuration for real internet connectivity
-- **Domain configuration**: DNS setup and subdomain pointing
-- **HTTPS/TLS**: Let's Encrypt certificate management with NGINX Ingress
+### 🌐 Week 4 Day 4: External Access with LoadBalancer
+**Challenge**: Expose application to public internet while managing DigitalOcean costs
+**Solution**: LoadBalancer service configuration with cost optimization analysis
+
+**Key Learnings**:
+- **🚨 Public Internet Access**: Transitioned from internal cluster access to real-world connectivity
+- **LoadBalancer service setup**: DigitalOcean automatically provisioned external IP (174.138.126.168)
+- **External IP configuration**: Service type LoadBalancer creates internet-facing endpoint
+- **Cost optimization discovery**: Realized multiple LoadBalancers ($10/month each) motivate Ingress adoption
+- **Production testing**: Verified API endpoints accessible from external clients
+
+**LoadBalancer Configuration Pattern**:
+```yaml
+# manifests/prod/express-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: express-service
+spec:
+  type: LoadBalancer  # Creates external IP
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: express
+```
+
+**External Access Verification**:
+```bash
+# Get external IP
+kubectl get service express-service
+# NAME              TYPE           CLUSTER-IP       EXTERNAL-IP       PORT(S)          AGE
+# express-service   LoadBalancer   10.245.178.177   174.138.126.168   3000:30123/TCP   5m
+
+# Test public access
+curl http://174.138.126.168:3000/health     # ✅ {"status":"healthy"}
+curl http://174.138.126.168:3000/api/info   # ✅ Production environment info
+```
+
+### 🔐 Week 4 Day 5: Domain & HTTPS with Let's Encrypt
+**Challenge**: Professional production setup with custom domain, SSL certificates, and cost optimization
+**Solution**: NGINX Ingress Controller with cert-manager for automated Let's Encrypt certificates
+
+**Key Learnings**:
+- **🚨 Cost Optimization**: Reduced from 2 LoadBalancers to 1 using Ingress for SSL termination
+- **Domain management**: Configured discbaboons.spirojohn.com subdomain with DigitalOcean DNS
+- **SSL automation**: cert-manager handles Let's Encrypt certificate lifecycle automatically
+- **Professional setup**: Transformed from IP access to branded HTTPS domain
+- **Production security**: Automatic HTTP→HTTPS redirects and valid SSL certificates
+
+**DNS Configuration**:
+```bash
+# Add A record for subdomain
+doctl compute domain records create spirojohn.com \
+  --record-type A \
+  --record-name discbaboons \
+  --record-data 167.172.12.70  # Ingress LoadBalancer IP
+```
+
+**NGINX Ingress with SSL Pattern**:
+```yaml
+# manifests/prod/express-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: express-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - discbaboons.spirojohn.com
+    secretName: express-tls
+  rules:
+  - host: discbaboons.spirojohn.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: express-service
+            port:
+              number: 3000
+```
+
+**Let's Encrypt ClusterIssuer**:
+```yaml
+# manifests/prod/letsencrypt-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: spiro@spirojohn.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+```
+
+**Infrastructure Deployment Commands**:
+```bash
+# Deploy NGINX Ingress Controller
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0-beta.0/deploy/static/provider/cloud/deploy.yaml
+
+# Install cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml
+
+# Apply Let's Encrypt issuer and ingress
+kubectl apply -f manifests/prod/letsencrypt-issuer.yaml
+kubectl apply -f manifests/prod/express-ingress.yaml
+
+# Convert LoadBalancer to ClusterIP for cost optimization
+kubectl apply -f manifests/prod/express-service.yaml  # Updated to ClusterIP
+```
+
+**SSL Certificate Verification**:
+```bash
+# Check certificate status
+kubectl get certificate
+# NAME         READY   SECRET       AGE
+# express-tls  True    express-tls  2m
+
+# Verify HTTPS access
+curl -I https://discbaboons.spirojohn.com/health
+# HTTP/2 200 
+# SSL certificate valid, automatic redirects working
+```
+
+### 🎯 Production Deployment Success Metrics (Updated)
+**✅ Infrastructure**: DigitalOcean Kubernetes cluster operational  
+**✅ Database**: PostgreSQL with persistent storage and migrations applied  
+**✅ Application**: Express.js API running with full database connectivity  
+**✅ Registry**: Docker Hub integration with cross-platform compatibility  
+**✅ Security**: Production secret management without YAML file exposure  
+**✅ External Access**: LoadBalancer providing real internet connectivity  
+**✅ Domain & SSL**: Professional HTTPS setup with automated certificate management  
+**✅ Cost Optimization**: Single Ingress LoadBalancer replacing multiple service LoadBalancers  
+**✅ Production URL**: Live at https://discbaboons.spirojohn.com with valid SSL certificates  
+
+### 🔍 Key Production Differences from Local Development (Updated)
+| Aspect | Local Kind | DigitalOcean Production |
+|--------|------------|------------------------|
+| **Storage Class** | `standard` | `do-block-storage` |
+| **PGDATA Config** | `/var/lib/postgresql/data` | `/var/lib/postgresql/data/pgdata` |
+| **Secret Management** | YAML files (dev only) | `kubectl create secret` |
+| **Image Source** | Local (`imagePullPolicy: Never`) | Registry (`imagePullPolicy: Always`) |
+| **Architecture** | ARM64 (Apple Silicon) | AMD64 (Cloud VMs) |
+| **PVC Size** | 1Gi (dev testing) | 10Gi (production workload) |
+| **Access Method** | `kubectl port-forward` | LoadBalancer + Ingress |
+| **Domain** | `localhost:8080` | `https://discbaboons.spirojohn.com` |
+| **SSL/TLS** | None | Let's Encrypt with cert-manager |
+| **Service Type** | ClusterIP | LoadBalancer → ClusterIP (Ingress) |
+
+### 🧭 Next Steps: Week 4 Day 6+
 - **Production hardening**: Security contexts, resource limits, monitoring setup
+- **Advanced secret management**: External secret stores and rotation strategies
+- **Backup strategies**: Automated database backups and disaster recovery
+- **Monitoring and observability**: Centralized logging and application metrics
 
 ---

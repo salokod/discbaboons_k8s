@@ -4,11 +4,12 @@ metadata:
   name: express-service
   labels:
     app: express
+    environment: production
 spec:
-  type: LoadBalancer  # ← Changed from ClusterIP!
+  type: ClusterIP  # ← Changed back from LoadBalancer to save $12/month
   ports:
-  - port: 80          # ← Standard HTTP port
-    targetPort: 3000  # ← Your Express app port
+  - port: 80
+    targetPort: 3000
     protocol: TCP
   selector:
     app: express
