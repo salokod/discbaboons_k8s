@@ -544,19 +544,38 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     - Network policies for service isolation
     - RBAC (Role-Based Access Control) for secret access
 
-- ⏳ **Week 6**: Advanced Deployments
-  - **Day 1-2**: Rolling Updates and Rollbacks
-    - Deployment strategies (RollingUpdate vs Recreate)
-    - Rolling back failed deployments
-    - Deployment history and versioning
-  - **Day 3-4**: Resource Management
-    - Resource requests and limits fine-tuning
-    - Quality of Service classes (Guaranteed, Burstable, BestEffort)
-    - Horizontal Pod Autoscaling basics
-  - **Day 5-7**: Multi-Environment Setup
-    - Namespace-based environment separation (dev, staging, prod)
-    - Environment-specific ConfigMaps and Secrets
-    - Deployment pipelines and GitOps concepts
+- ⏳ **Week 6**: Advanced Deployments & CI/CD Automation
+  - **Day 1-2**: GitHub Actions CI/CD Pipeline
+    - **GitOps Workflow Setup**: Automated deployment pipeline from main branch to production
+      - **GitHub Actions Configuration**: `.github/workflows/deploy-prod.yml` with multi-stage pipeline
+      - **Environment Promotion Strategy**: Local Kind testing → Main branch → Production deployment
+      - **Automated Testing Gate**: Unit tests, integration tests, and security scans before deployment
+      - **Production Deployment Automation**: Automated `kubectl apply` to DigitalOcean cluster from GitHub Actions
+    - **Production-Safe Deployment Patterns**
+      - **Rolling Deployments**: Zero-downtime updates with health check validation
+      - **Deployment Verification**: Automated health checks and smoke tests post-deployment
+      - **Automatic Rollback**: Failed deployment detection and automatic rollback to previous version
+      - **Deployment Status Notifications**: GitHub PR status checks and deployment notifications
+  - **Day 3-4**: Advanced Deployment Strategies
+    - **Rolling Updates and Rollbacks** (Enhanced)
+      - **Deployment strategies**: RollingUpdate vs Recreate with CI/CD integration
+      - **Automated rollback**: Failed deployment detection and automatic reversion
+      - **Deployment history**: Version tracking and rollback capabilities
+      - **Blue-Green deployment preparation**: Infrastructure for zero-downtime deployments
+    - **Health Checks and Readiness**
+      - **Liveness probes**: Application health monitoring
+      - **Readiness probes**: Traffic routing control
+      - **Startup probes**: Application initialization handling
+  - **Day 5-7**: Production Confidence & Quality Gates
+    - **Multi-Environment Testing Pipeline**
+      - **Local validation**: Kind cluster testing matching production configuration
+      - **Integration testing**: Database connectivity and API endpoint validation
+      - **Security scanning**: Container vulnerability scanning in CI pipeline
+      - **Performance validation**: Load testing and resource usage verification
+    - **Canary Deployments**
+      - **Traffic splitting**: Gradual rollout to subset of users
+      - **Monitoring during rollout**: Performance and error rate tracking
+      - **Automated promotion or rollback**: Data-driven deployment decisions
 
 - ⏳ **Week 7**: Production Readiness
   - **Day 1-2**: Observability and Monitoring
