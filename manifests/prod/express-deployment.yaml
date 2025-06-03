@@ -5,7 +5,7 @@ metadata:
   labels:
     app: express
 spec:
-  replicas: 3  # Multiple replicas for production high availability
+  replicas: 3
   selector:
     matchLabels:
       app: express
@@ -14,6 +14,10 @@ spec:
       labels:
         app: express
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      serviceAccountName: express-service-account
       initContainers:
       - name: wait-for-postgres
         image: postgres:17-alpine
@@ -43,6 +47,9 @@ spec:
         envFrom:
         - configMapRef:
             name: express-config
+        # ADD THIS: Include monitoring configuration
+        - configMapRef:
+            name: monitoring-config
         env:
         - name: DATABASE_URL
           valueFrom:

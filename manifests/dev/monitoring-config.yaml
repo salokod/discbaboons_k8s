@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-config
+  labels:
+    app: monitoring
+    environment: development
+data:
+  ENABLE_METRICS: "true"           # SAME: Enable metrics in dev too
+  LOG_LEVEL: "debug"               # DIFFERENT: More verbose for development
+  HEALTH_CHECK_INTERVAL: "10s"     # DIFFERENT: Faster for dev (prod: 30s)
+  PERFORMANCE_MONITORING: "true"   # SAME: Test performance monitoring
