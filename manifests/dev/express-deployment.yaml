@@ -14,6 +14,9 @@ spec:
       labels:
         app: express
     spec:
+      securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
       initContainers:
       - name: wait-for-postgres
         image: postgres:17-alpine
@@ -24,6 +27,8 @@ spec:
         envFrom:
         - configMapRef:
             name: flyway-config
+        - configMapRef:
+            name: monitoring-config
         env:
         - name: FLYWAY_PASSWORD
           valueFrom:
@@ -43,6 +48,8 @@ spec:
         envFrom:
         - configMapRef:
             name: express-config
+        - configMapRef:
+            name: monitoring-config
         env:
         - name: DATABASE_URL
           valueFrom:
