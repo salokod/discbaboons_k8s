@@ -23,16 +23,16 @@ spec:
         - name: POSTGRES_DB
           value: "discbaboons_db"
         - name: POSTGRES_USER
-          value: "app_user"
+          value: "app_user_new"
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-sealed
+              name: postgres-sealed-v2
               key: POSTGRES_PASSWORD
         - name: POSTGRES_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-sealed
+              name: postgres-sealed-v2
               key: POSTGRES_ROOT_PASSWORD
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"  # 🔑 This fixes the lost+found issue!
@@ -55,7 +55,7 @@ spec:
             - -h
             - localhost
             - -U
-            - app_user
+            - app_user_new
             - -d
             - discbaboons_db  # Add the correct database name!
           initialDelaySeconds: 30
@@ -69,7 +69,7 @@ spec:
             - -h
             - localhost
             - -U
-            - app_user
+            - app_user_new
             - -d
             - discbaboons_db  # Add the correct database name!
           initialDelaySeconds: 5

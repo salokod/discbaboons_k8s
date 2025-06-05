@@ -6,6 +6,6 @@ metadata:
     app: flyway
 data:
   FLYWAY_URL: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
-  FLYWAY_USER: "app_user"
+  FLYWAY_USER: "app_user_new"
   FLYWAY_LOCATIONS: "filesystem:/flyway/sql"
   FLYWAY_BASELINE_ON_MIGRATE: "true"
