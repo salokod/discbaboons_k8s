@@ -32,7 +32,7 @@ spec:
         - name: FLYWAY_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
+              name: postgres-sealed
               key: POSTGRES_PASSWORD
         volumeMounts:
         - name: migrations-volume
@@ -54,12 +54,12 @@ spec:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
+              name: postgres-sealed
               key: DATABASE_URL
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
+              name: postgres-sealed
               key: POSTGRES_PASSWORD
         resources:
           requests:

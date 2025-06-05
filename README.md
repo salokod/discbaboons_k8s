@@ -522,10 +522,15 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
     - ✅ **Security validation**: Full security audit with compliance checklist and penetration testing
     - ✅ **Final production validation**: Application verified as production-ready with all security controls active
 
-- ⏳ **Week 5**: Advanced Secret Management & Security
-  - **Day 1-2**: **Enterprise Secret Solutions**
+- ✅ **Week 5**: Advanced Secret Management & Security (PARTIAL COMPLETE! 🎯)
+  - ✅ **Day 1**: Understanding secret security problems (base64 ≠ encryption)
+  - ✅ **Day 2**: Sealed Secrets implementation (Git-safe encrypted secrets)
+  - ✅ **Day 3**: Production migration to sealed secrets with URL-encoding fixes
+  - ⏳ **Day 4**: Secret rotation strategies (NEXT UP!)
+  - ⏳ **Day 5**: Database backup automation
+  - **Advanced Secret Management Patterns**:
+    - ✅ **Sealed Secrets**: GitOps-friendly encrypted secrets (IMPLEMENTED!)
     - **HashiCorp Vault integration**: Industry-standard secret management
-    - **Sealed Secrets**: GitOps-friendly encrypted secrets
     - **AWS Secrets Manager / Google Secret Manager**: Cloud-native solutions
     - **External Secrets Operator**: Kubernetes-native secret synchronization
   - **Day 3**: **Database Backup Strategies** (Production Essential!)
@@ -1445,5 +1450,287 @@ kubectl auth can-i list secrets --as=system:serviceaccount:default:express-servi
 - Incident response and operational procedures
 
 **🚀 Ready for Week 5**: Advanced secret management, backup strategies, and enterprise security patterns.
+
+---
+
+## Sealed Secrets Playbook 🔐
+
+### Overview
+Sealed Secrets provide a GitOps-friendly way to encrypt Kubernetes secrets that can be safely stored in version control. Unlike regular Kubernetes secrets (which are only base64 encoded), Sealed Secrets are encrypted and can only be decrypted by the Sealed Secrets controller running in your cluster.
+
+### Quick Reference
+
+#### Generate a New Sealed Secret
+```bash
+# From an existing secret YAML file
+kubeseal -f your-secret.yaml -w your-sealed-secret.yaml
+
+# From kubectl create (one-liner)
+kubectl create secret generic myapp-secret \
+  --from-literal=username=myuser \
+  --from-literal=password='complex@pass!' \
+  --dry-run=client -o yaml | \
+  kubeseal -w myapp-sealed.yaml
+```
+
+#### Apply Sealed Secret to Cluster
+```bash
+kubectl apply -f your-sealed-secret.yaml
+```
+
+#### Verify Decrypted Secret
+```bash
+# Check that the regular secret was created
+kubectl get secret your-secret-name -o yaml
+
+# Decode a specific key to verify content
+kubectl get secret your-secret-name -o jsonpath="{.data.password}" | base64 -d
+```
+
+### Production Implementation Guide
+
+#### 1. Install Sealed Secrets Controller
+```bash
+# Install controller in cluster
+kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.24.0/controller.yaml
+
+# Verify controller is running
+kubectl get pods -n kube-system | grep sealed-secrets
+
+# Install kubeseal CLI tool (macOS)
+brew install kubeseal
+```
+
+#### 2. Create Your First Sealed Secret
+
+**Step 1: Create a regular secret (temporarily)**
+```bash
+kubectl create secret generic postgres-secret \
+  --from-literal=POSTGRES_USER=discbaboons \
+  --from-literal=POSTGRES_PASSWORD='your-password' \
+  --from-literal=DATABASE_URL='postgresql://user:pass@host/db' \
+  --dry-run=client -o yaml > temp-secret.yaml
+```
+
+**Step 2: Convert to Sealed Secret**
+```bash
+kubeseal -f temp-secret.yaml -w postgres-sealed.yaml
+rm temp-secret.yaml  # Remove unencrypted version
+```
+
+**Step 3: Apply to cluster**
+```bash
+kubectl apply -f postgres-sealed.yaml
+```
+
+#### 3. Database URL Encoding (Critical!)
+
+When working with database URLs containing special characters, **always URL-encode** the password component:
+
+**❌ Wrong (will cause application errors):**
+```
+DATABASE_URL=postgresql://user:pass+word@host/db
+```
+
+**✅ Correct (URL-encoded):**
+```
+DATABASE_URL=postgresql://user:pass%2Bword@host/db
+```
+
+**Common character encodings:**
+- `+` → `%2B`
+- `/` → `%2F` 
+- `=` → `%3D`
+- `@` → `%40`
+- `?` → `%3F`
+- `&` → `%26`
+
+**Encoding script for complex passwords:**
+```bash
+# Quick URL encoding in terminal
+python3 -c "import urllib.parse; print(urllib.parse.quote('your+complex=password/'))"
+```
+
+### Troubleshooting Guide
+
+#### Issue: Application 500 Errors After Sealed Secret Deployment
+
+**Symptoms:**
+- Pods start successfully
+- Database connection appears to work
+- HTTP requests return 500 errors
+- Logs show database connection issues
+
+**Root Cause:** Special characters in `DATABASE_URL` not properly URL-encoded
+
+**Solution:**
+1. **Extract current password:**
+   ```bash
+   kubectl get secret postgres-secret -o jsonpath="{.data.DATABASE_URL}" | base64 -d
+   ```
+
+2. **URL-encode the password portion:**
+   ```bash
+   # If password is "myPass+123="
+   # Encode to "myPass%2B123%3D"
+   ```
+
+3. **Create new sealed secret with encoded URL:**
+   ```bash
+   kubectl create secret generic postgres-secret \
+     --from-literal=DATABASE_URL='postgresql://user:encoded%2Bpass@host/db' \
+     --dry-run=client -o yaml | \
+     kubeseal -w postgres-sealed.yaml
+   ```
+
+4. **Apply and restart pods:**
+   ```bash
+   kubectl apply -f postgres-sealed.yaml
+   kubectl rollout restart deployment/express-deployment
+   kubectl rollout restart deployment/postgres-deployment
+   ```
+
+#### Issue: Sealed Secret Won't Decrypt
+
+**Check controller status:**
+```bash
+kubectl get pods -n kube-system | grep sealed-secrets
+kubectl logs -n kube-system deployment/sealed-secrets-controller
+```
+
+**Verify sealed secret format:**
+```bash
+kubectl get sealedsecret your-sealed-secret -o yaml
+```
+
+**Re-encrypt if needed:**
+```bash
+# Get the public key and re-encrypt
+kubeseal --fetch-cert > public.pem
+kubeseal --cert public.pem -f original-secret.yaml -w new-sealed-secret.yaml
+```
+
+#### Issue: Secret Not Updating After Changes  
+
+**Force pod restart to pick up changes:**
+```bash
+kubectl rollout restart deployment/your-deployment
+```
+
+**Verify secret content:**
+```bash
+kubectl get secret your-secret -o yaml
+```
+
+### Security Best Practices
+
+#### 1. Never Commit Unencrypted Secrets
+```bash
+# Add to .gitignore
+echo "*-secret.yaml" >> .gitignore
+echo "temp-secret.yaml" >> .gitignore
+echo "!*-sealed.yaml" >> .gitignore
+```
+
+#### 2. Backup Your Private Key
+The sealed secrets controller generates a private key that's crucial for decryption:
+
+```bash
+# Backup the private key (store securely!)
+kubectl get secret -n kube-system sealed-secrets-key -o yaml > sealed-secrets-private-key-backup.yaml
+```
+
+#### 3. Rotate Sealed Secrets Regularly
+```bash
+# Create new sealed secret with updated credentials
+kubectl create secret generic myapp-secret \
+  --from-literal=password='new-rotated-password' \
+  --dry-run=client -o yaml | \
+  kubeseal -w myapp-sealed-updated.yaml
+
+# Apply and restart affected deployments
+kubectl apply -f myapp-sealed-updated.yaml
+kubectl rollout restart deployment/myapp
+```
+
+#### 4. Environment-Specific Encryption
+Sealed secrets are encrypted for specific clusters. For multi-environment setups:
+
+```bash
+# Get cert for specific cluster
+kubectl --context=dev-cluster get cert > dev-public.pem
+kubectl --context=prod-cluster get cert > prod-public.pem
+
+# Encrypt for specific environment
+kubeseal --cert dev-public.pem -f secret.yaml -w dev-sealed.yaml
+kubeseal --cert prod-public.pem -f secret.yaml -w prod-sealed.yaml
+```
+
+### GitOps Workflow
+
+#### 1. Development Process
+```bash
+# 1. Create/update secret locally (never commit this)
+kubectl create secret generic myapp-secret \
+  --from-literal=api-key='new-key-value' \
+  --dry-run=client -o yaml > temp-secret.yaml
+
+# 2. Convert to sealed secret
+kubeseal -f temp-secret.yaml -w manifests/prod/myapp-sealed.yaml
+
+# 3. Clean up temp file
+rm temp-secret.yaml
+
+# 4. Commit sealed secret (safe for git)
+git add manifests/prod/myapp-sealed.yaml
+git commit -m "Update API key sealed secret"
+```
+
+#### 2. Deployment Process
+```bash
+# Sealed secrets automatically create regular secrets when applied
+kubectl apply -f manifests/prod/myapp-sealed.yaml
+
+# Verify the secret was created and pods can access it
+kubectl get secret myapp-secret
+kubectl logs deployment/myapp | grep -i "auth\|key\|secret"
+```
+
+### Real-World Example: PostgreSQL with Complex Password
+
+This is the exact workflow used for our production PostgreSQL setup:
+
+```bash
+# 1. Original password with special characters
+POSTGRES_PASSWORD="myP@ss+w0rd/2024="
+
+# 2. URL-encode the password
+ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('myP@ss+w0rd/2024='))")
+# Result: myP%40ss%2Bw0rd%2F2024%3D
+
+# 3. Create sealed secret with encoded URL
+kubectl create secret generic postgres-secret \
+  --from-literal=POSTGRES_USER=discbaboons \
+  --from-literal=POSTGRES_PASSWORD="myP@ss+w0rd/2024=" \
+  --from-literal=DATABASE_URL="postgresql://discbaboons:${ENCODED_PASSWORD}@postgres-service:5432/discbaboons" \
+  --dry-run=client -o yaml | \
+  kubeseal -w manifests/prod/postgres-sealed.yaml
+
+# 4. Apply and verify
+kubectl apply -f manifests/prod/postgres-sealed.yaml
+kubectl rollout restart deployment/express-deployment
+kubectl rollout restart deployment/postgres-deployment
+
+# 5. Test the application
+curl https://your-app.com/api/users
+```
+
+**Key Success Factors:**
+- ✅ URL-encode special characters in DATABASE_URL
+- ✅ Keep original password readable in POSTGRES_PASSWORD
+- ✅ Restart all pods that use the secret
+- ✅ Test the application endpoints after changes
+
+This sealed secrets implementation enables secure, GitOps-friendly secret management while maintaining production security standards.
 
 ---

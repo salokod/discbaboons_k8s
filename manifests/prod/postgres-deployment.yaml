@@ -27,12 +27,12 @@ spec:
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
+              name: postgres-sealed
               key: POSTGRES_PASSWORD
         - name: POSTGRES_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
+              name: postgres-sealed
               key: POSTGRES_ROOT_PASSWORD
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"  # 🔑 This fixes the lost+found issue!
