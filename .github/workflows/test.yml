@@ -104,8 +104,8 @@ jobs:
         chmod +x kubectl
         sudo mv kubectl /usr/local/bin/
         
-        # Configure kubectl with your DigitalOcean cluster
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        # Configure kubectl with your DigitalOcean cluster (fix: remove base64 -d)
+        echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
         export KUBECONFIG=kubeconfig
         
         # Test connection
