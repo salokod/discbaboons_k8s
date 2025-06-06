@@ -97,16 +97,22 @@ jobs:
         echo "Pushing: salokod/discbaboons-express:${IMAGE_TAG}"
         docker push salokod/discbaboons-express:${IMAGE_TAG}
     
-    - name: ⚙️ Setup kubectl
+    - name: ⚙️ Setup kubectl and doctl
       run: |
         # Install kubectl
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         chmod +x kubectl
         sudo mv kubectl /usr/local/bin/
         
-        # Configure kubectl with your DigitalOcean cluster (fix: remove base64 -d)
-        echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
-        export KUBECONFIG=kubeconfig
+        # Install doctl
+        cd /tmp
+        wget https://github.com/digitalocean/doctl/releases/download/v1.104.0/doctl-1.104.0-linux-amd64.tar.gz
+        tar xf doctl-1.104.0-linux-amd64.tar.gz
+        sudo mv doctl /usr/local/bin
+        
+        # Authenticate and configure kubectl
+        doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
+        doctl kubernetes cluster kubeconfig save do-nyc1-discbaboons-production
         
         # Test connection
         kubectl get nodes
