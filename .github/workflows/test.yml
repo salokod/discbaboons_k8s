@@ -112,7 +112,7 @@ jobs:
         
         # Authenticate and configure kubectl
         doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
-        doctl kubernetes cluster kubeconfig save do-nyc1-discbaboons-production
+        doctl kubernetes cluster kubeconfig save discbaboons-production
         
         # Test connection
         kubectl get nodes
