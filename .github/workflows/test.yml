@@ -96,3 +96,17 @@ jobs:
         IMAGE_TAG="${{ steps.tag.outputs.tag }}"
         echo "Pushing: salokod/discbaboons-express:${IMAGE_TAG}"
         docker push salokod/discbaboons-express:${IMAGE_TAG}
+    
+    - name: ⚙️ Setup kubectl
+      run: |
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        
+        # Configure kubectl with your DigitalOcean cluster
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+        # Test connection
+        kubectl get nodes
