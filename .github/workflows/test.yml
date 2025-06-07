@@ -125,8 +125,8 @@ jobs:
         echo "Semantic-release output:"
         cat semantic-output.txt
         
-        # Extract version from output
-        NEXT_VERSION=$(grep -oE "The next release version is [0-9]+\.[0-9]+\.[0-9]+" semantic-output.txt | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || echo "")
+        # Extract version from output (handle both cases)
+        NEXT_VERSION=$(grep -oE "(T|t)he next release version is [0-9]+\.[0-9]+\.[0-9]+" semantic-output.txt | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || echo "")
         
         if [ -z "$NEXT_VERSION" ]; then
           echo "No version change detected by semantic-release"
