@@ -2,7 +2,7 @@
   "branches": ["main"],
   "ci": false,
   "dryRun": true,
-  "repositoryUrl": false,
+  "repositoryUrl": "https://github.com/salokod/discbaboons_k8s",
   "plugins": [
     "@semantic-release/commit-analyzer",
     [
