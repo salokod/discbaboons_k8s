@@ -4,8 +4,9 @@ metadata:
   name: flyway-config
   labels:
     app: flyway
+    environment: dev
 data:
   FLYWAY_URL: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
-  FLYWAY_USER: "app_user_new"
+  FLYWAY_USER: "app_user"  # Using original user for dev environment
   FLYWAY_LOCATIONS: "filesystem:/flyway/sql"
   FLYWAY_BASELINE_ON_MIGRATE: "true"

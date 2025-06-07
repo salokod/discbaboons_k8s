@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flyway-config
+  labels:
+    app: flyway
+    environment: prod
+data:
+  FLYWAY_URL: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
+  FLYWAY_USER: "app_user_new"  # Using new user with restricted permissions for prod
+  FLYWAY_LOCATIONS: "filesystem:/flyway/sql"
+  FLYWAY_BASELINE_ON_MIGRATE: "true"

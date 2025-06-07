@@ -3,23 +3,23 @@
 
 set -e  # Exit on any error
 
-# Check if environment parameter is provided
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <environment>"
-    echo "Available environments: dev, prod"
+# Force dev environment - no production deployments allowed
+ENVIRONMENT="dev"
+
+# Ensure we're using k-local kubectl context
+echo "🔄 Switching to k-local context..."
+kubectl config use-context kind-discbaboons-learning
+
+# Verify we're connected to the correct cluster
+CURRENT_CONTEXT=$(kubectl config current-context)
+EXPECTED_CONTEXT="kind-discbaboons-learning"
+
+if [[ "$CURRENT_CONTEXT" != "$EXPECTED_CONTEXT" ]]; then
+    echo "❌ Error: kubectl is not connected to the expected local cluster"
+    echo "Expected: $EXPECTED_CONTEXT"
+    echo "Current:  $CURRENT_CONTEXT"
     echo ""
-    echo "Examples:"
-    echo "  $0 dev    # Deploy development environment"
-    echo "  $0 prod   # Deploy production environment"
-    exit 1
-fi
-
-ENVIRONMENT=$1
-
-# Validate environment
-if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
-    echo "❌ Error: Environment must be 'dev' or 'prod'"
-    echo "You provided: $ENVIRONMENT"
+    echo "Please ensure k-local alias is correctly configured to connect to kind-discbaboons-learning"
     exit 1
 fi
 
@@ -51,16 +51,6 @@ kubectl delete configmap express-config --ignore-not-found=true
 kubectl delete configmap monitoring-config --ignore-not-found=true
 
 # Environment-specific teardown
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-    echo "  - Deleting production-specific resources..."
-    kubectl delete serviceaccount express-service-account --ignore-not-found=true
-    kubectl delete role express-role --ignore-not-found=true
-    kubectl delete rolebinding express-rolebinding --ignore-not-found=true
-    kubectl delete networkpolicy express-network-policy --ignore-not-found=true
-    kubectl delete networkpolicy postgres-network-policy --ignore-not-found=true
-    kubectl delete ingress express-ingress --ignore-not-found=true
-    kubectl delete issuer letsencrypt-issuer --ignore-not-found=true
-fi
 echo "✅ Express application removed"
 
 echo -e "${YELLOW}Step 2: Deleting Flyway configurations...${NC}"
@@ -119,49 +109,27 @@ kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-deployment.yaml
 echo "  8e. Creating Service (shared resource)..."
 kubectl apply -f manifests/postgres-service.yaml
 
-# Apply production-specific network policies
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-    echo "  8f. Creating PostgreSQL network policy (production only)..."
-    kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-network-policy.yaml
-fi
-
 echo "  8g. Waiting for PostgreSQL to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/postgres-deployment
 echo "✅ PostgreSQL layer deployed and ready"
 
 echo -e "${YELLOW}Step 9: Deploying Flyway migration configurations...${NC}"
-echo "  9a. Creating Flyway config..."
-kubectl apply -f manifests/flyway-configmap.yaml
-echo "  9b. Creating migration files config..."
+echo "  9a. Creating Flyway config (environment-specific)..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/flyway-configmap.yaml
+echo "  9b. Creating migration files config (shared)..."
 kubectl apply -f manifests/flyway-migrations-configmap.yaml
 echo "✅ Flyway configurations deployed"
 
 echo -e "${YELLOW}Step 10: Deploying Express application layer...${NC}"
 
-# Deploy production-specific security resources first
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-    echo "  10a. Creating RBAC resources (production only)..."
-    kubectl apply -f ${MANIFEST_ENV_DIR}/express-rbac.yaml
-    echo "  10b. Creating Express network policy (production only)..."
-    kubectl apply -f ${MANIFEST_ENV_DIR}/express-network-policy.yaml
-fi
-
-echo "  10c. Creating monitoring configuration (both environments)..."
+echo "  10c. Creating monitoring configuration..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/monitoring-config.yaml
-echo "  10d. Creating Express ConfigMap (environment-specific)..."
+echo "  10d. Creating Express ConfigMap..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-configmap.yaml
-echo "  10e. Creating Express Deployment (environment-specific)..."
+echo "  10e. Creating Express Deployment..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-deployment.yaml
-echo "  10f. Creating Express Service (environment-specific)..."
+echo "  10f. Creating Express Service..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-service.yaml
-
-# Deploy production-specific ingress and SSL
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-    echo "  10g. Creating Let's Encrypt issuer (production only)..."
-    kubectl apply -f ${MANIFEST_ENV_DIR}/letsencrypt-issuer.yaml
-    echo "  10h. Creating Express ingress (production only)..."
-    kubectl apply -f ${MANIFEST_ENV_DIR}/express-ingress.yaml
-fi
 
 echo "  10i. Waiting for Express application to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/express-deployment
@@ -183,22 +151,8 @@ echo ""
 echo "PVC status:"
 kubectl get pvc
 
-# Environment-specific verification
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-    echo ""
-    echo "Production-specific resources:"
-    echo "Service Accounts:"
-    kubectl get serviceaccounts | grep express || echo "  No express service account found"
-    echo "Network Policies:"
-    kubectl get networkpolicies
-    echo "Ingress:"
-    kubectl get ingress
-    echo "SSL Issuers:"
-    kubectl get issuers || echo "  No issuers found (cert-manager may not be installed)"
-else
-    echo ""
-    echo "Development environment - RBAC and network policies not applied"
-fi
+echo ""
+echo "Development environment - RBAC and network policies not applied"
 
 echo ""
 echo "ConfigMaps:"
@@ -222,31 +176,14 @@ echo "Environment: $ENVIRONMENT"
 echo ""
 echo -e "${BLUE}🔧 Next steps:${NC}"
 
-if [[ "$ENVIRONMENT" == "prod" ]]; then
-    echo "📋 Production Environment:"
-    echo "- Ingress configured for external access"
-    echo "- Network policies active (pod-to-pod traffic restricted)"
-    echo "- RBAC enabled with minimal permissions"
-    echo "- Security contexts enforced (non-root execution)"
-    echo "- SSL/TLS configured via Let's Encrypt"
-    echo ""
-    echo "🌐 Access methods:"
-    echo "1. Via ingress (if DNS configured):"
-    echo "   https://your-domain.com"
-    echo ""
-    echo "2. Via port forwarding (bypasses network policies):"
-    echo "   kubectl port-forward service/express-service 8080:3000"
-    echo "   curl http://localhost:8080/health"
-else
-    echo "🛠️  Development Environment:"
-    echo "- Security contexts active (non-root execution)"
-    echo "- Monitoring configuration enabled"
-    echo "- No network policies (unrestricted pod communication)"
-    echo "- No RBAC (uses default service account)"
-    echo ""
-    echo "🌐 Access via port forwarding:"
-    echo "   kubectl port-forward service/express-service 8080:3000"
-fi
+echo "🛠️  Development Environment:"
+echo "- Security contexts active (non-root execution)"
+echo "- Monitoring configuration enabled"
+echo "- No network policies (unrestricted pod communication)"
+echo "- No RBAC (uses default service account)"
+echo ""
+echo "🌐 Access via port forwarding:"
+echo "   kubectl port-forward service/express-service 8080:3000"
 
 echo ""
 echo "🔍 Common operations:"
