@@ -1,4 +1,4 @@
-name: Test & Verify
+name: Test & Deploy
 
 on:
   push:
@@ -63,41 +63,105 @@ jobs:
           NODE_ENV: test
           FORCE_COLOR: true
         run: npm run verify
+
   deploy:   
     needs: test  
-    if: github.ref == 'refs/heads/main'  # Only on main branch
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Important: semantic-release needs full git history
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 📋 Setup Node.js for semantic-release
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: apps/express-server/package-lock.json
+
+    - name: 📦 Install semantic-release dependencies
+      working-directory: apps/express-server
+      run: npm ci
+
+    - name: 🔍 Check if Express app changed
+      id: changes
+      run: |
+        # Check if express app files changed
+        if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+          # First commit, assume changes
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "✅ First commit - assuming Express app changes"
+        else
+          EXPRESS_CHANGES=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep "^apps/express-server/" | wc -l)
+          
+          if [ "$EXPRESS_CHANGES" -eq 0 ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "🚫 No Express app changes detected"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Express app changes detected:"
+            git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep "^apps/express-server/"
+          fi
+        fi
+
+    - name: 🏷️ Generate semantic version
+      if: steps.changes.outputs.changed == 'true'
+      id: semantic
+      working-directory: apps/express-server
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Run semantic-release in dry-run mode to get next version
+        npm run semantic-release -- --dry-run > semantic-output.txt 2>&1 || true
+        
+        # Debug: show output
+        echo "Semantic-release output:"
+        cat semantic-output.txt
+        
+        # Extract version from output
+        NEXT_VERSION=$(grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' semantic-output.txt || echo "")
+        
+        if [ -z "$NEXT_VERSION" ]; then
+          echo "No version change detected by semantic-release"
+          echo "version_changed=false" >> $GITHUB_OUTPUT
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        else
+          echo "Next version: $NEXT_VERSION"
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "version_changed=true" >> $GITHUB_OUTPUT
+        fi
 
     - name: 🐳 Login to Docker Hub
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
         echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-    
-    - name: 🏷️ Generate image tag
-      id: tag
-      run: |
-        # Create unique tag using git commit SHA
-        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-        IMAGE_TAG="v7-${SHORT_SHA}"
-        echo "Generated tag: ${IMAGE_TAG}"
-        echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-    
+
     - name: 🏗️ Build Docker image
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       working-directory: apps/express-server
       run: |
-        IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+        VERSION="${{ steps.semantic.outputs.version }}"
+        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+        IMAGE_TAG="v${VERSION}-${SHORT_SHA}"
         echo "Building: salokod/discbaboons-express:${IMAGE_TAG}"
         docker build -t salokod/discbaboons-express:${IMAGE_TAG} .
+        echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+      id: build
         
     - name: 📤 Push to Docker Hub
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
-        IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+        IMAGE_TAG="${{ steps.build.outputs.tag }}"
         echo "Pushing: salokod/discbaboons-express:${IMAGE_TAG}"
         docker push salokod/discbaboons-express:${IMAGE_TAG}
-    
+
     - name: ⚙️ Setup kubectl and doctl
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
         # Install kubectl
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -116,10 +180,11 @@ jobs:
         
         # Test connection
         kubectl get nodes
-        
+
     - name: 🚀 Deploy to Kubernetes
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
-        IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+        IMAGE_TAG="${{ steps.build.outputs.tag }}"
         NEW_IMAGE="salokod/discbaboons-express:${IMAGE_TAG}"
         
         echo "🚀 Deploying new image: ${NEW_IMAGE}"
@@ -143,14 +208,24 @@ jobs:
         echo ""
         
         echo "🌐 Your app is live at: https://discbaboons.spirojohn.com"
-        
+
+    - name: 📝 Create GitHub Release
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      working-directory: apps/express-server
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Run semantic-release to create actual release
+        npm run semantic-release
+
     - name: 📢 Deployment Success Notification
-      if: success()
+      if: success() && steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
         echo "🎉 DEPLOYMENT SUCCESSFUL!"
         echo "=========================="
         echo "✅ App: https://discbaboons.spirojohn.com"
-        echo "🏷️ Image: salokod/discbaboons-express:${{ steps.tag.outputs.tag }}"
+        echo "🏷️ Image: salokod/discbaboons-express:${{ steps.build.outputs.tag }}"
+        echo "📦 Version: ${{ steps.semantic.outputs.version }}"
         echo "⏰ Time: $(date)"
         echo "👤 Deployed by: ${{ github.actor }}"
         echo "📝 Commit: ${{ github.event.head_commit.message }}"
@@ -164,3 +239,18 @@ jobs:
         echo "🔍 Check logs immediately: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         echo "📧 Alert team for immediate investigation"
         echo "🔄 Consider emergency rollback if needed"
+
+    - name: ℹ️ No deployment needed
+      if: steps.changes.outputs.changed == 'false' || (steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'false')
+      run: |
+        echo "🚫 No deployment needed"
+        if [ "${{ steps.changes.outputs.changed }}" = "false" ]; then
+          echo "📝 No Express app changes detected"
+          echo "Changed files:"
+          git diff --name-only ${{ github.event.before }}..${{ github.sha }} || echo "Unable to detect changes"
+        else
+          echo "📝 Express app changed but no semantic version bump warranted"
+          echo "💡 Commits don't follow conventional commit format or are non-releasable"
+        fi
+        echo "🏷️ Current version: ${{ steps.semantic.outputs.version }}"
+        echo "✅ Skipping build and deployment"
