@@ -4,41 +4,22 @@ This document contains development workflows, debugging commands, and operationa
 
 ## Daily Development Workflow
 
-### Multi-Environment Quick Start (Recommended)
+### Development Environment Deployment
 
-#### Development Environment (Fast Iteration)
+#### Local Development (Recommended)
 ```bash
-# Quick development environment deployment
-./rebuild-dev.sh
+# Deploy development environment to local Kind cluster
+./rebuild-apps.sh
 
 # Verify development configuration
 kubectl exec deployment/express-deployment -- env | grep -E '(NODE_ENV|LOG_LEVEL)'
 # Expected: NODE_ENV=development, LOG_LEVEL=debug
 
-# Check replica count (should be 1 for dev)
+# Check replica count (single replica for development)
 kubectl get pods -l app=express
 ```
 
-#### Production Environment (Testing Production Config)
-```bash
-# Deploy production environment (with safety confirmation)
-./rebuild-prod.sh
-
-# Verify production configuration
-kubectl exec deployment/express-deployment -- env | grep -E '(NODE_ENV|LOG_LEVEL)'
-# Expected: NODE_ENV=production, LOG_LEVEL=info
-
-# Check replica count (should be 3 for prod)
-kubectl get pods -l app=express
-```
-
-#### Environment-Specific Deployment
-```bash
-# Deploy specific environment using main script
-./rebuild-apps.sh dev     # Development environment
-./rebuild-apps.sh prod    # Production environment
-./rebuild-apps.sh staging # Error: Invalid environment (shows usage)
-```
+**Note**: Production deployments are handled automatically via CI/CD pipeline to DigitalOcean Kubernetes. The local script only supports development environment deployment for local testing and development.
 
 ### Legacy Workflows (Manual Deployment)
 
@@ -291,42 +272,22 @@ resources:
 
 ### Multi-Environment Development Strategy
 
-#### Environment-Specific Deployment Scripts
+### Multi-Environment Development Strategy
 
-**Development Environment (Fast Iteration)**:
+#### Local Development Environment
 ```bash
-# Quick development deployment
-./rebuild-dev.sh
+# Deploy development environment to local Kind cluster
+./rebuild-apps.sh
 
 # Features:
 # - NODE_ENV=development
 # - LOG_LEVEL=debug  
 # - Single replica for fast iteration
 # - Lower resource limits
-# - No network policies or RBAC
+# - Optimized for local development
 ```
 
-**Production Environment (Local Testing)**:
-```bash
-# Test production configuration locally
-./rebuild-prod.sh
-
-# Features:
-# - NODE_ENV=production
-# - LOG_LEVEL=info
-# - Multiple replicas (3) for HA simulation
-# - Production resource limits
-# - Full RBAC and network policies
-# - Security contexts enforced
-```
-
-**Parameterized Main Script**:
-```bash
-# Flexible deployment with environment parameter
-./rebuild-apps.sh dev     # Development environment
-./rebuild-apps.sh prod    # Production environment
-./rebuild-apps.sh staging # Error: Invalid environment (shows usage)
-```
+**Note**: Production deployments are handled via CI/CD pipeline to DigitalOcean Kubernetes. Local development uses Kind cluster with development-only configuration.
 
 ### Code Development Workflow
 
@@ -517,7 +478,7 @@ kind get clusters
 # Clean restart (nuclear option)
 kind delete cluster --name discbaboons-learning
 kind create cluster --config=kind-config.yaml --name discbaboons-learning
-./rebuild-dev.sh
+./rebuild-apps.sh
 ```
 
 #### Image Management
@@ -572,32 +533,18 @@ curl http://localhost:8080/api/nonexistent
 
 #### Environment Validation
 ```bash
-# Verify environment-specific configuration
+# Verify development environment configuration
 kubectl exec deployment/express-deployment -- env | grep -E "(NODE_ENV|LOG_LEVEL)"
 
 # Development environment expectations:
 # NODE_ENV=development
 # LOG_LEVEL=debug
 
-# Production environment expectations:  
-# NODE_ENV=production
-# LOG_LEVEL=info
-
-# Check replica count
+# Check replica count (single replica for development)
 kubectl get pods -l app=express
-# Dev: 1 replica, Prod: 3 replicas
 ```
 
-#### Security Testing (Production Mode)
-```bash
-# Test RBAC permissions (prod only)
-kubectl auth can-i get configmaps --as=system:serviceaccount:default:express-service-account
-# Expected: yes (for monitoring-config only)
-
-kubectl auth can-i create pods --as=system:serviceaccount:default:express-service-account
-# Expected: no
-
-# Test network policies (prod only)
+**Production Environment**: Deployed via CI/CD to DigitalOcean with production security features (RBAC, network policies, multiple replicas).
 kubectl exec deployment/express-deployment -- nc -zv postgres-service 5432
 # Expected: success (allowed by policy)
 
@@ -634,8 +581,8 @@ git commit -m "feat!: redesign API structure"        # Major version bump (break
 git checkout -b feature/user-profiles
 
 # Make changes and test locally
-./rebuild-dev.sh
-# Test functionality
+./rebuild-apps.sh
+# Test functionality locally in development environment
 
 # Push and create PR
 git push origin feature/user-profiles
@@ -648,18 +595,14 @@ git push origin feature/user-profiles
 # - Block merge if any checks fail
 ```
 
-### Production Deployment Confidence
+### Production Deployment Process
 ```bash
-# Local production testing before merge
-./rebuild-prod.sh
+# Local development testing
+./rebuild-apps.sh
 
-# Verify production configuration
+# Verify development configuration
 kubectl exec deployment/express-deployment -- env | grep NODE_ENV
-# Should show: NODE_ENV=production
-
-# Test with production resource limits and multiple replicas
-kubectl get pods -l app=express
-# Should show 3 running pods
+# Should show: NODE_ENV=development
 
 # Merge to main triggers automatic production deployment
 # with semantic versioning and Docker Hub registry

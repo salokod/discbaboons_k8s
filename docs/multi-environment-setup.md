@@ -4,7 +4,11 @@ This document explains the multi-environment setup for the DiscBaboons Kubernete
 
 ## Overview
 
-We've implemented a folder-based approach to manage different environments (development vs production) with separate configurations while sharing common infrastructure components.
+The project maintains separate environment configurations to support both local development and production deployment. Local development uses Kind cluster with development-specific settings, while production deployment is handled via CI/CD pipeline to DigitalOcean Kubernetes.
+
+**Current Approach**:
+- **Development**: Local Kind cluster managed by `rebuild-apps.sh` script
+- **Production**: DigitalOcean Kubernetes managed via CI/CD pipeline
 
 ## Folder Structure
 
@@ -15,18 +19,17 @@ manifests/
 │   ├── express-deployment.yaml   # Lower resource limits, 1 replica
 │   ├── express-service.yaml      # Development service config
 │   └── postgres-secret.yaml      # Development database credentials
-├── prod/                         # Production-specific manifests
+├── prod/                         # Production manifests (used by CI/CD)
 │   ├── express-configmap.yaml    # NODE_ENV: production, LOG_LEVEL: info
 │   ├── express-deployment.yaml   # Higher resource limits, multiple replicas
 │   ├── express-service.yaml      # Production service config
-│   └── postgres-secret.yaml      # Production database credentials
-└── [shared resources]            # Shared between all environments
+│   ├── express-ingress.yaml      # HTTPS ingress with Let's Encrypt
+│   ├── express-rbac.yaml         # Production security policies
+│   └── postgres-sealed-v2.yaml   # Sealed secrets for production
+└── [shared resources]            # Shared between environments
     ├── postgres-configmap.yaml   # Database configuration
-    ├── postgres-deployment.yaml  # PostgreSQL deployment
-    ├── postgres-pvc.yaml         # Persistent storage
     ├── postgres-service.yaml     # Database service
-    ├── flyway-configmap.yaml     # Migration tool config
-    └── flyway-migrations-configmap.yaml # Database migrations
+    ├── flyway-migrations-configmap.yaml # Database migrations
 ```
 
 ## Key Differences Between Environments
@@ -35,6 +38,7 @@ manifests/
 - **Node Environment**: `NODE_ENV: development`
 - **Logging Level**: `LOG_LEVEL: debug` (verbose logging for debugging)
 - **Replicas**: 1 (single instance for faster iteration)
+- **Deployment**: Local Kind cluster via `rebuild-apps.sh`
 - **Resources**: Lower CPU/memory limits for local development
 - **Purpose**: Fast development cycles, debugging, testing
 
@@ -43,46 +47,32 @@ manifests/
 - **Logging Level**: `LOG_LEVEL: info` (cleaner production logs)
 - **Replicas**: Multiple (high availability)
 - **Resources**: Higher CPU/memory limits for production load
-- **Purpose**: Production-ready deployment with proper resource allocation
+- **Deployment**: DigitalOcean Kubernetes via CI/CD pipeline
+- **Security**: RBAC, network policies, sealed secrets, HTTPS
+- **Purpose**: Production-ready deployment with full security and monitoring
 
 ## Deployment Scripts
 
-### 1. Main Script: `rebuild-apps.sh`
-- **Usage**: `./rebuild-apps.sh <environment>`
-- **Environments**: `dev` or `prod`
+### Main Script: `rebuild-apps.sh`
+- **Usage**: `./rebuild-apps.sh` (development environment only)
+- **Environment**: Hardcoded to `dev` for local development
 - **Features**: 
-  - Environment parameter validation
-  - Automatic path resolution for environment-specific manifests
-  - Clear indication of which environment is being deployed
+  - Automatic configuration for development environment
+  - Uses local Kind cluster (`kind-discbaboons-learning`)
+  - Clear indication of development-only deployment
+  - Production deployments handled via CI/CD pipeline
 
-### 2. Development Script: `rebuild-dev.sh`
-- **Usage**: `./rebuild-dev.sh`
-- **Purpose**: Quick development environment deployment
-- **Features**: 
-  - No parameter needed
-  - Optimized for development workflow
-  - Shows development-specific configuration summary
-
-### 3. Production Script: `rebuild-prod.sh`
-- **Usage**: `./rebuild-prod.sh`
-- **Purpose**: Production environment deployment with safety checks
-- **Features**: 
-  - Safety confirmation prompt
-  - Production-specific warnings
-  - Production monitoring guidance
+**Note**: Production deployments are managed through the CI/CD pipeline to DigitalOcean Kubernetes. The local script only supports development environment deployment.
 
 ## Usage Examples
 
 ```bash
-# Deploy development environment (quick)
-./rebuild-dev.sh
+# Deploy development environment
+./rebuild-apps.sh
 
-# Deploy production environment (with safety checks)
-./rebuild-prod.sh
-
-# Deploy specific environment using main script
-./rebuild-apps.sh dev
-./rebuild-apps.sh prod
+# Access the application
+kubectl port-forward service/express-service 8080:3000
+curl http://localhost:8080/health
 ```
 
 ## Verification Commands

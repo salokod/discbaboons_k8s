@@ -18,6 +18,9 @@ This is a **production-ready backend infrastructure** with:
 
 **Next Phase**: Building authentication and disc golf tracking APIs
 
+## 📝 Recent Changes
+**Development Workflow Simplification**: The local development workflow has been streamlined to focus on development-only deployments. Production deployments are now exclusively handled through the CI/CD pipeline to DigitalOcean Kubernetes for improved security and consistency.
+
 ## 🏗️ Architecture
 
 ### Technology Stack
@@ -48,23 +51,15 @@ See [Database Documentation](docs/database/) for complete schema and migration s
 
 ### Development Environment
 ```bash
-# Deploy to local Kind cluster
-./rebuild-dev.sh
+# Deploy to local Kind cluster (development only)
+./rebuild-apps.sh
 
 # Access application locally
 kubectl port-forward service/express-service 8080:3000
 curl http://localhost:8080/health
 ```
 
-### Production Environment (Testing)
-```bash
-# Deploy production configuration locally
-./rebuild-prod.sh
-
-# Verify production settings
-kubectl exec deployment/express-deployment -- env | grep NODE_ENV
-# Expected: NODE_ENV=production
-```
+**Note**: Production deployments are handled via CI/CD to DigitalOcean. This script only supports local development environment deployment.
 
 ## 🔧 Development Workflows
 
@@ -94,9 +89,8 @@ npm run lint               # Code linting
 
 ```
 ├── README.md                     # This file
-├── kind-config.yaml             # Kind cluster configuration
-├── rebuild-dev.sh               # Development environment script
-├── rebuild-prod.sh              # Production environment script
+├── kind-config.yaml             # Kind cluster configuration  
+├── rebuild-apps.sh              # Development environment deployment script
 ├── apps/
 │   └── express-server/          # Express.js application
 ├── docs/                        # Project documentation
