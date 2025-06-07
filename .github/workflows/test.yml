@@ -143,3 +143,24 @@ jobs:
         echo ""
         
         echo "🌐 Your app is live at: https://discbaboons.spirojohn.com"
+        
+    - name: 📢 Deployment Success Notification
+      if: success()
+      run: |
+        echo "🎉 DEPLOYMENT SUCCESSFUL!"
+        echo "=========================="
+        echo "✅ App: https://discbaboons.spirojohn.com"
+        echo "🏷️ Image: salokod/discbaboons-express:${{ steps.tag.outputs.tag }}"
+        echo "⏰ Time: $(date)"
+        echo "👤 Deployed by: ${{ github.actor }}"
+        echo "📝 Commit: ${{ github.event.head_commit.message }}"
+        echo "🔗 Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        
+    - name: 🚨 Deployment Failure Alert
+      if: failure()
+      run: |
+        echo "❌ DEPLOYMENT FAILED!"
+        echo "===================="
+        echo "🔍 Check logs immediately: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        echo "📧 Alert team for immediate investigation"
+        echo "🔄 Consider emergency rollback if needed"

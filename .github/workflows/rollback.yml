@@ -1,0 +1,52 @@
+name: 🚨 Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      previous_image:
+        description: 'Previous working image tag (e.g., v7-abc1234)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+jobs:
+  emergency-rollback:
+    runs-on: ubuntu-latest
+    steps:
+    - name: ⚙️ Setup kubectl and doctl
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        
+        cd /tmp
+        wget https://github.com/digitalocean/doctl/releases/download/v1.104.0/doctl-1.104.0-linux-amd64.tar.gz
+        tar xf doctl-1.104.0-linux-amd64.tar.gz
+        sudo mv doctl /usr/local/bin
+        
+        doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
+        doctl kubernetes cluster kubeconfig save discbaboons-production
+        
+    - name: 🔄 Execute Emergency Rollback
+      run: |
+        ROLLBACK_IMAGE="salokod/discbaboons-express:${{ github.event.inputs.previous_image }}"
+        echo "🚨 EMERGENCY ROLLBACK INITIATED"
+        echo "================================"
+        echo "🔄 Rolling back to: ${ROLLBACK_IMAGE}"
+        echo "📝 Reason: ${{ github.event.inputs.reason }}"
+        echo "👤 Initiated by: ${{ github.actor }}"
+        echo "⏰ Time: $(date)"
+        
+        # Execute rollback
+        kubectl set image deployment/express-deployment express=${ROLLBACK_IMAGE}
+        
+        # Wait for rollback to complete
+        kubectl rollout status deployment/express-deployment --timeout=300s
+        
+        echo "✅ ROLLBACK COMPLETED!"
+        echo "🌐 Verify app: https://discbaboons.spirojohn.com"
+        echo "📊 Current pods:"
+        kubectl get pods -l app=express
