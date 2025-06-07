@@ -1,9 +1,15 @@
 {
   "branches": ["main"],
-  "dryRun": false,
   "ci": false,
+  "dryRun": true,
+  "repositoryUrl": false,
   "plugins": [
     "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator"
+    [
+      "@semantic-release/exec",
+      {
+        "verifyReleaseCmd": "echo '${nextRelease.version}' > /tmp/next-version.txt"
+      }
+    ]
   ]
 }
