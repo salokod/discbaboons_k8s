@@ -116,3 +116,30 @@ jobs:
         
         # Test connection
         kubectl get nodes
+        
+    - name: 🚀 Deploy to Kubernetes
+      run: |
+        IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+        NEW_IMAGE="salokod/discbaboons-express:${IMAGE_TAG}"
+        
+        echo "🚀 Deploying new image: ${NEW_IMAGE}"
+        echo "📍 Current production image:"
+        kubectl get deployment express-deployment -o jsonpath='{.spec.template.spec.containers[0].image}'
+        echo ""
+        
+        # Update the deployment with new image
+        kubectl set image deployment/express-deployment express=${NEW_IMAGE}
+        
+        # Wait for rollout to complete (5 minute timeout)
+        echo "⏳ Waiting for deployment to complete..."
+        kubectl rollout status deployment/express-deployment --timeout=300s
+        
+        # Verify deployment success
+        echo "✅ Deployment completed! New pods:"
+        kubectl get pods -l app=express -o wide
+        
+        echo "🎯 Verified new image in deployment:"
+        kubectl get deployment express-deployment -o jsonpath='{.spec.template.spec.containers[0].image}'
+        echo ""
+        
+        echo "🌐 Your app is live at: https://discbaboons.spirojohn.com"

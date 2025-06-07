@@ -33,6 +33,7 @@ app.get('/', (req, res) => {
     hostname: hostname(),
     version: '1.0.0',
     nodeVersion: process.version,
+    spiro: true,
   });
 });
 
