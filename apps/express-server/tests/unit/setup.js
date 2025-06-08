@@ -33,8 +33,6 @@ jest.doMock('../../lib/prisma.js', () => ({
   default: mockPrisma,
 }));
 
-console.log('🔧 Unit test setup complete - Clean Prisma mocks');
-
 // Export for use in tests
 // eslint-disable-next-line import/prefer-default-export
 export { mockPrisma };
