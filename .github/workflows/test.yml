@@ -228,6 +228,10 @@ jobs:
         kubectl delete configmap flyway-migrations --ignore-not-found=true
         kubectl create configmap flyway-migrations --from-file=migrations/
         
+        # Apply production Flyway config
+        echo "📋 Applying production Flyway configuration..."
+        kubectl apply -f manifests/prod/flyway-configmap.yaml
+        
         # Create unique migration job
         MIGRATION_JOB="flyway-migration-$(date +%s)"
         echo "🔧 Creating migration job: $MIGRATION_JOB"
@@ -265,20 +269,15 @@ jobs:
                     echo ""
                     echo "✅ Migration completed! Final status:"
                     flyway info
+                envFrom:
+                - configMapRef:
+                    name: flyway-config
                 env:
-                - name: FLYWAY_URL
-                  value: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
-                - name: FLYWAY_USER
-                  value: "app_user"
                 - name: FLYWAY_PASSWORD
                   valueFrom:
                     secretKeyRef:
                       name: postgres-secret
                       key: app-password-new
-                - name: FLYWAY_LOCATIONS
-                  value: "filesystem:/flyway/sql"
-                - name: FLYWAY_BASELINE_ON_MIGRATE
-                  value: "true"
                 volumeMounts:
                 - name: migrations
                   mountPath: /flyway/sql
