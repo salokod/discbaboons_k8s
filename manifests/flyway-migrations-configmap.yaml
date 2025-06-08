@@ -86,6 +86,18 @@ data:
     u.username, u.last_password_change, p.name, p.email, p.bio \n--    FROM users
     u JOIN user_profiles p ON u.id = p.user_id WHERE u.username = 'testbaboon';\n--
     \   Expected: Complete user data from both tables"
+  V6__add_email_to_users_for_auth.sql: "-- Move email from user_profiles to users
+    table for cleaner authentication architecture\n-- This consolidates all authentication
+    fields (username, email, password) in one table\n\n-- Step 1: Add email column
+    to users table\nALTER TABLE users \nADD COLUMN email VARCHAR(255);\n\n-- Step
+    2: Copy existing emails from user_profiles to users\nUPDATE users \nSET email
+    = up.email \nFROM user_profiles up \nWHERE users.id = up.user_id \nAND up.email
+    IS NOT NULL;\n\n-- Step 3: Create unique constraint on email for authentication\nALTER
+    TABLE users \nADD CONSTRAINT users_email_unique UNIQUE (email);\n\n-- Step 4:
+    Remove email from user_profiles (no longer needed for auth)\nALTER TABLE user_profiles
+    \nDROP COLUMN IF EXISTS email;\n\n-- Step 5: Make email NOT NULL for future records
+    (optional - can be done later)\n-- ALTER TABLE users ALTER COLUMN email SET NOT
+    NULL;"
 kind: ConfigMap
 metadata:
   creationTimestamp: null

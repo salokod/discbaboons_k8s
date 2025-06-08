@@ -113,12 +113,18 @@ echo "  8g. Waiting for PostgreSQL to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/postgres-deployment
 echo "✅ PostgreSQL layer deployed and ready"
 
-echo -e "${YELLOW}Step 9: Deploying Flyway migration configurations...${NC}"
-echo "  9a. Creating Flyway config (environment-specific)..."
+echo -e "${YELLOW}Step 9: Preparing and deploying Flyway migration configurations...${NC}"
+echo "  9a. Regenerating migrations ConfigMap from migration files..."
+# Auto-generate flyway-migrations-configmap.yaml from migration files
+kubectl create configmap flyway-migrations \
+  --from-file=migrations/ \
+  --dry-run=client \
+  -o yaml > manifests/flyway-migrations-configmap.yaml
+echo "  9b. Creating Flyway config (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/flyway-configmap.yaml
-echo "  9b. Creating migration files config (shared)..."
+echo "  9c. Creating migration files config (shared)..."
 kubectl apply -f manifests/flyway-migrations-configmap.yaml
-echo "✅ Flyway configurations deployed"
+echo "✅ Flyway configurations deployed with latest migrations"
 
 echo -e "${YELLOW}Step 10: Deploying Express application layer...${NC}"
 

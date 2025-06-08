@@ -29,6 +29,7 @@ router.get('/', async (req, res) => {
       data: users,
     });
   } catch (error) {
+    console.log('this is mf error', error); // Debugging log
     res.status(500).json({
       success: false,
       error: 'Failed to fetch users',

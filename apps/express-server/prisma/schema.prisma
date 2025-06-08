@@ -25,7 +25,6 @@ model flyway_schema_history {
 model user_profiles {
   id         Int       @id @default(autoincrement())
   user_id    Int       @unique(map: "idx_user_profiles_user_id")
-  email      String?   @db.VarChar(255)
   name       String?   @db.VarChar(100)
   location   String?   @db.VarChar(100)
   bio        String?
@@ -34,7 +33,6 @@ model user_profiles {
   users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([created_at], map: "idx_user_profiles_created_at")
-  @@index([email], map: "idx_user_profiles_email")
 }
 
 model users {
@@ -43,13 +41,8 @@ model users {
   created_at           DateTime?      @default(now()) @db.Timestamp(6)
   password_hash        String
   last_password_change DateTime?      @default(now()) @db.Timestamp(6)
+  email                String?        @unique(map: "users_email_unique") @db.VarChar(255)
   user_profiles        user_profiles?
 
   @@index([last_password_change], map: "idx_users_last_password_change")
-}
-
-model week3_success {
-  id           Int       @id @default(autoincrement())
-  milestone    String?
-  completed_at DateTime? @default(now()) @db.Timestamp(6)
 }
