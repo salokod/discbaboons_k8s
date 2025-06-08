@@ -23,7 +23,6 @@ router.get('/', async (req, res) => {
       },
     });
 
-    console.log('Fetched users:', JSON.stringify(users)); // Debugging log
     res.json({
       success: true,
       data: users,
