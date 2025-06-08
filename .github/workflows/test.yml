@@ -111,24 +111,41 @@ jobs:
       run: |
         echo "🔍 Checking production migration status..."
         
-        # Check if V6 migration is applied
-        MIGRATION_STATUS=$(kubectl exec deployment/postgres-deployment -- psql -U app_user -d discbaboons_db -t -c "SELECT version FROM flyway_schema_history WHERE version = '6';" 2>/dev/null | tr -d ' ' || echo "")
+        # Find the latest migration file (highest version number)
+        LATEST_MIGRATION=$(ls migrations/V*.sql | sort -V | tail -1)
+        LATEST_VERSION=$(basename "$LATEST_MIGRATION" | grep -oE '^V[0-9]+' | sed 's/V//')
         
-        if [ -z "$MIGRATION_STATUS" ] || [ "$MIGRATION_STATUS" = "" ]; then
-          echo "🚨 V6 migration NOT found in production"
+        echo "📁 Latest migration file: $LATEST_MIGRATION"
+        echo "🔢 Latest version number: $LATEST_VERSION"
+        
+        # Check what's the highest version in production
+        PROD_LATEST=$(kubectl exec deployment/postgres-deployment -- psql -U app_user -d discbaboons_db -t -c "SELECT MAX(CAST(version AS INTEGER)) FROM flyway_schema_history;" 2>/dev/null | tr -d ' ' || echo "0")
+        
+        echo "🏭 Production latest version: $PROD_LATEST"
+        
+        if [ "$LATEST_VERSION" -gt "$PROD_LATEST" ]; then
+          echo "🚨 Migration(s) needed! Local: V$LATEST_VERSION, Production: V$PROD_LATEST"
           echo "migrations_needed=true" >> $GITHUB_OUTPUT
           
-          # Show current migrations
+          # Show current production migrations
           echo "📊 Current production migrations:"
           kubectl exec deployment/postgres-deployment -- psql -U app_user -d discbaboons_db -c "SELECT version, description, installed_on FROM flyway_schema_history ORDER BY installed_rank;" || echo "Unable to query migration history"
           
-          # Install Flyway and run migration directly
-          echo "🚀 Installing Flyway and applying V6 migration..."
+          # Show what migrations will be applied
+          echo "📋 Migrations to be applied:"
+          ls migrations/V*.sql | sort -V | while read migration; do
+            VERSION=$(basename "$migration" | grep -oE '^V[0-9]+' | sed 's/V//')
+            if [ "$VERSION" -gt "$PROD_LATEST" ]; then
+              echo "  → $migration"
+            fi
+          done
+          
+          # Install Flyway and run migrations
+          echo "🚀 Installing Flyway and applying migrations..."
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
           # Get database connection details from Kubernetes secret
-          DB_HOST=$(kubectl get service postgres-service -o jsonpath='{.spec.clusterIP}')
           DB_PASSWORD=$(kubectl get secret postgres-secret -o jsonpath='{.data.app-password-new}' | base64 -d)
           
           # Run migration using port-forward to avoid networking issues
@@ -137,16 +154,20 @@ jobs:
           PORTFORWARD_PID=$!
           sleep 5
           
-          # Apply migration
-          echo "🗄️ Applying V6 migration to production..."
+          # Apply all pending migrations
+          echo "🗄️ Applying migrations to production..."
           flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations migrate
+          
+          # Verify migration success
+          echo "✅ Verifying migration status..."
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations info
           
           # Clean up port-forward
           kill $PORTFORWARD_PID
           
-          echo "✅ V6 migration applied successfully"
+          echo "✅ All migrations applied successfully"
         else
-          echo "✅ V6 migration already applied in production (version: $MIGRATION_STATUS)"
+          echo "✅ Production is up to date (V$PROD_LATEST)"
           echo "migrations_needed=false" >> $GITHUB_OUTPUT
         fi
 
@@ -172,7 +193,7 @@ jobs:
         fi
 
     - name: 🏷️ Generate semantic version
-      if: steps.changes.outputs.changed == 'true'
+      if: steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true'
       id: semantic
       working-directory: apps/express-server
       env:
@@ -204,7 +225,7 @@ jobs:
         fi
 
     - name: 🏷️ Create actual release
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       working-directory: apps/express-server
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -214,12 +235,12 @@ jobs:
         npx semantic-release
 
     - name: 🐳 Login to Docker Hub
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       run: |
         echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
     - name: 🏗️ Build Docker image
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       working-directory: apps/express-server
       run: |
         VERSION="${{ steps.semantic.outputs.version }}"
@@ -231,14 +252,14 @@ jobs:
       id: build
         
     - name: 📤 Push to Docker Hub
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       run: |
         IMAGE_TAG="${{ steps.build.outputs.tag }}"
         echo "Pushing: salokod/discbaboons-express:${IMAGE_TAG}"
         docker push salokod/discbaboons-express:${IMAGE_TAG}
 
     - name: 🚀 Deploy to Kubernetes
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       run: |
         IMAGE_TAG="${{ steps.build.outputs.tag }}"
         NEW_IMAGE="salokod/discbaboons-express:${IMAGE_TAG}"
@@ -266,7 +287,7 @@ jobs:
         echo "🌐 Your app is live at: https://discbaboons.spirojohn.com"
 
     - name: 📝 Create GitHub Release
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       working-directory: apps/express-server
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -275,7 +296,7 @@ jobs:
         npm run semantic-release
 
     - name: 📢 Deployment Success Notification
-      if: success() && steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
+      if: success() && ((steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true')
       run: |
         echo "🎉 DEPLOYMENT SUCCESSFUL!"
         echo "=========================="
@@ -297,15 +318,13 @@ jobs:
         echo "🔄 Consider emergency rollback if needed"
 
     - name: ℹ️ No deployment needed
-      if: steps.changes.outputs.changed == 'false' || (steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'false')
+      if: (steps.changes.outputs.changed == 'false' && steps.migration_check.outputs.migrations_needed == 'false') || ((steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'false')
       run: |
         echo "🚫 No deployment needed"
-        if [ "${{ steps.changes.outputs.changed }}" = "false" ]; then
-          echo "📝 No Express app changes detected"
-          echo "Changed files:"
-          git diff --name-only ${{ github.event.before }}..${{ github.sha }} || echo "Unable to detect changes"
+        if [ "${{ steps.changes.outputs.changed }}" = "false" ] && [ "${{ steps.migration_check.outputs.migrations_needed }}" = "false" ]; then
+          echo "📝 No Express app changes and no migrations needed"
         else
-          echo "📝 Express app changed but no semantic version bump warranted"
+          echo "📝 Express app changed or migrations applied but no semantic version bump warranted"
           echo "💡 Commits don't follow conventional commit format or are non-releasable"
         fi
         echo "🏷️ Current version: ${{ steps.semantic.outputs.version }}"
@@ -317,8 +336,8 @@ jobs:
         echo "📊 MIGRATION SUMMARY"
         echo "==================="
         if [ "${{ steps.migration_check.outputs.migrations_needed }}" = "true" ]; then
-          echo "✅ V6 migration was applied to production"
+          echo "✅ Migrations were applied to production"
         else
-          echo "ℹ️ V6 migration was already present in production"
+          echo "ℹ️ Production was already up to date"
         fi
-        echo "🗄️ All migrations are now up to date"
+        echo "🗄️ All migrations are now current"
