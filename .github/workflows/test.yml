@@ -76,29 +76,6 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         persist-credentials: true
 
-    - name: 🔍 Check for migration changes
-      id: migration-check
-      run: |
-        echo "🔍 Checking if migrations need to be applied first..."
-        
-        if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-          echo "migrations-needed=false" >> $GITHUB_OUTPUT
-          echo "✅ First commit - no migration check needed"
-          exit 0
-        fi
-        
-        MIGRATION_CHANGES=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep "^migrations/V.*\.sql$" | wc -l)
-        
-        if [ "$MIGRATION_CHANGES" -gt 0 ]; then
-          echo "migrations-needed=true" >> $GITHUB_OUTPUT
-          echo "✅ Migration changes detected - will apply before app deployment"
-          echo "Changed migrations:"
-          git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep "^migrations/V.*\.sql$"
-        else
-          echo "migrations-needed=false" >> $GITHUB_OUTPUT
-          echo "📭 No migration changes - proceeding with app-only deployment"
-        fi
-
     - name: 📋 Setup Node.js for semantic-release
       uses: actions/setup-node@v4
       with:
@@ -198,7 +175,7 @@ jobs:
         docker push salokod/discbaboons-express:${IMAGE_TAG}
 
     - name: ⚙️ Setup kubectl and doctl
-      if: steps.migration-check.outputs.migrations-needed == 'true' || (steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true')
+      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
         # Install kubectl
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -218,85 +195,6 @@ jobs:
         # Test connection
         kubectl get nodes
 
-    - name: 🗄️ Apply database migrations
-      if: steps.migration-check.outputs.migrations-needed == 'true'
-      run: |
-        echo "🚀 Applying database migrations to production..."
-        
-        # Update migrations ConfigMap
-        echo "📦 Updating migrations ConfigMap..."
-        kubectl delete configmap flyway-migrations --ignore-not-found=true
-        kubectl create configmap flyway-migrations --from-file=migrations/
-        
-        # Apply production Flyway config
-        echo "📋 Applying production Flyway configuration..."
-        kubectl apply -f manifests/prod/flyway-configmap.yaml
-        
-        # Create unique migration job
-        MIGRATION_JOB="flyway-migration-$(date +%s)"
-        echo "🔧 Creating migration job: $MIGRATION_JOB"
-        
-        cat << EOF | kubectl apply -f -
-        apiVersion: batch/v1
-        kind: Job
-        metadata:
-          name: $MIGRATION_JOB
-          labels:
-            app: flyway
-            environment: prod
-            deployment-migration: "true"
-        spec:
-          ttlSecondsAfterFinished: 300
-          template:
-            metadata:
-              labels:
-                app: flyway
-                environment: prod
-            spec:
-              restartPolicy: Never
-              containers:
-              - name: flyway
-                image: flyway/flyway:10.8.1
-                command: ["/bin/sh"]
-                args:
-                  - -c
-                  - |
-                    echo "🚀 Running production database migration..."
-                    echo "Migration files:"
-                    ls -la /flyway/sql/
-                    echo ""
-                    flyway migrate
-                    echo ""
-                    echo "✅ Migration completed! Final status:"
-                    flyway info
-                envFrom:
-                - configMapRef:
-                    name: flyway-config
-                env:
-                - name: FLYWAY_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: postgres-secret
-                      key: app-password-new
-                volumeMounts:
-                - name: migrations
-                  mountPath: /flyway/sql
-              volumes:
-              - name: migrations
-                configMap:
-                  name: flyway-migrations
-        EOF
-        
-        # Wait for migration to complete
-        echo "⏳ Waiting for migration to complete (5 minute timeout)..."
-        kubectl wait --for=condition=complete job/$MIGRATION_JOB --timeout=300s
-        
-        # Show migration results
-        echo "📋 Migration results:"
-        kubectl logs job/$MIGRATION_JOB --tail=50
-        
-        echo "✅ Database migrations completed successfully!"
-
     - name: 🚀 Deploy to Kubernetes
       if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
@@ -304,13 +202,6 @@ jobs:
         NEW_IMAGE="salokod/discbaboons-express:${IMAGE_TAG}"
         
         echo "🚀 Deploying new image: ${NEW_IMAGE}"
-        
-        # If migrations ran, wait a moment for database to be ready
-        if [ "${{ steps.migration-check.outputs.migrations-needed }}" = "true" ]; then
-          echo "⏳ Migrations completed - waiting 10 seconds for database to stabilize..."
-          sleep 10
-        fi
-        
         echo "📍 Current production image:"
         kubectl get deployment express-deployment -o jsonpath='{.spec.template.spec.containers[0].image}'
         echo ""
@@ -342,18 +233,13 @@ jobs:
         npm run semantic-release
 
     - name: 📢 Deployment Success Notification
-      if: success() && (steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true' || steps.migration-check.outputs.migrations-needed == 'true')
+      if: success() && steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'true'
       run: |
         echo "🎉 DEPLOYMENT SUCCESSFUL!"
         echo "=========================="
-        if [ "${{ steps.migration-check.outputs.migrations-needed }}" = "true" ]; then
-          echo "✅ Database: Migrations applied"
-        fi
-        if [ "${{ steps.changes.outputs.changed }}" = "true" ] && [ "${{ steps.semantic.outputs.version_changed }}" = "true" ]; then
-          echo "✅ App: https://discbaboons.spirojohn.com"
-          echo "🏷️ Image: salokod/discbaboons-express:${{ steps.build.outputs.tag }}"
-          echo "📦 Version: ${{ steps.semantic.outputs.version }}"
-        fi
+        echo "✅ App: https://discbaboons.spirojohn.com"
+        echo "🏷️ Image: salokod/discbaboons-express:${{ steps.build.outputs.tag }}"
+        echo "📦 Version: ${{ steps.semantic.outputs.version }}"
         echo "⏰ Time: $(date)"
         echo "👤 Deployed by: ${{ github.actor }}"
         echo "📝 Commit: ${{ github.event.head_commit.message }}"
@@ -368,31 +254,17 @@ jobs:
         echo "📧 Alert team for immediate investigation"
         echo "🔄 Consider emergency rollback if needed"
 
-    - name: ✅ Migration-only deployment
-      if: steps.migration-check.outputs.migrations-needed == 'true' && (steps.changes.outputs.changed == 'false' || steps.semantic.outputs.version_changed == 'false')
-      run: |
-        echo "✅ MIGRATION-ONLY DEPLOYMENT COMPLETED"
-        echo "====================================="
-        echo "✅ Database: Migrations applied successfully"
-        echo "📭 Express: No app changes to deploy"
-        echo "🌐 App: https://discbaboons.spirojohn.com (schema updated)"
-        echo "⏰ Completed: $(date)"
-
     - name: ℹ️ No deployment needed
-      if: steps.changes.outputs.changed == 'false' && steps.migration-check.outputs.migrations-needed == 'false'
+      if: steps.changes.outputs.changed == 'false' || (steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'false')
       run: |
         echo "🚫 No deployment needed"
-        echo "📝 No Express app changes detected"
-        echo "🗄️ No migration changes detected"
-        echo "Changed files:"
-        git diff --name-only ${{ github.event.before }}..${{ github.sha }} || echo "Unable to detect changes"
-        echo "✅ Repository is up to date"
-
-    - name: ℹ️ No app deployment needed
-      if: steps.changes.outputs.changed == 'true' && steps.semantic.outputs.version_changed == 'false' && steps.migration-check.outputs.migrations-needed == 'false'
-      run: |
-        echo "🚫 No app deployment needed"
-        echo "📝 Express app changed but no semantic version bump warranted"
-        echo "💡 Commits don't follow conventional commit format or are non-releasable"
+        if [ "${{ steps.changes.outputs.changed }}" = "false" ]; then
+          echo "📝 No Express app changes detected"
+          echo "Changed files:"
+          git diff --name-only ${{ github.event.before }}..${{ github.sha }} || echo "Unable to detect changes"
+        else
+          echo "📝 Express app changed but no semantic version bump warranted"
+          echo "💡 Commits don't follow conventional commit format or are non-releasable"
+        fi
         echo "🏷️ Current version: ${{ steps.semantic.outputs.version }}"
         echo "✅ Skipping build and deployment"
