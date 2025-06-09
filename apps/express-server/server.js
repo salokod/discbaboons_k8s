@@ -1,7 +1,8 @@
 import express from 'express';
 import { hostname } from 'os';
 import dotenv from 'dotenv';
-import authRouter from './routes/auth.routes.js'; // ADD THIS LINE
+import authRouter from './routes/auth.routes.js';
+import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
 
@@ -73,12 +74,7 @@ app.use('*', (req, res) => {
 });
 
 // Error handler
-app.use((err, req, res, _next) => {
-  res.status(500).json({
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
-  });
-});
+app.use(errorHandler);
 
 // Start server (only if not in test mode)
 if (process.env.NODE_ENV !== 'test') {

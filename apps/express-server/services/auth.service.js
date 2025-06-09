@@ -2,15 +2,21 @@ import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
 
 const registerUser = async (userData) => {
-  // Validate required fields
+  // Validate required fields - these are ValidationError (400)
   if (!userData.email) {
-    throw new Error('Email is required');
+    const error = new Error('Email is required');
+    error.name = 'ValidationError';
+    throw error;
   }
   if (!userData.password) {
-    throw new Error('Password is required');
+    const error = new Error('Password is required');
+    error.name = 'ValidationError';
+    throw error;
   }
   if (!userData.username) {
-    throw new Error('Username is required');
+    const error = new Error('Username is required');
+    error.name = 'ValidationError';
+    throw error;
   }
 
   // Check if email already exists
@@ -23,7 +29,9 @@ const registerUser = async (userData) => {
   });
 
   if (existingEmail || existingUsername) {
-    throw new Error('Email or username already registered');
+    const error = new Error('Email or username already registered');
+    error.status = 409; // Conflict - resource already exists
+    throw error;
   }
 
   // Hash password for security
@@ -39,7 +47,6 @@ const registerUser = async (userData) => {
   });
 
   // Remove sensitive data before returning
-
   // eslint-disable-next-line no-unused-vars, camelcase
   const { password_hash, ...userWithoutPassword } = createdUser;
 
