@@ -96,8 +96,7 @@ data:
     TABLE users \nADD CONSTRAINT users_email_unique UNIQUE (email);\n\n-- Step 4:
     Remove email from user_profiles (no longer needed for auth)\nALTER TABLE user_profiles
     \nDROP COLUMN IF EXISTS email;\n\n-- Step 5: Make email NOT NULL for future records
-    (optional - can be done later)\n-- ALTER TABLE users ALTER COLUMN email SET NOT
-    NULL;\n"
+    (optional - can be done later)\nALTER TABLE users ALTER COLUMN email SET NOT NULL;"
 kind: ConfigMap
 metadata:
   creationTimestamp: null

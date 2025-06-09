@@ -1,6 +1,6 @@
 import registerUser from '../services/auth.service.js';
 
-const registerController = async (req, res) => {
+const registerController = async (req, res, next) => {
   try {
     // Call the service with request body
     const result = await registerUser(req.body);
@@ -8,11 +8,8 @@ const registerController = async (req, res) => {
     // Return success response
     res.status(201).json(result);
   } catch (error) {
-    // Handle errors
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    // Pass error to global error handler
+    next(error);
   }
 };
 

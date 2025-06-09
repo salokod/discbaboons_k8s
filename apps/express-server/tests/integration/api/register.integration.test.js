@@ -88,7 +88,7 @@ describe('POST /api/auth/register - Integration Test', () => {
     // Try to create another user with same email
     const duplicateUser = {
       username: chance.string({ length: 8, alpha: true, numeric: true }),
-      email: sharedEmail, // Same email!
+      email: sharedEmail,
       password: chance.string({ length: 12, symbols: false }),
     };
 
@@ -96,7 +96,7 @@ describe('POST /api/auth/register - Integration Test', () => {
     const response = await request(app)
       .post('/api/auth/register')
       .send(duplicateUser)
-      .expect(400);
+      .expect(409);
 
     expect(response.body).toHaveProperty('success', false);
     expect(response.body).toHaveProperty('message');
@@ -145,7 +145,7 @@ describe('POST /api/auth/register - Integration Test', () => {
     const response = await request(app)
       .post('/api/auth/register')
       .send(duplicateUser)
-      .expect(400);
+      .expect(409);
 
     expect(response.body).toHaveProperty('success', false);
     expect(response.body).toHaveProperty('message');
