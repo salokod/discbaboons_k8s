@@ -305,7 +305,7 @@ jobs:
         echo "📦 Version: ${{ steps.semantic.outputs.version }}"
         echo "⏰ Time: $(date)"
         echo "👤 Deployed by: ${{ github.actor }}"
-        echo "📝 Commit: ${{ github.event.head_commit.message }}"
+        echo "📝 Commit: ${{ github.event.head_commit.message }}" | head -1
         echo "🔗 Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         
     - name: 🚨 Deployment Failure Alert
