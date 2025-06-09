@@ -54,7 +54,7 @@ describe('AuthService', () => {
       id: mockId,
       email: userData.email,
       username: userData.username,
-      password_hash: 'hashed_password_123', // ✅ Add this!
+      password_hash: 'hashed_password_123',
       createdAt: new Date().toISOString(),
     };
 
@@ -139,5 +139,15 @@ describe('AuthService', () => {
     });
 
     await expect(registerUser(userData)).rejects.toThrow('Email or username already registered');
+  });
+
+  test('should throw ValidationError for invalid email format', async () => {
+    const userData = createTestRegisterData({ email: 'not-an-email' });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Please provide a valid email address');
   });
 });

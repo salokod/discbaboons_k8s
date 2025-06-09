@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const registerUser = async (userData) => {
   // Validate required fields - these are ValidationError (400)
   if (!userData.email) {
@@ -19,6 +21,12 @@ const registerUser = async (userData) => {
     throw error;
   }
 
+  if (!emailRegex.test(userData.email)) {
+    const error = new Error('Please provide a valid email address');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Check if email already exists
   const existingEmail = await prisma.users.findUnique({
     where: { email: userData.email },
@@ -30,7 +38,7 @@ const registerUser = async (userData) => {
 
   if (existingEmail || existingUsername) {
     const error = new Error('Email or username already registered');
-    error.status = 409; // Conflict - resource already exists
+    error.status = 409;
     throw error;
   }
 
