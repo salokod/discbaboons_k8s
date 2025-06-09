@@ -142,12 +142,32 @@ describe('AuthService', () => {
   });
 
   test('should throw ValidationError for invalid email format', async () => {
-    const userData = createTestRegisterData({ email: 'not-an-email' });
+    const userData = createTestRegisterData({ email: chance.word() });
 
     const error = await registerUser(userData).catch((e) => e);
 
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe('ValidationError');
     expect(error.message).toBe('Please provide a valid email address');
+  });
+
+  test('should throw ValidationError for password less than 8 characters', async () => {
+    const shortPassword = chance.string({ length: chance.integer({ min: 1, max: 7 }) });
+    const userData = createTestRegisterData({ password: shortPassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must be at least 8 characters');
+  });
+
+  test('should throw ValidationError for password more than 32 characters', async () => {
+    const shortPassword = chance.string({ length: chance.integer({ min: 33, max: 50 }) });
+    const userData = createTestRegisterData({ password: shortPassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must be no more than 32 characters');
   });
 });

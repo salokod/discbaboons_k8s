@@ -27,6 +27,18 @@ const registerUser = async (userData) => {
     throw error;
   }
 
+  if (userData.password.length < 8) {
+    const error = new Error('Password must be at least 8 characters');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (userData.password.length > 32) {
+    const error = new Error('Password must be no more than 32 characters');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Check if email already exists
   const existingEmail = await prisma.users.findUnique({
     where: { email: userData.email },
