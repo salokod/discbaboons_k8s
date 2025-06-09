@@ -39,6 +39,8 @@ const registerUser = async (userData) => {
   });
 
   // Remove sensitive data before returning
+
+  // eslint-disable-next-line no-unused-vars, camelcase
   const { password_hash, ...userWithoutPassword } = createdUser;
 
   return {
