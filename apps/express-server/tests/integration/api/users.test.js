@@ -52,13 +52,14 @@ describe('Users API - Integration Tests (Real Database)', () => {
       const testUser = await createTestUser({
         username: 'integrationbaboon',
         password_hash: 'hashed_password_123',
+        email: 'integration@discbaboons.com',
+
       });
 
       await prisma.user_profiles.create({
         data: {
           user_id: testUser.id,
           name: 'Integration Test Baboon',
-          email: 'integration@discbaboons.com',
           location: 'Database Land',
           bio: 'Living in the real database',
         },
@@ -79,7 +80,6 @@ describe('Users API - Integration Tests (Real Database)', () => {
 
       expect(testUserResponse).toBeTruthy();
       expect(testUserResponse.user_profiles.name).toBe('Integration Test Baboon');
-      expect(testUserResponse.user_profiles.email).toBe('integration@discbaboons.com');
 
       // Security: Verify password is not included
       expect(testUserResponse).not.toHaveProperty('password_hash');
@@ -96,13 +96,14 @@ describe('Users API - Integration Tests (Real Database)', () => {
       const userWithProfile = await createTestUser({
         username: 'withprofilebaboon',
         password_hash: 'hashed_password_789',
+        email: 'profile@discbaboons.com',
+
       });
 
       await prisma.user_profiles.create({
         data: {
           user_id: userWithProfile.id,
           name: 'Profile Baboon',
-          email: 'profile@discbaboons.com',
         },
       });
 
@@ -136,11 +137,13 @@ describe('Users API - Integration Tests (Real Database)', () => {
       await createTestUser({
         username: 'firstbaboon',
         password_hash: 'hash1',
+        email: 'profile@2discbaboons.com',
         created_at: new Date('2024-01-01'),
       });
 
       await createTestUser({
         username: 'secondbaboon',
+        email: 'profile@discbaboons.com',
         password_hash: 'hash2',
         created_at: new Date('2024-01-02'),
       });

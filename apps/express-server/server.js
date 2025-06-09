@@ -90,3 +90,5 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
+// apps/express-server/server.js
+// This file sets up the Express server, configures routes, and handles errors.
