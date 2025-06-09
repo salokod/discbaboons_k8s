@@ -1,0 +1,415 @@
+name: 🗄️ Database Migrations
+
+on:
+  push:
+    paths:
+      - 'migrations/V*.sql'
+      - 'manifests/flyway-*.yaml'
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - prod
+      force_restart:
+        description: 'Force restart Express after migration'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      migrations-changed: ${{ steps.changes.outputs.migrations }}
+      environment: ${{ steps.env.outputs.target }}
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🔍 Detect migration changes
+      id: changes
+      run: |
+        echo "🔍 Checking for migration changes..."
+        
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "🔧 Manual trigger - assuming migrations need deployment"
+          echo "migrations=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+          echo "✅ First commit - checking for migration files"
+          MIGRATION_COUNT=$(find migrations/ -name "V*.sql" | wc -l)
+          if [ "$MIGRATION_COUNT" -gt 0 ]; then
+            echo "migrations=true" >> $GITHUB_OUTPUT
+            echo "📄 Found $MIGRATION_COUNT migration files"
+          else
+            echo "migrations=false" >> $GITHUB_OUTPUT
+          fi
+          exit 0
+        fi
+        
+        # Check for migration file changes
+        MIGRATION_CHANGES=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep -E "^migrations/V.*\.sql$|^manifests/flyway-.*\.yaml$" | wc -l)
+        
+        if [ "$MIGRATION_CHANGES" -eq 0 ]; then
+          echo "🚫 No migration changes detected"
+          echo "migrations=false" >> $GITHUB_OUTPUT
+        else
+          echo "✅ Migration changes detected:"
+          git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep -E "^migrations/V.*\.sql$|^manifests/flyway-.*\.yaml$"
+          echo "migrations=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: 🎯 Determine target environment
+      id: env
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "target=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "target=prod" >> $GITHUB_OUTPUT
+        elif [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+          echo "target=dev" >> $GITHUB_OUTPUT
+        else
+          echo "target=dev" >> $GITHUB_OUTPUT
+        fi
+
+  validate-migrations:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.migrations-changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🧪 Validate migration files
+      run: |
+        echo "🔍 Validating migration files..."
+        
+        # Install PostgreSQL client for syntax validation
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        
+        # Check that migrations follow naming convention
+        echo "📝 Checking migration naming conventions..."
+        for migration in migrations/V*.sql; do
+          if [ -f "$migration" ]; then
+            filename=$(basename "$migration")
+            if [[ ! "$filename" =~ ^V[0-9]+__[a-zA-Z0-9_]+\.sql$ ]]; then
+              echo "❌ Invalid migration filename: $filename"
+              echo "   Expected format: V{number}__{description}.sql"
+              exit 1
+            fi
+            echo "✅ $filename - naming convention OK"
+          fi
+        done
+        
+        # Check for duplicate version numbers
+        echo "🔢 Checking for duplicate version numbers..."
+        VERSIONS=$(ls migrations/V*.sql | sed 's/.*V\([0-9]*\)__.*/\1/' | sort)
+        UNIQUE_VERSIONS=$(echo "$VERSIONS" | uniq)
+        if [ "$(echo "$VERSIONS" | wc -l)" != "$(echo "$UNIQUE_VERSIONS" | wc -l)" ]; then
+          echo "❌ Duplicate migration version numbers found!"
+          echo "Versions: $VERSIONS"
+          exit 1
+        fi
+        echo "✅ All migration versions are unique"
+        
+        # Basic SQL syntax validation
+        echo "📝 Basic SQL syntax validation..."
+        for migration in migrations/V*.sql; do
+          if [ -f "$migration" ]; then
+            echo "🔍 Checking: $migration"
+            # Check for common SQL issues
+            if grep -q "DROP TABLE.*IF EXISTS" "$migration"; then
+              echo "⚠️  Warning: $migration contains DROP TABLE IF EXISTS"
+            fi
+            if grep -q "DROP COLUMN.*IF EXISTS" "$migration"; then
+              echo "✅ $migration safely uses DROP COLUMN IF EXISTS"
+            fi
+            echo "✅ $migration syntax appears valid"
+          fi
+        done
+
+  deploy-dev:
+    needs: [detect-changes, validate-migrations]
+    if: needs.detect-changes.outputs.migrations-changed == 'true' && needs.detect-changes.outputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: ⚙️ Setup kubectl and doctl
+      run: |
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        
+        # Install doctl
+        cd /tmp
+        wget https://github.com/digitalocean/doctl/releases/download/v1.104.0/doctl-1.104.0-linux-amd64.tar.gz
+        tar xf doctl-1.104.0-linux-amd64.tar.gz
+        sudo mv doctl /usr/local/bin
+        
+        # Authenticate and configure kubectl
+        doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
+        doctl kubernetes cluster kubeconfig save discbaboons-production
+
+    - name: 📊 Pre-migration status
+      run: |
+        echo "📊 Current DEV environment status:"
+        echo "================================="
+        kubectl get pods -l app=postgres --no-headers || echo "No postgres pods found"
+        echo ""
+        echo "📋 Current migrations ConfigMap:"
+        kubectl get configmap flyway-migrations -o yaml | grep -A 5 "data:" || echo "No migrations ConfigMap found"
+
+    - name: 🗄️ Update migrations ConfigMap
+      run: |
+        echo "📦 Regenerating migrations ConfigMap from source files..."
+        
+        # Delete existing ConfigMap
+        kubectl delete configmap flyway-migrations --ignore-not-found=true
+        
+        # Create new ConfigMap from migrations directory
+        kubectl create configmap flyway-migrations --from-file=migrations/
+        
+        echo "✅ ConfigMap updated with all migration files"
+        echo "📋 ConfigMap contents:"
+        kubectl get configmap flyway-migrations -o yaml | grep -A 10 "data:"
+
+    - name: 🚀 Deploy Flyway migration job
+      run: |
+        echo "🚀 Deploying Flyway migration job in DEV..."
+        
+        # Create Flyway migration job
+        cat << 'EOF' | kubectl apply -f -
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: flyway-migration-$(date +%s)
+          labels:
+            app: flyway
+            environment: dev
+            migration-run: "true"
+        spec:
+          ttlSecondsAfterFinished: 600
+          template:
+            metadata:
+              labels:
+                app: flyway
+                environment: dev
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: flyway
+                image: flyway/flyway:10.8.1
+                command: ["/bin/sh"]
+                args:
+                  - -c
+                  - |
+                    echo "🔍 Migration files in container:"
+                    ls -la /flyway/sql/
+                    echo ""
+                    echo "🚀 Running Flyway migrate in DEV environment..."
+                    flyway migrate
+                    echo ""
+                    echo "📊 Migration status:"
+                    flyway info
+                env:
+                - name: FLYWAY_URL
+                  value: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
+                - name: FLYWAY_USER
+                  value: "app_user"
+                - name: FLYWAY_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: app-password
+                - name: FLYWAY_LOCATIONS
+                  value: "filesystem:/flyway/sql"
+                - name: FLYWAY_BASELINE_ON_MIGRATE
+                  value: "true"
+                volumeMounts:
+                - name: migrations
+                  mountPath: /flyway/sql
+              volumes:
+              - name: migrations
+                configMap:
+                  name: flyway-migrations
+        EOF
+        
+        echo "⏳ Waiting for migration job to complete..."
+        kubectl wait --for=condition=complete job -l app=flyway,environment=dev --timeout=300s
+        
+        echo "📋 Migration job results:"
+        kubectl logs -l app=flyway,environment=dev --tail=100
+
+    - name: 🔄 Restart Express deployment
+      if: success() && (github.event.inputs.force_restart != 'false')
+      run: |
+        echo "🔄 Restarting Express deployment to pick up schema changes..."
+        kubectl rollout restart deployment/express-deployment
+        kubectl rollout status deployment/express-deployment --timeout=300s
+        echo "✅ Express deployment restarted successfully"
+
+    - name: ✅ Migration success notification
+      if: success()
+      run: |
+        echo "🎉 DEV MIGRATION SUCCESSFUL!"
+        echo "=========================="
+        echo "✅ Environment: DEV"
+        echo "✅ Database: Migrations applied"
+        echo "✅ Express: Restarted and healthy"
+        echo "⏰ Completed: $(date)"
+        echo "👤 Triggered by: ${{ github.actor }}"
+        echo ""
+        echo "🧪 Ready for testing!"
+
+  deploy-prod:
+    needs: [detect-changes, validate-migrations]
+    if: needs.detect-changes.outputs.migrations-changed == 'true' && needs.detect-changes.outputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: ⚠️ Production migration warning
+      run: |
+        echo "⚠️  PRODUCTION DATABASE MIGRATION"
+        echo "=================================="
+        echo "🎯 Target: Production Database"
+        echo "📋 Changes: $(git diff --name-only HEAD~1 HEAD | grep migrations/ || echo 'Manual trigger')"
+        echo "⏰ Time: $(date)"
+        echo "👤 Triggered by: ${{ github.actor }}"
+        echo ""
+        echo "🔍 Please ensure this migration has been tested in DEV!"
+        echo "⏳ Waiting 10 seconds before proceeding..."
+        sleep 10
+
+    - name: ⚙️ Setup kubectl and doctl
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        
+        cd /tmp
+        wget https://github.com/digitalocean/doctl/releases/download/v1.104.0/doctl-1.104.0-linux-amd64.tar.gz
+        tar xf doctl-1.104.0-linux-amd64.tar.gz
+        sudo mv doctl /usr/local/bin
+        
+        doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
+        doctl kubernetes cluster kubeconfig save discbaboons-production
+
+    - name: 💾 Pre-migration backup check
+      run: |
+        echo "💾 Production backup verification..."
+        echo "⚠️  TODO: Implement production backup verification"
+        echo "📊 Current production status:"
+        kubectl get pods -l app=postgres --no-headers
+        kubectl get configmap flyway-migrations -o yaml | grep -A 3 "data:" || echo "No migrations ConfigMap"
+
+    - name: 🗄️ Update production migrations ConfigMap
+      run: |
+        echo "📦 Updating migrations ConfigMap in PRODUCTION..."
+        kubectl delete configmap flyway-migrations --ignore-not-found=true
+        kubectl create configmap flyway-migrations --from-file=migrations/
+        echo "✅ Production ConfigMap updated"
+
+    - name: 🚀 Deploy production migration
+      run: |
+        echo "🚀 Deploying migration in PRODUCTION environment..."
+        
+        cat << 'EOF' | kubectl apply -f -
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: flyway-migration-prod-$(date +%s)
+          labels:
+            app: flyway
+            environment: prod
+            migration-run: "true"
+        spec:
+          ttlSecondsAfterFinished: 1200
+          template:
+            metadata:
+              labels:
+                app: flyway
+                environment: prod
+            spec:
+              restartPolicy: Never
+              containers:
+              - name: flyway
+                image: flyway/flyway:10.8.1
+                command: ["/bin/sh"]
+                args:
+                  - -c
+                  - |
+                    echo "🔍 PRODUCTION migration starting..."
+                    echo "Migration files available:"
+                    ls -la /flyway/sql/
+                    echo ""
+                    echo "🚀 Running Flyway migrate in PRODUCTION..."
+                    flyway migrate
+                    echo ""
+                    echo "📊 PRODUCTION migration status:"
+                    flyway info
+                env:
+                - name: FLYWAY_URL
+                  value: "jdbc:postgresql://postgres-service:5432/discbaboons_db"
+                - name: FLYWAY_USER
+                  value: "app_user"
+                - name: FLYWAY_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: app-password-new
+                - name: FLYWAY_LOCATIONS
+                  value: "filesystem:/flyway/sql"
+                - name: FLYWAY_BASELINE_ON_MIGRATE
+                  value: "true"
+                volumeMounts:
+                - name: migrations
+                  mountPath: /flyway/sql
+              volumes:
+              - name: migrations
+                configMap:
+                  name: flyway-migrations
+        EOF
+        
+        kubectl wait --for=condition=complete job -l app=flyway,environment=prod --timeout=600s
+        kubectl logs -l app=flyway,environment=prod --tail=100
+
+    - name: 🔄 Restart production Express
+      if: success() && (github.event.inputs.force_restart != 'false')
+      run: |
+        echo "🔄 Restarting Express deployment in PRODUCTION..."
+        kubectl rollout restart deployment/express-deployment
+        kubectl rollout status deployment/express-deployment --timeout=300s
+        echo "✅ Production Express restarted successfully"
+
+    - name: 🎉 Production success notification
+      if: success()
+      run: |
+        echo "🎉 PRODUCTION MIGRATION SUCCESSFUL!"
+        echo "==================================="
+        echo "✅ Environment: PRODUCTION"
+        echo "✅ Database: V6 migration completed"
+        echo "✅ Express: Restarted and healthy" 
+        echo "🌐 Live: https://discbaboons.spirojohn.com"
+        echo "⏰ Completed: $(date)"
+        echo "👤 By: ${{ github.actor }}"

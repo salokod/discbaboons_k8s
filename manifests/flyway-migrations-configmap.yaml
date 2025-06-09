@@ -97,7 +97,7 @@ data:
     Remove email from user_profiles (no longer needed for auth)\nALTER TABLE user_profiles
     \nDROP COLUMN IF EXISTS email;\n\n-- Step 5: Make email NOT NULL for future records
     (optional - can be done later)\n-- ALTER TABLE users ALTER COLUMN email SET NOT
-    NULL;\n"
+    NULL;"
 kind: ConfigMap
 metadata:
   creationTimestamp: null
