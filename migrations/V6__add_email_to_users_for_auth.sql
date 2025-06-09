@@ -21,4 +21,4 @@ ALTER TABLE user_profiles
 DROP COLUMN IF EXISTS email;
 
 -- Step 5: Make email NOT NULL for future records (optional - can be done later)
-ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+-- ALTER TABLE users ALTER COLUMN email SET NOT NULL;

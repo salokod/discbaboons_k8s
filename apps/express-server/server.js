@@ -1,7 +1,7 @@
 import express from 'express';
 import { hostname } from 'os';
 import dotenv from 'dotenv';
-import authRouter from './routes/auth.routes.js'; // ADD THIS LINE
+import usersRouter from './routes/users.js';
 
 dotenv.config();
 
@@ -47,7 +47,7 @@ app.get('/health', (req, res) => {
 });
 
 // ADD THE USERS ROUTE HERE
-app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
 
 app.get('/api/info', (req, res) => {
   res.json({
