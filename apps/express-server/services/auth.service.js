@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const registerUser = async (userData) => {
   // Validate required fields - these are ValidationError (400)
   if (!userData.email) {
@@ -19,6 +21,45 @@ const registerUser = async (userData) => {
     throw error;
   }
 
+  if (!emailRegex.test(userData.email)) {
+    const error = new Error('Please provide a valid email address');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (userData.password.length < 8) {
+    const error = new Error('Password must be at least 8 characters');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (userData.password.length > 32) {
+    const error = new Error('Password must be no more than 32 characters');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (!/[A-Z]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (!/[a-z]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (!/[0-9]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Check if email already exists
   const existingEmail = await prisma.users.findUnique({
     where: { email: userData.email },
@@ -30,7 +71,7 @@ const registerUser = async (userData) => {
 
   if (existingEmail || existingUsername) {
     const error = new Error('Email or username already registered');
-    error.status = 409; // Conflict - resource already exists
+    error.status = 409;
     throw error;
   }
 

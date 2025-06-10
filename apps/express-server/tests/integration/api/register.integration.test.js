@@ -37,7 +37,7 @@ describe('POST /api/auth/register - Integration Test', () => {
     const newUser = {
       username: chance.string({ length: 8, alpha: true, numeric: true }),
       email: `test-register-${chance.guid()}@example.com`,
-      password: chance.string({ length: 12, symbols: false }),
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
     };
 
     // Act: Make POST request to register endpoint
@@ -76,7 +76,8 @@ describe('POST /api/auth/register - Integration Test', () => {
     const existingUser = {
       username: chance.string({ length: 8, alpha: true, numeric: true }),
       email: sharedEmail,
-      password: chance.string({ length: 10, symbols: false }),
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+
     };
 
     // Create the first user
@@ -89,7 +90,8 @@ describe('POST /api/auth/register - Integration Test', () => {
     const duplicateUser = {
       username: chance.string({ length: 8, alpha: true, numeric: true }),
       email: sharedEmail,
-      password: chance.string({ length: 12, symbols: false }),
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+
     };
 
     // Act & Assert
@@ -125,7 +127,8 @@ describe('POST /api/auth/register - Integration Test', () => {
     const existingUser = {
       username: sharedUsername,
       email: `test-register-first-${chance.guid()}@example.com`,
-      password: chance.string({ length: 10, symbols: false }),
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+
     };
 
     // Create the first user
@@ -138,7 +141,8 @@ describe('POST /api/auth/register - Integration Test', () => {
     const duplicateUser = {
       username: sharedUsername, // Same username!
       email: `test-register-second-${chance.guid()}@example.com`,
-      password: chance.string({ length: 12, symbols: false }),
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+
     };
 
     // Act & Assert

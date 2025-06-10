@@ -10,7 +10,7 @@ const chance = new Chance();
 describe('AuthService', () => {
   const createTestRegisterData = (overrides = {}) => ({
     email: chance.email(),
-    password: chance.string({ length: 10 }),
+    password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
     username: chance.word(),
     ...overrides, // Allow overriding specific fields
   });
@@ -25,6 +25,8 @@ describe('AuthService', () => {
   });
 
   test('should return user data when registering', async () => {
+    const randomPassword = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
+
     const userData = createTestRegisterData();
     const mockId = chance.integer();
 
@@ -32,7 +34,7 @@ describe('AuthService', () => {
       id: mockId,
       email: userData.email,
       username: userData.username,
-      password_hash: 'hashed_password_123', // ✅ Add this!
+      password_hash: randomPassword,
       createdAt: new Date().toISOString(),
     };
 
@@ -54,7 +56,7 @@ describe('AuthService', () => {
       id: mockId,
       email: userData.email,
       username: userData.username,
-      password_hash: 'hashed_password_123', // ✅ Add this!
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
       createdAt: new Date().toISOString(),
     };
 
@@ -73,11 +75,13 @@ describe('AuthService', () => {
       },
     });
     expect(result.user.id).toBe(mockId);
-    expect(result.user).not.toHaveProperty('password_hash'); // ✅ Security check!
+    expect(result.user).not.toHaveProperty('password_hash');
   });
 
   test('should hash password before saving to database', async () => {
-    const userData = createTestRegisterData({ password: 'plaintext123' });
+    const randomPassword = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
+
+    const userData = createTestRegisterData({ password: randomPassword });
 
     await registerUser(userData);
 
@@ -86,7 +90,7 @@ describe('AuthService', () => {
       data: {
         email: userData.email,
         username: userData.username,
-        password_hash: expect.not.stringMatching('plaintext123'), // Should NOT be plain text
+        password_hash: expect.not.stringMatching(randomPassword), // Should NOT be plain text
       },
     });
   });
@@ -139,5 +143,91 @@ describe('AuthService', () => {
     });
 
     await expect(registerUser(userData)).rejects.toThrow('Email or username already registered');
+  });
+
+  test('should throw ValidationError for invalid email format', async () => {
+    const userData = createTestRegisterData({ email: chance.word() });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Please provide a valid email address');
+  });
+
+  test('should throw ValidationError for password less than 8 characters', async () => {
+    const shortPassword = chance.string({ length: chance.integer({ min: 1, max: 7 }) });
+    const userData = createTestRegisterData({ password: shortPassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must be at least 8 characters');
+  });
+
+  test('should throw ValidationError for password more than 32 characters', async () => {
+    const shortPassword = chance.string({ length: chance.integer({ min: 33, max: 50 }) });
+    const userData = createTestRegisterData({ password: shortPassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must be no more than 32 characters');
+  });
+
+  test('should throw ValidationError for password without uppercase letter', async () => {
+    // Generate password with only lowercase, numbers, and symbols
+    const lowercasePassword = chance.string({
+      length: 10,
+      pool: 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%',
+    });
+    const userData = createTestRegisterData({ password: lowercasePassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must contain uppercase letter, lowercase letter, number, and special character');
+  });
+
+  test('should throw ValidationError for password without lowercase letter', async () => {
+    // Generate password with only UPPERCASE, numbers, and symbols
+    const uppercasePassword = chance.string({
+      length: 10,
+      pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%',
+    });
+    const userData = createTestRegisterData({ password: uppercasePassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must contain uppercase letter, lowercase letter, number, and special character');
+  });
+
+  test('should throw ValidationError for password without number', async () => {
+    // Generate password with only letters and symbols (NO numbers)
+    const noNumberPassword = chance.string({
+      length: 10,
+      pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%',
+    });
+    const userData = createTestRegisterData({ password: noNumberPassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must contain uppercase letter, lowercase letter, number, and special character');
+  });
+
+  test('should throw ValidationError for password without special character', async () => {
+    // Generate password with only letters and numbers (NO special chars)
+    const noSpecialPassword = chance.string({
+      length: 10,
+      pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    });
+    const userData = createTestRegisterData({ password: noSpecialPassword });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Password must contain uppercase letter, lowercase letter, number, and special character');
   });
 });

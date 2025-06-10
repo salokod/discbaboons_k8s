@@ -12,15 +12,18 @@ import registerController from '../../../controllers/auth.controller.js';
 const chance = new Chance();
 
 describe('AuthController', () => {
+  let next;
+
   const createTestRegisterData = (overrides = {}) => ({
     email: chance.email(),
     username: chance.word(),
-    password: chance.string({ length: 10 }),
+    password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}!`,
     ...overrides,
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    next = jest.fn();
 
     // ✅ Mock Prisma for controller tests - using Chance!
     mockPrisma.users.findUnique.mockResolvedValue(null); // No existing users
@@ -63,7 +66,7 @@ describe('AuthController', () => {
       json: jest.fn(),
     };
 
-    await registerController(req, res);
+    await registerController(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({

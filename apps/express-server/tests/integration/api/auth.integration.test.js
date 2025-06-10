@@ -33,7 +33,7 @@ describe('Auth Integration Tests', () => {
     const userData = {
       email: chance.email(),
       username: chance.word(),
-      password: chance.string({ length: 10 }),
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
     };
 
     const response = await request(app)
