@@ -39,6 +39,27 @@ const registerUser = async (userData) => {
     throw error;
   }
 
+  if (!/[A-Z]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (!/[a-z]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (!/[0-9]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(userData.password)) {
+    const error = new Error('Password must contain uppercase letter, lowercase letter, number, and special character');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Check if email already exists
   const existingEmail = await prisma.users.findUnique({
     where: { email: userData.email },
