@@ -2,7 +2,7 @@ import {
   describe, test, expect, jest,
 } from '@jest/globals';
 import Chance from 'chance';
-import registerUser from '../../../services/auth.service.js';
+import registerUser from '../../../services/auth.register.service.js';
 import { mockPrisma } from '../setup.js';
 
 const chance = new Chance();
