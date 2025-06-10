@@ -7,7 +7,7 @@ import Chance from 'chance';
 import { mockPrisma } from '../setup.js';
 
 // ✅ Import without mocking first to test the path
-import registerController from '../../../controllers/auth.controller.js';
+import registerController from '../../../controllers/auth.register.controller.js';
 
 const chance = new Chance();
 
