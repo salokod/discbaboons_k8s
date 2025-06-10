@@ -21,6 +21,13 @@ const registerUser = async (userData) => {
     throw error;
   }
 
+  // ADD USERNAME LENGTH VALIDATION
+  if (userData.username.length < 4 || userData.username.length > 20) {
+    const error = new Error('Username must be 4-20 characters');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   if (!emailRegex.test(userData.email)) {
     const error = new Error('Please provide a valid email address');
     error.name = 'ValidationError';

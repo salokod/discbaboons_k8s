@@ -16,7 +16,7 @@ describe('AuthController', () => {
 
   const createTestRegisterData = (overrides = {}) => ({
     email: chance.email(),
-    username: chance.word(),
+    username: chance.string({ length: chance.integer({ min: 4, max: 20 }), alpha: true }),
     password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}!`,
     ...overrides,
   });

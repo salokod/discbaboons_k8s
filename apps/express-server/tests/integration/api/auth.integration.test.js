@@ -32,7 +32,7 @@ describe('Auth Integration Tests', () => {
   test('POST /api/auth/register should create a new user', async () => {
     const userData = {
       email: chance.email(),
-      username: chance.word(),
+      username: chance.string({ length: 8, alpha: true }),
       password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
     };
 
