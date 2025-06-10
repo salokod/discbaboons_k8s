@@ -11,7 +11,7 @@ describe('AuthService', () => {
   const createTestRegisterData = (overrides = {}) => ({
     email: chance.email(),
     password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
-    username: chance.word(),
+    username: chance.string({ length: chance.integer({ min: 4, max: 20 }), alpha: true }),
     ...overrides, // Allow overriding specific fields
   });
 
@@ -121,7 +121,7 @@ describe('AuthService', () => {
     mockPrisma.users.findUnique.mockResolvedValue({
       id: chance.integer(),
       email: existingEmail,
-      username: chance.word(),
+      username: chance.string({ length: 8, alpha: true }),
       password_hash: 'some_hash',
       created_at: new Date().toISOString(),
     });
@@ -130,7 +130,10 @@ describe('AuthService', () => {
   });
 
   test('should throw error when username already exists', async () => {
-    const existingUsername = chance.word();
+    const existingUsername = chance.string({
+      length: chance.integer({ min: 4, max: 20 }),
+      alpha: true,
+    });
     const userData = createTestRegisterData({ username: existingUsername });
 
     // Mock that username already exists in database
@@ -229,5 +232,28 @@ describe('AuthService', () => {
 
     expect(error.name).toBe('ValidationError');
     expect(error.message).toBe('Password must contain uppercase letter, lowercase letter, number, and special character');
+  });
+
+  // ADD USERNAME VALIDATION TESTS
+  test('should throw ValidationError for username less than 4 characters', async () => {
+    // Generate a random username that's definitely less than 4 characters
+    const shortUsername = chance.string({ length: chance.integer({ min: 1, max: 3 }) });
+    const userData = createTestRegisterData({ username: shortUsername });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Username must be 4-20 characters');
+  });
+
+  test('should throw ValidationError for username more than 20 characters', async () => {
+    // Generate a random username that's definitely more than 20 characters
+    const longUsername = chance.string({ length: chance.integer({ min: 21, max: 30 }) });
+    const userData = createTestRegisterData({ username: longUsername });
+
+    const error = await registerUser(userData).catch((e) => e);
+
+    expect(error.name).toBe('ValidationError');
+    expect(error.message).toBe('Username must be 4-20 characters');
   });
 });
