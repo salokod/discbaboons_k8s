@@ -2,13 +2,10 @@ import loginUser from '../services/auth.login.service.js';
 
 const loginController = async (req, res, next) => {
   try {
-
     const result = await loginUser(req.body);
 
     return res.status(200).json(result);
   } catch (error) {
-
-
     // Handle validation errors
     if (error.name === 'ValidationError') {
       console.log('✅ Handling ValidationError with 400 status');
