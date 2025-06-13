@@ -291,32 +291,28 @@ jobs:
         fi
 
     - name: 🚀 Deploy to Kubernetes
-      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       run: |
         IMAGE_TAG="${{ steps.build.outputs.tag }}"
         NEW_IMAGE="salokod/discbaboons-express:${IMAGE_TAG}"
         
-        echo "🚀 Deploying new image: ${NEW_IMAGE}"
-        echo "📍 Current production image:"
-        kubectl get deployment express-deployment -o jsonpath='{.spec.template.spec.containers[0].image}'
-        echo ""
+        echo "🚀 Deploying: ${NEW_IMAGE}"
         
-        # Update the deployment with new image
-        kubectl set image deployment/express-deployment express=${NEW_IMAGE}
+        # STEP 1: Update deployment manifest with new image
+        echo "📝 Updating deployment manifest with new image..."
+        sed -i "s|image: salokod/discbaboons-express:.*|image: ${NEW_IMAGE}|g" manifests/prod/express-deployment.yaml
         
-        # Wait for rollout to complete (5 minute timeout)
-        echo "⏳ Waiting for deployment to complete..."
+        # STEP 2: Apply updated manifest (single rollout)
+        echo "🚀 Applying updated deployment..."
+        kubectl apply -f manifests/prod/express-deployment.yaml
+        
+        # STEP 3: Wait for rollout
+        echo "⏳ Waiting for rollout completion..."
         kubectl rollout status deployment/express-deployment --timeout=300s
         
-        # Verify deployment success
-        echo "✅ Deployment completed! New pods:"
+        # STEP 4: Verify deployment
+        echo "✅ Verifying deployment..."
         kubectl get pods -l app=express -o wide
-        
-        echo "🎯 Verified new image in deployment:"
-        kubectl get deployment express-deployment -o jsonpath='{.spec.template.spec.containers[0].image}'
-        echo ""
-        
-        echo "🌐 Your app is live at: https://discbaboons.spirojohn.com"
+        kubectl exec deployment/express-deployment -- printenv | grep JWT_SECRET > /dev/null && echo "✅ JWT secrets loaded" || echo "❌ JWT secrets missing"
 
     - name: 📝 Create GitHub Release
       if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
