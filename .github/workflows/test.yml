@@ -261,11 +261,34 @@ jobs:
     - name: 🔐 Deploy secrets
       if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       run: |
-        echo "🔐 Applying Express secrets..."
+        echo "🔐 Applying Express sealed secret..."
         kubectl apply -f manifests/prod/express-sealed.yaml
         
-        # Wait for secret to be available
-        kubectl wait --for=condition=Ready secret/express-secrets --timeout=30s || echo "Secret creation pending..."
+        echo "⏳ Waiting for sealed secret to be processed..."
+        # Wait for the SealedSecret resource to exist
+        kubectl wait --for=condition=Synced sealedsecret/express-secrets --timeout=60s
+        
+        echo "🔍 Verifying secret creation..."
+        # Wait for the actual Secret to be created by the sealed secrets controller
+        for i in {1..30}; do
+          if kubectl get secret express-secrets >/dev/null 2>&1; then
+            echo "✅ Secret express-secrets is now available"
+            break
+          else
+            echo "⏳ Waiting for secret creation... attempt $i/30"
+            sleep 2
+          fi
+        done
+        
+        # Final verification
+        if kubectl get secret express-secrets >/dev/null 2>&1; then
+          echo "🔑 Secret keys available:"
+          kubectl get secret express-secrets -o jsonpath='{.data}' | jq -r 'keys[]'
+        else
+          echo "❌ Secret creation failed!"
+          kubectl get sealedsecret express-secrets -o yaml
+          exit 1
+        fi
 
     - name: 🚀 Deploy to Kubernetes
       if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
