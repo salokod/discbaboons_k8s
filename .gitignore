@@ -7,7 +7,14 @@ yarn-error.log*
 
 # Never commit secrets to git
 manifests/*-secret.yaml
+manifests/*-secrets.yaml
+manifests/*/secrets.yaml
+manifests/*/express-secrets.yaml
+manifests/*/*-secret.yaml
+manifests/*/*-secrets.yaml
 *.secret.yaml
+*.secrets.yaml
+
 
 .env-backup
 

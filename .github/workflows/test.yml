@@ -257,6 +257,15 @@ jobs:
         IMAGE_TAG="${{ steps.build.outputs.tag }}"
         echo "Pushing: salokod/discbaboons-express:${IMAGE_TAG}"
         docker push salokod/discbaboons-express:${IMAGE_TAG}
+    
+    - name: 🔐 Deploy secrets
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
+      run: |
+        echo "🔐 Applying Express secrets..."
+        kubectl apply -f manifests/prod/express-sealed.yaml
+        
+        # Wait for secret to be available
+        kubectl wait --for=condition=Ready secret/express-secrets --timeout=30s || echo "Secret creation pending..."
 
     - name: 🚀 Deploy to Kubernetes
       if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'

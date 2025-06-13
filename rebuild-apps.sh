@@ -49,6 +49,7 @@ kubectl delete deployment express-deployment --ignore-not-found=true
 kubectl delete service express-service --ignore-not-found=true
 kubectl delete configmap express-config --ignore-not-found=true
 kubectl delete configmap monitoring-config --ignore-not-found=true
+kubectl delete secret express-secrets --ignore-not-found=true
 
 # Environment-specific teardown
 echo "✅ Express application removed"
@@ -128,6 +129,8 @@ echo "✅ Flyway configurations deployed with latest migrations"
 
 echo -e "${YELLOW}Step 10: Deploying Express application layer...${NC}"
 
+echo "  10a. Creating Express secrets..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/express-secrets.yaml
 echo "  10c. Creating monitoring configuration..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/monitoring-config.yaml
 echo "  10d. Creating Express ConfigMap..."
