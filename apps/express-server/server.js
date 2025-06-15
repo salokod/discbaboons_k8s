@@ -87,3 +87,4 @@ if (process.env.NODE_ENV !== 'test') {
 
 export default app;
 // apps/express-server/server.js
+// This is the main entry point for the Express server.
