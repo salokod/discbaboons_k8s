@@ -136,6 +136,9 @@ describe('EmailService', () => {
       host: 'smtp.test.com',
       port: 587,
       secure: false,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
       auth: {
         user: 'test@test.com',
         pass: 'testpass',
