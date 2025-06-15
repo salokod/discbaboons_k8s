@@ -70,31 +70,27 @@ spec:
             secretKeyRef:
               name: express-secrets
               key: JWT_REFRESH_SECRET
-        - name: EMAIL_HOST
+        # Microsoft Graph API Environment Variables
+        - name: GRAPH_TENANT_ID
           valueFrom:
             secretKeyRef:
               name: express-secrets
-              key: EMAIL_HOST
-        - name: EMAIL_PORT
+              key: GRAPH_TENANT_ID
+        - name: GRAPH_CLIENT_ID
           valueFrom:
             secretKeyRef:
               name: express-secrets
-              key: EMAIL_PORT
-        - name: EMAIL_USER
+              key: GRAPH_CLIENT_ID
+        - name: GRAPH_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: express-secrets
-              key: EMAIL_USER
-        - name: EMAIL_PASS
+              key: GRAPH_CLIENT_SECRET
+        - name: GRAPH_USER_ID
           valueFrom:
             secretKeyRef:
               name: express-secrets
-              key: EMAIL_PASS
-        - name: EMAIL_FROM
-          valueFrom:
-            secretKeyRef:
-              name: express-secrets
-              key: EMAIL_FROM
+              key: GRAPH_USER_ID
         resources:
           requests:
             memory: "128Mi"
