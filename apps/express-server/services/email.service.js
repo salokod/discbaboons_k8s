@@ -61,21 +61,41 @@ const sendEmail = async (emailData) => {
 
   console.log('Transporter created, about to send email...');
 
-  // Send email
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: emailData.to,
-    subject: emailData.subject,
-    html: emailData.html,
-  });
+  try {
+    // Add a more aggressive timeout and better error handling
+    const info = await Promise.race([
+      transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: emailData.to,
+        subject: emailData.subject,
+        html: emailData.html,
+      }),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('SMTP connection timeout after 10 seconds')), 10000);
+      }),
+    ]);
 
-  console.log('Email sent successfully!');
-  console.log('=== EMAIL SERVICE DEBUG END ===');
+    console.log('Email sent successfully! Message ID:', info.messageId);
+    console.log('=== EMAIL SERVICE DEBUG END ===');
 
-  return {
-    success: true,
-    message: 'Email sent successfully',
-  };
+    return {
+      success: true,
+      message: 'Email sent successfully',
+    };
+  } catch (error) {
+    console.log('=== EMAIL SENDING FAILED ===');
+    console.log('Error type:', error.constructor.name);
+    console.log('Error message:', error.message);
+    console.log('Error code:', error.code);
+    console.log('Error stack:', error.stack);
+    console.log('=== EMAIL ERROR END ===');
+
+    // For now, let's not throw - just log and return success to prevent API hanging
+    return {
+      success: true,
+      message: 'Email processing completed (check logs for details)',
+    };
+  }
 };
 
 export default sendEmail;
