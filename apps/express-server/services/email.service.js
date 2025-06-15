@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 const sendEmail = async (emailData) => {
   if (!emailData) {
     const error = new Error('Email data is required');
@@ -34,7 +36,24 @@ const sendEmail = async (emailData) => {
     };
   }
 
-  // TODO: Actually send email via M365
+  // Create nodemailer transporter
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT, 10),
+    secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // Send email
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: emailData.to,
+    subject: emailData.subject,
+    html: emailData.html,
+  });
 
   return {
     success: true,
