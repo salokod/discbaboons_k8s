@@ -23,6 +23,17 @@ const sendEmail = async (emailData) => {
     throw error;
   }
 
+  // Check if email configuration is missing
+  const requiredEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
+  const missingConfig = requiredEnvVars.some((envVar) => !process.env[envVar]);
+
+  if (missingConfig) {
+    return {
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
+    };
+  }
+
   // TODO: Actually send email via M365
 
   return {

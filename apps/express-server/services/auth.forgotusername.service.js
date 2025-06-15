@@ -22,10 +22,11 @@ const forgotUsername = async (email) => {
 
   // If user exists, send email with username
   if (user) {
+    console.log(`Sending username email to: ${email}`);
     await emailService({
       to: email,
       subject: 'Your username',
-      html: `<p>Your username is: <strong>${user.username}</strong></p>`,
+      html: `<p>Your username is: <strong>${user.username}</strong>, you baboon.</p>`,
     });
   }
 

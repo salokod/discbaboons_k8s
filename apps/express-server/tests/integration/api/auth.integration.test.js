@@ -40,10 +40,6 @@ describe('Auth Integration Tests', () => {
       .post('/api/auth/register')
       .send(userData);
 
-    // Debug: Let's see what we actually got
-    console.log('Status:', response.status);
-    console.log('Body:', response.body);
-
     expect(response.status).toBe(201);
     expect(response.body).toHaveProperty('success', true);
     expect(response.body).toHaveProperty('user');

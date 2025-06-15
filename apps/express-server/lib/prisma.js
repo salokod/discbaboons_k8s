@@ -3,9 +3,22 @@
 
 import { PrismaClient } from '@prisma/client';
 
-// Create Prisma client with logging for development
+// Configure log levels based on environment
+const getLogConfig = () => {
+  if (process.env.NODE_ENV === 'test') {
+    return []; // No logs in tests
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    return ['query', 'info', 'warn', 'error'];
+  }
+
+  return ['error']; // Only errors in production
+};
+
+// Create Prisma client with conditional logging
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: getLogConfig(),
   errorFormat: 'pretty',
 });
 

@@ -11,6 +11,11 @@ const { default: emailService } = await import('../../../services/email.service.
 describe('EmailService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Mock email configuration for unit tests
+    process.env.EMAIL_HOST = 'smtp.test.com';
+    process.env.EMAIL_PORT = '587';
+    process.env.EMAIL_USER = 'test@test.com';
+    process.env.EMAIL_PASS = 'testpass';
   });
 
   test('should export emailService function', () => {
@@ -60,6 +65,24 @@ describe('EmailService', () => {
     expect(result).toEqual({
       success: true,
       message: 'Email sent successfully',
+    });
+  });
+
+  test('should return development mode message when email config is missing', async () => {
+    // Clear email config
+    delete process.env.EMAIL_HOST;
+
+    const emailData = {
+      to: chance.email(),
+      subject: chance.sentence(),
+      html: chance.paragraph(),
+    };
+
+    const result = await emailService(emailData);
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
     });
   });
 });
