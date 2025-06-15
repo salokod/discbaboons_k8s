@@ -1,24 +1,57 @@
-import { describe, test, expect } from '@jest/globals';
-import authRoutes from '../../../routes/auth.routes.js';
+import {
+  describe, test, expect, jest, beforeEach,
+} from '@jest/globals';
+import request from 'supertest';
+import express from 'express';
+import Chance from 'chance';
 
-describe('AuthRoutes', () => {
-  test('should exist', () => {
-    // Simple placeholder test to start
-    expect(true).toBe(true);
+const chance = new Chance();
+
+// Dynamic import inside describe block
+describe('Auth Routes', () => {
+  let app;
+  let authRoutes;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    // Import routes dynamically
+    const authRoutesModule = await import('../../../routes/auth.routes.js');
+    authRoutes = authRoutesModule.default;
+
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
   });
 
-  test('should export an Express router', () => {
-    expect(authRoutes).toBeDefined();
-    expect(typeof authRoutes).toBe('function'); // Express routers are functions
+  test('POST /api/auth/register should exist', async () => {
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: chance.email(),
+        username: chance.name(),
+        password: chance.string(),
+      });
+
+    expect(response.status).not.toBe(404);
   });
 
-  test('should have POST /register route', () => {
-    // Check that the router has routes defined
-    const routes = authRoutes.stack || [];
-    const postRoutes = routes.filter((layer) => layer.route
-      && layer.route.methods.post
-      && layer.route.path === '/register');
+  test('POST /api/auth/login should exist', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({
+        username: chance.name(),
+        password: chance.string(),
+      });
 
-    expect(postRoutes.length).toBe(1);
+    expect(response.status).not.toBe(404);
+  });
+
+  test('POST /api/auth/forgot-username should exist', async () => {
+    const response = await request(app)
+      .post('/api/auth/forgot-username')
+      .send({ email: chance.email() });
+
+    expect(response.status).not.toBe(404);
   });
 });

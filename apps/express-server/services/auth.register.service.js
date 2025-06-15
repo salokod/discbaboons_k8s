@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidEmail } from '../utils/validation.js';
 
 const registerUser = async (userData) => {
   // Validate required fields - these are ValidationError (400)
@@ -28,7 +27,7 @@ const registerUser = async (userData) => {
     throw error;
   }
 
-  if (!emailRegex.test(userData.email)) {
+  if (!isValidEmail(userData.email)) {
     const error = new Error('Please provide a valid email address');
     error.name = 'ValidationError';
     throw error;
