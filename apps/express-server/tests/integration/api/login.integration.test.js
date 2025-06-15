@@ -46,19 +46,10 @@ describe('POST /api/auth/login - Integration Test', () => {
       password,
     };
 
-    console.log('🔍 Creating user with data:', {
-      username: userData.username,
-      email: userData.email,
-      passwordLength: userData.password.length,
-    });
-
     // Create user via register endpoint
     const registerResponse = await request(app)
       .post('/api/auth/register')
       .send(userData);
-
-    console.log('📝 Register response status:', registerResponse.status);
-    console.log('📝 Register response body:', registerResponse.body);
 
     expect(registerResponse.status).toBe(201);
 
@@ -68,14 +59,9 @@ describe('POST /api/auth/login - Integration Test', () => {
       password: userData.password,
     };
 
-    console.log('🔑 Attempting login with:', loginData);
-
     const response = await request(app)
       .post('/api/auth/login')
       .send(loginData);
-
-    console.log('🔍 Login response status:', response.status);
-    console.log('🔍 Login response body:', response.body);
 
     expect(response.status).toBe(200);
 

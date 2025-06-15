@@ -8,7 +8,6 @@ const loginController = async (req, res, next) => {
   } catch (error) {
     // Handle validation errors
     if (error.name === 'ValidationError') {
-      console.log('✅ Handling ValidationError with 400 status');
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -17,7 +16,6 @@ const loginController = async (req, res, next) => {
 
     // Handle authentication errors
     if (error.status === 401) {
-      console.log('✅ Handling AuthError with 401 status');
       return res.status(401).json({
         success: false,
         message: error.message,
@@ -25,7 +23,6 @@ const loginController = async (req, res, next) => {
     }
 
     // Pass other errors to error middleware
-    console.log('❌ Passing unexpected error to middleware:', error.message);
     return next(error);
   }
 };
