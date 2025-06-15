@@ -51,8 +51,8 @@ const sendEmail = async (emailData) => {
     port: parseInt(process.env.EMAIL_PORT, 10),
     secure: process.env.EMAIL_PORT === '465',
     connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,   // 10 seconds  
-    socketTimeout: 10000,     // 10 seconds
+    greetingTimeout: 10000, // 10 seconds
+    socketTimeout: 10000, // 10 seconds
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -70,19 +70,18 @@ const sendEmail = async (emailData) => {
         subject: emailData.subject,
         html: emailData.html,
       }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('SMTP connection timeout after 10 seconds')), 10000)
-      )
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('SMTP connection timeout after 10 seconds')), 10000);
+      }),
     ]);
-    
+
     console.log('Email sent successfully! Message ID:', info.messageId);
     console.log('=== EMAIL SERVICE DEBUG END ===');
-    
+
     return {
       success: true,
       message: 'Email sent successfully',
     };
-    
   } catch (error) {
     console.log('=== EMAIL SENDING FAILED ===');
     console.log('Error type:', error.constructor.name);
@@ -90,7 +89,7 @@ const sendEmail = async (emailData) => {
     console.log('Error code:', error.code);
     console.log('Error stack:', error.stack);
     console.log('=== EMAIL ERROR END ===');
-    
+
     // For now, let's not throw - just log and return success to prevent API hanging
     return {
       success: true,
