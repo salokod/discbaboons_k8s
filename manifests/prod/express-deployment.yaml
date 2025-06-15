@@ -85,11 +85,11 @@ spec:
             secretKeyRef:
               name: express-secrets
               key: EMAIL_USER
-        - name: EMAIL_PASSWORD
+        - name: EMAIL_PASS
           valueFrom:
             secretKeyRef:
               name: express-secrets
-              key: EMAIL_PASSWORD
+              key: EMAIL_PASS
         - name: EMAIL_FROM
           valueFrom:
             secretKeyRef:
