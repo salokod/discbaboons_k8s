@@ -291,8 +291,16 @@ jobs:
         fi
 
     - name: 🚀 Deploy to Kubernetes
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
       run: |
         IMAGE_TAG="${{ steps.build.outputs.tag }}"
+        
+        # Validate that we have a proper image tag
+        if [ -z "$IMAGE_TAG" ]; then
+          echo "❌ ERROR: No image tag available - build may have failed"
+          exit 1
+        fi
+        
         NEW_IMAGE="salokod/discbaboons-express:${IMAGE_TAG}"
         
         echo "🚀 Deploying: ${NEW_IMAGE}"
