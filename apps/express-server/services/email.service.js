@@ -24,7 +24,7 @@ const sendEmail = async (emailData) => {
   }
 
   // Check if email configuration is missing
-  const requiredEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
+  const requiredEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS', 'EMAIL_FROM'];
   const missingConfig = requiredEnvVars.some((envVar) => !process.env[envVar]);
 
   if (missingConfig) {

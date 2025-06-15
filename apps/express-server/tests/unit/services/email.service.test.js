@@ -16,6 +16,7 @@ describe('EmailService', () => {
     process.env.EMAIL_PORT = '587';
     process.env.EMAIL_USER = 'test@test.com';
     process.env.EMAIL_PASS = 'testpass';
+    process.env.EMAIL_FROM = 'noreply@test.com';
   });
 
   test('should export emailService function', () => {
@@ -71,6 +72,24 @@ describe('EmailService', () => {
   test('should return development mode message when email config is missing', async () => {
     // Clear email config
     delete process.env.EMAIL_HOST;
+
+    const emailData = {
+      to: chance.email(),
+      subject: chance.sentence(),
+      html: chance.paragraph(),
+    };
+
+    const result = await emailService(emailData);
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
+    });
+  });
+
+  test('should return development mode message when EMAIL_FROM is missing', async () => {
+    // Clear EMAIL_FROM specifically
+    delete process.env.EMAIL_FROM;
 
     const emailData = {
       to: chance.email(),
