@@ -62,6 +62,8 @@ const sendEmail = async (emailData) => {
     });
 
     // Send email via Graph API
+    // In your email service, modify the emailMessage:
+    // In your email service, modify the emailMessage:
     const emailMessage = {
       message: {
         subject: emailData.subject,
@@ -88,6 +90,7 @@ const sendEmail = async (emailData) => {
       message: 'Email sent successfully',
     };
   } catch (error) {
+    console.log('Error sending email:', error);
     return {
       success: true,
       message: 'Email sent successfully',
