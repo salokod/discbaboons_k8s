@@ -1,12 +1,31 @@
 import {
-  describe, test, expect, beforeEach, afterEach,
+  describe, test, expect, beforeEach, afterEach, vi,
 } from 'vitest';
 import Chance from 'chance';
 
 const chance = new Chance();
 
-// Import the service directly
-const { default: emailService } = await import('../../../services/email.service.js');
+// Mock the MSAL and Graph dependencies
+vi.mock('@azure/msal-node', () => ({
+  ConfidentialClientApplication: vi.fn().mockImplementation(() => ({
+    acquireTokenByClientCredential: vi.fn().mockResolvedValue({
+      accessToken: chance.string({ length: 64 }),
+    }),
+  })),
+}));
+
+vi.mock('@microsoft/microsoft-graph-client', () => ({
+  Client: {
+    initWithMiddleware: vi.fn().mockReturnValue({
+      api: vi.fn().mockReturnValue({
+        post: vi.fn().mockResolvedValue({ success: chance.bool() }),
+      }),
+    }),
+  },
+}));
+
+// Import the service after mocking
+const { default: emailService } = await import('../../../services/email/email.service.js');
 
 describe('EmailService', () => {
   let originalEnv;
@@ -14,6 +33,7 @@ describe('EmailService', () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...process.env };
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -67,11 +87,11 @@ describe('EmailService', () => {
     });
   });
 
-  test('should return success when Graph API is configured (integration test)', async () => {
-    // Set up fake but complete environment
+  test('should return success when Graph API is configured and mocked properly', async () => {
+    // Set up complete environment with realistic looking fake values
     process.env.GRAPH_TENANT_ID = chance.guid();
     process.env.GRAPH_CLIENT_ID = chance.guid();
-    process.env.GRAPH_CLIENT_SECRET = chance.guid();
+    process.env.GRAPH_CLIENT_SECRET = chance.string({ length: 32 });
     process.env.GRAPH_USER_ID = chance.email();
 
     const emailData = {
@@ -82,49 +102,87 @@ describe('EmailService', () => {
 
     const result = await emailService(emailData);
 
-    // It will try to call Azure AD and fail, but that's expected
-    // The important thing is that it returns success (our error handling works)
     expect(result.success).toBe(true);
     expect(result.message).toBe('Email sent successfully');
   });
 
-  test('should validate required environment variables', async () => {
-    const envVarsToTest = [
-      'GRAPH_TENANT_ID',
-      'GRAPH_CLIENT_ID',
-      'GRAPH_CLIENT_SECRET',
-      'GRAPH_USER_ID',
-    ];
+  test('should validate GRAPH_TENANT_ID is required', async () => {
+    process.env.GRAPH_CLIENT_ID = chance.guid();
+    process.env.GRAPH_CLIENT_SECRET = chance.string({ length: 32 });
+    process.env.GRAPH_USER_ID = chance.email();
+    delete process.env.GRAPH_TENANT_ID;
 
-    // Helper function to test each environment variable
-    const testMissingEnvVar = async (missingVar) => {
-      // Set up complete config first
-      process.env.GRAPH_TENANT_ID = chance.guid();
-      process.env.GRAPH_CLIENT_ID = chance.guid();
-      process.env.GRAPH_CLIENT_SECRET = chance.guid();
-      process.env.GRAPH_USER_ID = chance.email();
-
-      // Remove the one we're testing
-      delete process.env[missingVar];
-
-      const emailData = {
-        to: chance.email(),
-        subject: chance.sentence(),
-        html: chance.paragraph(),
-      };
-
-      const result = await emailService(emailData);
-
-      expect(result).toEqual({
-        success: true,
-        message: 'Email not sent - running in development mode without email configuration',
-      });
+    const emailData = {
+      to: chance.email(),
+      subject: chance.sentence(),
+      html: chance.paragraph(),
     };
 
-    // Test each environment variable sequentially
-    await testMissingEnvVar(envVarsToTest[0]);
-    await testMissingEnvVar(envVarsToTest[1]);
-    await testMissingEnvVar(envVarsToTest[2]);
-    await testMissingEnvVar(envVarsToTest[3]);
+    const result = await emailService(emailData);
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
+    });
+  });
+
+  test('should validate GRAPH_CLIENT_ID is required', async () => {
+    process.env.GRAPH_TENANT_ID = chance.guid();
+    process.env.GRAPH_CLIENT_SECRET = chance.string({ length: 32 });
+    process.env.GRAPH_USER_ID = chance.email();
+    delete process.env.GRAPH_CLIENT_ID;
+
+    const emailData = {
+      to: chance.email(),
+      subject: chance.sentence(),
+      html: chance.paragraph(),
+    };
+
+    const result = await emailService(emailData);
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
+    });
+  });
+
+  test('should validate GRAPH_CLIENT_SECRET is required', async () => {
+    process.env.GRAPH_TENANT_ID = chance.guid();
+    process.env.GRAPH_CLIENT_ID = chance.guid();
+    process.env.GRAPH_USER_ID = chance.email();
+    delete process.env.GRAPH_CLIENT_SECRET;
+
+    const emailData = {
+      to: chance.email(),
+      subject: chance.sentence(),
+      html: chance.paragraph(),
+    };
+
+    const result = await emailService(emailData);
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
+    });
+  });
+
+  test('should validate GRAPH_USER_ID is required', async () => {
+    process.env.GRAPH_TENANT_ID = chance.guid();
+    process.env.GRAPH_CLIENT_ID = chance.guid();
+    process.env.GRAPH_CLIENT_SECRET = chance.string({ length: 32 });
+    delete process.env.GRAPH_USER_ID;
+
+    const emailData = {
+      to: chance.email(),
+      subject: chance.sentence(),
+      html: chance.paragraph(),
+    };
+
+    const result = await emailService(emailData);
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Email not sent - running in development mode without email configuration',
+    });
   });
 });
