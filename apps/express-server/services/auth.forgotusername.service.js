@@ -1,6 +1,7 @@
 import { isValidEmail } from '../utils/validation.js';
 import prisma from '../lib/prisma.js';
-import emailService from './email.service.js';
+import emailService from './email/email.service.js';
+import { getTemplate } from './email/email.template.service.js';
 
 const forgotUsername = async (email) => {
   if (!email) {
@@ -23,10 +24,15 @@ const forgotUsername = async (email) => {
   // If user exists, send email with username
   if (user) {
     console.log(`Sending username email to: ${email}`);
+
+    const emailTemplate = await getTemplate('forgotusername', {
+      username: user.username,
+    });
+
     await emailService({
       to: email,
-      subject: 'Your username',
-      html: `<p>Your username is: <strong>${user.username}</strong>, you baboon.</p>`,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
     });
   }
 

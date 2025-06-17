@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "NODE_ENV=test vitest run --config=vitest.unit.config.js",
+    "test": "NODE_ENV=test vitest run --config=vitest.unit.config.js --reporter=verbose",
     "test:unit": "NODE_ENV=test vitest run --config=vitest.unit.config.js",
     "test:integration": "NODE_ENV=test vitest run --config=vitest.integration.config.js",
     "test:watch": "NODE_ENV=test vitest --config=vitest.unit.config.js",

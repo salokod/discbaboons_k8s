@@ -6,7 +6,7 @@ import Chance from 'chance';
 const chance = new Chance();
 
 // Import our email service
-const { default: emailService } = await import('../../services/email.service.js');
+const { default: emailService } = await import('../../services/email/email.service.js');
 
 describe('Email Integration', () => {
   test('should handle missing email configuration gracefully', async () => {
