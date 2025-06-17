@@ -1,7 +1,7 @@
 // apps/express-server/tests/setup.js
 // Test setup and database configuration
 
-import { beforeAll, afterAll } from '@jest/globals';
+import { beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
 // Create a separate Prisma instance for testing

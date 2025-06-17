@@ -1,27 +1,32 @@
 import {
-  describe, test, expect, jest, beforeEach,
-} from '@jest/globals';
+  describe, test, expect, vi, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 
 const chance = new Chance();
 
 // Mock bcrypt and jwt BEFORE any imports
-const bcryptMock = {
-  compare: jest.fn(),
-  hash: jest.fn(),
-};
+vi.mock('bcrypt', () => ({
+  default: {
+    compare: vi.fn(),
+    hash: vi.fn(),
+  },
+}));
 
-const jwtMock = {
-  sign: jest.fn(),
-  verify: jest.fn(),
-};
-
-jest.doMock('bcrypt', () => bcryptMock);
-jest.doMock('jsonwebtoken', () => jwtMock);
+vi.mock('jsonwebtoken', () => ({
+  default: {
+    sign: vi.fn(),
+    verify: vi.fn(),
+  },
+}));
 
 // Import AFTER mocking
 const { mockPrisma } = await import('../setup.js');
 const { default: loginController } = await import('../../../controllers/auth.login.controller.js');
+
+// Import the mocked modules
+const bcrypt = await import('bcrypt');
+const jwt = await import('jsonwebtoken');
 
 describe('AuthLoginController', () => {
   let req;
@@ -29,14 +34,14 @@ describe('AuthLoginController', () => {
   let next;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     req = { body: {} };
     res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     };
-    next = jest.fn();
+    next = vi.fn();
 
     // Set up environment variables
     process.env.JWT_SECRET = chance.string({ length: 32 });
@@ -66,8 +71,8 @@ describe('AuthLoginController', () => {
 
     // Mock the database and crypto operations
     mockPrisma.users.findUnique.mockResolvedValue(mockUser);
-    bcryptMock.compare.mockResolvedValue(true); // This should work now!
-    jwtMock.sign
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true); // This should work now!
+    vi.mocked(jwt.default.sign)
       .mockReturnValueOnce(mockAccessToken)
       .mockReturnValueOnce(mockRefreshToken);
 

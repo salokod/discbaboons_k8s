@@ -1,6 +1,6 @@
 import {
   describe, test, expect, beforeEach, afterEach,
-} from '@jest/globals';
+} from 'vitest';
 import Chance from 'chance';
 
 const chance = new Chance();

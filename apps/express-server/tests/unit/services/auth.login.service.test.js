@@ -1,32 +1,36 @@
 import {
-  describe, test, expect, beforeEach, jest,
-} from '@jest/globals';
+  describe, test, expect, beforeEach, vi,
+} from 'vitest';
 import Chance from 'chance';
 
 const chance = new Chance();
 
-// Mock bcrypt completely before any imports
-const bcryptMock = {
-  compare: jest.fn(),
-  hash: jest.fn(),
-};
+// Mock modules with vi.mock
+vi.mock('bcrypt', () => ({
+  default: {
+    compare: vi.fn(),
+    hash: vi.fn(),
+  },
+}));
 
-const jwtMock = {
-  sign: jest.fn(),
-  verify: jest.fn(),
-};
-
-// Set up the mocks
-jest.doMock('bcrypt', () => bcryptMock);
-jest.doMock('jsonwebtoken', () => jwtMock);
+vi.mock('jsonwebtoken', () => ({
+  default: {
+    sign: vi.fn(),
+    verify: vi.fn(),
+  },
+}));
 
 // Dynamic import AFTER mocking
 const { default: loginUser } = await import('../../../services/auth.login.service.js');
 const { mockPrisma } = await import('../setup.js');
 
+// Import the mocked modules
+const bcrypt = await import('bcrypt');
+const jwt = await import('jsonwebtoken');
+
 describe('LoginService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env.JWT_SECRET = chance.string({ length: 32 });
     process.env.JWT_REFRESH_SECRET = chance.string({ length: 32 });
   });
@@ -83,7 +87,7 @@ describe('LoginService', () => {
     };
 
     mockPrisma.users.findUnique.mockResolvedValue(mockUser);
-    bcryptMock.compare.mockResolvedValue(false);
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(false);
 
     await expect(loginUser(loginData)).rejects.toThrow('Invalid username or password');
   });
@@ -115,9 +119,10 @@ describe('LoginService', () => {
 
     // Set up mocks
     mockPrisma.users.findUnique.mockResolvedValue(mockUser);
-    bcryptMock.compare.mockResolvedValue(true); // This SHOULD work!
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true); // This SHOULD work!
 
-    jwtMock.sign
+    vi.mocked(jwt.default.sign)
+      .mockReturnValue(mockAccessToken)
       .mockReturnValueOnce(mockAccessToken)
       .mockReturnValueOnce(mockRefreshToken);
 
@@ -137,12 +142,12 @@ describe('LoginService', () => {
       },
     });
 
-    expect(jwtMock.sign).toHaveBeenCalledWith(
+    expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
       { userId: mockUser.id, username: mockUser.username },
       jwtSecret,
       { expiresIn: '1d' },
     );
-    expect(jwtMock.sign).toHaveBeenCalledWith(
+    expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
       { userId: mockUser.id },
       jwtRefreshSecret,
       { expiresIn: '14d' },

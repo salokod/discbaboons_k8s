@@ -2,7 +2,7 @@
 
 import {
   describe, it, expect, beforeAll, afterAll,
-} from '@jest/globals';
+} from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
 describe('Prisma ORM Database Connection', () => {

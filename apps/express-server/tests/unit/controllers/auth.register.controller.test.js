@@ -1,6 +1,6 @@
 import {
-  describe, test, expect, jest, beforeEach,
-} from '@jest/globals';
+  describe, test, expect, vi, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 
 // ✅ Import the mock setup
@@ -22,8 +22,8 @@ describe('AuthController', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    next = jest.fn();
+    vi.clearAllMocks();
+    next = vi.fn();
 
     // ✅ Mock Prisma for controller tests - using Chance!
     mockPrisma.users.findUnique.mockResolvedValue(null); // No existing users
@@ -62,8 +62,8 @@ describe('AuthController', () => {
     };
 
     const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     };
 
     await registerController(req, res, next);
