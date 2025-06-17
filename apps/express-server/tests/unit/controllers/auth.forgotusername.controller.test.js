@@ -1,6 +1,6 @@
 import {
-  describe, test, expect, jest, beforeEach,
-} from '@jest/globals';
+  describe, test, expect, vi, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 
 const chance = new Chance();
@@ -10,7 +10,7 @@ const { default: forgotUsernameController } = await import('../../../controllers
 
 describe('AuthForgotUsernameController', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('should export a function', () => {
@@ -24,10 +24,10 @@ describe('AuthForgotUsernameController', () => {
       },
     };
     const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     };
-    const next = jest.fn();
+    const next = vi.fn();
 
     await forgotUsernameController(req, res, next);
 
@@ -45,10 +45,10 @@ describe('AuthForgotUsernameController', () => {
       },
     };
     const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     };
-    const next = jest.fn();
+    const next = vi.fn();
 
     await forgotUsernameController(req, res, next);
 

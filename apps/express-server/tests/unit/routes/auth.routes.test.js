@@ -1,6 +1,6 @@
 import {
-  describe, test, expect, jest, beforeEach,
-} from '@jest/globals';
+  describe, test, expect, vi, beforeEach,
+} from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import Chance from 'chance';
@@ -13,7 +13,7 @@ describe('Auth Routes', () => {
   let authRoutes;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Import routes dynamically
     const authRoutesModule = await import('../../../routes/auth.routes.js');

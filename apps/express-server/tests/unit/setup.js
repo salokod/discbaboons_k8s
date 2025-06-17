@@ -1,35 +1,35 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 
 // Clean, stable mocking approach
 const mockPrisma = {
   users: {
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    count: jest.fn(),
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
   },
   user_profiles: {
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    count: jest.fn(),
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
   },
-  $connect: jest.fn(),
-  $disconnect: jest.fn(),
-  $queryRaw: jest.fn(),
+  $connect: vi.fn(),
+  $disconnect: vi.fn(),
+  $queryRaw: vi.fn(),
 };
 
 // Mock the entire @prisma/client module first
-jest.doMock('@prisma/client', () => ({
-  PrismaClient: jest.fn(() => mockPrisma),
+vi.doMock('@prisma/client', () => ({
+  PrismaClient: vi.fn(() => mockPrisma),
 }));
 
 // Mock the lib/prisma.js module - use relative path from test files
-jest.doMock('../../lib/prisma.js', () => ({
+vi.doMock('../../lib/prisma.js', () => ({
   default: mockPrisma,
 }));
 

@@ -1,6 +1,6 @@
 import {
-  describe, test, expect, jest,
-} from '@jest/globals';
+  describe, test, expect, beforeEach, vi,
+} from 'vitest';
 import Chance from 'chance';
 
 const chance = new Chance();
@@ -11,7 +11,7 @@ const { mockPrisma } = await import('../setup.js');
 
 describe('ForgotUsernameService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('should export forgotUsername function', () => {
@@ -93,7 +93,7 @@ describe('ForgotUsernameService', () => {
     });
 
     // // Mock email service
-    // const mockEmailService = jest.fn().mockResolvedValue({
+    // const mockEmailService = vi.fn().mockResolvedValue({
     //   success: true,
     //   message: 'Email sent successfully',
     // });

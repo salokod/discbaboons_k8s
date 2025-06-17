@@ -1,6 +1,6 @@
 import {
   describe, test, expect, beforeEach,
-} from '@jest/globals';
+} from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import Chance from 'chance';

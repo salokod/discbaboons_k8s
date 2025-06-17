@@ -1,6 +1,6 @@
 import {
-  describe, test, expect, jest,
-} from '@jest/globals';
+  describe, test, expect, vi,
+} from 'vitest';
 import Chance from 'chance';
 import registerUser from '../../../services/auth.register.service.js';
 import { mockPrisma } from '../setup.js';
@@ -17,7 +17,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     // Clear mocks before each test (following your existing pattern)
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('should export registerUser function', () => {

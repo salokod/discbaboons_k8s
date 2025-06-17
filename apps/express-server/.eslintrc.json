@@ -2,8 +2,18 @@
   "extends": ["airbnb-base"],
   "env": {
     "node": true,
-    "es2022": true,
-    "jest": true
+    "es2022": true
+  },
+  "globals": {
+    "describe": "readonly",
+    "test": "readonly",
+    "it": "readonly",
+    "expect": "readonly",
+    "beforeEach": "readonly",
+    "afterEach": "readonly",
+    "beforeAll": "readonly",
+    "afterAll": "readonly",
+    "vi": "readonly"
   },
   "parserOptions": {
     "ecmaVersion": 2022,
