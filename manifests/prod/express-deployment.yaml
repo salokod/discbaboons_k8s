@@ -21,7 +21,10 @@ spec:
       initContainers:
       - name: wait-for-postgres
         image: postgres:17-alpine
-        command: ['sh', '-c', 'until pg_isready -h postgres-service -p 5432 -U app_user_new -d discbaboons_db; do echo "Waiting for PostgreSQL..."; sleep 2; done; echo "PostgreSQL is ready!"']
+        command: ['sh', '-c', 'until pg_isready -h postgres-service -p 5432 -U app_user -d discbaboons_db; do echo "Waiting for PostgreSQL..."; sleep 2; done; echo "PostgreSQL is ready!"']
+      - name: wait-for-redis
+        image: redis:7-alpine
+        command: ['sh', '-c', 'until redis-cli -h redis-service -p 6379 ping | grep PONG; do echo "Waiting for Redis..."; sleep 2; done; echo "Redis is ready!"']
       - name: flyway-migrate
         image: flyway/flyway:latest
         command: ["flyway", "migrate"]
@@ -55,6 +58,8 @@ spec:
             secretKeyRef:
               name: postgres-sealed-v2 
               key: DATABASE_URL
+        - name: REDIS_URL  # ← ADD THIS
+          value: "redis://redis-service:6379"
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:

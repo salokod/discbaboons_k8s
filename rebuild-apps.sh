@@ -54,12 +54,17 @@ kubectl delete secret express-secrets --ignore-not-found=true
 # Environment-specific teardown
 echo "✅ Express application removed"
 
-echo -e "${YELLOW}Step 2: Deleting Flyway configurations...${NC}"
+echo -e "${YELLOW}Step 2: Deleting Redis...${NC}"
+kubectl delete deployment redis-deployment --ignore-not-found=true
+kubectl delete service redis-service --ignore-not-found=true
+echo "✅ Redis removed"
+
+echo -e "${YELLOW}Step 3: Deleting Flyway configurations...${NC}"
 kubectl delete configmap flyway-config --ignore-not-found=true
 kubectl delete configmap flyway-migrations --ignore-not-found=true
 echo "✅ Flyway configurations removed"
 
-echo -e "${YELLOW}Step 3: Deleting PostgreSQL...${NC}"
+echo -e "${YELLOW}Step 4: Deleting PostgreSQL...${NC}"
 kubectl delete deployment postgres-deployment --ignore-not-found=true
 kubectl delete service postgres-service --ignore-not-found=true
 kubectl delete configmap postgres-config --ignore-not-found=true
@@ -67,11 +72,12 @@ kubectl delete secret postgres-secret --ignore-not-found=true
 kubectl delete pvc postgres-pvc --ignore-not-found=true
 echo "✅ PostgreSQL removed"
 
-echo -e "${YELLOW}Step 4: Waiting for all pods to terminate...${NC}"
+echo -e "${YELLOW}Step 5: Waiting for all pods to terminate...${NC}"
 kubectl wait --for=delete pod --selector=app=express --timeout=60s || true
+kubectl wait --for=delete pod --selector=app=redis --timeout=60s || true
 kubectl wait --for=delete pod --selector=app=postgres --timeout=60s || true
 
-echo -e "${YELLOW}Step 5: Verifying clean state...${NC}"
+echo -e "${YELLOW}Step 6: Verifying clean state...${NC}"
 echo "Remaining pods:"
 kubectl get pods
 echo "Remaining services:"
@@ -83,14 +89,14 @@ echo ""
 echo -e "${GREEN}🏗️  BUILD PHASE${NC}"
 echo "================"
 
-echo -e "${YELLOW}Step 6: Building fresh Express Docker image...${NC}"
+echo -e "${YELLOW}Step 7: Building fresh Express Docker image...${NC}"
 cd ${EXPRESS_DIR}
 echo "Building ${EXPRESS_IMAGE}..."
 docker build -t ${EXPRESS_IMAGE} .
 cd ../..
 echo "✅ Express image built"
 
-echo -e "${YELLOW}Step 7: Loading image into Kind cluster...${NC}"
+echo -e "${YELLOW}Step 8: Loading image into Kind cluster...${NC}"
 kind load docker-image ${EXPRESS_IMAGE} --name ${CLUSTER_NAME}
 echo "✅ Image loaded into cluster"
 
@@ -98,49 +104,59 @@ echo ""
 echo -e "${GREEN}🚀 DEPLOYMENT PHASE${NC}"
 echo "==================="
 
-echo -e "${YELLOW}Step 8: Deploying PostgreSQL layer...${NC}"
-echo "  8a. Creating PVC (environment-specific)..."
+echo -e "${YELLOW}Step 9: Deploying PostgreSQL layer...${NC}"
+echo "  9a. Creating PVC (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-pvc.yaml
-echo "  8b. Creating ConfigMap (shared resource)..."
+echo "  9b. Creating ConfigMap (shared resource)..."
 kubectl apply -f manifests/postgres-configmap.yaml
-echo "  8c. Creating Secret (environment-specific)..."
+echo "  9c. Creating Secret (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-secret.yaml
-echo "  8d. Creating Deployment (environment-specific)..."
+echo "  9d. Creating Deployment (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/postgres-deployment.yaml
-echo "  8e. Creating Service (shared resource)..."
+echo "  9e. Creating Service (shared resource)..."
 kubectl apply -f manifests/postgres-service.yaml
 
-echo "  8g. Waiting for PostgreSQL to be ready..."
+echo "  9f. Waiting for PostgreSQL to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/postgres-deployment
 echo "✅ PostgreSQL layer deployed and ready"
 
-echo -e "${YELLOW}Step 9: Preparing and deploying Flyway migration configurations...${NC}"
-echo "  9a. Regenerating migrations ConfigMap from migration files..."
+echo -e "${YELLOW}Step 10: Deploying Redis layer...${NC}"
+echo "  10a. Creating Redis Deployment..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/redis-deployment.yaml
+echo "  10b. Creating Redis Service..."
+kubectl apply -f ${MANIFEST_ENV_DIR}/redis-service.yaml
+
+echo "  10c. Waiting for Redis to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment/redis-deployment
+echo "✅ Redis layer deployed and ready"
+
+echo -e "${YELLOW}Step 11: Preparing and deploying Flyway migration configurations...${NC}"
+echo "  11a. Regenerating migrations ConfigMap from migration files..."
 # Auto-generate flyway-migrations-configmap.yaml from migration files
 kubectl create configmap flyway-migrations \
   --from-file=migrations/ \
   --dry-run=client \
   -o yaml > manifests/flyway-migrations-configmap.yaml
-echo "  9b. Creating Flyway config (environment-specific)..."
+echo "  11b. Creating Flyway config (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/flyway-configmap.yaml
-echo "  9c. Creating migration files config (shared)..."
+echo "  11c. Creating migration files config (shared)..."
 kubectl apply -f manifests/flyway-migrations-configmap.yaml
 echo "✅ Flyway configurations deployed with latest migrations"
 
-echo -e "${YELLOW}Step 10: Deploying Express application layer...${NC}"
+echo -e "${YELLOW}Step 12: Deploying Express application layer...${NC}"
 
-echo "  10a. Creating Express secrets..."
+echo "  12a. Creating Express secrets..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-secrets.yaml
-echo "  10c. Creating monitoring configuration..."
+echo "  12b. Creating monitoring configuration..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/monitoring-config.yaml
-echo "  10d. Creating Express ConfigMap..."
+echo "  12c. Creating Express ConfigMap..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-configmap.yaml
-echo "  10e. Creating Express Deployment..."
+echo "  12d. Creating Express Deployment..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-deployment.yaml
-echo "  10f. Creating Express Service..."
+echo "  12e. Creating Express Service..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/express-service.yaml
 
-echo "  10i. Waiting for Express application to be ready..."
+echo "  12f. Waiting for Express application to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/express-deployment
 echo "✅ Express application deployed and ready"
 
@@ -148,7 +164,7 @@ echo ""
 echo -e "${GREEN}✅ VERIFICATION PHASE${NC}"
 echo "====================="
 
-echo -e "${YELLOW}Step 11: Verifying deployment status...${NC}"
+echo -e "${YELLOW}Step 13: Verifying deployment status...${NC}"
 echo "Pod status:"
 kubectl get pods -o wide
 
@@ -167,12 +183,16 @@ echo ""
 echo "ConfigMaps:"
 kubectl get configmaps
 
-echo -e "${YELLOW}Step 12: Checking database migrations...${NC}"
+echo -e "${YELLOW}Step 14: Testing Redis connectivity...${NC}"
+echo "Testing Redis connection..."
+kubectl run redis-test --image=redis:7-alpine --rm -it --restart=Never -- redis-cli -h redis-service ping || echo "Redis connection test pending..."
+
+echo -e "${YELLOW}Step 15: Checking database migrations...${NC}"
 echo "Waiting for migrations to complete..."
 sleep 5
 kubectl exec deployment/postgres-deployment -- psql -U app_user -d discbaboons_db -c "SELECT version, description, installed_on FROM flyway_schema_history ORDER BY installed_rank;" 2>/dev/null || echo "Migration table not yet ready, this is normal for fresh deploys"
 
-echo -e "${YELLOW}Step 13: Testing application health...${NC}"
+echo -e "${YELLOW}Step 16: Testing application health...${NC}"
 # Get one of the express pods for testing
 EXPRESS_POD=$(kubectl get pods -l app=express -o jsonpath='{.items[0].metadata.name}')
 echo "Testing health endpoint in pod: ${EXPRESS_POD}"
@@ -188,6 +208,7 @@ echo -e "${BLUE}🔧 Next steps:${NC}"
 echo "🛠️  Development Environment:"
 echo "- Security contexts active (non-root execution)"
 echo "- Monitoring configuration enabled"
+echo "- Redis cache layer deployed"
 echo "- No network policies (unrestricted pod communication)"
 echo "- No RBAC (uses default service account)"
 echo ""
@@ -196,18 +217,22 @@ echo "   kubectl port-forward service/express-service 8080:3000"
 
 echo ""
 echo "🔍 Common operations:"
-echo "2. Test your API endpoints:"
+echo "1. Test your API endpoints:"
 echo "   curl http://localhost:8080/health"
 echo "   curl http://localhost:8080/api/info"
 echo "   curl http://localhost:8080/api/users"
 echo ""
-echo "3. View logs:"
+echo "2. View logs:"
 echo "   kubectl logs -f deployment/express-deployment"
 echo "   kubectl logs -f deployment/postgres-deployment"
+echo "   kubectl logs -f deployment/redis-deployment"
 echo ""
-echo "4. Access PostgreSQL directly:"
+echo "3. Access PostgreSQL directly:"
 echo "   kubectl port-forward service/postgres-service 5432:5432"
 echo "   psql -h localhost -p 5432 -U app_user -d discbaboons_db"
+echo ""
+echo "4. Test Redis directly:"
+echo "   kubectl run redis-test --image=redis:7-alpine --rm -it --restart=Never -- redis-cli -h redis-service"
 echo ""
 
 # Optional: Auto-start port forwarding

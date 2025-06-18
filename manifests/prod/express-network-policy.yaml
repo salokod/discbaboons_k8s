@@ -23,19 +23,14 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
-  # Allow HTTPS outbound
-  - to: []
+  # Allow Redis access
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
     ports:
     - protocol: TCP
-      port: 443
-  # Allow SMTP outbound for email sending
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 587  # Office 365 SMTP
-    - protocol: TCP
-      port: 465  # Alternative SMTP over SSL
-  # FIXED: More permissive ingress rules
+      port: 6379
   ingress:
   # Allow from ingress-nginx namespace (multiple possible label selectors)
   - from:
