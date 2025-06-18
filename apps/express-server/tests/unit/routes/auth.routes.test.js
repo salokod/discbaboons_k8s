@@ -54,4 +54,13 @@ describe('Auth Routes', () => {
 
     expect(response.status).not.toBe(404);
   });
+
+  test('POST /api/auth/forgot-password should exist', async () => {
+    const response = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({});
+
+    // Should not be 404 (route exists)
+    expect(response.status).not.toBe(404);
+  });
 });

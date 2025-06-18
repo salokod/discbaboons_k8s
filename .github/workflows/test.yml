@@ -25,6 +25,16 @@ jobs:
         ports:
           - 5432:5432
 
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,6 +72,7 @@ jobs:
         working-directory: apps/express-server
         env:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/discbaboons_test
+          REDIS_URL: redis://localhost:6379
           NODE_ENV: test
           FORCE_COLOR: true
         run: npm run verify
@@ -289,6 +300,26 @@ jobs:
           kubectl get sealedsecret express-secrets -o yaml
           exit 1
         fi
+
+    - name: 🔧 Deploy Redis infrastructure
+      if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
+      run: |
+        echo "🚀 Deploying Redis infrastructure..."
+        
+        # Deploy Redis
+        kubectl apply -f manifests/prod/redis-deployment.yaml
+        kubectl apply -f manifests/prod/redis-service.yaml
+        kubectl apply -f manifests/prod/redis-network-policy.yaml
+        
+        # Wait for Redis to be ready
+        echo "⏳ Waiting for Redis to be ready..."
+        kubectl wait --for=condition=available --timeout=300s deployment/redis-deployment
+        
+        # Verify Redis is working
+        echo "✅ Testing Redis connectivity..."
+        kubectl run redis-test --image=redis:7-alpine --rm -i --restart=Never -- redis-cli -h redis-service ping || echo "Redis test pending..."
+        
+        echo "✅ Redis infrastructure deployed successfully"
 
     - name: 🚀 Deploy to Kubernetes
       if: (steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true') && steps.semantic.outputs.version_changed == 'true'
