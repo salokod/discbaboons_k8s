@@ -9,7 +9,6 @@ export default {
     </head>
     <body>
         <div style="font-family: Arial, sans-serif; max-width: 600px;">
-            <h2>Who forgets their username?  LOL</h2>
             <p>Hello!</p>
             <p>Your username is: <strong>{{username}}</strong>, you baboon.</p>
             <p>If you didn't request this, please ignore this email.</p>
