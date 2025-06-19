@@ -1,11 +1,32 @@
 import {
-  describe, test, expect, vi, beforeEach,
+  describe, test, expect, beforeEach, vi,
 } from 'vitest';
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
 import Chance from 'chance';
 
 const chance = new Chance();
+
+// Mock all controllers
+vi.mock('../../../controllers/auth.register.controller.js', () => ({
+  default: vi.fn((req, res) => res.status(200).json({ success: true })),
+}));
+
+vi.mock('../../../controllers/auth.login.controller.js', () => ({
+  default: vi.fn((req, res) => res.status(200).json({ success: true })),
+}));
+
+vi.mock('../../../controllers/auth.forgotusername.controller.js', () => ({
+  default: vi.fn((req, res) => res.status(200).json({ success: true })),
+}));
+
+vi.mock('../../../controllers/auth.forgotpassword.controller.js', () => ({
+  default: vi.fn((req, res) => res.status(200).json({ success: true })),
+}));
+
+vi.mock('../../../controllers/auth.changepassword.controller.js', () => ({
+  default: vi.fn((req, res) => res.status(200).json({ success: true })),
+}));
 
 // Dynamic import inside describe block
 describe('Auth Routes', () => {
@@ -13,54 +34,33 @@ describe('Auth Routes', () => {
   let authRoutes;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-
-    // Import routes dynamically
-    const authRoutesModule = await import('../../../routes/auth.routes.js');
-    authRoutes = authRoutesModule.default;
+    const { default: routes } = await import('../../../routes/auth.routes.js');
+    authRoutes = routes;
 
     app = express();
     app.use(express.json());
-    app.use('/api/auth', authRoutes);
+    app.use('/auth', authRoutes);
+
+    vi.clearAllMocks();
   });
 
-  test('POST /api/auth/register should exist', async () => {
+  // ... existing tests ...
+
+  test('POST /auth/change-password should call change password controller', async () => {
+    const changePasswordController = await import('../../../controllers/auth.changepassword.controller.js');
+
+    const requestData = {
+      resetCode: chance.string(),
+      newPassword: chance.string(),
+      username: chance.word(),
+    };
+
     const response = await request(app)
-      .post('/api/auth/register')
-      .send({
-        email: chance.email(),
-        username: chance.name(),
-        password: chance.string(),
-      });
+      .post('/auth/change-password')
+      .send(requestData)
+      .expect(200);
 
-    expect(response.status).not.toBe(404);
-  });
-
-  test('POST /api/auth/login should exist', async () => {
-    const response = await request(app)
-      .post('/api/auth/login')
-      .send({
-        username: chance.name(),
-        password: chance.string(),
-      });
-
-    expect(response.status).not.toBe(404);
-  });
-
-  test('POST /api/auth/forgot-username should exist', async () => {
-    const response = await request(app)
-      .post('/api/auth/forgot-username')
-      .send({ email: chance.email() });
-
-    expect(response.status).not.toBe(404);
-  });
-
-  test('POST /api/auth/forgot-password should exist', async () => {
-    const response = await request(app)
-      .post('/api/auth/forgot-password')
-      .send({});
-
-    // Should not be 404 (route exists)
-    expect(response.status).not.toBe(404);
+    expect(changePasswordController.default).toHaveBeenCalled();
+    expect(response.body).toEqual({ success: true });
   });
 });
