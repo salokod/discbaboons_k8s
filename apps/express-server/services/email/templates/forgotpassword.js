@@ -9,7 +9,6 @@ export default {
     </head>
     <body>
         <div style="font-family: Arial, sans-serif; max-width: 600px;">
-            <h2>Password Reset Request</h2>
             <p>Hello there!</p>
             <p>Your password reset code is: <strong>{{resetCode}}</strong></p>
             <p>This code will expire in 30 minutes.</p>

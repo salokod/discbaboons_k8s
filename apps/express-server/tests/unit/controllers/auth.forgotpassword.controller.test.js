@@ -35,6 +35,28 @@ describe('AuthForgotPasswordController', () => {
     expect(typeof forgotPasswordController).toBe('function');
   });
 
+  test('should pass request body to service', async () => {
+    const requestData = {
+      username: chance.word(),
+      email: chance.email(),
+    };
+
+    req.body = requestData;
+
+    const mockResponse = {
+      success: true,
+      message: chance.sentence(),
+    };
+
+    mockService.mockResolvedValue(mockResponse);
+
+    await forgotPasswordController(req, res, next);
+
+    expect(mockService).toHaveBeenCalledWith(requestData);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(mockResponse);
+  });
+
   test('should return 200 status for valid request', async () => {
     const mockResponse = {
       success: chance.bool(),
@@ -47,5 +69,18 @@ describe('AuthForgotPasswordController', () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(mockResponse);
+  });
+
+  test('should call next with error when service throws', async () => {
+    const mockError = new Error(chance.sentence());
+    mockError.name = 'ValidationError';
+
+    mockService.mockRejectedValue(mockError);
+
+    await forgotPasswordController(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(mockError);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 });
