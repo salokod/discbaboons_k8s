@@ -31,6 +31,10 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
   ingress:
   # Allow from ingress-nginx namespace (multiple possible label selectors)
   - from:
