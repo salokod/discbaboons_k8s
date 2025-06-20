@@ -97,6 +97,16 @@ data:
     Remove email from user_profiles (no longer needed for auth)\nALTER TABLE user_profiles
     \nDROP COLUMN IF EXISTS email;\n\n-- Step 5: Make email NOT NULL for future records
     (optional - can be done later)\nALTER TABLE users ALTER COLUMN email SET NOT NULL;"
+  V7__expand_location_fields.sql: "-- V7__expand_location_fields.sql\n-- Description:
+    Expand location field into country, state/province, and city for better demographics\n--
+    Author: Spiro Dokolas  \n-- Date: 2025-06-20\n\n-- Step 1: Add new geographic
+    fields\nALTER TABLE user_profiles \nADD COLUMN country VARCHAR(100),\nADD COLUMN
+    state_province VARCHAR(100), \nADD COLUMN city VARCHAR(100);\n\n-- Step 2: Migrate
+    existing location data to country field (best guess)\nUPDATE user_profiles \nSET
+    country = location \nWHERE location IS NOT NULL AND location != '';\n\n-- Step
+    3: Remove old location field\nALTER TABLE user_profiles \nDROP COLUMN location;\n\n--
+    Step 4: Add indexes for geographic queries\nCREATE INDEX idx_user_profiles_country
+    ON user_profiles(country);\nCREATE INDEX idx_user_profiles_state_province ON user_profiles(state_province);"
 kind: ConfigMap
 metadata:
   creationTimestamp: null
