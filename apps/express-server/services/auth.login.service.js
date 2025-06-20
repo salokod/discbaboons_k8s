@@ -40,7 +40,7 @@ const loginUser = async (loginData) => {
   const accessToken = jwt.sign(
     { userId: user.id, username: user.username },
     process.env.JWT_SECRET,
-    { expiresIn: '1d' },
+    { expiresIn: '15m' },
   );
 
   const refreshToken = jwt.sign(
