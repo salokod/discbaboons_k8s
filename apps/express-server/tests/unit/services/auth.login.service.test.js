@@ -145,7 +145,7 @@ describe('LoginService', () => {
     expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
       { userId: mockUser.id, username: mockUser.username },
       jwtSecret,
-      { expiresIn: '1d' },
+      { expiresIn: '15m' },
     );
     expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
       { userId: mockUser.id },
