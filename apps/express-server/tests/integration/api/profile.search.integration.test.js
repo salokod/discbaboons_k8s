@@ -1,5 +1,5 @@
 import {
-  describe, test, expect, afterAll, beforeEach,
+  describe, test, expect, afterAll, beforeEach, vi,
 } from 'vitest';
 import request from 'supertest';
 import Chance from 'chance';
@@ -9,77 +9,124 @@ import { prisma } from '../setup.js';
 const chance = new Chance();
 
 describe('GET /api/profile/search - Integration', () => {
+  let user1Data; let
+    user2Data;
   let user1; let
     user2;
+  let accessToken1; let
+    accessToken2;
   let profile1Data; let
     profile2Data;
 
   beforeEach(async () => {
-    // Generate random user and profile data
-    const user1Username = `testuser1_${chance.string({ length: 5 })}`;
-    const user2Username = `testuser2_${chance.string({ length: 5 })}`;
-    const user1Email = `test-profile-${chance.guid()}@example.com`;
-    const user2Email = `test-profile-${chance.guid()}@example.com`;
-    const user1City = chance.city();
-    const user2City = user1City; // ensure both are in the same city for city search
-
-    user1 = await prisma.users.create({
-      data: {
-        username: user1Username,
-        email: user1Email,
-        password_hash: chance.hash(),
-      },
+    // Clean up users and profiles before each test
+    await prisma.user_profiles.deleteMany({
+      where: { name: { contains: 'test-search-' } },
     });
-    user2 = await prisma.users.create({
-      data: {
-        username: user2Username,
-        email: user2Email,
-        password_hash: chance.hash(),
+    await prisma.users.deleteMany({
+      where: {
+        OR: [
+          { email: { contains: 'test-search-' } },
+          { username: { contains: 'testsearch' } },
+        ],
       },
     });
 
+    // Register user1
+    user1Data = {
+      username: `testsearch1_${chance.string({ length: 5 })}`,
+      email: `test-search-${chance.guid()}@example.com`,
+      password: `Abcdef1!${chance.string({ length: 5 })}`,
+    };
+    await request(app)
+      .post('/api/auth/register')
+      .send(user1Data)
+      .expect(201);
+
+    // Login user1
+    const loginRes1 = await request(app)
+      .post('/api/auth/login')
+      .send({
+        username: user1Data.username,
+        password: user1Data.password,
+      })
+      .expect(200);
+    accessToken1 = loginRes1.body.tokens.accessToken;
+    user1 = loginRes1.body.user;
+
+    // Register user2
+    user2Data = {
+      username: `testsearch2_${chance.string({ length: 5 })}`,
+      email: `test-search-${chance.guid()}@example.com`,
+      password: `Abcdef1!${chance.string({ length: 5 })}`,
+    };
+    await request(app)
+      .post('/api/auth/register')
+      .send(user2Data)
+      .expect(201);
+
+    // Login user2
+    const loginRes2 = await request(app)
+      .post('/api/auth/login')
+      .send({
+        username: user2Data.username,
+        password: user2Data.password,
+      })
+      .expect(200);
+    accessToken2 = loginRes2.body.tokens.accessToken;
+    user2 = loginRes2.body.user;
+
+    // Both users will have the same city for city search
+    const sharedCity = chance.city();
+
+    // Update profile for user1 (name and city public, bio private)
     profile1Data = {
-      user_id: user1.id,
-      name: `test-profile-${chance.name()}`,
+      name: `test-search-${chance.name()}`,
       bio: chance.sentence(),
-      city: user1City,
+      city: sharedCity,
       country: chance.country({ full: true }),
       state_province: chance.state({ full: true }),
       isnamepublic: true,
       isbiopublic: false,
       islocationpublic: true,
     };
+    await request(app)
+      .put('/api/profile')
+      .set('Authorization', `Bearer ${accessToken1}`)
+      .send(profile1Data)
+      .expect(200);
 
+    // Update profile for user2 (bio public, name and city private)
     profile2Data = {
-      user_id: user2.id,
-      name: `test-profile-${chance.name()}`,
+      name: `test-search-${chance.name()}`,
       bio: chance.sentence(),
-      city: user2City,
+      city: sharedCity,
       country: chance.country({ full: true }),
       state_province: chance.state({ full: true }),
       isnamepublic: false,
       isbiopublic: true,
       islocationpublic: false,
     };
-
-    await prisma.user_profiles.create({ data: profile1Data });
-    await prisma.user_profiles.create({ data: profile2Data });
+    await request(app)
+      .put('/api/profile')
+      .set('Authorization', `Bearer ${accessToken2}`)
+      .send(profile2Data)
+      .expect(200);
   });
 
   afterAll(async () => {
     await prisma.user_profiles.deleteMany({
-      where: {
-        name: { contains: 'test-profile-' },
-      },
+      where: { name: { contains: 'test-search-' } },
     });
     await prisma.users.deleteMany({
       where: {
         OR: [
-          { email: { contains: 'test-profile-' } },
-          { username: { contains: 'testuser' } },
+          { email: { contains: 'test-search-' } },
+          { username: { contains: 'testsearch' } },
         ],
       },
     });
+    vi.restoreAllMocks();
   });
 
   test('should return only public fields for matching profiles by city', async () => {
@@ -91,7 +138,6 @@ describe('GET /api/profile/search - Integration', () => {
     expect(response.body.success).toBe(true);
     expect(Array.isArray(response.body.results)).toBe(true);
 
-    console.log('RESULTS:', response.body.results);
     // user1: name and city should be public, bio should not
     const user1Result = response.body.results.find((p) => p.user_id === user1.id);
     expect(user1Result).toBeDefined();
@@ -110,7 +156,7 @@ describe('GET /api/profile/search - Integration', () => {
   test('should return only public fields for matching profiles by username', async () => {
     const response = await request(app)
       .get('/api/profile/search')
-      .query({ username: user1.username }) // <-- FIXED
+      .query({ username: user1Data.username })
       .expect(200);
 
     expect(response.body.success).toBe(true);

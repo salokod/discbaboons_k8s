@@ -34,6 +34,8 @@ describe('POST /api/auth/login - Integration Test', () => {
         },
       },
     });
+
+    vi.restoreAllMocks();
   });
 
   test('should successfully login with valid credentials', async () => {

@@ -1,6 +1,6 @@
 // apps/express-server/tests/setup.js
 // Test setup and database configuration
-
+import 'dotenv/config';
 import { beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
