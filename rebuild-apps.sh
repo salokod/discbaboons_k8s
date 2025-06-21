@@ -130,18 +130,54 @@ echo "  10c. Waiting for Redis to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/redis-deployment
 echo "✅ Redis layer deployed and ready"
 
-echo -e "${YELLOW}Step 11: Preparing and deploying Flyway migration configurations...${NC}"
-echo "  11a. Regenerating migrations ConfigMap from migration files..."
-# Auto-generate flyway-migrations-configmap.yaml from migration files
-kubectl create configmap flyway-migrations \
-  --from-file=migrations/ \
-  --dry-run=client \
-  -o yaml > manifests/flyway-migrations-configmap.yaml
+echo -e "${YELLOW}Step 11: Auto-generating and deploying Flyway migration configurations...${NC}"
+echo "  11a. Generating migration ConfigMap from actual files..."
+
+# Start the ConfigMap YAML
+cat > flyway-migrations-configmap-generated.yaml << 'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flyway-migrations
+data:
+EOF
+
+# Add each migration file to the ConfigMap
+for migration_file in migrations/V*.sql; do
+  if [ -f "$migration_file" ]; then
+    filename=$(basename "$migration_file")
+    echo "📁 Adding $filename to ConfigMap..."
+    
+    # Add the file to ConfigMap with proper YAML escaping
+    echo -n "  $filename: \"" >> flyway-migrations-configmap-generated.yaml
+    
+    # Escape the SQL content for YAML (replace newlines with \n, escape quotes)
+    sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' "$migration_file" | tr -d '\n' >> flyway-migrations-configmap-generated.yaml
+    
+    echo "\"" >> flyway-migrations-configmap-generated.yaml
+  fi
+done
+
+echo "✅ Generated ConfigMap with $(ls migrations/V*.sql | wc -l) migration files"
+
 echo "  11b. Creating Flyway config (environment-specific)..."
 kubectl apply -f ${MANIFEST_ENV_DIR}/flyway-configmap.yaml
-echo "  11c. Creating migration files config (shared)..."
-kubectl apply -f manifests/flyway-migrations-configmap.yaml
-echo "✅ Flyway configurations deployed with latest migrations"
+
+echo "  11c. Applying auto-generated migration ConfigMap..."
+kubectl apply -f flyway-migrations-configmap-generated.yaml
+
+# Verify all migrations are present
+CONFIGMAP_FILES=$(kubectl get configmap flyway-migrations -o jsonpath='{.data}' | jq -r 'keys[]' | grep '^V.*\.sql$' | wc -l)
+LOCAL_FILES=$(ls migrations/V*.sql | wc -l)
+
+if [ "$CONFIGMAP_FILES" -eq "$LOCAL_FILES" ]; then
+  echo "✅ All $LOCAL_FILES migration files successfully added to ConfigMap"
+else
+  echo "❌ Mismatch: $LOCAL_FILES local files vs $CONFIGMAP_FILES in ConfigMap"
+  exit 1
+fi
+
+echo "✅ Flyway configurations deployed with auto-generated migrations"
 
 echo -e "${YELLOW}Step 12: Deploying Express application layer...${NC}"
 
@@ -206,6 +242,7 @@ echo ""
 echo -e "${BLUE}🔧 Next steps:${NC}"
 
 echo "🛠️  Development Environment:"
+echo "- Auto-generated migration ConfigMap from source files"
 echo "- Security contexts active (non-root execution)"
 echo "- Monitoring configuration enabled"
 echo "- Redis cache layer deployed"
@@ -234,6 +271,11 @@ echo ""
 echo "4. Test Redis directly:"
 echo "   kubectl run redis-test --image=redis:7-alpine --rm -it --restart=Never -- redis-cli -h redis-service"
 echo ""
+
+# Cleanup generated file
+echo -e "${YELLOW}Cleaning up temporary files...${NC}"
+rm -f flyway-migrations-configmap-generated.yaml
+echo "✅ Temporary files cleaned up"
 
 # Optional: Auto-start port forwarding
 read -p "Would you like to start port forwarding now? (y/n): " -n 1 -r
