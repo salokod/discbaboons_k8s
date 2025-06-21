@@ -3,14 +3,21 @@ import {
 } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import Chance from 'chance';
 
-// Mock the controller
+const chance = new Chance();
+
+// Mock the controllers
 vi.mock('../../../controllers/profile.get.controller.js', () => ({
   default: vi.fn(),
 }));
 
 vi.mock('../../../controllers/profile.update.controller.js', () => ({
   default: vi.fn(),
+}));
+
+vi.mock('../../../controllers/profile.search.controller.js', () => ({
+  default: vi.fn((req, res) => res.status(200).json({ success: true })),
 }));
 
 // Mock the auth middleware
@@ -25,12 +32,15 @@ describe('ProfileRoutes', () => {
   let app;
   let mockGetController;
   let mockUpdateController;
+  let mockSearchController;
 
   beforeEach(async () => {
     const getController = await import('../../../controllers/profile.get.controller.js');
     const updateController = await import('../../../controllers/profile.update.controller.js');
+    const searchController = await import('../../../controllers/profile.search.controller.js');
     mockGetController = getController.default;
     mockUpdateController = updateController.default;
+    mockSearchController = searchController.default;
 
     app = express();
     app.use(express.json());
@@ -45,7 +55,6 @@ describe('ProfileRoutes', () => {
   });
 
   test('should have GET /profile route that calls controller', async () => {
-    // Mock controller response
     mockGetController.mockImplementation((req, res) => {
       res.status(200).json({ success: true, profile: null });
     });
@@ -76,5 +85,17 @@ describe('ProfileRoutes', () => {
       success: true,
       profile: { name: 'Updated' },
     });
+  });
+
+  test('GET /profile/search should call searchProfilesController', async () => {
+    const query = { username: chance.word() };
+
+    const response = await request(app)
+      .get('/api/profile/search')
+      .query(query)
+      .expect(200);
+
+    expect(mockSearchController).toHaveBeenCalled();
+    expect(response.body).toEqual({ success: true });
   });
 });
