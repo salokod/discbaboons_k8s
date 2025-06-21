@@ -116,60 +116,6 @@ jobs:
         # Authenticate and configure kubectl
         doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
         doctl kubernetes cluster kubeconfig save discbaboons-production
-        
-    - name: 🗂️ Generate and deploy migration ConfigMap from files
-      run: |
-        echo "🗂️ Generating migration ConfigMap from actual files..."
-        
-        # Start the ConfigMap YAML
-        cat > flyway-migrations-configmap-generated.yaml << 'EOF'
-        apiVersion: v1
-        kind: ConfigMap
-        metadata:
-          name: flyway-migrations
-        data:
-        EOF
-        
-        # Add each migration file to the ConfigMap
-        for migration_file in migrations/V*.sql; do
-          if [ -f "$migration_file" ]; then
-            filename=$(basename "$migration_file")
-            echo "📁 Adding $filename to ConfigMap..."
-            
-            # Add the file to ConfigMap with proper YAML escaping
-            echo -n "  $filename: \"" >> flyway-migrations-configmap-generated.yaml
-            
-            # Escape the SQL content for YAML (replace newlines with \n, escape quotes)
-            sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' "$migration_file" | tr -d '\n' >> flyway-migrations-configmap-generated.yaml
-            
-            echo "\"" >> flyway-migrations-configmap-generated.yaml
-          fi
-        done
-        
-        echo "✅ Generated ConfigMap with $(ls migrations/V*.sql | wc -l) migration files"
-        
-        # Show what was generated (first few lines)
-        echo "📄 Generated ConfigMap preview:"
-        head -20 flyway-migrations-configmap-generated.yaml
-        
-        # Apply the generated ConfigMap
-        echo "🚀 Applying generated ConfigMap..."
-        kubectl apply -f flyway-migrations-configmap-generated.yaml
-        
-        # Verify ConfigMap was updated
-        echo "✅ Verifying ConfigMap deployment..."
-        kubectl get configmap flyway-migrations -o jsonpath='{.metadata.resourceVersion}'
-        
-        # Verify all migrations are present
-        CONFIGMAP_FILES=$(kubectl get configmap flyway-migrations -o jsonpath='{.data}' | jq -r 'keys[]' | grep '^V.*\.sql$' | wc -l)
-        LOCAL_FILES=$(ls migrations/V*.sql | wc -l)
-        
-        if [ "$CONFIGMAP_FILES" -eq "$LOCAL_FILES" ]; then
-          echo "✅ All $LOCAL_FILES migration files successfully added to ConfigMap"
-        else
-          echo "❌ Mismatch: $LOCAL_FILES local files vs $CONFIGMAP_FILES in ConfigMap"
-          exit 1
-        fi
 
     - name: 🔍 Check production migration status & apply if needed
       id: migration_check
@@ -205,30 +151,48 @@ jobs:
             fi
           done
           
-          # Install Flyway and run migrations
-          echo "🚀 Installing Flyway and applying migrations..."
+          # Install Flyway
+          echo "🚀 Installing Flyway..."
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
-          # Get database connection details from Kubernetes secret
+          # Update ConfigMap with current migrations
+          echo "📁 Updating migration ConfigMap..."
+          kubectl create configmap flyway-migrations \
+            --from-file=migrations/ \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Extract migrations from ConfigMap to temp directory
+          echo "📂 Extracting migrations from ConfigMap..."
+          mkdir -p /tmp/migrations
+          for file in $(kubectl get configmap flyway-migrations -o jsonpath='{.data}' | jq -r 'keys[]'); do
+            kubectl get configmap flyway-migrations -o jsonpath="{.data.$file}" > "/tmp/migrations/$file"
+          done
+          
+          # Get database connection details
           DB_PASSWORD=$(kubectl get secret postgres-secret -o jsonpath='{.data.app-password-new}' | base64 -d)
           
-          # Run migration using port-forward to avoid networking issues
+          # Setup port-forward
           echo "🔌 Setting up port-forward to database..."
           kubectl port-forward service/postgres-service 5432:5432 &
           PORTFORWARD_PID=$!
           sleep 5
           
-          # Apply all pending migrations
+          # VALIDATE FIRST - NO REPAIR! Let it fail if there are issues
+          echo "🔍 Validating migrations (no repair)..."
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations validate
+          
+          # Apply migrations only if validation passes
           echo "🗄️ Applying migrations to production..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations migrate
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations migrate
           
           # Verify migration success
           echo "✅ Verifying migration status..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations info
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations info
           
-          # Clean up port-forward
+          # Clean up
           kill $PORTFORWARD_PID
+          rm -rf /tmp/migrations
           
           echo "✅ All migrations applied successfully"
         else
@@ -453,8 +417,4 @@ jobs:
         echo "📊 MIGRATION SUMMARY"
         echo "==================="
         if [ "${{ steps.migration_check.outputs.migrations_needed }}" = "true" ]; then
-          echo "✅ Migrations were applied to production"
-        else
-          echo "ℹ️ Production was already up to date"
-        fi
-        echo "🗄️ All migrations are now current"
+          echo "✅
