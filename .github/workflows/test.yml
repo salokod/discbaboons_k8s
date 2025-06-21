@@ -75,6 +75,8 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
           FORCE_COLOR: true
+          JWT_SECRET: testsecret
+          JWT_REFRESH_SECRET: testrefreshsecret
         run: npm run verify
 
   deploy:   
