@@ -59,7 +59,7 @@ jobs:
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
-          # Run ALL migrations (V2-V6)
+          # Run ALL migrations (V2-V7)
           flyway -url=jdbc:postgresql://localhost:5432/discbaboons_test -user=testuser -password=testpassword -locations=filesystem:../../migrations migrate
         
       - name: Generate Prisma client (after migrations)
@@ -85,7 +85,7 @@ jobs:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Important: semantic-release needs full git history
+        fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
         persist-credentials: true
 
@@ -100,7 +100,7 @@ jobs:
       working-directory: apps/express-server
       run: npm ci
 
-    - name: ⚙️ Setup kubectl and doctl (early for migration check)
+    - name: ⚙️ Setup kubectl and doctl
       run: |
         # Install kubectl
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -156,19 +156,6 @@ jobs:
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
-          # Update ConfigMap with current migrations
-          echo "📁 Updating migration ConfigMap..."
-          kubectl create configmap flyway-migrations \
-            --from-file=migrations/ \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Extract migrations from ConfigMap to temp directory
-          echo "📂 Extracting migrations from ConfigMap..."
-          mkdir -p /tmp/migrations
-          for file in $(kubectl get configmap flyway-migrations -o jsonpath='{.data}' | jq -r 'keys[]'); do
-            kubectl get configmap flyway-migrations -o jsonpath="{.data.$file}" > "/tmp/migrations/$file"
-          done
-          
           # Get database connection details
           DB_PASSWORD=$(kubectl get secret postgres-secret -o jsonpath='{.data.app-password-new}' | base64 -d)
           
@@ -178,21 +165,16 @@ jobs:
           PORTFORWARD_PID=$!
           sleep 5
           
-          # VALIDATE FIRST - NO REPAIR! Let it fail if there are issues
-          echo "🔍 Validating migrations (no repair)..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations validate
-          
-          # Apply migrations only if validation passes
+          # Use filesystem directly - NO ConfigMap, NO repair
           echo "🗄️ Applying migrations to production..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations migrate
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations migrate
           
           # Verify migration success
           echo "✅ Verifying migration status..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations info
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations info
           
           # Clean up
           kill $PORTFORWARD_PID
-          rm -rf /tmp/migrations
           
           echo "✅ All migrations applied successfully"
         else
@@ -417,4 +399,8 @@ jobs:
         echo "📊 MIGRATION SUMMARY"
         echo "==================="
         if [ "${{ steps.migration_check.outputs.migrations_needed }}" = "true" ]; then
-          echo "✅
+          echo "✅ Migrations were applied to production"
+        else
+          echo "ℹ️ Production was already up to date"
+        fi
+        echo "🗄️ All migrations are now current"
