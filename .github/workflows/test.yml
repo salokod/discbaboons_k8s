@@ -203,6 +203,60 @@ jobs:
           fi
         fi
 
+    - name: 🗂️ Generate and deploy migration ConfigMap from files
+      run: |
+        echo "🗂️ Generating migration ConfigMap from actual files..."
+        
+        # Start the ConfigMap YAML
+        cat > flyway-migrations-configmap-generated.yaml << 'EOF'
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: flyway-migrations
+        data:
+        EOF
+        
+        # Add each migration file to the ConfigMap
+        for migration_file in migrations/V*.sql; do
+          if [ -f "$migration_file" ]; then
+            filename=$(basename "$migration_file")
+            echo "📁 Adding $filename to ConfigMap..."
+            
+            # Add the file to ConfigMap with proper YAML escaping
+            echo -n "  $filename: \"" >> flyway-migrations-configmap-generated.yaml
+            
+            # Escape the SQL content for YAML (replace newlines with \n, escape quotes)
+            sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' "$migration_file" | tr -d '\n' >> flyway-migrations-configmap-generated.yaml
+            
+            echo "\"" >> flyway-migrations-configmap-generated.yaml
+          fi
+        done
+        
+        echo "✅ Generated ConfigMap with $(ls migrations/V*.sql | wc -l) migration files"
+        
+        # Show what was generated (first few lines)
+        echo "📄 Generated ConfigMap preview:"
+        head -20 flyway-migrations-configmap-generated.yaml
+        
+        # Apply the generated ConfigMap
+        echo "🚀 Applying generated ConfigMap..."
+        kubectl apply -f flyway-migrations-configmap-generated.yaml
+        
+        # Verify ConfigMap was updated
+        echo "✅ Verifying ConfigMap deployment..."
+        kubectl get configmap flyway-migrations -o jsonpath='{.metadata.resourceVersion}'
+        
+        # Verify all migrations are present
+        CONFIGMAP_FILES=$(kubectl get configmap flyway-migrations -o jsonpath='{.data}' | jq -r 'keys[]' | grep '^V.*\.sql$' | wc -l)
+        LOCAL_FILES=$(ls migrations/V*.sql | wc -l)
+        
+        if [ "$CONFIGMAP_FILES" -eq "$LOCAL_FILES" ]; then
+          echo "✅ All $LOCAL_FILES migration files successfully added to ConfigMap"
+        else
+          echo "❌ Mismatch: $LOCAL_FILES local files vs $CONFIGMAP_FILES in ConfigMap"
+          exit 1
+        fi
+
     - name: 🏷️ Generate semantic version
       if: steps.changes.outputs.changed == 'true' || steps.migration_check.outputs.migrations_needed == 'true'
       id: semantic
