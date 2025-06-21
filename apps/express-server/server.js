@@ -2,6 +2,7 @@ import express from 'express';
 import { hostname } from 'os';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth.routes.js';
+import profileRouter from './routes/profile.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -14,17 +15,6 @@ app.use(express.json({
   strict: false, // Allow non-objects (strings, numbers)
   limit: '10mb', // Set reasonable limit
 }));
-
-// Add error handler for JSON parsing
-app.use((error, req, res, next) => {
-  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid JSON in request body',
-    });
-  }
-  return next();
-});
 
 // Routes
 app.get('/', (req, res) => {
@@ -47,9 +37,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ADD THE USERS ROUTE HERE
-app.use('/api/auth', authRouter);
-
+// Add the missing /api/info route
 app.get('/api/info', (req, res) => {
   res.json({
     service: 'discbaboons-express',
@@ -57,15 +45,16 @@ app.get('/api/info', (req, res) => {
     hostname: hostname(),
     pid: process.pid,
     memory: process.memoryUsage(),
-    logLevel: process.env.LOG_LEVEL || 'not set',
-    // Show we have secrets without exposing them
-    hasJwtSecret: !!process.env.JWT_SECRET,
-    hasApiKey: !!process.env.API_KEY,
-    hasDbPassword: !!process.env.DB_PASSWORD,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
   });
 });
 
-// 404 handler
+// API Routes
+app.use('/api/auth', authRouter);
+app.use('/api/profile', profileRouter);
+
+// 404 handler for unknown routes (must be AFTER all other routes but BEFORE error handler)
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Route not found',
@@ -73,7 +62,7 @@ app.use('*', (req, res) => {
   });
 });
 
-// Error handler
+// Use the imported error handler (must be LAST)
 app.use(errorHandler);
 
 // Start server (only if not in test mode)
@@ -86,4 +75,3 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 export default app;
-// apps/express-server/server.js

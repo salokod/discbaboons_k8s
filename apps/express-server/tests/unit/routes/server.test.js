@@ -61,9 +61,11 @@ describe('Express Server', () => {
         .post('/api/info')
         .send('invalid json')
         .set('Content-Type', 'application/json')
-        .expect(400); // Express returns 500 for JSON parsing errors by default
+        .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      // Your errorHandler returns { success: false, message: "..." }
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('message');
     });
   });
 });
