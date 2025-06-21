@@ -117,7 +117,7 @@ jobs:
         doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
         doctl kubernetes cluster kubeconfig save discbaboons-production
 
-    - name: 🔍 Check production migration status & apply if needed
+        - name: 🔍 Check production migration status & apply if needed
       id: migration_check
       run: |
         echo "🔍 Checking production migration status..."
@@ -156,19 +156,6 @@ jobs:
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
-          # Update ConfigMap with current migrations
-          echo "📁 Updating migration ConfigMap..."
-          kubectl create configmap flyway-migrations \
-            --from-file=migrations/ \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Extract migrations from ConfigMap to temp directory
-          echo "📂 Extracting migrations from ConfigMap..."
-          mkdir -p /tmp/migrations
-          for file in $(kubectl get configmap flyway-migrations -o jsonpath='{.data}' | jq -r 'keys[]'); do
-            kubectl get configmap flyway-migrations -o jsonpath="{.data.$file}" > "/tmp/migrations/$file"
-          done
-          
           # Get database connection details
           DB_PASSWORD=$(kubectl get secret postgres-secret -o jsonpath='{.data.app-password-new}' | base64 -d)
           
@@ -178,21 +165,16 @@ jobs:
           PORTFORWARD_PID=$!
           sleep 5
           
-          # VALIDATE FIRST - NO REPAIR! Let it fail if there are issues
-          echo "🔍 Validating migrations (no repair)..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations validate
-          
-          # Apply migrations only if validation passes
+          # Use filesystem directly - NO ConfigMap, NO repair
           echo "🗄️ Applying migrations to production..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations migrate
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations migrate
           
           # Verify migration success
           echo "✅ Verifying migration status..."
-          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:/tmp/migrations info
+          flyway -url=jdbc:postgresql://localhost:5432/discbaboons_db -user=app_user -password="$DB_PASSWORD" -locations=filesystem:migrations info
           
           # Clean up
           kill $PORTFORWARD_PID
-          rm -rf /tmp/migrations
           
           echo "✅ All migrations applied successfully"
         else
