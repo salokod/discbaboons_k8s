@@ -9,6 +9,7 @@ const mockPrisma = {
     update: vi.fn(),
     delete: vi.fn(),
     count: vi.fn(),
+    deleteMany: vi.fn(),
   },
   user_profiles: {
     findMany: vi.fn(),

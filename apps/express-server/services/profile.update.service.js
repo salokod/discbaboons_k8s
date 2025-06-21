@@ -1,7 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const ALLOWED_FIELDS = ['name', 'bio', 'country', 'state_province', 'city'];
+
+const ALLOWED_FIELDS = [
+  'name',
+  'bio',
+  'country',
+  'state_province',
+  'city',
+  'isnamepublic',
+  'isbiopublic',
+  'islocationpublic',
+];
 
 const updateProfileService = async (userId, updateData) => {
   if (!userId) {

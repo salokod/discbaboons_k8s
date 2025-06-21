@@ -14,9 +14,10 @@ describe('POST /api/auth/register - Integration Test', () => {
     // Remove any test users that might exist
     await prisma.users.deleteMany({
       where: {
-        email: {
-          contains: 'test-register',
-        },
+        OR: [
+          { email: { contains: 'test-register' } },
+          { username: { contains: 'testuser' } }, // covers testuser* usernames
+        ],
       },
     });
   });
@@ -25,11 +26,13 @@ describe('POST /api/auth/register - Integration Test', () => {
     // Final cleanup
     await prisma.users.deleteMany({
       where: {
-        email: {
-          contains: 'test-register',
-        },
+        OR: [
+          { email: { contains: 'test-register' } },
+          { username: { contains: 'testuser' } },
+        ],
       },
     });
+    vi.restoreAllMocks();
   });
 
   test('should successfully register a new user', async () => {

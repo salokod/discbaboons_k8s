@@ -109,4 +109,28 @@ describe('updateProfileService', () => {
       profile: updatedProfile,
     });
   });
+
+  test('should update privacy fields', async () => {
+    const userId = chance.integer({ min: 1 });
+    const updateData = {
+      isnamepublic: chance.bool(),
+      isbiopublic: chance.bool(),
+      islocationpublic: chance.bool(),
+    };
+    const updatedProfile = { user_id: userId, ...updateData };
+
+    mockUpdate.mockResolvedValueOnce(updatedProfile);
+
+    const result = await updateProfileService(userId, updateData);
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { user_id: userId },
+      update: updateData,
+      create: { user_id: userId, ...updateData },
+    });
+    expect(result).toEqual({
+      success: true,
+      profile: updatedProfile,
+    });
+  });
 });

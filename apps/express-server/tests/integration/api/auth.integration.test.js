@@ -1,5 +1,5 @@
 import {
-  describe, test, expect, beforeEach,
+  describe, test, expect, afterEach, vi,
 } from 'vitest';
 import request from 'supertest';
 import express from 'express';
@@ -7,7 +7,7 @@ import Chance from 'chance';
 
 // Import our routes
 import authRoutes from '../../../routes/auth.routes.js';
-import { mockPrisma } from '../../unit/setup.js';
+import { prisma } from '../setup.js'; // adjust the path as needed
 
 const chance = new Chance();
 
@@ -17,21 +17,22 @@ app.use(express.json()); // Parse JSON bodies
 app.use('/api/auth', authRoutes); // Mount auth routes
 
 describe('Auth Integration Tests', () => {
-  beforeEach(() => {
-    // Mock Prisma for integration tests
-    mockPrisma.users.findUnique.mockResolvedValue(null);
-    mockPrisma.users.create.mockResolvedValue({
-      id: chance.integer({ min: 1, max: 1000 }),
-      email: chance.email(),
-      username: chance.word(),
-      password_hash: chance.hash(),
-      created_at: new Date().toISOString(),
+  afterEach(async () => {
+    await prisma.users.deleteMany({
+      where: {
+        email: { contains: 'test-auth' },
+      },
     });
+
+    vi.restoreAllMocks();
   });
+
+  // Remove afterAll cleanup, since mockPrisma is a mock and does not touch the real DB
+  // No cleanup is needed for mocks
 
   test('POST /api/auth/register should create a new user', async () => {
     const userData = {
-      email: chance.email(),
+      email: `test-auth-oasiojfsioj-${chance.guid()}@example.com`, // <--- use a unique, catchable prefix
       username: chance.string({ length: 8, alpha: true }),
       password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
     };
