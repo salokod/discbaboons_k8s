@@ -59,7 +59,7 @@ jobs:
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
-          # Run ALL migrations (V2-V6)
+          # Run ALL migrations (V2-V7)
           flyway -url=jdbc:postgresql://localhost:5432/discbaboons_test -user=testuser -password=testpassword -locations=filesystem:../../migrations migrate
         
       - name: Generate Prisma client (after migrations)
@@ -85,7 +85,7 @@ jobs:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Important: semantic-release needs full git history
+        fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
         persist-credentials: true
 
@@ -100,7 +100,7 @@ jobs:
       working-directory: apps/express-server
       run: npm ci
 
-    - name: ⚙️ Setup kubectl and doctl (early for migration check)
+    - name: ⚙️ Setup kubectl and doctl
       run: |
         # Install kubectl
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -117,7 +117,7 @@ jobs:
         doctl auth init --access-token ${{ secrets.DO_API_TOKEN }}
         doctl kubernetes cluster kubeconfig save discbaboons-production
 
-        - name: 🔍 Check production migration status & apply if needed
+    - name: 🔍 Check production migration status & apply if needed
       id: migration_check
       run: |
         echo "🔍 Checking production migration status..."
@@ -399,4 +399,8 @@ jobs:
         echo "📊 MIGRATION SUMMARY"
         echo "==================="
         if [ "${{ steps.migration_check.outputs.migrations_needed }}" = "true" ]; then
-          echo "✅
+          echo "✅ Migrations were applied to production"
+        else
+          echo "ℹ️ Production was already up to date"
+        fi
+        echo "🗄️ All migrations are now current"
