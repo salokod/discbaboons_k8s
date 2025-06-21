@@ -87,13 +87,11 @@ describe('ProfileGetController', () => {
     // Mock service to throw an error
     mockService.mockRejectedValue(new Error('Database connection failed'));
 
-    await getProfileController(req, res);
+    const next = vi.fn();
 
-    expect(mockService).toHaveBeenCalledWith(user); // Changed: now passes full user object
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      success: false,
-      message: 'Internal server error',
-    });
+    await getProfileController(req, res, next);
+
+    expect(mockService).toHaveBeenCalledWith(user);
+    expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 });

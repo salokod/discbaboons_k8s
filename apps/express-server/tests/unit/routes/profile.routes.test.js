@@ -9,6 +9,10 @@ vi.mock('../../../controllers/profile.get.controller.js', () => ({
   default: vi.fn(),
 }));
 
+vi.mock('../../../controllers/profile.update.controller.js', () => ({
+  default: vi.fn(),
+}));
+
 // Mock the auth middleware
 vi.mock('../../../middleware/auth.middleware.js', () => ({
   default: vi.fn((req, res, next) => next()),
@@ -19,11 +23,14 @@ const { default: profileRoutes } = await import('../../../routes/profile.routes.
 
 describe('ProfileRoutes', () => {
   let app;
-  let mockController;
+  let mockGetController;
+  let mockUpdateController;
 
   beforeEach(async () => {
-    const controller = await import('../../../controllers/profile.get.controller.js');
-    mockController = controller.default;
+    const getController = await import('../../../controllers/profile.get.controller.js');
+    const updateController = await import('../../../controllers/profile.update.controller.js');
+    mockGetController = getController.default;
+    mockUpdateController = updateController.default;
 
     app = express();
     app.use(express.json());
@@ -39,7 +46,7 @@ describe('ProfileRoutes', () => {
 
   test('should have GET /profile route that calls controller', async () => {
     // Mock controller response
-    mockController.mockImplementation((req, res) => {
+    mockGetController.mockImplementation((req, res) => {
       res.status(200).json({ success: true, profile: null });
     });
 
@@ -47,10 +54,27 @@ describe('ProfileRoutes', () => {
       .get('/api/profile')
       .expect(200);
 
-    expect(mockController).toHaveBeenCalled();
+    expect(mockGetController).toHaveBeenCalled();
     expect(response.body).toEqual({
       success: true,
       profile: null,
+    });
+  });
+
+  test('should have PUT /profile route that calls update controller', async () => {
+    mockUpdateController.mockImplementation((req, res) => {
+      res.status(200).json({ success: true, profile: { name: 'Updated' } });
+    });
+
+    const response = await request(app)
+      .put('/api/profile')
+      .send({ name: 'Updated' })
+      .expect(200);
+
+    expect(mockUpdateController).toHaveBeenCalled();
+    expect(response.body).toEqual({
+      success: true,
+      profile: { name: 'Updated' },
     });
   });
 });
