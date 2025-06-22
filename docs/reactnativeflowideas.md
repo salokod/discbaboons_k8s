@@ -87,3 +87,50 @@ App periodically checks → Continues prompting until profile is complete
 - Implement `GET /api/profile/search` endpoint (with privacy filtering).
 - Add friend/connection endpoints as needed.
 - Continue TDD for
+
+
+ 📝 Baboon App: Database & Friendship Design Notes
+
+## Friendship System Design
+
+**Chosen Approach:**  
+We use a `friendship_requests` table to manage friend connections between users.  
+- When a user (the "requester") sends a friend request to another user (the "recipient"), a row is created with `status: 'pending'`.
+- The recipient can approve (`status: 'accepted'`) or deny (`status: 'denied'`) the request.
+- Only when the status is `'accepted'` are users considered friends and can see each other's discs/bags (according to privacy settings).
+- If a user deletes their account, all related friendship requests (sent or received) are automatically deleted (`onDelete: Cascade`), keeping the database clean.
+
+**Why this approach?**
+- **Clarity:** Each request is explicit, and the status is easy to track.
+- **Flexibility:** Supports future features like blocking, re-requesting, or tracking request history.
+- **Data Hygiene:** Cascade deletes ensure no orphaned requests remain if a user is removed.
+
+**Prisma Schema Example:**
+```prisma
+model users {
+  id           Int                   @id @default(autoincrement())
+  // ...other fields...
+  sentRequests     friendship_requests[] @relation("Requester")
+  receivedRequests friendship_requests[] @relation("Recipient")
+}
+
+model friendship_requests {
+  id           Int      @id @default(autoincrement())
+  requester_id Int
+  recipient_id Int
+  status       String   // 'pending', 'accepted', 'denied'
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  requester    users    @relation("Requester", fields: [requester_id], references: [id], onDelete: Cascade)
+  recipient    users    @relation("Recipient", fields: [recipient_id], references: [id], onDelete: Cascade)
+
+  @@unique([requester_id, recipient_id])
+  @@index([recipient_id])
+}
+```
+
+POST /api/friends/request — Send a friend request
+POST /api/friends/respond — Approve or deny a request
+GET /api/friends/requests — List incoming/outgoing requests
+GET /api/friends — List all accepted friends
