@@ -43,13 +43,29 @@ model user_profiles {
 }
 
 model users {
-  id                   Int            @id @default(autoincrement())
-  username             String         @unique @db.VarChar(50)
-  created_at           DateTime?      @default(now()) @db.Timestamp(6)
-  password_hash        String
-  last_password_change DateTime?      @default(now()) @db.Timestamp(6)
-  email                String?        @unique(map: "users_email_unique") @db.VarChar(255)
-  user_profiles        user_profiles?
+  id                                                          Int                   @id @default(autoincrement())
+  username                                                    String                @unique @db.VarChar(50)
+  created_at                                                  DateTime?             @default(now()) @db.Timestamp(6)
+  password_hash                                               String
+  last_password_change                                        DateTime?             @default(now()) @db.Timestamp(6)
+  email                                                       String?               @unique(map: "users_email_unique") @db.VarChar(255)
+  friendship_requests_friendship_requests_recipient_idTousers friendship_requests[] @relation("friendship_requests_recipient_idTousers")
+  friendship_requests_friendship_requests_requester_idTousers friendship_requests[] @relation("friendship_requests_requester_idTousers")
+  user_profiles                                               user_profiles?
 
   @@index([last_password_change], map: "idx_users_last_password_change")
+}
+
+model friendship_requests {
+  id                                            Int       @id @default(autoincrement())
+  requester_id                                  Int
+  recipient_id                                  Int
+  status                                        String    @default("pending") @db.VarChar(20)
+  created_at                                    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                                    DateTime? @default(now()) @db.Timestamp(6)
+  users_friendship_requests_recipient_idTousers users     @relation("friendship_requests_recipient_idTousers", fields: [recipient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_friendship_requests_requester_idTousers users     @relation("friendship_requests_requester_idTousers", fields: [requester_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([requester_id, recipient_id], map: "unique_friendship")
+  @@index([recipient_id], map: "idx_friendship_requests_recipient_id")
 }
