@@ -123,4 +123,16 @@ describe('friendsRequestService', () => {
     });
     expect(result).toEqual(fakeRequest);
   });
+
+  test('should throw if a reverse request is already accepted', async () => {
+    const requesterId = chance.integer({ min: 1, max: 1000 });
+    let recipientId = chance.integer({ min: 1, max: 1000 });
+    while (recipientId === requesterId) {
+      recipientId = chance.integer({ min: 1, max: 1000 });
+    }
+    mockFindUnique.mockResolvedValueOnce(null); // No direct request
+    mockFindUnique.mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'accepted' }); // Reverse accepted
+
+    await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
+  });
 });
