@@ -37,4 +37,14 @@ describe('friendsRoutes', () => {
     );
     expect(requestsRoute).toBeTruthy();
   });
+
+  test('should have GET / route for friends list', () => {
+    const stack = friendsRoutes.stack || [];
+    const friendsRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/'
+        && layer.route.methods.get,
+    );
+    expect(friendsRoute).toBeTruthy();
+  });
 });
