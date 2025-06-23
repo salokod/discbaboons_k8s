@@ -12,8 +12,8 @@ const chance = new Chance();
 describe('GET /api/friends/requests - Integration', () => {
   let userA; let userB; let tokenA; let tokenB; let
     requestId;
-  const userAPrefix = `test-friendreqs-a-${chance.string({ length: 2 })}`;
-  const userBPrefix = `test-friendreqs-b-${chance.string({ length: 2 })}`;
+  const userAPrefix = `req-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
+  const userBPrefix = `req-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
 
   beforeEach(async () => {
     // Register User A
