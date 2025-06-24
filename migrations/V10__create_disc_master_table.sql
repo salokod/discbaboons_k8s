@@ -10,7 +10,7 @@ CREATE TABLE disc_master (
     turn INT NOT NULL,
     fade INT NOT NULL,
     approved BOOLEAN NOT NULL DEFAULT FALSE,
-    added_by_id INT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    added_by_id INT REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
