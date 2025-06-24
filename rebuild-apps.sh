@@ -197,6 +197,39 @@ kubectl wait --for=condition=available --timeout=300s deployment/express-deploym
 echo "✅ Express application deployed and ready"
 
 echo ""
+echo -e "${YELLOW}Step 15.5: Loading disc-data.json into disc_master table...${NC}"
+
+# Convert disc-data.json to SQL insert statements and load into Postgres
+if [ -f "disc-data.json" ]; then
+  echo "Parsing disc-data.json and inserting into disc_master..."
+
+  # Generate a temp SQL file
+  python3 -c '
+import json
+with open("disc-data.json") as f:
+    discs = json.load(f)
+with open("disc_master_seed.sql", "w") as out:
+    for d in discs:
+        brand = d.get("brand", "Unknown").replace("\x27", "\x27\x27")
+        model = d.get("title", "Unknown").replace("\x27", "\x27\x27")
+        speed = d.get("speed", "NULL")
+        glide = d.get("glide", "NULL")
+        turn = d.get("turn", "NULL")
+        fade = d.get("fade", "NULL")
+        out.write(f"INSERT INTO disc_master (id, brand, model, speed, glide, turn, fade, approved, added_by_id, created_at, updated_at) VALUES (gen_random_uuid(), \x27{brand}\x27, \x27{model}\x27, {speed}, {glide}, {turn}, {fade}, TRUE, 1, NOW(), NOW());\n")
+  '
+
+  # Copy the SQL file into the Postgres pod and execute it
+  POSTGRES_POD=$(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+  kubectl cp disc_master_seed.sql $POSTGRES_POD:/tmp/disc_master_seed.sql
+  kubectl exec $POSTGRES_POD -- psql -U app_user -d discbaboons_db -f /tmp/disc_master_seed.sql
+
+  echo "✅ disc_master table seeded from disc-data.json"
+else
+  echo "disc-data.json not found, skipping disc_master seeding."
+fi
+
+echo ""
 echo -e "${GREEN}✅ VERIFICATION PHASE${NC}"
 echo "====================="
 
@@ -275,6 +308,7 @@ echo ""
 # Cleanup generated file
 echo -e "${YELLOW}Cleaning up temporary files...${NC}"
 rm -f flyway-migrations-configmap-generated.yaml
+rm -f disc_master_seed.sql
 echo "✅ Temporary files cleaned up"
 
 # Optional: Auto-start port forwarding
