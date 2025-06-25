@@ -107,4 +107,36 @@ describe('POST /api/discs/master - Integration', () => {
     expect(res.body).toHaveProperty('message');
     expect(res.body.message).toMatch(/required/i);
   });
+
+  test('should not allow duplicate disc (same brand and model, case-insensitive)', async () => {
+    const discData = {
+      brand: testBrand,
+      model: testModel,
+      speed: chance.integer({ min: 1, max: 14 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+    };
+
+    // First creation should succeed
+    await request(app)
+      .post('/api/discs/master')
+      .set('Authorization', `Bearer ${token}`)
+      .send(discData)
+      .expect(201);
+
+    // Second creation with same brand/model (different case) should fail
+    const res = await request(app)
+      .post('/api/discs/master')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        ...discData,
+        brand: discData.brand.toUpperCase(),
+        model: discData.model.toLowerCase(),
+      })
+      .expect(400);
+
+    expect(res.body).toHaveProperty('message');
+    expect(res.body.message).toMatch(/already exists/i);
+  });
 });

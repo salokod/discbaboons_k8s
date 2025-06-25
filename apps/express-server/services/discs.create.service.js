@@ -39,6 +39,19 @@ const createDiscService = async (discData = {}) => {
     throw error;
   }
 
+  // Check for duplicate (case-insensitive)
+  const existing = await prisma.disc_master.findFirst({
+    where: {
+      brand: { equals: brand, mode: 'insensitive' },
+      model: { equals: model, mode: 'insensitive' },
+    },
+  });
+  if (existing) {
+    const error = new Error('A disc with this brand and model already exists');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Always create as pending approval
   return prisma.disc_master.create({
     data: {

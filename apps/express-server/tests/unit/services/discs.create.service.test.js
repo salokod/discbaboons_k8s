@@ -9,11 +9,13 @@ const chance = new Chance();
 
 // Mock Prisma
 const mockCreate = vi.fn();
+const mockFindFirst = vi.fn();
 
 vi.mock('@prisma/client', () => ({
   PrismaClient: vi.fn(() => ({
     disc_master: {
       create: mockCreate,
+      findFirst: mockFindFirst,
     },
     $disconnect: vi.fn(),
   })),
@@ -91,5 +93,31 @@ describe('createDiscService', () => {
       },
     });
     expect(result).toBe(fakeDisc);
+  });
+
+  test('should throw ValidationError if disc with same brand and model exists (case-insensitive)', async () => {
+    const brand = chance.word();
+    const model = chance.word();
+    const discData = {
+      brand,
+      model,
+      speed: chance.integer({ min: 1, max: 14 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+      added_by_id: chance.integer({ min: 1, max: 100 }),
+    };
+
+    // Simulate existing disc found
+    mockFindFirst.mockResolvedValue({ id: chance.guid(), ...discData });
+
+    await expect(createDiscService(discData)).rejects.toThrow('A disc with this brand and model already exists');
+    expect(mockFindFirst).toHaveBeenCalledWith({
+      where: {
+        brand: { equals: brand, mode: 'insensitive' },
+        model: { equals: model, mode: 'insensitive' },
+      },
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
