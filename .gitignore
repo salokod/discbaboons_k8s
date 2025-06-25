@@ -15,6 +15,8 @@ manifests/*/*-secrets.yaml
 *.secret.yaml
 *.secrets.yaml
 
+disc-data.json
+
 
 .env-backup
 
