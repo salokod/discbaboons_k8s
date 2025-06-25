@@ -32,10 +32,6 @@ This document tracks the plan for building the DiscMaster (disc catalog) feature
   - Add new disc to master catalog (pending approval)
   - Requires authentication
 
-- **PUT `/api/discs/master/:id`**
-  - Edit disc in master catalog (admin only)
-  - Requires admin
-
 - **GET `/api/discs/master`**
   - List all approved discs (optionally filter by approval status for admins)
 
