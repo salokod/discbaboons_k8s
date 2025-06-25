@@ -74,7 +74,7 @@ const listDiscsService = async (filters = {}) => {
     where.approved = true;
   }
 
-  return prisma.discMaster.findMany({
+  return prisma.disc_master.findMany({
     where,
     skip: Number(offset),
     take: Number(limit),

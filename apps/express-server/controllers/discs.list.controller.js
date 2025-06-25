@@ -2,13 +2,14 @@
 
 import listDiscsService from '../services/discs.list.service.js';
 
-const discmasterListController = async (req, res, next) => {
+const discsListController = async (req, res, next) => {
   try {
     const result = await listDiscsService(req.query);
     res.json(result);
   } catch (err) {
+    console.error('Discs controller error:', err); // Add this line
     next(err);
   }
 };
 
-export default discmasterListController;
+export default discsListController;

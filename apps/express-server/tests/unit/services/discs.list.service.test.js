@@ -11,7 +11,7 @@ const mockFindMany = vi.fn();
 
 vi.mock('@prisma/client', () => ({
   PrismaClient: vi.fn(() => ({
-    discMaster: {
+    disc_master: {
       findMany: mockFindMany,
     },
     $disconnect: vi.fn(),
