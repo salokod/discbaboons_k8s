@@ -18,7 +18,7 @@ vi.mock('@prisma/client', () => ({
   })),
 }));
 
-const { default: listDiscsService } = await import('../../../services/discmaster.list.service.js');
+const { default: listDiscsService } = await import('../../../services/discs.list.service.js');
 
 describe('listDiscsService', () => {
   beforeEach(() => {
