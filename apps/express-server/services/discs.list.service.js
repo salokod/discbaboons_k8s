@@ -69,7 +69,11 @@ const listDiscsService = async (filters = {}) => {
   if (fade) where.fade = parseRange(fade);
 
   if (typeof approved !== 'undefined') {
-    where.approved = approved === 'true';
+    if (approved === 'false' || approved === false) {
+      where.approved = false;
+    } else {
+      where.approved = true;
+    }
   } else {
     where.approved = true;
   }
