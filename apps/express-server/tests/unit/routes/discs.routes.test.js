@@ -31,4 +31,17 @@ describe('discsRoutes', () => {
     const middlewareNames = (masterPostRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have GET /pending route for pending discs with auth and admin middleware', () => {
+    const stack = discsRoutes.stack || [];
+    const pendingRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/pending'
+        && layer.route.methods.get,
+    );
+    expect(pendingRoute).toBeTruthy();
+    const middlewareNames = (pendingRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+    expect(middlewareNames).toContain('isAdmin');
+  });
 });

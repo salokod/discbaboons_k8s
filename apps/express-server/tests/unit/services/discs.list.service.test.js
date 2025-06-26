@@ -266,4 +266,19 @@ describe('listDiscsService', () => {
       }),
     }));
   });
+
+  test('should return only pending discs when approved is false', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: 1, brand: 'Test', model: 'Pending', approved: false,
+      },
+    ]);
+    const result = await listDiscsService({ approved: false });
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ approved: false }),
+      }),
+    );
+    expect(result.every((d) => d.approved === false)).toBe(true);
+  });
 });
