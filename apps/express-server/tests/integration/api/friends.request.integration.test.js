@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import {
-  describe, test, expect, beforeEach, afterEach,
+  describe, test, expect, beforeEach, afterEach, afterAll,
 } from 'vitest';
 import request from 'supertest';
 import Chance from 'chance';
@@ -61,11 +61,35 @@ describe('POST /api/friends/request - Integration', () => {
     await prisma.users.deleteMany({
       where: {
         OR: [
-          { username: { contains: userAPrefix } },
-          { username: { contains: userBPrefix } },
+          { username: { startsWith: 'test-friendreq-a-' } },
+          { username: { startsWith: 'test-friendreq-b-' } },
         ],
       },
     });
+  });
+
+  afterAll(async () => {
+    // Final cleanup
+    await prisma.friendship_requests.deleteMany({
+      where: {
+        OR: [
+          { requester_id: userA?.id },
+          { recipient_id: userA?.id },
+          { requester_id: userB?.id },
+          { recipient_id: userB?.id },
+        ],
+      },
+    });
+    await prisma.users.deleteMany({
+      where: {
+        OR: [
+          { username: { startsWith: 'test-friendreq-a-' } },
+          { username: { startsWith: 'test-friendreq-b-' } },
+          { username: { startsWith: 'test-friendreq-c-' } },
+        ],
+      },
+    });
+    await prisma.$disconnect();
   });
 
   test('should require authentication', async () => {

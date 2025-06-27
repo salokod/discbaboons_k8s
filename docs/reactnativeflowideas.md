@@ -134,3 +134,115 @@ POST /api/friends/request — Send a friend request
 POST /api/friends/respond — Approve or deny a request
 GET /api/friends/requests — List incoming/outgoing requests
 GET /api/friends — List all accepted friends
+
+
+# Managing Disc Database
+
+This section documents the backend API and logic for managing the disc database, including admin review of pending discs.
+
+---
+
+## Endpoints Overview
+
+### 1. `GET /api/discs/master`
+- **Purpose:** List all approved discs (default for regular users).
+- **Auth:** Required (JWT).
+- **Query params:** Supports filtering and pagination.
+- **Example request:**
+  ```
+  GET /api/discs/master?brand=Innova&speed=7&limit=10&offset=0
+  ```
+- **Example response:**
+  ```json
+  [
+    {
+      "id": 1,
+      "brand": "Innova",
+      "model": "Leopard",
+      "speed": 7,
+      "glide": 5,
+      "turn": -2,
+      "fade": 1,
+      "approved": true
+    }
+  ]
+  ```
+
+### 2. `POST /api/discs/master`
+- **Purpose:** Submit a new disc for review (always created as pending).
+- **Auth:** Required (JWT).
+- **Payload example:**
+  ```json
+  {
+    "brand": "Discraft",
+    "model": "Buzzz",
+    "speed": 5,
+    "glide": 4,
+    "turn": -1,
+    "fade": 1,
+    "added_by_id": 123
+  }
+  ```
+- **Response:** The created disc (with `approved: false`).
+
+---
+
+### 3. `GET /api/discs/pending`
+- **Purpose:** Admin-only endpoint to view all pending discs (not yet approved).
+- **Auth:** Required (JWT, must be admin).
+- **Query params:** Supports filtering and pagination (same as `/master`), but always returns only `approved: false`.
+- **Example request:**
+  ```
+  GET /api/discs/pending?brand=Discraft&limit=5
+  ```
+- **Example response:**
+  ```json
+  [
+    {
+      "id": 42,
+      "brand": "Discraft",
+      "model": "Buzzz",
+      "speed": 5,
+      "glide": 4,
+      "turn": -1,
+      "fade": 1,
+      "approved": false
+    }
+  ]
+  ```
+
+---
+
+## How it Works
+
+### #file:discs.routes.js
+- Defines all disc-related endpoints.
+- `/master` endpoints are for all authenticated users.
+- `/pending` endpoint is protected by both `authenticateToken` and `isAdmin` middleware, and uses a middleware to force `approved=false` in the query.
+
+### #file:discs.list.service.js
+- Handles filtering, sorting, and pagination for disc queries.
+- Supports filters like `brand`, `model`, `speed`, etc.
+- Only returns approved discs by default, unless `approved=false` is specified (as in `/pending`).
+
+### #file:discs.create.service.js
+- Handles creation of new discs.
+- All new discs are created with `approved: false` (pending review).
+- Checks for duplicates (case-insensitive on brand/model).
+
+---
+
+## Example Admin Flow
+
+1. **User submits a new disc via `POST /api/discs/master`.**
+   - The disc is created as pending (`approved: false`).
+2. **Admin logs in and visits the pending discs page.**
+   - The frontend calls `GET /api/discs/pending`.
+   - Only discs with `approved: false` are returned.
+3. **Admin reviews and (in future) can approve or reject discs.**
+
+---
+
+**Breadcrumbs:**  
+- All disc creation is pending by default.
+- Only admins can see

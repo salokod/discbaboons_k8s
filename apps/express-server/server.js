@@ -1,3 +1,4 @@
+import 'express-async-errors';
 import express from 'express';
 import { hostname } from 'os';
 import dotenv from 'dotenv';
@@ -59,7 +60,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/discs', discsRouter);
 
 // 404 handler for unknown routes (must be AFTER all other routes but BEFORE error handler)
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     error: 'Route not found',
     path: req.originalUrl,

@@ -44,4 +44,17 @@ describe('discsRoutes', () => {
     expect(middlewareNames).toContain('authenticateToken');
     expect(middlewareNames).toContain('isAdmin');
   });
+
+  test('should have PATCH /:id/approve route with auth and admin middleware', () => {
+    const stack = discsRoutes.stack || [];
+    const approveRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id/approve'
+        && layer.route.methods.patch,
+    );
+    expect(approveRoute).toBeTruthy();
+    const middlewareNames = (approveRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+    expect(middlewareNames).toContain('isAdmin');
+  });
 });

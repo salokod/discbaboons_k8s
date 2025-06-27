@@ -1,6 +1,7 @@
 import express from 'express';
 import discsListController from '../controllers/discs.list.controller.js';
 import discsCreateController from '../controllers/discs.create.controller.js';
+import discsApproveController from '../controllers/discs.approve.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 import isAdmin from '../middleware/isadmin.middleware.js';
 
@@ -20,5 +21,8 @@ router.post('/master', authenticateToken, discsCreateController);
 
 // GET /api/discs/pending - List pending discs (admin only)
 router.get('/pending', authenticateToken, isAdmin, forcePendingFilter, discsListController);
+
+// PATCH /api/discs/:id/approve - Approve a pending disc (admin only)
+router.patch('/:id/approve', authenticateToken, isAdmin, discsApproveController);
 
 export default router;
