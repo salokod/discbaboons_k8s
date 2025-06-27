@@ -68,6 +68,7 @@ describe('GET /api/friends/requests - Integration', () => {
     await prisma.users.deleteMany({
       where: {
         OR: [
+          { username: { startsWith: 'test-friendreqs-c-' } },
           { username: { contains: userAPrefix } },
           { username: { contains: userBPrefix } },
         ],

@@ -1,14 +1,10 @@
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
-  // Default to 500 server error
-  const error = { ...err };
-  error.message = err.message;
-
   // Validation errors (client-side issues)
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
-      message: error.message,
+      message: err.message,
     });
   }
 
@@ -16,7 +12,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'AuthorizationError') {
     return res.status(403).json({
       success: false,
-      message: error.message,
+      message: err.message,
     });
   }
 
@@ -24,7 +20,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'NotFoundError') {
     return res.status(404).json({
       success: false,
-      message: error.message,
+      message: err.message,
     });
   }
 
@@ -32,7 +28,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.status) {
     return res.status(err.status).json({
       success: false,
-      message: error.message,
+      message: err.message,
     });
   }
 

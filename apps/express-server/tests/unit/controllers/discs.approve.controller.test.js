@@ -29,12 +29,12 @@ describe('discsApproveController', () => {
   });
 
   test('should call approveDiscService and return the approved disc', async () => {
-    const approvedDisc = { id: Number(req.params.id), approved: true };
+    const approvedDisc = { id: req.params.id, approved: true };
     mockApproveDiscService.mockResolvedValue(approvedDisc);
 
     await discsApproveController(req, res, next);
 
-    expect(mockApproveDiscService).toHaveBeenCalledWith(Number(req.params.id));
+    expect(mockApproveDiscService).toHaveBeenCalledWith(req.params.id);
     expect(res.json).toHaveBeenCalledWith(approvedDisc);
     expect(next).not.toHaveBeenCalled();
   });
