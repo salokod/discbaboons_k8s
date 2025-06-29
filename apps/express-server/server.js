@@ -6,6 +6,7 @@ import authRouter from './routes/auth.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import friendsRouter from './routes/friends.routes.js';
 import discsRouter from './routes/discs.routes.js';
+import bagsRouter from './routes/bags.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -58,6 +59,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/discs', discsRouter);
+app.use('/api/bags', bagsRouter);
 
 // 404 handler for unknown routes (must be AFTER all other routes but BEFORE error handler)
 app.use((req, res) => {
