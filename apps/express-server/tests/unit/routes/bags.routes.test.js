@@ -20,6 +20,18 @@ describe('bagsRoutes', () => {
     expect(middlewareNames).toContain('authenticateToken');
   });
 
+  test('should have GET /:id route for getting single bag with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const getIdRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id'
+        && layer.route.methods.get,
+    );
+    expect(getIdRoute).toBeTruthy();
+    const middlewareNames = (getIdRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
+
   test('should have POST / route for bag creation with auth middleware', () => {
     const stack = bagsRoutes.stack || [];
     const postRoute = stack.find(
