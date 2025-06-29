@@ -48,7 +48,7 @@ describe('getBagService', () => {
     };
 
     const result = await getBagService(userId, bagId, mockPrisma);
-    
+
     expect(result).toEqual(mockBag);
   });
 
@@ -63,7 +63,7 @@ describe('getBagService', () => {
     };
 
     const result = await getBagService(userId, bagId, mockPrisma);
-    
+
     expect(result).toBeNull();
   });
 });

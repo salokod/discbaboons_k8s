@@ -17,7 +17,7 @@ const getBagService = async (userId, bagId, prismaClient = prisma) => {
   const bag = await prismaClient.bags.findFirst({
     where: {
       id: bagId,
-      user_id: userId, 
+      user_id: userId,
     },
   });
 
