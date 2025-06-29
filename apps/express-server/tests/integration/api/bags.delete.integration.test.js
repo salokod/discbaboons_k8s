@@ -106,10 +106,13 @@ describe('DELETE /api/bags/:id - Integration', () => {
     const res = await request(app)
       .delete(`/api/bags/${createdBag.id}`)
       .set('Authorization', `Bearer ${token}`)
-      .expect(204);
+      .expect(200);
 
-    // Should have no response body for 204
-    expect(res.body).toEqual({});
+    // Should return success response
+    expect(res.body).toMatchObject({
+      success: true,
+      message: 'Bag deleted successfully',
+    });
 
     // Verify bag is actually deleted by trying to get it
     const getRes = await request(app)
@@ -206,10 +209,15 @@ describe('DELETE /api/bags/:id - Integration', () => {
     createdBag = createRes.body.bag;
 
     // Delete the bag first time - should succeed
-    await request(app)
+    const deleteRes = await request(app)
       .delete(`/api/bags/${createdBag.id}`)
       .set('Authorization', `Bearer ${token}`)
-      .expect(204);
+      .expect(200);
+
+    expect(deleteRes.body).toMatchObject({
+      success: true,
+      message: 'Bag deleted successfully',
+    });
 
     // Try to delete the same bag again - should return 404
     const res = await request(app)

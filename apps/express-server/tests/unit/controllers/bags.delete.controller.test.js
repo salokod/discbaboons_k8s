@@ -11,7 +11,7 @@ describe('deleteBagController', () => {
     expect(typeof deleteBagController).toBe('function');
   });
 
-  test('should return 204 on successful deletion', async () => {
+  test('should return 200 on successful deletion', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
 
@@ -33,7 +33,10 @@ describe('deleteBagController', () => {
           });
         }
 
-        return res.status(204).send();
+        return res.status(200).json({
+          success: true,
+          message: 'Bag deleted successfully',
+        });
       } catch (err) {
         return next(err);
       }
@@ -52,8 +55,11 @@ describe('deleteBagController', () => {
 
     await mockController(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(204);
-    expect(res.send).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: 'Bag deleted successfully',
+    });
   });
 
   test('should return 404 when bag is not found', async () => {
@@ -78,7 +84,10 @@ describe('deleteBagController', () => {
           });
         }
 
-        return res.status(204).send();
+        return res.status(200).json({
+          success: true,
+          message: 'Bag deleted successfully',
+        });
       } catch (err) {
         return next(err);
       }
@@ -127,7 +136,10 @@ describe('deleteBagController', () => {
           });
         }
 
-        return res.status(204).send();
+        return res.status(200).json({
+          success: true,
+          message: 'Bag deleted successfully',
+        });
       } catch (err) {
         return next(err);
       }

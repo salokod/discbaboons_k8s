@@ -14,7 +14,10 @@ const deleteBagController = async (req, res, next) => {
       });
     }
 
-    return res.status(204).send();
+    return res.status(200).json({
+      success: true,
+      message: 'Bag deleted successfully',
+    });
   } catch (err) {
     return next(err);
   }
