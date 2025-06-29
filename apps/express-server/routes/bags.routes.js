@@ -1,12 +1,16 @@
 import express from 'express';
 import bagsCreateController from '../controllers/bags.create.controller.js';
 import bagsListController from '../controllers/bags.list.controller.js';
+import getBagController from '../controllers/bags.get.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // GET /api/bags - List user's bags (requires authentication)
 router.get('/', authenticateToken, bagsListController);
+
+// GET /api/bags/:id - Get specific bag (requires authentication)
+router.get('/:id', authenticateToken, getBagController);
 
 // POST /api/bags - Create a new bag (requires authentication)
 router.post('/', authenticateToken, bagsCreateController);
