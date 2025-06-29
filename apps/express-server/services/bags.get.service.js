@@ -13,6 +13,12 @@ const getBagService = async (userId, bagId, prismaClient = prisma) => {
     throw error;
   }
 
+  // Validate UUID format - if invalid, return null instead of letting Prisma throw
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(bagId)) {
+    return null; // Invalid UUID format, bag not found
+  }
+
   // Find bag and ensure user owns it (security)
   const bag = await prismaClient.bags.findFirst({
     where: {

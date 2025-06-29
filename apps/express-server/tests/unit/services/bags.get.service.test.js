@@ -66,4 +66,22 @@ describe('getBagService', () => {
 
     expect(result).toBeNull();
   });
+
+  test('should return null if bagId is not a valid UUID format', async () => {
+    const userId = chance.integer({ min: 1 });
+    const invalidBagId = 'badBagId'; // Invalid UUID format
+
+    // Mock should not be called since we return early for invalid UUID
+    const mockPrisma = {
+      bags: {
+        findFirst: async () => {
+          throw new Error('Should not reach Prisma for invalid UUID');
+        },
+      },
+    };
+
+    const result = await getBagService(userId, invalidBagId, mockPrisma);
+
+    expect(result).toBeNull();
+  });
 });
