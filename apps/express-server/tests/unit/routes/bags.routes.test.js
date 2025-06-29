@@ -7,6 +7,7 @@ describe('bagsRoutes', () => {
     expect(bagsRoutes).toHaveProperty('get');
     expect(bagsRoutes).toHaveProperty('post');
     expect(bagsRoutes).toHaveProperty('put');
+    expect(bagsRoutes).toHaveProperty('delete');
   });
 
   test('should have GET / route for bag listing with auth middleware', () => {
@@ -54,6 +55,18 @@ describe('bagsRoutes', () => {
     );
     expect(putRoute).toBeTruthy();
     const middlewareNames = (putRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
+
+  test('should have DELETE /:id route for bag deletion with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const deleteRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id'
+        && layer.route.methods.delete,
+    );
+    expect(deleteRoute).toBeTruthy();
+    const middlewareNames = (deleteRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
 });
