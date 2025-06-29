@@ -303,6 +303,44 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 }
 ```
 
+**PUT `/api/bags/:id`** - Update Bag ✅ IMPLEMENTED
+```json
+// Request
+{
+  "name": "Updated Tournament Bag",
+  "description": "Updated description for my tournament discs",
+  "is_public": true,
+  "is_friends_visible": false
+}
+
+// Response (200)
+{
+  "success": true,
+  "bag": {
+    "id": "uuid-here",
+    "name": "Updated Tournament Bag",
+    "description": "Updated description for my tournament discs",
+    "is_public": true,
+    "is_friends_visible": false,
+    "user_id": 123,
+    "created_at": "2025-06-28T10:00:00Z",
+    "updated_at": "2025-06-29T14:30:00Z"
+  }
+}
+
+// Response (400) - Validation Error
+{
+  "success": false,
+  "message": "updateData is required"
+}
+
+// Response (404) - Not Found
+{
+  "success": false,
+  "message": "Bag not found"
+}
+```
+
 **POST `/api/bags/discs/:contentId/move`** - Move Disc Between Bags (Phase 2)
 ```json
 // Request
@@ -361,11 +399,11 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Add route
 - [x] Test
 
-### Step 5: Update Bag Service
-- [ ] `services/bags.update.service.js`
-- [ ] `controllers/bags.update.controller.js`
-- [ ] Add route
-- [ ] Test
+### Step 5: Update Bag Service ✅ COMPLETED
+- [x] `services/bags.update.service.js`
+- [x] `controllers/bags.update.controller.js`
+- [x] Add route
+- [x] Test
 
 ### Step 6: Delete Bag Service
 - [ ] `services/bags.delete.service.js`
@@ -821,15 +859,18 @@ describe('Friend Bag Viewing', () => {
 
 ## Current Status: Bag Create Endpoint Complete ✅
 
-**✅ COMPLETED:** Bag create functionality is fully implemented and tested
-- Service layer with comprehensive validation
-- Controller with proper error handling  
-- Routes properly mounted in server.js
-- Integration tests with 100% coverage of validation scenarios
+**✅ COMPLETED:** Bag CRUD Operations (Create, Read, Update)
+- **Create Bag Service**: Full implementation with validation, security, and comprehensive testing
+- **List Bags Service**: Service with pagination, filtering, and disc count integration  
+- **Get Single Bag Service**: Service with ownership validation and UUID format checking
+- **Update Bag Service**: Service with partial updates, validation, and atomic operations
+- All services include comprehensive unit tests and integration tests
+- All routes properly mounted with authentication middleware
+- Full error handling with proper HTTP status codes
 - Ready for deployment
 
-**🎯 NEXT STEPS:** Implement remaining CRUD operations
+**🎯 NEXT STEPS:** Complete remaining CRUD operations
 
-**Next file to create:** `services/bags.list.service.js` (Step 3)
+**Next file to create:** `services/bags.delete.service.js` (Step 6)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
