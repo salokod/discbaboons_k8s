@@ -43,7 +43,6 @@ describe('listBagsService', () => {
       id: chance.guid(),
       name: chance.word(),
       user_id: userId,
-      _count: { bag_contents: chance.integer({ min: 0, max: 20 }) },
     };
 
     const mockPrisma = {
@@ -56,6 +55,6 @@ describe('listBagsService', () => {
     const result = await listBagsService(userId, mockPrisma);
 
     expect(result.bags[0]).toHaveProperty('disc_count');
-    expect(result.bags[0].disc_count).toBe(mockBag._count.bag_contents);
+    expect(result.bags[0].disc_count).toBe(0); // Always 0 until bag_contents table exists
   });
 });

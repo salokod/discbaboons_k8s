@@ -396,6 +396,21 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [ ] Update integration tests
 - [ ] Test with populated bags
 
+### 🚨 CRITICAL: Fix Hardcoded disc_count After Phase 2 Setup
+**MUST DO after Step 7 (bag_contents table creation):**
+- [ ] **Update `services/bags.list.service.js`** - Remove hardcoded `disc_count: 0` and restore proper Prisma include:
+  ```javascript
+  // Current (Phase 1): disc_count: 0 // HARDCODED - TEMPORARY
+  // Fix to (Phase 2):
+  include: {
+    _count: { select: { bag_contents: true } }
+  }
+  // Then: disc_count: bag._count.bag_contents
+  ```
+- [ ] **Update `tests/unit/services/bags.list.service.test.js`** - Restore dynamic disc_count testing with mock data
+- [ ] **Update `tests/integration/api/bags.list.integration.test.js`** - Test actual disc counts with real bag contents
+- [ ] **Verify all bag listing functionality works with real disc counts**
+
 ### Step 11: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
 - [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION**
 - [ ] `controllers/bags.movedisc.controller.js`

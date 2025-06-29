@@ -10,21 +10,22 @@ const listBagsService = async (userId, prismaClient = prisma) => {
 
   const bags = await prismaClient.bags.findMany({
     where: { user_id: userId },
-    include: {
-      _count: {
-        select: { bag_contents: true },
-      },
-    },
+    // Note: bag_contents table doesn't exist yet (Phase 2)
+    // include: {
+    //   _count: {
+    //     select: { bag_contents: true },
+    //   },
+    // },
   });
 
   const total = await prismaClient.bags.count({
     where: { user_id: userId },
   });
 
-  // Transform bags to include disc_count
+  // Transform bags to include disc_count (0 for now, since bag_contents doesn't exist yet)
   const bagsWithDiscCount = bags.map((bag) => ({
     ...bag,
-    disc_count: bag._count.bag_contents,
+    disc_count: 0, // Will be actual count once bag_contents table exists
   }));
 
   return { bags: bagsWithDiscCount, total };
