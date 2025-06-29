@@ -10,17 +10,21 @@ import { prisma } from '../setup.js';
 const chance = new Chance();
 
 describe('POST /api/friends/respond - Integration', () => {
-  let userA; let userB; let tokenA; let tokenB; let
-    requestId;
-  const userAPrefix = `test-friendresp-a-${chance.string({ length: 2 })}`;
-  const userBPrefix = `test-friendresp-b-${chance.string({ length: 2 })}`;
+  let userA; let userB; let tokenA; let tokenB; let requestId;
+  let testId; let createdUserIds = [];
 
   beforeEach(async () => {
+    // Generate GLOBALLY unique test identifier for this test run (short for username limits)
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
+    testId = `${timestamp}${random}`; // 10 chars total
+    createdUserIds = [];
+
     // Register User A
     const userAData = {
-      username: `${userAPrefix}`,
-      email: `${userAPrefix}@example.com`,
-      password: `Abcdef1!${chance.word({ length: 5 })}`,
+      username: `fa${testId}`, // fa + 10 chars = 12 chars total (under 20 limit)
+      email: `fa${testId}@ex.co`,
+      password: `Test1!${chance.word({ length: 2 })}`, // Meets complexity requirements
     };
     await request(app).post('/api/auth/register').send(userAData).expect(201);
     const loginA = await request(app).post('/api/auth/login').send({
@@ -32,9 +36,9 @@ describe('POST /api/friends/respond - Integration', () => {
 
     // Register User B
     const userBData = {
-      username: `${userBPrefix}`,
-      email: `${userBPrefix}@example.com`,
-      password: `Abcdef1!${chance.word({ length: 5 })}`,
+      username: `fb${testId}`, // fb + 10 chars = 12 chars total (under 20 limit)
+      email: `fb${testId}@ex.co`,
+      password: `Test1!${chance.word({ length: 2 })}`,
     };
     await request(app).post('/api/auth/register').send(userBData).expect(201);
     const loginB = await request(app).post('/api/auth/login').send({
@@ -43,6 +47,7 @@ describe('POST /api/friends/respond - Integration', () => {
     }).expect(200);
     tokenB = loginB.body.tokens.accessToken;
     userB = loginB.body.user;
+    createdUserIds.push(userA.id, userB.id);
 
     // User A sends friend request to User B
     const reqRes = await request(app)
@@ -54,25 +59,18 @@ describe('POST /api/friends/respond - Integration', () => {
   });
 
   afterEach(async () => {
-    // Clean up all friendship_requests and users with the test prefix
-    await prisma.friendship_requests.deleteMany({
-      where: {
-        OR: [
-          { requester_id: userA?.id },
-          { recipient_id: userA?.id },
-          { requester_id: userB?.id },
-          { recipient_id: userB?.id },
-        ],
-      },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { username: { contains: userAPrefix } },
-          { username: { contains: userBPrefix } },
-        ],
-      },
-    });
+    // Clean up only data created in this specific test
+    if (createdUserIds.length > 0) {
+      await prisma.friendship_requests.deleteMany({
+        where: {
+          OR: [
+            { requester_id: { in: createdUserIds } },
+            { recipient_id: { in: createdUserIds } },
+          ],
+        },
+      });
+      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+    }
   });
 
   test('should require authentication', async () => {

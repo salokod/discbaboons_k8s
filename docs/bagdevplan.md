@@ -349,17 +349,17 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Mount route in `server.js`: `app.use('/api/bags', bagsRouter)`
 - [x] Test with integration test - comprehensive coverage including validation, duplicates, authentication
 
-### Step 3: List Bags Service
-- [ ] `services/bags.list.service.js`
-- [ ] `controllers/bags.list.controller.js`
-- [ ] Add route
-- [ ] Test
+### Step 3: List Bags Service ✅ COMPLETED
+- [x] `services/bags.list.service.js`
+- [x] `controllers/bags.list.controller.js`
+- [x] Add route
+- [x] Test
 
-### Step 4: Get Single Bag Service
-- [ ] `services/bags.get.service.js`
-- [ ] `controllers/bags.get.controller.js`
-- [ ] Add route
-- [ ] Test
+### Step 4: Get Single Bag Service ✅ COMPLETED
+- [x] `services/bags.get.service.js`
+- [x] `controllers/bags.get.controller.js`
+- [x] Add route
+- [x] Test
 
 ### Step 5: Update Bag Service
 - [ ] `services/bags.update.service.js`
