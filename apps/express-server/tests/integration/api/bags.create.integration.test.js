@@ -12,19 +12,22 @@ const chance = new Chance();
 describe('POST /api/bags - Integration', () => {
   let user;
   let token;
+  let testId;
+  let createdUserIds = [];
   let createdBag;
-  const testBagName = `TestBag-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz' })}`;
 
   beforeEach(async () => {
-    // Clean up
-    await prisma.users.deleteMany({ where: { email: { contains: 'testbc' } } });
-    await prisma.bags.deleteMany({ where: { name: { contains: 'TestBag' } } });
+    // Generate GLOBALLY unique test identifier for this test run (short for username limits)
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
+    testId = `${timestamp}${random}`; // 10 chars total
+    createdUserIds = [];
 
-    // Register user
-    const password = `Abcdef1!${chance.word({ length: 5 })}`;
+    // Register user with unique identifier (under 20 char limit)
+    const password = `Test1!${chance.word({ length: 2 })}`; // Meets complexity requirements
     const userData = {
-      username: `testbaguser_${chance.string({ length: 5 })}`,
-      email: `testbc${chance.string({ length: 3 })}@ex.co`,
+      username: `tc${testId}`, // tc + 10 chars = 12 chars total (under 20 limit)
+      email: `tc${testId}@ex.co`,
       password,
     };
     await request(app).post('/api/auth/register').send(userData).expect(201);
@@ -36,16 +39,20 @@ describe('POST /api/bags - Integration', () => {
     }).expect(200);
     token = loginRes.body.tokens.accessToken;
     user = loginRes.body.user;
+    createdUserIds.push(user.id);
   });
 
   afterEach(async () => {
-    await prisma.bags.deleteMany({ where: { name: { contains: 'TestBag' } } });
-    await prisma.users.deleteMany({ where: { email: { contains: 'testbc' } } });
+    // Clean up only data created in this specific test
+    if (createdUserIds.length > 0) {
+      await prisma.bags.deleteMany({ where: { user_id: { in: createdUserIds } } });
+      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+    }
   });
 
   test('should require authentication', async () => {
     const bagData = {
-      name: testBagName,
+      name: `TestBag-${testId}-auth`,
       description: 'Test bag description',
       is_public: false,
       is_friends_visible: true,
@@ -58,7 +65,7 @@ describe('POST /api/bags - Integration', () => {
 
   test('should create a bag with valid data and return the created bag', async () => {
     const bagData = {
-      name: testBagName,
+      name: `TestBag-${testId}-valid`,
       description: 'Test bag description',
       is_public: false,
       is_friends_visible: true,
@@ -95,7 +102,7 @@ describe('POST /api/bags - Integration', () => {
 
   test('should create a bag with minimal data (name only)', async () => {
     const bagData = {
-      name: `${testBagName}-minimal`,
+      name: `TestBag-${testId}-minimal`,
     };
 
     const res = await request(app)
@@ -160,7 +167,7 @@ describe('POST /api/bags - Integration', () => {
 
   test('should fail with 400 if description is too long', async () => {
     const bagData = {
-      name: `${testBagName}-longdesc`,
+      name: `TestBag-${testId}-longdesc`,
       description: 'a'.repeat(501), // 501 characters, exceeds 500 limit
     };
 
@@ -176,7 +183,7 @@ describe('POST /api/bags - Integration', () => {
 
   test('should fail with 400 if is_public is not a boolean', async () => {
     const bagData = {
-      name: `${testBagName}-invalidpublic`,
+      name: `TestBag-${testId}-invalidpublic`,
       is_public: 'true', // string instead of boolean
     };
 
@@ -192,7 +199,7 @@ describe('POST /api/bags - Integration', () => {
 
   test('should fail with 400 if is_friends_visible is not a boolean', async () => {
     const bagData = {
-      name: `${testBagName}-invalidfriends`,
+      name: `TestBag-${testId}-invalidfriends`,
       is_friends_visible: 1, // number instead of boolean
     };
 
@@ -208,7 +215,7 @@ describe('POST /api/bags - Integration', () => {
 
   test('should not allow duplicate bag names for the same user (case-insensitive)', async () => {
     const bagData = {
-      name: testBagName,
+      name: `TestBag-${testId}-duplicate`,
       description: 'First bag',
     };
 
@@ -237,7 +244,7 @@ describe('POST /api/bags - Integration', () => {
   test('should allow same bag name for different users', async () => {
     // Create bag with first user
     const bagData = {
-      name: testBagName,
+      name: `TestBag-${testId}-shared`,
       description: 'First user bag',
     };
 
@@ -248,10 +255,10 @@ describe('POST /api/bags - Integration', () => {
       .expect(201);
 
     // Create second user
-    const password2 = `Abcdef1!${chance.word({ length: 5 })}`;
+    const password2 = `Test1!${chance.word({ length: 2 })}`;
     const userData2 = {
-      username: `testbaguser2_${chance.string({ length: 5 })}`,
-      email: `testbc${chance.string({ length: 2 })}@ex.co`,
+      username: `tc${testId}2`, // tc + 10 chars + 1 = 13 chars total (under 20 limit)
+      email: `tc${testId}2@ex.co`,
       password: password2,
     };
     await request(app).post('/api/auth/register').send(userData2).expect(201);
@@ -261,6 +268,7 @@ describe('POST /api/bags - Integration', () => {
       password: userData2.password,
     }).expect(200);
     const token2 = loginRes2.body.tokens.accessToken;
+    createdUserIds.push(loginRes2.body.user.id);
 
     // Second user should be able to create bag with same name
     const res = await request(app)

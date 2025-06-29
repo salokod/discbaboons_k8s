@@ -16,15 +16,17 @@ describe('GET /api/bags - Integration', () => {
   let createdUserIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    testId = chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' });
+    // Generate GLOBALLY unique test identifier for this test run (short for username limits)
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
+    testId = `${timestamp}${random}`; // 10 chars total
     createdUserIds = [];
 
-    // Register user with unique identifier
-    const password = `Abcdef1!${chance.word({ length: 5 })}`;
+    // Register user with unique identifier (under 20 char limit)
+    const password = `Test1!${chance.word({ length: 2 })}`; // Meets complexity requirements
     const userData = {
-      username: `testbl${testId}_${chance.string({ length: 3 })}`,
-      email: `testbl${testId}@ex.co`,
+      username: `bl${testId}`, // bl + 10 chars = 12 chars total (under 20 limit)
+      email: `bl${testId}@ex.co`,
       password,
     };
     await request(app).post('/api/auth/register').send(userData).expect(201);
@@ -135,10 +137,10 @@ describe('GET /api/bags - Integration', () => {
       .expect(201);
 
     // Create second user
-    const password2 = `Abcdef1!${chance.word({ length: 5 })}`;
+    const password2 = `Test1!${chance.word({ length: 2 })}`;
     const userData2 = {
-      username: `testbl${testId}2_${chance.string({ length: 3 })}`,
-      email: `testbl${testId}2@ex.co`,
+      username: `bl${testId}2`, // bl + 10 chars + 1 = 13 chars total (under 20 limit)
+      email: `bl${testId}2@ex.co`,
       password: password2,
     };
     await request(app).post('/api/auth/register').send(userData2).expect(201);
