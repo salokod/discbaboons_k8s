@@ -5,6 +5,15 @@
 - **Test Data**: Always use Chance.js for generating test data instead of hardcoding values
 - **Error Handling**: Always use the existing `errorHandler` middleware for consistent error responses
 
+## TDD Methodology (Claude + Human Pair Programming)
+- **Thinnest possible slices**: Start with "should export a function", then add one small piece at a time
+- **Red-Green-Refactor**: Write failing test → minimal code to pass → run test → repeat
+- **Stop and validate**: After each slice, human runs `npm run test` to confirm all green before proceeding
+- **Teaching moments**: Claude explains WHY each design choice was made and WHAT the implications are
+- **One concept per slice**: Don't bundle multiple validations or features in one step
+- **Security-first approach**: Always validate user ownership/permissions in the same database query
+- **Edge cases as separate slices**: Test happy path first, then add edge cases one by one
+
 ## Testing Standards
 - Use Vitest for all tests
 - Integration tests should use `supertest` with the app instance
