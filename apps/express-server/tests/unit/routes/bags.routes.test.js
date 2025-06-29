@@ -6,6 +6,7 @@ describe('bagsRoutes', () => {
     expect(bagsRoutes).toHaveProperty('use');
     expect(bagsRoutes).toHaveProperty('get');
     expect(bagsRoutes).toHaveProperty('post');
+    expect(bagsRoutes).toHaveProperty('put');
   });
 
   test('should have GET / route for bag listing with auth middleware', () => {
@@ -41,6 +42,18 @@ describe('bagsRoutes', () => {
     );
     expect(postRoute).toBeTruthy();
     const middlewareNames = (postRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
+
+  test('should have PUT /:id route for bag update with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const putRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id'
+        && layer.route.methods.put,
+    );
+    expect(putRoute).toBeTruthy();
+    const middlewareNames = (putRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
 });

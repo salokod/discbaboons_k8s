@@ -2,6 +2,7 @@ import express from 'express';
 import bagsCreateController from '../controllers/bags.create.controller.js';
 import bagsListController from '../controllers/bags.list.controller.js';
 import getBagController from '../controllers/bags.get.controller.js';
+import updateBagController from '../controllers/bags.update.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -14,5 +15,8 @@ router.get('/:id', authenticateToken, getBagController);
 
 // POST /api/bags - Create a new bag (requires authentication)
 router.post('/', authenticateToken, bagsCreateController);
+
+// PUT /api/bags/:id - Update specific bag (requires authentication)
+router.put('/:id', authenticateToken, updateBagController);
 
 export default router;
