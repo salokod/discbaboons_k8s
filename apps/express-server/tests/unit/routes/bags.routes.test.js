@@ -8,6 +8,18 @@ describe('bagsRoutes', () => {
     expect(bagsRoutes).toHaveProperty('post');
   });
 
+  test('should have GET / route for bag listing with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const getRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/'
+        && layer.route.methods.get,
+    );
+    expect(getRoute).toBeTruthy();
+    const middlewareNames = (getRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
+
   test('should have POST / route for bag creation with auth middleware', () => {
     const stack = bagsRoutes.stack || [];
     const postRoute = stack.find(
