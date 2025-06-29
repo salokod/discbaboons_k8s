@@ -19,7 +19,7 @@ const updateBagService = async (userId, bagId, updateData, prismaClient = prisma
     return null; // Invalid UUID format, bag not found
   }
 
-  if (!updateData) {
+  if (!updateData || Object.keys(updateData).length === 0) {
     const error = new Error('updateData is required');
     error.name = 'ValidationError';
     throw error;

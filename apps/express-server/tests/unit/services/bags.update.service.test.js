@@ -48,6 +48,16 @@ describe('updateBagService', () => {
     }
   });
 
+  test('should throw ValidationError if updateData is empty object', async () => {
+    try {
+      await updateBagService(chance.integer({ min: 1 }), chance.guid(), {});
+      throw new Error('Did not throw');
+    } catch (err) {
+      expect(err.name).toBe('ValidationError');
+      expect(err.message).toMatch(/updateData is required/i);
+    }
+  });
+
   test('should update bag if user owns it', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
