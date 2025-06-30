@@ -56,6 +56,7 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
   // Create bag content
   const bagContent = await prismaClient.bag_contents.create({
     data: {
+      user_id: userId,
       bag_id: bagId,
       disc_id: discData.disc_id,
       notes: discData.notes || null,

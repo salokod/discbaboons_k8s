@@ -82,6 +82,7 @@ describe('addToBagService', () => {
 
     const mockBagContent = {
       id: contentId,
+      user_id: userId,
       bag_id: bagId,
       disc_id: discId,
       notes: discData.notes,
@@ -145,6 +146,7 @@ describe('addToBagService', () => {
 
     const mockBagContent = {
       id: contentId,
+      user_id: userId,
       bag_id: bagId,
       disc_id: discId,
       notes: null,
