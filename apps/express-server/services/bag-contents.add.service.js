@@ -61,7 +61,7 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
       disc_id: discData.disc_id,
       notes: discData.notes || null,
       weight: discData.weight || null,
-      condition: discData.condition || 'good',
+      condition: discData.condition || null,
       plastic_type: discData.plastic_type || null,
       color: discData.color || null,
       is_lost: false,
