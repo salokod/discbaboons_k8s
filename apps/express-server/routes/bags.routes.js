@@ -4,6 +4,7 @@ import bagsListController from '../controllers/bags.list.controller.js';
 import getBagController from '../controllers/bags.get.controller.js';
 import updateBagController from '../controllers/bags.update.controller.js';
 import deleteBagController from '../controllers/bags.delete.controller.js';
+import bagContentsAddController from '../controllers/bag-contents.add.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -22,5 +23,8 @@ router.put('/:id', authenticateToken, updateBagController);
 
 // DELETE /api/bags/:id - Delete specific bag (requires authentication)
 router.delete('/:id', authenticateToken, deleteBagController);
+
+// POST /api/bags/:id/discs - Add disc to bag (requires authentication)
+router.post('/:id/discs', authenticateToken, bagContentsAddController);
 
 export default router;

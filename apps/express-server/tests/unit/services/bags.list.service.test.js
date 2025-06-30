@@ -39,10 +39,14 @@ describe('listBagsService', () => {
 
   test('should include disc_count for each bag', async () => {
     const userId = chance.integer({ min: 1 });
+    const discCount = chance.integer({ min: 0, max: 20 });
     const mockBag = {
       id: chance.guid(),
       name: chance.word(),
       user_id: userId,
+      _count: {
+        bag_contents: discCount,
+      },
     };
 
     const mockPrisma = {
@@ -55,6 +59,32 @@ describe('listBagsService', () => {
     const result = await listBagsService(userId, mockPrisma);
 
     expect(result.bags[0]).toHaveProperty('disc_count');
-    expect(result.bags[0].disc_count).toBe(0); // Always 0 until bag_contents table exists
+    expect(result.bags[0].disc_count).toBe(discCount);
+  });
+
+  test('should call findMany with _count include for bag_contents', async () => {
+    const userId = chance.integer({ min: 1 });
+    let findManyOptions;
+
+    const mockPrisma = {
+      bags: {
+        findMany: async (options) => {
+          findManyOptions = options;
+          return [];
+        },
+        count: async () => 0,
+      },
+    };
+
+    await listBagsService(userId, mockPrisma);
+
+    expect(findManyOptions).toEqual({
+      where: { user_id: userId },
+      include: {
+        _count: {
+          select: { bag_contents: true },
+        },
+      },
+    });
   });
 });

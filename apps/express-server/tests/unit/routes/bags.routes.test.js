@@ -69,4 +69,16 @@ describe('bagsRoutes', () => {
     const middlewareNames = (deleteRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have POST /:id/discs route for adding disc to bag with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const postDiscsRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id/discs'
+        && layer.route.methods.post,
+    );
+    expect(postDiscsRoute).toBeTruthy();
+    const middlewareNames = (postDiscsRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
 });

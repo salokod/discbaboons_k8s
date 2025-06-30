@@ -28,7 +28,7 @@ CREATE INDEX idx_bags_is_public ON bags(is_public);
 CREATE INDEX idx_bags_is_friends_visible ON bags(is_friends_visible);
 ```
 
-**`002_create_bag_contents_table.sql`** *(for later)*
+**`V13__create_bag_contents_table.sql`** *(Enhanced for Phase 2)*
 ```sql
 CREATE TABLE bag_contents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,13 +37,18 @@ CREATE TABLE bag_contents (
   notes VARCHAR(255),
   weight DECIMAL(4,1),
   condition VARCHAR(20) DEFAULT 'good',
+  plastic_type VARCHAR(50),  -- Champion, DX, Star, etc.
+  color VARCHAR(50),         -- Red, Blue, Orange, etc.
+  is_lost BOOLEAN DEFAULT false,  -- Mark disc as lost instead of deleting
   added_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (bag_id) REFERENCES bags(id) ON DELETE CASCADE,
   FOREIGN KEY (disc_id) REFERENCES disc_master(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_bag_contents_bag_id ON bag_contents(bag_id);
 CREATE INDEX idx_bag_contents_disc_id ON bag_contents(disc_id);
+CREATE INDEX idx_bag_contents_is_lost ON bag_contents(is_lost);
 ```
 
 ### Prisma Schema Update
@@ -66,18 +71,23 @@ model bags {
 }
 
 model bag_contents {
-  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bag_id     String      @db.Uuid
-  disc_id    String      @db.Uuid
-  notes      String?     @db.VarChar(255)
-  weight     Decimal?    @db.Decimal(4,1)
-  condition  String?     @default("good") @db.VarChar(20)
-  added_at   DateTime?   @default(now()) @db.Timestamp(6)
-  bags       bags        @relation(fields: [bag_id], references: [id], onDelete: Cascade)
-  disc_master disc_master @relation(fields: [disc_id], references: [id], onDelete: Cascade)
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bag_id       String      @db.Uuid
+  disc_id      String      @db.Uuid
+  notes        String?     @db.VarChar(255)
+  weight       Decimal?    @db.Decimal(4,1)
+  condition    String?     @default("good") @db.VarChar(20)
+  plastic_type String?     @db.VarChar(50)
+  color        String?     @db.VarChar(50)
+  is_lost      Boolean     @default(false)
+  added_at     DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at   DateTime?   @default(now()) @db.Timestamp(6)
+  bags         bags        @relation(fields: [bag_id], references: [id], onDelete: Cascade)
+  disc_master  disc_master @relation(fields: [disc_id], references: [id], onDelete: Cascade)
 
   @@index([bag_id], map: "idx_bag_contents_bag_id")
   @@index([disc_id], map: "idx_bag_contents_disc_id")
+  @@index([is_lost], map: "idx_bag_contents_is_lost")
 }
 
 // Add to users model
@@ -137,11 +147,13 @@ router.put('/:id', authenticateToken, bagsUpdateController);      // Update bag
 router.delete('/:id', authenticateToken, bagsDeleteController);   // Delete bag
 
 // Phase 2: Bag Contents
-router.post('/:id/discs', authenticateToken, bagsAddDiscController);      // Add disc to bag
-router.delete('/:id/discs/:contentId', authenticateToken, bagsRemoveDiscController); // Remove disc from bag
+router.post('/:id/discs', authenticateToken, bagsAddDiscController);                    // Add disc to bag
+router.put('/:id/discs/:contentId', authenticateToken, bagsEditDiscController);         // Edit disc personal data
+router.patch('/:id/discs/:contentId/lost', authenticateToken, bagsLostDiscController);  // Mark disc as lost/found
+router.delete('/:id/discs/:contentId', authenticateToken, bagsRemoveDiscController);    // Remove disc from bag
 
 // Phase 2: Disc Movement (ATOMIC OPERATIONS)
-router.post('/discs/:contentId/move', authenticateToken, bagsMoveDiscController);  // Move disc between bags
+router.post('/discs/:contentId/move', authenticateToken, bagsMoveDiscController);       // Move disc between bags
 
 // Phase 3: Friend Bag Viewing
 router.get('/friends/:friendUserId', authenticateToken, bagsFriendsListController);    // List friend's visible bags
@@ -271,7 +283,7 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
   }
 }
 
-// Response (200) - Phase 2 (with contents)
+// Response (200) - Phase 2 (with contents including personal data)
 {
   "success": true,
   "bag": {
@@ -293,10 +305,14 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
           "turn": -1,
           "fade": 3
         },
-        "notes": "Champion plastic, blue",
+        "notes": "My go-to driver for hyzer shots",
         "weight": 175.0,
-        "condition": "new",
-        "added_at": "2025-06-28T10:00:00Z"
+        "condition": "good",
+        "plastic_type": "Champion",
+        "color": "Red",
+        "is_lost": false,
+        "added_at": "2025-06-28T10:00:00Z",
+        "updated_at": "2025-06-28T15:30:00Z"
       }
     ]
   }
@@ -338,6 +354,107 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 {
   "success": false,
   "message": "Bag not found"
+}
+```
+
+**POST `/api/bags/:id/discs`** - Add Disc to Bag (Phase 2)
+```json
+// Request
+{
+  "disc_id": "disc-uuid-1",
+  "notes": "My favorite driver",
+  "weight": 175.0,
+  "condition": "new",
+  "plastic_type": "Champion",
+  "color": "Red"
+}
+
+// Response (201)
+{
+  "success": true,
+  "bag_content": {
+    "id": "content-uuid-1",
+    "bag_id": "bag-uuid-1",
+    "disc": {
+      "id": "disc-uuid-1",
+      "brand": "Innova",
+      "model": "Destroyer",
+      "speed": 12,
+      "glide": 5,
+      "turn": -1,
+      "fade": 3
+    },
+    "notes": "My favorite driver",
+    "weight": 175.0,
+    "condition": "new",
+    "plastic_type": "Champion",
+    "color": "Red",
+    "is_lost": false,
+    "added_at": "2025-06-28T11:00:00Z",
+    "updated_at": "2025-06-28T11:00:00Z"
+  }
+}
+```
+
+**PUT `/api/bags/:id/discs/:contentId`** - Edit Disc Personal Data (Phase 2)
+```json
+// Request
+{
+  "notes": "Updated notes - great for headwinds",
+  "condition": "good",
+  "plastic_type": "Star",
+  "color": "Blue",
+  "weight": 174.5
+}
+
+// Response (200)
+{
+  "success": true,
+  "bag_content": {
+    "id": "content-uuid-1",
+    "bag_id": "bag-uuid-1",
+    "disc": {
+      "id": "disc-uuid-1",
+      "brand": "Innova",
+      "model": "Destroyer"
+    },
+    "notes": "Updated notes - great for headwinds",
+    "weight": 174.5,
+    "condition": "good",
+    "plastic_type": "Star",
+    "color": "Blue",
+    "is_lost": false,
+    "added_at": "2025-06-28T11:00:00Z",
+    "updated_at": "2025-06-28T14:30:00Z"
+  }
+}
+```
+
+**PATCH `/api/bags/:id/discs/:contentId/lost`** - Mark Disc as Lost/Found (Phase 2)
+```json
+// Request
+{
+  "is_lost": true
+}
+
+// Response (200)
+{
+  "success": true,
+  "message": "Disc marked as lost",
+  "bag_content": {
+    "id": "content-uuid-1",
+    "is_lost": true,
+    "updated_at": "2025-06-28T16:00:00Z"
+  }
+}
+```
+
+**DELETE `/api/bags/:id/discs/:contentId`** - Remove Disc from Bag (Phase 2)
+```json
+// Response (200)
+{
+  "success": true,
+  "message": "Disc removed from bag successfully"
 }
 ```
 
@@ -405,63 +522,78 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Add route
 - [x] Test
 
-### Step 6: Delete Bag Service
-- [ ] `services/bags.delete.service.js`
-- [ ] `controllers/bags.delete.controller.js`
-- [ ] Add route
-- [ ] Test
+### Step 6: Delete Bag Service ✅ COMPLETED
+- [x] `services/bags.delete.service.js` - Atomic deletion with user ownership validation
+- [x] `controllers/bags.delete.controller.js` - Returns 200 with success message (consistent with codebase patterns)
+- [x] Add DELETE /:id route with authentication middleware
+- [x] Comprehensive unit and integration tests with edge cases
 
-### Step 7: Phase 2 Database Setup
-- [ ] Create migration file `002_create_bag_contents_table.sql`
-- [ ] Update `schema.prisma` with bag_contents model and relations
-- [ ] Run migration: `npx prisma migrate dev`
-- [ ] Generate Prisma client: `npx prisma generate`
+### Step 7: Phase 2 Database Setup ✅ COMPLETED
+- [x] Create migration file `V13__create_bag_contents_table.sql` with enhanced schema
+- [x] Update `schema.prisma` with bag_contents model including plastic_type, color, is_lost fields
+- [x] Run migration: `npx prisma migrate dev`
+- [x] Generate Prisma client: `npx prisma generate`
 
-### Step 8: Add Disc to Bag Service
-- [ ] `services/bags.adddisc.service.js`
-- [ ] `controllers/bags.adddisc.controller.js`
-- [ ] Add route
-- [ ] Test
+### Step 8: Add Disc to Bag Service ✅ COMPLETED
+- [x] `services/bag-contents.add.service.js` - Validate disc_id, bag ownership, and personal data including pending disc security
+- [x] `controllers/bag-contents.add.controller.js` - Handle plastic_type, color, weight, notes with proper error handling
+- [x] Add POST /:id/discs route with authentication middleware
+- [x] Comprehensive tests with validation for new fields including unit, controller, route, and integration tests
+- [x] Security validation: Users can only add their own pending discs, all users can add approved discs
+- [x] Full TDD implementation with thin slices and proper error handling using existing errorHandler middleware
 
-### Step 9: Remove Disc from Bag Service
-- [ ] `services/bags.removedisc.service.js`
-- [ ] `controllers/bags.removedisc.controller.js`
-- [ ] Add route
-- [ ] Test
+### Step 9: Update Bag Get Service (with contents) 🎯 PRIORITY NEXT
+- [ ] Modify `services/bags.get.service.js` to include bag contents with personal data
+- [ ] Filter out lost discs by default (add ?include_lost=true for showing lost discs)
+- [ ] Update integration tests for content inclusion
+- [ ] Test with populated bags including lost discs
 
-### Step 10: Update Bag Get Service (with contents)
-- [ ] Modify `services/bags.get.service.js` to include bag contents
-- [ ] Update integration tests
-- [ ] Test with populated bags
+### Step 10: Edit Bag Contents Service 
+- [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition)
+- [ ] `controllers/bags.editdisc.controller.js` - PUT endpoint for disc content updates
+- [ ] Add PUT /:id/discs/:contentId route
+- [ ] Tests for partial updates and validation
 
-### 🚨 CRITICAL: Fix Hardcoded disc_count After Phase 2 Setup
-**MUST DO after Step 7 (bag_contents table creation):**
-- [ ] **Update `services/bags.list.service.js`** - Remove hardcoded `disc_count: 0` and restore proper Prisma include:
+### Step 11: Mark Disc as Lost/Found Service
+- [ ] `services/bags.lostdisc.service.js` - Toggle is_lost flag instead of deletion
+- [ ] `controllers/bags.lostdisc.controller.js` - PATCH endpoint for lost status
+- [ ] Add PATCH /:id/discs/:contentId/lost route
+- [ ] Tests for lost/found toggle functionality
+
+### Step 12: Remove Disc from Bag Service
+- [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
+- [ ] `controllers/bags.removedisc.controller.js` - DELETE endpoint with confirmation
+- [ ] Add DELETE /:id/discs/:contentId route
+- [ ] Tests with proper ownership validation
+
+### 🚨 CRITICAL: Fix Hardcoded disc_count After Phase 2 Setup ✅ COMPLETED
+**COMPLETED after Step 7 (bag_contents table creation):**
+- [x] **Update `services/bags.list.service.js`** - Removed hardcoded `disc_count: 0` and restored proper Prisma include:
   ```javascript
-  // Current (Phase 1): disc_count: 0 // HARDCODED - TEMPORARY
-  // Fix to (Phase 2):
+  // Fixed from (Phase 1): disc_count: 0 // HARDCODED - TEMPORARY
+  // Now (Phase 2):
   include: {
     _count: { select: { bag_contents: true } }
   }
-  // Then: disc_count: bag._count.bag_contents
+  // Result: disc_count: bag._count.bag_contents
   ```
-- [ ] **Update `tests/unit/services/bags.list.service.test.js`** - Restore dynamic disc_count testing with mock data
-- [ ] **Update `tests/integration/api/bags.list.integration.test.js`** - Test actual disc counts with real bag contents
-- [ ] **Verify all bag listing functionality works with real disc counts**
+- [x] **Update `tests/unit/services/bags.list.service.test.js`** - Restored dynamic disc_count testing with mock data
+- [x] **Update `tests/integration/api/bags.list.integration.test.js`** - Integration tests work with real disc counts (0 for empty bags, actual count when discs added)
+- [x] **Verify all bag listing functionality works with real disc counts** - Tested and confirmed working
 
-### Step 11: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
-- [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION**
-- [ ] `controllers/bags.movedisc.controller.js`
-- [ ] Add route
-- [ ] **Comprehensive concurrency tests**
+### Step 13: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
+- [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION** with personal data preservation
+- [ ] `controllers/bags.movedisc.controller.js` - Handle personal data updates during move
+- [ ] Add POST /discs/:contentId/move route
+- [ ] **Comprehensive concurrency tests** including personal data validation
 
-### Step 12: Friend Bag Viewing (Phase 3)
-- [ ] `services/bags.friends.list.service.js`
-- [ ] `services/bags.friends.get.service.js`
-- [ ] `controllers/bags.friends.list.controller.js`
-- [ ] `controllers/bags.friends.get.controller.js`
-- [ ] Add friend bag routes
-- [ ] **Comprehensive friendship validation tests**
+### Step 14: Friend Bag Viewing (Phase 3)
+- [ ] `services/bags.friends.list.service.js` - Show friend's visible bags with disc counts
+- [ ] `services/bags.friends.get.service.js` - Show friend's bag contents (including personal data)
+- [ ] `controllers/bags.friends.list.controller.js` - GET /friends/:friendUserId
+- [ ] `controllers/bags.friends.get.controller.js` - GET /friends/:friendUserId/:bagId
+- [ ] Add friend bag routes with authentication
+- [ ] **Comprehensive friendship validation tests** including privacy levels
 
 ---
 
@@ -825,11 +957,18 @@ describe('Friend Bag Viewing', () => {
 - `is_public`: Boolean, defaults to false
 - `is_friends_visible`: Boolean, defaults to false
 
-### Add/Move Disc
+### Add/Edit Disc Content
 - `disc_id`: Required, must exist in disc_master and be approved
 - `notes`: Optional, max 255 characters
 - `weight`: Optional, decimal 1-300 grams
 - `condition`: Optional, enum: ['new', 'good', 'worn', 'beat-in']
+- `plastic_type`: Optional, max 50 characters (e.g., "Champion", "Star", "DX")
+- `color`: Optional, max 50 characters (e.g., "Red", "Blue", "Orange")
+- `is_lost`: Boolean, defaults to false
+
+### Move Disc
+- `to_bag_id`: Required, must be owned by the same user
+- All personal data fields can be updated during move (notes, weight, condition, plastic_type, color)
 
 ### Friend Access
 - `friendUserId`: Required, must be a valid user ID
@@ -859,18 +998,23 @@ describe('Friend Bag Viewing', () => {
 
 ## Current Status: Bag Create Endpoint Complete ✅
 
-**✅ COMPLETED:** Bag CRUD Operations (Create, Read, Update)
+**✅ COMPLETED:** Bag CRUD Operations (Phase 1)
 - **Create Bag Service**: Full implementation with validation, security, and comprehensive testing
 - **List Bags Service**: Service with pagination, filtering, and disc count integration  
 - **Get Single Bag Service**: Service with ownership validation and UUID format checking
 - **Update Bag Service**: Service with partial updates, validation, and atomic operations
+- **Delete Bag Service**: Service with atomic deletion and user ownership validation
 - All services include comprehensive unit tests and integration tests
 - All routes properly mounted with authentication middleware
-- Full error handling with proper HTTP status codes
+- Full error handling with proper HTTP status codes and consistent response patterns
 - Ready for deployment
 
-**🎯 NEXT STEPS:** Complete remaining CRUD operations
+**✅ COMPLETED:** Phase 2 Foundation - Bag Contents Management
 
-**Next file to create:** `services/bags.delete.service.js` (Step 6)
+**Enhanced Schema Implemented:** bag_contents table created with plastic_type, color, is_lost fields for comprehensive disc management with personal data tracking and loss prevention.
+
+**✅ COMPLETED:** Add Disc to Bag Service with full security validation including pending disc ownership checks
+
+**🎯 NEXT STEPS:** Step 12 - Update Bag Get Service to Include Contents (Priority: View before Edit/Remove)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
