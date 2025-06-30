@@ -47,7 +47,7 @@ describe('getBagService', () => {
       },
     };
 
-    const result = await getBagService(userId, bagId, mockPrisma);
+    const result = await getBagService(userId, bagId, false, mockPrisma);
 
     expect(result).toEqual(mockBag);
   });
@@ -62,7 +62,7 @@ describe('getBagService', () => {
       },
     };
 
-    const result = await getBagService(userId, bagId, mockPrisma);
+    const result = await getBagService(userId, bagId, false, mockPrisma);
 
     expect(result).toBeNull();
   });
@@ -83,5 +83,84 @@ describe('getBagService', () => {
     const result = await getBagService(userId, invalidBagId, mockPrisma);
 
     expect(result).toBeNull();
+  });
+
+  test('should call findFirst with bag_contents include', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    let findFirstOptions;
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async (options) => {
+          findFirstOptions = options;
+          return null;
+        },
+      },
+    };
+
+    await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(findFirstOptions.include).toBeDefined();
+    expect(findFirstOptions.include.bag_contents).toBeDefined();
+  });
+
+  test('should include disc_master with bag_contents', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    let findFirstOptions;
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async (options) => {
+          findFirstOptions = options;
+          return null;
+        },
+      },
+    };
+
+    await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(findFirstOptions.include.bag_contents.include).toBeDefined();
+    expect(findFirstOptions.include.bag_contents.include.disc_master).toBe(true);
+  });
+
+  test('should filter out lost discs by default', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    let findFirstOptions;
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async (options) => {
+          findFirstOptions = options;
+          return null;
+        },
+      },
+    };
+
+    await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(findFirstOptions.include.bag_contents.where).toBeDefined();
+    expect(findFirstOptions.include.bag_contents.where.is_lost).toBe(false);
+  });
+
+  test('should include lost discs when includeLost is true', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    let findFirstOptions;
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async (options) => {
+          findFirstOptions = options;
+          return null;
+        },
+      },
+    };
+
+    await getBagService(userId, bagId, true, mockPrisma);
+
+    expect(findFirstOptions.include.bag_contents.where).toBeUndefined();
   });
 });

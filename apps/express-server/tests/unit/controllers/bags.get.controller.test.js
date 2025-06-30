@@ -39,6 +39,7 @@ describe('getBagController', () => {
     const req = {
       user: { userId },
       params: { id: bagId },
+      query: {},
     };
     const res = {
       status: vi.fn().mockReturnThis(),
@@ -48,7 +49,7 @@ describe('getBagController', () => {
 
     await getBagController(req, res, next);
 
-    expect(mockGetBagService).toHaveBeenCalledWith(userId, bagId);
+    expect(mockGetBagService).toHaveBeenCalledWith(userId, bagId, false);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
@@ -65,6 +66,7 @@ describe('getBagController', () => {
     const req = {
       user: { userId },
       params: { id: bagId },
+      query: {},
     };
     const res = {
       status: vi.fn().mockReturnThis(),
@@ -74,11 +76,34 @@ describe('getBagController', () => {
 
     await getBagController(req, res, next);
 
-    expect(mockGetBagService).toHaveBeenCalledWith(userId, bagId);
+    expect(mockGetBagService).toHaveBeenCalledWith(userId, bagId, false);
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
       message: 'Bag not found',
     });
+  });
+
+  test('should pass includeLost=true to service when include_lost query is true', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const mockBag = { id: bagId, user_id: userId };
+
+    mockGetBagService.mockResolvedValue(mockBag);
+
+    const req = {
+      user: { userId },
+      params: { id: bagId },
+      query: { include_lost: 'true' },
+    };
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+    const next = vi.fn();
+
+    await getBagController(req, res, next);
+
+    expect(mockGetBagService).toHaveBeenCalledWith(userId, bagId, true);
   });
 });
