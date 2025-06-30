@@ -528,56 +528,58 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Add DELETE /:id route with authentication middleware
 - [x] Comprehensive unit and integration tests with edge cases
 
-### Step 7: Phase 2 Database Setup
-- [ ] Create migration file `V13__create_bag_contents_table.sql` with enhanced schema
-- [ ] Update `schema.prisma` with bag_contents model including plastic_type, color, is_lost fields
-- [ ] Run migration: `npx prisma migrate dev`
-- [ ] Generate Prisma client: `npx prisma generate`
+### Step 7: Phase 2 Database Setup ✅ COMPLETED
+- [x] Create migration file `V13__create_bag_contents_table.sql` with enhanced schema
+- [x] Update `schema.prisma` with bag_contents model including plastic_type, color, is_lost fields
+- [x] Run migration: `npx prisma migrate dev`
+- [x] Generate Prisma client: `npx prisma generate`
 
-### Step 8: Add Disc to Bag Service
-- [ ] `services/bags.adddisc.service.js` - Validate disc_id, bag ownership, and personal data
-- [ ] `controllers/bags.adddisc.controller.js` - Handle plastic_type, color, weight, notes
-- [ ] Add POST /:id/discs route
-- [ ] Comprehensive tests with validation for new fields
+### Step 8: Add Disc to Bag Service ✅ COMPLETED
+- [x] `services/bag-contents.add.service.js` - Validate disc_id, bag ownership, and personal data including pending disc security
+- [x] `controllers/bag-contents.add.controller.js` - Handle plastic_type, color, weight, notes with proper error handling
+- [x] Add POST /:id/discs route with authentication middleware
+- [x] Comprehensive tests with validation for new fields including unit, controller, route, and integration tests
+- [x] Security validation: Users can only add their own pending discs, all users can add approved discs
+- [x] Full TDD implementation with thin slices and proper error handling using existing errorHandler middleware
 
-### Step 9: Edit Bag Contents Service 
-- [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition)
-- [ ] `controllers/bags.editdisc.controller.js` - PUT endpoint for disc content updates
-- [ ] Add PUT /:id/discs/:contentId route
-- [ ] Tests for partial updates and validation
-
-### Step 10: Mark Disc as Lost/Found Service
-- [ ] `services/bags.lostdisc.service.js` - Toggle is_lost flag instead of deletion
-- [ ] `controllers/bags.lostdisc.controller.js` - PATCH endpoint for lost status
-- [ ] Add PATCH /:id/discs/:contentId/lost route
-- [ ] Tests for lost/found toggle functionality
-
-### Step 11: Remove Disc from Bag Service
-- [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
-- [ ] `controllers/bags.removedisc.controller.js` - DELETE endpoint with confirmation
-- [ ] Add DELETE /:id/discs/:contentId route
-- [ ] Tests with proper ownership validation
-
-### Step 12: Update Bag Get Service (with contents)
+### Step 9: Update Bag Get Service (with contents) 🎯 PRIORITY NEXT
 - [ ] Modify `services/bags.get.service.js` to include bag contents with personal data
 - [ ] Filter out lost discs by default (add ?include_lost=true for showing lost discs)
 - [ ] Update integration tests for content inclusion
 - [ ] Test with populated bags including lost discs
 
-### 🚨 CRITICAL: Fix Hardcoded disc_count After Phase 2 Setup
-**MUST DO after Step 7 (bag_contents table creation):**
-- [ ] **Update `services/bags.list.service.js`** - Remove hardcoded `disc_count: 0` and restore proper Prisma include:
+### Step 10: Edit Bag Contents Service 
+- [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition)
+- [ ] `controllers/bags.editdisc.controller.js` - PUT endpoint for disc content updates
+- [ ] Add PUT /:id/discs/:contentId route
+- [ ] Tests for partial updates and validation
+
+### Step 11: Mark Disc as Lost/Found Service
+- [ ] `services/bags.lostdisc.service.js` - Toggle is_lost flag instead of deletion
+- [ ] `controllers/bags.lostdisc.controller.js` - PATCH endpoint for lost status
+- [ ] Add PATCH /:id/discs/:contentId/lost route
+- [ ] Tests for lost/found toggle functionality
+
+### Step 12: Remove Disc from Bag Service
+- [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
+- [ ] `controllers/bags.removedisc.controller.js` - DELETE endpoint with confirmation
+- [ ] Add DELETE /:id/discs/:contentId route
+- [ ] Tests with proper ownership validation
+
+### 🚨 CRITICAL: Fix Hardcoded disc_count After Phase 2 Setup ✅ COMPLETED
+**COMPLETED after Step 7 (bag_contents table creation):**
+- [x] **Update `services/bags.list.service.js`** - Removed hardcoded `disc_count: 0` and restored proper Prisma include:
   ```javascript
-  // Current (Phase 1): disc_count: 0 // HARDCODED - TEMPORARY
-  // Fix to (Phase 2):
+  // Fixed from (Phase 1): disc_count: 0 // HARDCODED - TEMPORARY
+  // Now (Phase 2):
   include: {
     _count: { select: { bag_contents: true } }
   }
-  // Then: disc_count: bag._count.bag_contents
+  // Result: disc_count: bag._count.bag_contents
   ```
-- [ ] **Update `tests/unit/services/bags.list.service.test.js`** - Restore dynamic disc_count testing with mock data
-- [ ] **Update `tests/integration/api/bags.list.integration.test.js`** - Test actual disc counts with real bag contents
-- [ ] **Verify all bag listing functionality works with real disc counts**
+- [x] **Update `tests/unit/services/bags.list.service.test.js`** - Restored dynamic disc_count testing with mock data
+- [x] **Update `tests/integration/api/bags.list.integration.test.js`** - Integration tests work with real disc counts (0 for empty bags, actual count when discs added)
+- [x] **Verify all bag listing functionality works with real disc counts** - Tested and confirmed working
 
 ### Step 13: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
 - [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION** with personal data preservation
@@ -1007,10 +1009,12 @@ describe('Friend Bag Viewing', () => {
 - Full error handling with proper HTTP status codes and consistent response patterns
 - Ready for deployment
 
-**🎯 NEXT STEPS:** Phase 2 - Bag Contents Management
+**✅ COMPLETED:** Phase 2 Foundation - Bag Contents Management
 
-**Enhanced Schema Ready:** Updated bag_contents table design includes plastic_type, color, is_lost fields for comprehensive disc management with personal data tracking and loss prevention.
+**Enhanced Schema Implemented:** bag_contents table created with plastic_type, color, is_lost fields for comprehensive disc management with personal data tracking and loss prevention.
 
-**Next step:** Create migration file `V13__create_bag_contents_table.sql` (Step 7)
+**✅ COMPLETED:** Add Disc to Bag Service with full security validation including pending disc ownership checks
+
+**🎯 NEXT STEPS:** Step 12 - Update Bag Get Service to Include Contents (Priority: View before Edit/Remove)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
