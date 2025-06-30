@@ -15,6 +15,7 @@ describe('GET /api/bags/:id - Integration', () => {
   let testId;
   let createdUserIds = [];
   let createdBag;
+  let createdDiscs = [];
 
   beforeEach(async () => {
     // Generate GLOBALLY unique test identifier for this test run (short for username limits)
@@ -40,14 +41,48 @@ describe('GET /api/bags/:id - Integration', () => {
     token = loginRes.body.tokens.accessToken;
     user = loginRes.body.user;
     createdUserIds.push(user.id);
+
+    // Create approved test discs for the tests
+    createdDiscs = await Promise.all([
+      prisma.disc_master.create({
+        data: {
+          brand: 'Test Brand',
+          model: `Test Model 1 ${testId}`,
+          speed: 12,
+          glide: 5,
+          turn: -1,
+          fade: 3,
+          approved: true,
+          added_by_id: user.id,
+        },
+      }),
+      prisma.disc_master.create({
+        data: {
+          brand: 'Test Brand',
+          model: `Test Model 2 ${testId}`,
+          speed: 9,
+          glide: 4,
+          turn: -2,
+          fade: 2,
+          approved: true,
+          added_by_id: user.id,
+        },
+      }),
+    ]);
   });
 
   afterEach(async () => {
     // Clean up only data created in this specific test
+    if (createdDiscs.length > 0) {
+      const discIds = createdDiscs.map((disc) => disc.id);
+      await prisma.bag_contents.deleteMany({ where: { disc_id: { in: discIds } } });
+      await prisma.disc_master.deleteMany({ where: { id: { in: discIds } } });
+    }
     if (createdUserIds.length > 0) {
       await prisma.bags.deleteMany({ where: { user_id: { in: createdUserIds } } });
       await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
     }
+    createdDiscs = [];
   });
 
   test('should require authentication', async () => {
@@ -152,5 +187,189 @@ describe('GET /api/bags/:id - Integration', () => {
       success: false,
       message: 'Bag not found',
     });
+  });
+
+  test('should return bag with contents when discs are added', async () => {
+    // Create a bag
+    const bagData = {
+      name: `TestBag-${testId}-contents`,
+      description: 'Test bag with contents',
+    };
+
+    const createRes = await request(app)
+      .post('/api/bags')
+      .set('Authorization', `Bearer ${token}`)
+      .send(bagData)
+      .expect(201);
+
+    const bagId = createRes.body.bag.id;
+
+    // Use our created test disc
+    const disc = createdDiscs[0];
+
+    // Add disc to bag
+    const addDiscData = {
+      disc_id: disc.id,
+      notes: 'Great disc for testing',
+      weight: 175.0,
+      condition: 'good',
+      plastic_type: 'Champion',
+      color: 'Red',
+    };
+
+    await request(app)
+      .post(`/api/bags/${bagId}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(addDiscData)
+      .expect(201);
+
+    // Get bag with contents
+    const res = await request(app)
+      .get(`/api/bags/${bagId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      success: true,
+      bag: {
+        id: bagId,
+        name: bagData.name,
+        description: bagData.description,
+        user_id: user.id,
+      },
+    });
+
+    // Verify bag contents are included
+    expect(res.body.bag).toHaveProperty('bag_contents');
+    expect(res.body.bag.bag_contents).toHaveLength(1);
+
+    const bagContent = res.body.bag.bag_contents[0];
+    expect(bagContent).toMatchObject({
+      notes: addDiscData.notes,
+      weight: addDiscData.weight.toString(), // Decimal comes back as string in JSON
+      condition: addDiscData.condition,
+      plastic_type: addDiscData.plastic_type,
+      color: addDiscData.color,
+      is_lost: false,
+    });
+
+    // Verify disc_master is included
+    expect(bagContent).toHaveProperty('disc_master');
+    expect(bagContent.disc_master).toMatchObject({
+      id: disc.id,
+      brand: disc.brand,
+      model: disc.model,
+    });
+  });
+
+  test('should filter out lost discs by default', async () => {
+    // Create a bag
+    const bagData = {
+      name: `TestBag-${testId}-lost`,
+      description: 'Test bag with lost discs',
+    };
+
+    const createRes = await request(app)
+      .post('/api/bags')
+      .set('Authorization', `Bearer ${token}`)
+      .send(bagData)
+      .expect(201);
+
+    const bagId = createRes.body.bag.id;
+
+    // Use our created test discs
+    const [disc1, disc2] = createdDiscs;
+
+    // Add two discs to bag
+    await request(app)
+      .post(`/api/bags/${bagId}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        disc_id: disc1.id,
+        notes: 'Regular disc',
+      })
+      .expect(201);
+
+    const addDiscRes = await request(app)
+      .post(`/api/bags/${bagId}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        disc_id: disc2.id,
+        notes: 'Will be lost',
+      })
+      .expect(201);
+
+    // Mark second disc as lost in database
+    await prisma.bag_contents.update({
+      where: { id: addDiscRes.body.bag_content.id },
+      data: { is_lost: true },
+    });
+
+    // Get bag without include_lost - should only show non-lost disc
+    const res = await request(app)
+      .get(`/api/bags/${bagId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.bag.bag_contents).toHaveLength(1);
+    expect(res.body.bag.bag_contents[0].notes).toBe('Regular disc');
+  });
+
+  test('should include lost discs when include_lost=true', async () => {
+    // Create a bag
+    const bagData = {
+      name: `TestBag-${testId}-includelost`,
+      description: 'Test bag with include lost',
+    };
+
+    const createRes = await request(app)
+      .post('/api/bags')
+      .set('Authorization', `Bearer ${token}`)
+      .send(bagData)
+      .expect(201);
+
+    const bagId = createRes.body.bag.id;
+
+    // Use our created test discs
+    const [disc1, disc2] = createdDiscs;
+
+    // Add two discs to bag
+    await request(app)
+      .post(`/api/bags/${bagId}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        disc_id: disc1.id,
+        notes: 'Regular disc',
+      })
+      .expect(201);
+
+    const addDiscRes = await request(app)
+      .post(`/api/bags/${bagId}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        disc_id: disc2.id,
+        notes: 'Lost disc',
+      })
+      .expect(201);
+
+    // Mark second disc as lost in database
+    await prisma.bag_contents.update({
+      where: { id: addDiscRes.body.bag_content.id },
+      data: { is_lost: true },
+    });
+
+    // Get bag with include_lost=true - should show both discs
+    const res = await request(app)
+      .get(`/api/bags/${bagId}?include_lost=true`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.bag.bag_contents).toHaveLength(2);
+
+    const regularDisc = res.body.bag.bag_contents.find((content) => content.notes === 'Regular disc');
+    const lostDisc = res.body.bag.bag_contents.find((content) => content.notes === 'Lost disc');
+
+    expect(regularDisc.is_lost).toBe(false);
+    expect(lostDisc.is_lost).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma.js';
 
-const getBagService = async (userId, bagId, prismaClient = prisma) => {
+const getBagService = async (userId, bagId, includeLost = false, prismaClient = prisma) => {
   if (!userId) {
     const error = new Error('userId is required');
     error.name = 'ValidationError';
@@ -24,6 +24,14 @@ const getBagService = async (userId, bagId, prismaClient = prisma) => {
     where: {
       id: bagId,
       user_id: userId,
+    },
+    include: {
+      bag_contents: {
+        ...(includeLost ? {} : { where: { is_lost: false } }),
+        include: {
+          disc_master: true,
+        },
+      },
     },
   });
 
