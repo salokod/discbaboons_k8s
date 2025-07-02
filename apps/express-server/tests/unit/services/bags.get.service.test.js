@@ -233,4 +233,62 @@ describe('getBagService', () => {
     expect(result.bag_contents[0].turn).toBe(0);
     expect(result.bag_contents[0].fade).toBe(1);
   });
+
+  test('should use custom brand/model from bag_contents over disc_master', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      bag_contents: [{
+        id: chance.guid(),
+        brand: 'Custom Brand', // Custom override
+        model: null, // Use disc_master fallback
+        disc_master: {
+          brand: 'Stock Brand', // Stock value (should be overridden)
+          model: 'Stock Model', // Stock value (should be used)
+        },
+      }],
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async () => mockBag,
+      },
+    };
+
+    const result = await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(result.bag_contents[0].brand).toBe('Custom Brand'); // Custom used
+    expect(result.bag_contents[0].model).toBe('Stock Model'); // Fallback used
+  });
+
+  test('should use all custom brand/model when both are provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      bag_contents: [{
+        id: chance.guid(),
+        brand: 'Beat-in Brand', // All custom values
+        model: 'Seasoned Destroyer', // All custom values
+        disc_master: {
+          brand: 'Innova', // Should be ignored
+          model: 'Destroyer', // Should be ignored
+        },
+      }],
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async () => mockBag,
+      },
+    };
+
+    const result = await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(result.bag_contents[0].brand).toBe('Beat-in Brand'); // All custom values used
+    expect(result.bag_contents[0].model).toBe('Seasoned Destroyer');
+  });
 });

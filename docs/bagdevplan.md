@@ -572,16 +572,18 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Proper error handling with ValidationError and AuthorizationError
 - [x] Fixed naming consistency to follow `bag-contents.*` pattern
 
-### Step 11b: Add Custom Disc Names/Models to Bag Contents 🎯 PRIORITY NEXT
-- [ ] Create migration `V15__add_custom_disc_names_to_bag_contents.sql` - Add brand, model fields to bag_contents
-- [ ] Update Prisma schema with nullable brand/model fields  
-- [ ] Update `services/bag-contents.add.service.js` - Accept optional custom brand/model when adding discs
-- [ ] Update `services/bag-contents.edit.service.js` - Allow editing custom brand/model
-- [ ] Update `services/bags.get.service.js` - Return custom brand/model if set, otherwise disc_master values
-- [ ] Add validation for brand/model field lengths (max 50 characters each)
-- [ ] Update unit tests for add/edit services with brand/model scenarios
-- [ ] Update integration tests for custom brand/model functionality
-- [ ] Test brand/model overrides and fallback logic (similar to flight numbers)
+### Step 11b: Add Custom Disc Names/Models to Bag Contents ✅ COMPLETED
+- [x] Create migration `V15__add_custom_disc_names_to_bag_contents.sql` - Add brand, model fields to bag_contents
+- [x] Update Prisma schema with nullable brand/model fields  
+- [x] Update `services/bag-contents.add.service.js` - Accept optional custom brand/model when adding discs
+- [x] Update `services/bag-contents.edit.service.js` - Allow editing custom brand/model
+- [x] Update `services/bags.get.service.js` - Return custom brand/model if set, otherwise disc_master values
+- [x] Add validation for brand/model field lengths (max 50 characters each)
+- [x] Update unit tests for add/edit services with brand/model scenarios including validation tests
+- [x] Update integration tests for custom brand/model functionality with Chance.js test data
+- [x] Test brand/model overrides and fallback logic (similar to flight numbers)
+- [x] Comprehensive validation tests (string type, length limits, null handling)
+- [x] End-to-end testing for add, edit, and display functionality
 
 **Rationale**: Users want to customize disc names for their personal collection (e.g., "Beat-in Destroyer", "Glow Champion Wraith", "First Ace Disc"). This follows the same pattern as custom flight numbers - nullable override fields that fall back to disc_master values.
 

@@ -125,10 +125,12 @@ describe('PUT /api/bags/:id/discs/:contentId - Integration', () => {
       condition: 'worn',
       plastic_type: 'Star',
       color: 'Blue',
-      speed: 10, // Updated flight number
-      glide: 5, // Updated flight number
-      turn: -2, // New flight number
-      fade: 2, // New flight number
+      speed: chance.integer({ min: 1, max: 15 }), // Updated flight number
+      glide: chance.integer({ min: 1, max: 7 }), // Updated flight number
+      turn: chance.integer({ min: -5, max: 2 }), // New flight number
+      fade: chance.integer({ min: 0, max: 5 }), // New flight number
+      brand: chance.word(), // Custom disc name
+      model: chance.word(), // Custom disc model
     };
 
     const response = await request(app)
@@ -269,6 +271,65 @@ describe('PUT /api/bags/:id/discs/:contentId - Integration', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.bag_content.notes).toBe(updateData.notes);
+    // Other fields should remain unchanged
+    expect(Number(response.body.bag_content.weight)).toBe(175.0);
+    expect(response.body.bag_content.condition).toBe('good');
+  });
+
+  test('should return 400 for brand exceeding 50 characters', async () => {
+    const updateData = { brand: 'a'.repeat(51) }; // 51 characters, exceeds limit
+
+    const response = await request(app)
+      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/brand must be a string with maximum 50 characters/i);
+  });
+
+  test('should return 400 for model exceeding 50 characters', async () => {
+    const updateData = { model: 'b'.repeat(51) }; // 51 characters, exceeds limit
+
+    const response = await request(app)
+      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/model must be a string with maximum 50 characters/i);
+  });
+
+  test('should return 400 for non-string brand', async () => {
+    const updateData = { brand: chance.integer() }; // Not a string
+
+    const response = await request(app)
+      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(updateData);
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/brand must be a string with maximum 50 characters/i);
+  });
+
+  test('should successfully update only brand and model', async () => {
+    const updateData = {
+      brand: chance.word(),
+      model: chance.word(),
+    };
+
+    const response = await request(app)
+      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(updateData);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.bag_content.brand).toBe(updateData.brand);
+    expect(response.body.bag_content.model).toBe(updateData.model);
     // Other fields should remain unchanged
     expect(Number(response.body.bag_content.weight)).toBe(175.0);
     expect(response.body.bag_content.condition).toBe('good');

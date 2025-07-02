@@ -434,4 +434,108 @@ describe('addToBagService', () => {
     await expect(addToBagService(userId, bagId, discData, mockPrisma))
       .rejects.toThrow('fade must be between 0 and 5');
   });
+
+  test('should reject brand exceeding 50 characters', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      brand: 'a'.repeat(51), // Invalid: 51 characters
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('brand must be a string with maximum 50 characters');
+  });
+
+  test('should reject model exceeding 50 characters', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      model: 'b'.repeat(51), // Invalid: 51 characters
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('model must be a string with maximum 50 characters');
+  });
+
+  test('should reject non-string brand', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      brand: 123, // Invalid: not a string
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('brand must be a string with maximum 50 characters');
+  });
+
+  test('should accept valid custom brand and model', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discId = chance.guid({ version: 4 });
+    const customBrand = 'Custom Brand';
+    const customModel = 'Beat-in Destroyer';
+
+    const discData = {
+      disc_id: discId,
+      brand: customBrand,
+      model: customModel,
+      notes: chance.sentence(),
+    };
+
+    const mockBagContent = {
+      id: chance.guid({ version: 4 }),
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: discId,
+      brand: customBrand,
+      model: customModel,
+      notes: discData.notes,
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discId, approved: true }),
+      },
+      bag_contents: {
+        create: () => mockBagContent,
+      },
+    };
+
+    const result = await addToBagService(userId, bagId, discData, mockPrisma);
+
+    expect(result).toEqual(mockBagContent);
+  });
 });
