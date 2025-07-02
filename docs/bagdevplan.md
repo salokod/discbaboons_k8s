@@ -548,16 +548,18 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Update integration tests for content inclusion  
 - [x] Test with populated bags including lost discs
 
-### Step 10: Add Custom Flight Numbers to bag_contents 🎯 PRIORITY NEXT
-- [ ] Create migration `V14__add_flight_numbers_to_bag_contents.sql` - Add speed, glide, turn, fade to bag_contents
-- [ ] Update Prisma schema with nullable flight number fields
-- [ ] Run migration and regenerate Prisma client
-- [ ] Update `services/bag-contents.add.service.js` - Accept optional flight numbers when adding discs
-- [ ] Update `services/bags.get.service.js` - Return custom flight numbers if set, otherwise disc_master values
-- [ ] Update integration tests for flight number functionality
-- [ ] Test flight number overrides and fallback logic
+### Step 10: Add Custom Flight Numbers to bag_contents ✅ COMPLETED
+- [x] Create migration `V14__add_flight_numbers_to_bag_contents.sql` - Add speed, glide, turn, fade to bag_contents
+- [x] Update Prisma schema with nullable flight number fields
+- [x] Run migration and regenerate Prisma client
+- [x] Update `services/bag-contents.add.service.js` - Accept optional flight numbers when adding discs
+- [x] Update `services/bags.get.service.js` - Return custom flight numbers if set, otherwise disc_master values
+- [x] Update integration tests for flight number functionality
+- [x] Test flight number overrides and fallback logic
+- [x] Add comprehensive validation for flight number ranges (1-15, 1-7, -5 to +2, 0-5)
+- [x] Manual API testing confirmed working end-to-end
 
-### Step 11: Edit Bag Contents Service 
+### Step 11: Edit Bag Contents Service 🎯 PRIORITY NEXT
 - [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition, speed, glide, turn, fade)
 - [ ] `controllers/bags.editdisc.controller.js` - PUT endpoint for disc content updates
 - [ ] Add PUT /:id/discs/:contentId route
