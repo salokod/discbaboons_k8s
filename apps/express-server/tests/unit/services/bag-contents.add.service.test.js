@@ -137,6 +137,93 @@ describe('addToBagService', () => {
     await expect(addToBagService(userId, bagId, discData, mockPrisma)).rejects.toThrow('Cannot add pending disc created by another user');
   });
 
+  test('should accept optional flight numbers in discData', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discId = chance.guid({ version: 4 });
+    const contentId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: discId,
+      notes: chance.sentence(),
+      speed: 12, // Custom flight numbers
+      glide: 5,
+      turn: -1,
+      fade: 3,
+    };
+
+    const mockBagContent = {
+      id: contentId,
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: discId,
+      notes: discData.notes,
+      speed: discData.speed,
+      glide: discData.glide,
+      turn: discData.turn,
+      fade: discData.fade,
+      weight: null,
+      condition: null,
+      plastic_type: null,
+      color: null,
+      is_lost: false,
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({
+          id: discId, brand: 'Innova', model: 'Destroyer', approved: true,
+        }),
+      },
+      bag_contents: {
+        create: () => mockBagContent,
+      },
+    };
+
+    const result = await addToBagService(userId, bagId, discData, mockPrisma);
+    expect(result).toEqual(mockBagContent);
+  });
+
+  test('should pass flight numbers to Prisma create method', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: discId,
+      speed: 9,
+      glide: 4,
+      turn: -2,
+      fade: 2,
+    };
+
+    let createCallData;
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({
+          id: discId, brand: 'Innova', model: 'Teebird', approved: true,
+        }),
+      },
+      bag_contents: {
+        create: (data) => {
+          createCallData = data.data;
+          return { id: chance.guid(), ...data.data };
+        },
+      },
+    };
+
+    await addToBagService(userId, bagId, discData, mockPrisma);
+
+    expect(createCallData.speed).toBe(9);
+    expect(createCallData.glide).toBe(4);
+    expect(createCallData.turn).toBe(-2);
+    expect(createCallData.fade).toBe(2);
+  });
+
   test('should allow adding own pending disc', async () => {
     const userId = chance.integer({ min: 1, max: 1000 });
     const bagId = chance.guid({ version: 4 });
@@ -178,5 +265,173 @@ describe('addToBagService', () => {
     const result = await addToBagService(userId, bagId, discData, mockPrisma);
 
     expect(result).toEqual(mockBagContent);
+  });
+
+  test('should reject speed below valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      speed: 0, // Invalid: below 1
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('speed must be between 1 and 15');
+  });
+
+  test('should reject speed above valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      speed: 16, // Invalid: above 15
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('speed must be between 1 and 15');
+  });
+
+  test('should reject glide below valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      glide: 0, // Invalid: below 1
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('glide must be between 1 and 7');
+  });
+
+  test('should reject glide above valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      glide: 8, // Invalid: above 7
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('glide must be between 1 and 7');
+  });
+
+  test('should reject turn below valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      turn: -6, // Invalid: below -5
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('turn must be between -5 and 2');
+  });
+
+  test('should reject turn above valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      turn: 3, // Invalid: above 2
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('turn must be between -5 and 2');
+  });
+
+  test('should reject fade below valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      fade: -1, // Invalid: below 0
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('fade must be between 0 and 5');
+  });
+
+  test('should reject fade above valid range', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const bagId = chance.guid({ version: 4 });
+    const discData = {
+      disc_id: chance.guid({ version: 4 }),
+      fade: 6, // Invalid: above 5
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: () => ({ id: bagId, user_id: userId }),
+      },
+      disc_master: {
+        findUnique: () => ({ id: discData.disc_id, approved: true }),
+      },
+    };
+
+    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+      .rejects.toThrow('fade must be between 0 and 5');
   });
 });

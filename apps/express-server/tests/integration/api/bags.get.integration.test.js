@@ -372,4 +372,54 @@ describe('GET /api/bags/:id - Integration', () => {
     expect(regularDisc.is_lost).toBe(false);
     expect(lostDisc.is_lost).toBe(true);
   });
+
+  test('should return merged flight numbers (custom overrides + disc_master fallbacks)', async () => {
+    // Create a bag
+    const bagData = {
+      name: `TestBag-${testId}-flightnumbers`,
+      description: 'Test bag for flight number merging',
+    };
+
+    const createRes = await request(app)
+      .post('/api/bags')
+      .set('Authorization', `Bearer ${token}`)
+      .send(bagData)
+      .expect(201);
+
+    const bagId = createRes.body.bag.id;
+
+    // Add disc with some custom flight numbers
+    const addDiscData = {
+      disc_id: createdDiscs[0].id, // Use our test disc
+      notes: 'Testing flight number merging',
+      speed: 10, // Custom override
+      glide: 4, // Custom override
+      // turn and fade not provided - should fallback to disc_master
+    };
+
+    await request(app)
+      .post(`/api/bags/${bagId}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(addDiscData)
+      .expect(201);
+
+    // Get the bag and verify merged flight numbers
+    const res = await request(app)
+      .get(`/api/bags/${bagId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const bagContent = res.body.bag.bag_contents[0];
+
+    // Verify custom values are used
+    expect(bagContent.speed).toBe(10); // Custom value
+    expect(bagContent.glide).toBe(4); // Custom value
+
+    // Verify fallback to disc_master values (our test discs have known values)
+    expect(bagContent.turn).toBe(createdDiscs[0].turn); // From disc_master
+    expect(bagContent.fade).toBe(createdDiscs[0].fade); // From disc_master
+
+    // Verify disc_master is still included
+    expect(bagContent.disc_master).toBeDefined();
+  });
 });

@@ -53,6 +53,39 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
     throw error;
   }
 
+  // Validate flight numbers if provided
+  if (discData.speed !== undefined && discData.speed !== null) {
+    if (discData.speed < 1 || discData.speed > 15) {
+      const error = new Error('speed must be between 1 and 15');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
+  if (discData.glide !== undefined && discData.glide !== null) {
+    if (discData.glide < 1 || discData.glide > 7) {
+      const error = new Error('glide must be between 1 and 7');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
+  if (discData.turn !== undefined && discData.turn !== null) {
+    if (discData.turn < -5 || discData.turn > 2) {
+      const error = new Error('turn must be between -5 and 2');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
+  if (discData.fade !== undefined && discData.fade !== null) {
+    if (discData.fade < 0 || discData.fade > 5) {
+      const error = new Error('fade must be between 0 and 5');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
   // Create bag content
   const bagContent = await prismaClient.bag_contents.create({
     data: {
@@ -64,6 +97,10 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
       condition: discData.condition || null,
       plastic_type: discData.plastic_type || null,
       color: discData.color || null,
+      speed: discData.speed || null,
+      glide: discData.glide || null,
+      turn: discData.turn || null,
+      fade: discData.fade || null,
       is_lost: false,
     },
   });
