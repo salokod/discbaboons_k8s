@@ -8,7 +8,7 @@ const chance = new Chance();
 let editBagContentService;
 
 beforeAll(async () => {
-  ({ default: editBagContentService } = await import('../../../services/bags.editdisc.service.js'));
+  ({ default: editBagContentService } = await import('../../../services/bag-contents.edit.service.js'));
 });
 
 describe('editBagContentService', () => {

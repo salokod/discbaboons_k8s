@@ -81,4 +81,16 @@ describe('bagsRoutes', () => {
     const middlewareNames = (postDiscsRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have PUT /:id/discs/:contentId route for editing disc in bag with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const putEditDiscRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id/discs/:contentId'
+        && layer.route.methods.put,
+    );
+    expect(putEditDiscRoute).toBeTruthy();
+    const middlewareNames = (putEditDiscRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
 });
