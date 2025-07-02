@@ -64,6 +64,23 @@ const editBagContentService = async (
     }
   }
 
+  // Validate custom brand/model if provided
+  if (updateData.brand !== undefined && updateData.brand !== null) {
+    if (typeof updateData.brand !== 'string' || updateData.brand.length > 50) {
+      const error = new Error('brand must be a string with maximum 50 characters');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
+  if (updateData.model !== undefined && updateData.model !== null) {
+    if (typeof updateData.model !== 'string' || updateData.model.length > 50) {
+      const error = new Error('model must be a string with maximum 50 characters');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
   // Find the bag content and verify user owns the bag
   const existingContent = await prismaClient.bag_contents.findFirst({
     where: {

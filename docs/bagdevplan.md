@@ -559,11 +559,33 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Add comprehensive validation for flight number ranges (1-15, 1-7, -5 to +2, 0-5)
 - [x] Manual API testing confirmed working end-to-end
 
-### Step 11: Edit Bag Contents Service 🎯 PRIORITY NEXT
-- [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition, speed, glide, turn, fade)
-- [ ] `controllers/bags.editdisc.controller.js` - PUT endpoint for disc content updates
-- [ ] Add PUT /:id/discs/:contentId route
-- [ ] Tests for partial updates and validation including flight numbers
+### Step 11: Edit Bag Contents Service ✅ COMPLETED
+- [x] `services/bag-contents.edit.service.js` - Update personal disc data (plastic_type, color, weight, condition, speed, glide, turn, fade)
+- [x] `controllers/bag-contents.edit.controller.js` - PUT endpoint for disc content updates  
+- [x] Add PUT /:id/discs/:contentId route with authentication middleware
+- [x] Comprehensive unit tests with service mocking and error handling
+- [x] Route tests in `bags.routes.test.js` for new endpoint with auth middleware
+- [x] Comprehensive integration tests with authentication, validation, authorization, and edge cases
+- [x] Flight number validation (speed 1-15, glide 1-7, turn -5 to +2, fade 0-5)
+- [x] User ownership validation and authorization checks
+- [x] Partial update support (only update provided fields)
+- [x] Proper error handling with ValidationError and AuthorizationError
+- [x] Fixed naming consistency to follow `bag-contents.*` pattern
+
+### Step 11b: Add Custom Disc Names/Models to Bag Contents ✅ COMPLETED
+- [x] Create migration `V15__add_custom_disc_names_to_bag_contents.sql` - Add brand, model fields to bag_contents
+- [x] Update Prisma schema with nullable brand/model fields  
+- [x] Update `services/bag-contents.add.service.js` - Accept optional custom brand/model when adding discs
+- [x] Update `services/bag-contents.edit.service.js` - Allow editing custom brand/model
+- [x] Update `services/bags.get.service.js` - Return custom brand/model if set, otherwise disc_master values
+- [x] Add validation for brand/model field lengths (max 50 characters each)
+- [x] Update unit tests for add/edit services with brand/model scenarios including validation tests
+- [x] Update integration tests for custom brand/model functionality with Chance.js test data
+- [x] Test brand/model overrides and fallback logic (similar to flight numbers)
+- [x] Comprehensive validation tests (string type, length limits, null handling)
+- [x] End-to-end testing for add, edit, and display functionality
+
+**Rationale**: Users want to customize disc names for their personal collection (e.g., "Beat-in Destroyer", "Glow Champion Wraith", "First Ace Disc"). This follows the same pattern as custom flight numbers - nullable override fields that fall back to disc_master values.
 
 ### Step 12: Mark Disc as Lost/Found Service
 - [ ] `services/bags.lostdisc.service.js` - Toggle is_lost flag instead of deletion

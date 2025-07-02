@@ -35,17 +35,19 @@ const getBagService = async (userId, bagId, includeLost = false, prismaClient = 
     },
   });
 
-  // Merge flight numbers: use custom values from bag_contents, fallback to disc_master
+  // Merge flight numbers and disc names: use custom values from bag_contents
   if (bag && bag.bag_contents) {
     bag.bag_contents = bag.bag_contents.map((content) => {
       if (content.disc_master) {
-        // Create merged flight numbers
+        // Create merged content with flight numbers and disc names
         const mergedContent = {
           ...content,
           speed: content.speed !== null ? content.speed : content.disc_master.speed,
           glide: content.glide !== null ? content.glide : content.disc_master.glide,
           turn: content.turn !== null ? content.turn : content.disc_master.turn,
           fade: content.fade !== null ? content.fade : content.disc_master.fade,
+          brand: content.brand !== null ? content.brand : content.disc_master.brand,
+          model: content.model !== null ? content.model : content.disc_master.model,
         };
         return mergedContent;
       }

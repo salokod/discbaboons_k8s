@@ -241,4 +241,49 @@ describe('editBagContentService', () => {
       expect(err.message).toMatch(/fade must be between 0 and 5/i);
     }
   });
+
+  test('should throw ValidationError if brand exceeds 50 characters', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const contentId = chance.guid();
+    const updateData = { brand: 'a'.repeat(51) };
+
+    try {
+      await editBagContentService(userId, bagId, contentId, updateData);
+      throw new Error('Did not throw');
+    } catch (err) {
+      expect(err.name).toBe('ValidationError');
+      expect(err.message).toMatch(/brand must be a string with maximum 50 characters/i);
+    }
+  });
+
+  test('should throw ValidationError if model exceeds 50 characters', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const contentId = chance.guid();
+    const updateData = { model: 'b'.repeat(51) };
+
+    try {
+      await editBagContentService(userId, bagId, contentId, updateData);
+      throw new Error('Did not throw');
+    } catch (err) {
+      expect(err.name).toBe('ValidationError');
+      expect(err.message).toMatch(/model must be a string with maximum 50 characters/i);
+    }
+  });
+
+  test('should throw ValidationError if brand is not a string', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const contentId = chance.guid();
+    const updateData = { brand: 123 };
+
+    try {
+      await editBagContentService(userId, bagId, contentId, updateData);
+      throw new Error('Did not throw');
+    } catch (err) {
+      expect(err.name).toBe('ValidationError');
+      expect(err.message).toMatch(/brand must be a string with maximum 50 characters/i);
+    }
+  });
 });

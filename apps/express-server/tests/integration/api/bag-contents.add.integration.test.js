@@ -227,4 +227,82 @@ describe('POST /api/bags/:id/discs - Integration', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.message).toBe('Disc not found');
   });
+
+  test('should successfully add disc with custom brand and model', async () => {
+    const discData = {
+      disc_id: createdDisc.id,
+      notes: chance.sentence(),
+      brand: chance.word(),
+      model: chance.word(),
+      weight: chance.floating({ min: 150, max: 180, fixed: 1 }),
+      condition: chance.pickone(['new', 'good', 'worn', 'beat-in']),
+    };
+
+    const res = await request(app)
+      .post(`/api/bags/${createdBag.id}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(discData)
+      .expect(201);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.bag_content).toMatchObject({
+      user_id: user.id,
+      bag_id: createdBag.id,
+      disc_id: createdDisc.id,
+      notes: discData.notes,
+      brand: discData.brand,
+      model: discData.model,
+      weight: discData.weight.toString(),
+      condition: discData.condition,
+      is_lost: false,
+    });
+  });
+
+  test('should return 400 for brand exceeding 50 characters', async () => {
+    const discData = {
+      disc_id: createdDisc.id,
+      brand: 'a'.repeat(51), // 51 characters, exceeds limit
+    };
+
+    const res = await request(app)
+      .post(`/api/bags/${createdBag.id}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(discData)
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/brand must be a string with maximum 50 characters/i);
+  });
+
+  test('should return 400 for model exceeding 50 characters', async () => {
+    const discData = {
+      disc_id: createdDisc.id,
+      model: 'b'.repeat(51), // 51 characters, exceeds limit
+    };
+
+    const res = await request(app)
+      .post(`/api/bags/${createdBag.id}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(discData)
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/model must be a string with maximum 50 characters/i);
+  });
+
+  test('should return 400 for non-string brand', async () => {
+    const discData = {
+      disc_id: createdDisc.id,
+      brand: 123, // Not a string
+    };
+
+    const res = await request(app)
+      .post(`/api/bags/${createdBag.id}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(discData)
+      .expect(400);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/brand must be a string with maximum 50 characters/i);
+  });
 });

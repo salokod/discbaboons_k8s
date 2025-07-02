@@ -86,6 +86,23 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
     }
   }
 
+  // Validate custom brand/model if provided
+  if (discData.brand !== undefined && discData.brand !== null) {
+    if (typeof discData.brand !== 'string' || discData.brand.length > 50) {
+      const error = new Error('brand must be a string with maximum 50 characters');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
+  if (discData.model !== undefined && discData.model !== null) {
+    if (typeof discData.model !== 'string' || discData.model.length > 50) {
+      const error = new Error('model must be a string with maximum 50 characters');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
   // Create bag content
   const bagContent = await prismaClient.bag_contents.create({
     data: {
@@ -101,6 +118,8 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
       glide: discData.glide || null,
       turn: discData.turn || null,
       fade: discData.fade || null,
+      brand: discData.brand || null,
+      model: discData.model || null,
       is_lost: false,
     },
   });
