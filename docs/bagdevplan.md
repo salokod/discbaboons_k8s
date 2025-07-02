@@ -542,25 +542,34 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] Security validation: Users can only add their own pending discs, all users can add approved discs
 - [x] Full TDD implementation with thin slices and proper error handling using existing errorHandler middleware
 
-### Step 9: Update Bag Get Service (with contents) 🎯 PRIORITY NEXT
-- [ ] Modify `services/bags.get.service.js` to include bag contents with personal data
-- [ ] Filter out lost discs by default (add ?include_lost=true for showing lost discs)
-- [ ] Update integration tests for content inclusion
-- [ ] Test with populated bags including lost discs
+### Step 9: Update Bag Get Service (with contents) ✅ COMPLETED
+- [x] Modify `services/bags.get.service.js` to include bag contents with personal data
+- [x] Filter out lost discs by default (add ?include_lost=true for showing lost discs)
+- [x] Update integration tests for content inclusion  
+- [x] Test with populated bags including lost discs
 
-### Step 10: Edit Bag Contents Service 
-- [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition)
+### Step 10: Add Custom Flight Numbers to bag_contents 🎯 PRIORITY NEXT
+- [ ] Create migration `V14__add_flight_numbers_to_bag_contents.sql` - Add speed, glide, turn, fade to bag_contents
+- [ ] Update Prisma schema with nullable flight number fields
+- [ ] Run migration and regenerate Prisma client
+- [ ] Update `services/bag-contents.add.service.js` - Accept optional flight numbers when adding discs
+- [ ] Update `services/bags.get.service.js` - Return custom flight numbers if set, otherwise disc_master values
+- [ ] Update integration tests for flight number functionality
+- [ ] Test flight number overrides and fallback logic
+
+### Step 11: Edit Bag Contents Service 
+- [ ] `services/bags.editdisc.service.js` - Update personal disc data (plastic_type, color, weight, condition, speed, glide, turn, fade)
 - [ ] `controllers/bags.editdisc.controller.js` - PUT endpoint for disc content updates
 - [ ] Add PUT /:id/discs/:contentId route
-- [ ] Tests for partial updates and validation
+- [ ] Tests for partial updates and validation including flight numbers
 
-### Step 11: Mark Disc as Lost/Found Service
+### Step 12: Mark Disc as Lost/Found Service
 - [ ] `services/bags.lostdisc.service.js` - Toggle is_lost flag instead of deletion
 - [ ] `controllers/bags.lostdisc.controller.js` - PATCH endpoint for lost status
 - [ ] Add PATCH /:id/discs/:contentId/lost route
 - [ ] Tests for lost/found toggle functionality
 
-### Step 12: Remove Disc from Bag Service
+### Step 13: Remove Disc from Bag Service
 - [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
 - [ ] `controllers/bags.removedisc.controller.js` - DELETE endpoint with confirmation
 - [ ] Add DELETE /:id/discs/:contentId route
@@ -581,13 +590,13 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 - [x] **Update `tests/integration/api/bags.list.integration.test.js`** - Integration tests work with real disc counts (0 for empty bags, actual count when discs added)
 - [x] **Verify all bag listing functionality works with real disc counts** - Tested and confirmed working
 
-### Step 13: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
-- [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION** with personal data preservation
+### Step 14: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
+- [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION** with personal data preservation including flight numbers
 - [ ] `controllers/bags.movedisc.controller.js` - Handle personal data updates during move
 - [ ] Add POST /discs/:contentId/move route
 - [ ] **Comprehensive concurrency tests** including personal data validation
 
-### Step 14: Friend Bag Viewing (Phase 3)
+### Step 15: Friend Bag Viewing (Phase 3)
 - [ ] `services/bags.friends.list.service.js` - Show friend's visible bags with disc counts
 - [ ] `services/bags.friends.get.service.js` - Show friend's bag contents (including personal data)
 - [ ] `controllers/bags.friends.list.controller.js` - GET /friends/:friendUserId

@@ -114,6 +114,41 @@ describe('POST /api/bags/:id/discs - Integration', () => {
     expect(res.body.bag_content.id).toBeDefined();
   });
 
+  test('should successfully add disc with custom flight numbers', async () => {
+    const discData = {
+      disc_id: createdDisc.id,
+      notes: 'Custom flight numbers',
+      speed: 9,
+      glide: 4,
+      turn: -2,
+      fade: 2,
+      weight: 170.0,
+      condition: 'good',
+    };
+
+    const res = await request(app)
+      .post(`/api/bags/${createdBag.id}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(discData)
+      .expect(201);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.bag_content).toMatchObject({
+      user_id: user.id,
+      bag_id: createdBag.id,
+      disc_id: createdDisc.id,
+      notes: discData.notes,
+      speed: discData.speed,
+      glide: discData.glide,
+      turn: discData.turn,
+      fade: discData.fade,
+      weight: discData.weight.toString(),
+      condition: discData.condition,
+      is_lost: false,
+    });
+    expect(res.body.bag_content.id).toBeDefined();
+  });
+
   test('should return 401 when not authenticated', async () => {
     const discData = { disc_id: createdDisc.id };
 

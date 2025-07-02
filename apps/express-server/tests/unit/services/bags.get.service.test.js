@@ -163,4 +163,74 @@ describe('getBagService', () => {
 
     expect(findFirstOptions.include.bag_contents.where).toBeUndefined();
   });
+
+  test('should use custom flight numbers from bag_contents over disc_master', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      bag_contents: [{
+        id: chance.guid(),
+        speed: 9, // Custom override
+        glide: null, // Use disc_master fallback
+        turn: -2, // Custom override
+        fade: null, // Use disc_master fallback
+        disc_master: {
+          speed: 12, // Stock value (should be overridden)
+          glide: 5, // Stock value (should be used)
+          turn: -1, // Stock value (should be overridden)
+          fade: 3, // Stock value (should be used)
+        },
+      }],
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async () => mockBag,
+      },
+    };
+
+    const result = await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(result.bag_contents[0].speed).toBe(9); // Custom used
+    expect(result.bag_contents[0].glide).toBe(5); // Fallback used
+    expect(result.bag_contents[0].turn).toBe(-2); // Custom used
+    expect(result.bag_contents[0].fade).toBe(3); // Fallback used
+  });
+
+  test('should use all custom flight numbers when none are null', async () => {
+    const userId = chance.integer({ min: 1 });
+    const bagId = chance.guid();
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      bag_contents: [{
+        id: chance.guid(),
+        speed: 11, // All custom values
+        glide: 6, // All custom values
+        turn: 0, // All custom values
+        fade: 1, // All custom values
+        disc_master: {
+          speed: 12, // Should be ignored
+          glide: 5, // Should be ignored
+          turn: -1, // Should be ignored
+          fade: 3, // Should be ignored
+        },
+      }],
+    };
+
+    const mockPrisma = {
+      bags: {
+        findFirst: async () => mockBag,
+      },
+    };
+
+    const result = await getBagService(userId, bagId, false, mockPrisma);
+
+    expect(result.bag_contents[0].speed).toBe(11); // All custom values used
+    expect(result.bag_contents[0].glide).toBe(6);
+    expect(result.bag_contents[0].turn).toBe(0);
+    expect(result.bag_contents[0].fade).toBe(1);
+  });
 });
