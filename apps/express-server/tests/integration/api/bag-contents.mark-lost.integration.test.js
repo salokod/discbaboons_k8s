@@ -162,12 +162,13 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
 
     const beforeFoundTime = new Date();
 
-    // Then mark as found
+    // Then mark as found - assign back to the original bag
     const response = await request(app)
       .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
       .set('Authorization', `Bearer ${token}`)
       .send({
         is_lost: false,
+        bag_id: createdBag.id, // Required: specify which bag to put it in
       })
       .expect(200);
 
@@ -175,6 +176,7 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
 
     expect(response.body.success).toBe(true);
     expect(response.body.bag_content.is_lost).toBe(false);
+    expect(response.body.bag_content.bag_id).toBe(createdBag.id); // Assigned to bag
     expect(response.body.bag_content.lost_notes).toBeNull();
     expect(response.body.bag_content.lost_at).toBeNull();
     expect(response.body.bag_content.updated_at).toBeDefined();
@@ -229,6 +231,135 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
 
     expect(response.body.success).toBe(false);
     expect(response.body.message).toMatch(/is_lost/i);
+  });
+
+  test('should return 400 when marking as found without bag_id', async () => {
+    // First mark as lost
+    await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: true,
+        lost_notes: chance.sentence(),
+      })
+      .expect(200);
+
+    // Try to mark as found without bag_id
+    const response = await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: false,
+        // No bag_id provided
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/bag_id is required when marking disc as found/i);
+  });
+
+  test('should return 400 when bag_id has invalid UUID format', async () => {
+    // First mark as lost
+    await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: true,
+        lost_notes: chance.sentence(),
+      })
+      .expect(200);
+
+    // Try to mark as found with invalid UUID format
+    const response = await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: false,
+        bag_id: 'invalidUUID', // Invalid UUID format
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/invalid bag_id format/i);
+  });
+
+  test('should return 403 when target bag not owned by user', async () => {
+    // Create another user and their bag
+    const otherUserData = {
+      username: `other${testId}`,
+      email: `other${testId}@ex.co`,
+      password: `Test1!${chance.word()}`,
+    };
+    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
+
+    const otherLoginRes = await request(app).post('/api/auth/login').send({
+      username: otherUserData.username,
+      password: otherUserData.password,
+    }).expect(200);
+    const otherToken = otherLoginRes.body.tokens.accessToken;
+    createdUserIds.push(otherLoginRes.body.user.id);
+
+    // Create bag for other user
+    const otherBagData = {
+      name: `Other Bag ${testId}`,
+      description: chance.sentence(),
+      is_public: false,
+      is_friends_visible: false,
+    };
+    const otherBagRes = await request(app)
+      .post('/api/bags')
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send(otherBagData)
+      .expect(201);
+    const otherBag = otherBagRes.body.bag;
+
+    // First mark as lost
+    await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: true,
+        lost_notes: chance.sentence(),
+      })
+      .expect(200);
+
+    // Try to mark as found with other user's bag
+    const response = await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: false,
+        bag_id: otherBag.id, // Not owned by current user
+      })
+      .expect(403);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/target bag not found or access denied/i);
+
+    // Clean up other bag
+    await prisma.bags.deleteMany({
+      where: { id: otherBag.id },
+    });
+  });
+
+  test('should remove disc from bag when marking as lost', async () => {
+    // Verify disc is initially in the bag
+    expect(createdBagContent.bag_id).toBe(createdBag.id);
+
+    const response = await request(app)
+      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: true,
+        lost_notes: chance.sentence(),
+      })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.bag_content.is_lost).toBe(true);
+    expect(response.body.bag_content.bag_id).toBeNull(); // Removed from bag
+    expect(response.body.bag_content.lost_notes).toBeDefined();
+    expect(response.body.bag_content.lost_at).toBeDefined();
   });
 
   test('should deny access to other users bag content', async () => {

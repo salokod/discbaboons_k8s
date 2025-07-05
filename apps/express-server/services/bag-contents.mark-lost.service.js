@@ -50,13 +50,44 @@ const markDiscLostService = async (userId, bagContentId, lostData, prismaClient 
   };
 
   if (lostData.is_lost) {
-    // Marking as lost: set notes and current timestamp
+    // Marking as lost: remove from bag, set notes and current timestamp
+    updateData.bag_id = null; // Remove from bag when lost
     updateData.lost_notes = lostData.lost_notes || null;
     updateData.lost_at = new Date();
   } else {
-    // Marking as found: clear lost data
+    // Marking as found: clear lost data and require bag assignment
     updateData.lost_notes = null;
     updateData.lost_at = null;
+
+    // bag_id is required when marking as found
+    if (!lostData.bag_id) {
+      const error = new Error('bag_id is required when marking disc as found');
+      error.name = 'ValidationError';
+      throw error;
+    }
+
+    // Validate UUID format for bag_id
+    if (!uuidRegex.test(lostData.bag_id)) {
+      const error = new Error('Invalid bag_id format');
+      error.name = 'ValidationError';
+      throw error;
+    }
+
+    // Validate user owns the target bag
+    const targetBag = await prismaClient.bags.findFirst({
+      where: {
+        id: lostData.bag_id,
+        user_id: userId,
+      },
+    });
+
+    if (!targetBag) {
+      const error = new Error('Target bag not found or access denied');
+      error.name = 'AuthorizationError';
+      throw error;
+    }
+
+    updateData.bag_id = lostData.bag_id; // Assign to target bag
   }
 
   // Update the bag content
