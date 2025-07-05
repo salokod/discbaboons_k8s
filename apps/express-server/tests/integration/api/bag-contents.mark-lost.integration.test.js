@@ -136,11 +136,17 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     expect(response.body.bag_content.is_lost).toBe(true);
     expect(response.body.bag_content.lost_notes).toBe(lostNotes);
     expect(response.body.bag_content.lost_at).toBeDefined();
+    expect(response.body.bag_content.updated_at).toBeDefined();
 
     // Verify lost_at timestamp is reasonable
     const lostAt = new Date(response.body.bag_content.lost_at);
     expect(lostAt.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
     expect(lostAt.getTime()).toBeLessThanOrEqual(afterTime.getTime());
+
+    // Verify updated_at timestamp is reasonable
+    const updatedAt = new Date(response.body.bag_content.updated_at);
+    expect(updatedAt.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
+    expect(updatedAt.getTime()).toBeLessThanOrEqual(afterTime.getTime());
   });
 
   test('should mark disc as found and clear lost data', async () => {
@@ -154,6 +160,8 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
       })
       .expect(200);
 
+    const beforeFoundTime = new Date();
+
     // Then mark as found
     const response = await request(app)
       .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
@@ -163,10 +171,18 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
       })
       .expect(200);
 
+    const afterFoundTime = new Date();
+
     expect(response.body.success).toBe(true);
     expect(response.body.bag_content.is_lost).toBe(false);
     expect(response.body.bag_content.lost_notes).toBeNull();
     expect(response.body.bag_content.lost_at).toBeNull();
+    expect(response.body.bag_content.updated_at).toBeDefined();
+
+    // Verify updated_at timestamp reflects the found operation
+    const updatedAt = new Date(response.body.bag_content.updated_at);
+    expect(updatedAt.getTime()).toBeGreaterThanOrEqual(beforeFoundTime.getTime());
+    expect(updatedAt.getTime()).toBeLessThanOrEqual(afterFoundTime.getTime());
   });
 
   test('should return 404 for non-existent bag content', async () => {

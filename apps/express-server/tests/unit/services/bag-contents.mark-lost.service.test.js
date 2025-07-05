@@ -98,6 +98,7 @@ describe('markDiscLostService', () => {
           expect(options.data.is_lost).toBe(true);
           expect(options.data.lost_notes).toBe(lostNotes);
           expect(options.data.lost_at).toBeInstanceOf(Date);
+          expect(options.data.updated_at).toBeInstanceOf(Date);
           return updatedBagContent;
         },
       },
@@ -137,6 +138,7 @@ describe('markDiscLostService', () => {
           expect(options.data.is_lost).toBe(false);
           expect(options.data.lost_notes).toBeNull();
           expect(options.data.lost_at).toBeNull();
+          expect(options.data.updated_at).toBeInstanceOf(Date);
           return updatedBagContent;
         },
       },

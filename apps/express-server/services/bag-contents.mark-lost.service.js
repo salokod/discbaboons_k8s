@@ -46,6 +46,7 @@ const markDiscLostService = async (userId, bagContentId, lostData, prismaClient 
   // Prepare update data based on is_lost status
   const updateData = {
     is_lost: lostData.is_lost,
+    updated_at: new Date(), // Always update the timestamp
   };
 
   if (lostData.is_lost) {
