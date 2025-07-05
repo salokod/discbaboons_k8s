@@ -1051,3 +1051,36 @@ describe('Friend Bag Viewing', () => {
 **🎯 NEXT STEPS:** Step 12 - Update Bag Get Service to Include Contents (Priority: View before Edit/Remove)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
+
+---
+
+## 🔧 Technical Debt & Refactoring Notes
+
+### Prisma Pattern Inconsistency - REQUIRES STANDARDIZATION
+
+**Issue**: Services use inconsistent Prisma injection patterns across the codebase.
+
+**Current Patterns Found:**
+1. **Modern Pattern** (bag-contents services): `import prisma from '../lib/prisma.js'` + `prismaClient = prisma` parameter for testing
+2. **Legacy Pattern** (discs.approve.service): `import { PrismaClient } from '@prisma/client'` + `const prisma = new PrismaClient()` (not testable)
+
+**Recommended Standard**: Use the modern pattern for all services:
+```javascript
+import prisma from '../lib/prisma.js';
+const myService = async (param1, param2, prismaClient = prisma) => { ... };
+```
+
+**Benefits of Standard Pattern:**
+- Centralized connection management
+- Testable with mock injection
+- Resource efficient (no multiple connections)
+- Consistent across codebase
+
+**TODO - Refactoring Required:**
+- [ ] Audit all service files for Prisma usage patterns
+- [ ] Convert `discs.approve.service.js` and similar files to use standard pattern
+- [ ] Update associated tests to use prismaClient parameter injection
+- [ ] Document the standard in project guidelines
+- [ ] Ensure all future services follow the standard pattern
+
+**Priority**: Medium (technical debt cleanup)
