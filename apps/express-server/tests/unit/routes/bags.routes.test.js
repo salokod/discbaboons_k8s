@@ -93,4 +93,16 @@ describe('bagsRoutes', () => {
     const middlewareNames = (putEditDiscRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have PATCH /discs/:contentId/lost route for marking disc lost/found with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const patchLostRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/discs/:contentId/lost'
+        && layer.route.methods.patch,
+    );
+    expect(patchLostRoute).toBeTruthy();
+    const middlewareNames = (patchLostRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
 });
