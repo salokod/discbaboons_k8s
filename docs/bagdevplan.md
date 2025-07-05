@@ -587,11 +587,32 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 
 **Rationale**: Users want to customize disc names for their personal collection (e.g., "Beat-in Destroyer", "Glow Champion Wraith", "First Ace Disc"). This follows the same pattern as custom flight numbers - nullable override fields that fall back to disc_master values.
 
-### Step 12: Mark Disc as Lost/Found Service
-- [ ] `services/bags.lostdisc.service.js` - Toggle is_lost flag instead of deletion
-- [ ] `controllers/bags.lostdisc.controller.js` - PATCH endpoint for lost status
-- [ ] Add PATCH /:id/discs/:contentId/lost route
-- [ ] Tests for lost/found toggle functionality
+### Step 12: Mark Disc as Lost/Found Service ✅ COMPLETED
+- [x] **Migration V16** - Added `lost_notes VARCHAR(255)` and `lost_at TIMESTAMP` fields to bag_contents for enhanced lost disc tracking
+- [x] **`services/bag-contents.mark-lost.service.js`** - Comprehensive lost/found functionality with bag management:
+  - **Lost**: Sets `is_lost: true`, `bag_id: null` (removes from bag), `lost_notes`, `lost_at: NOW()`
+  - **Found**: Requires `bag_id`, validates ownership, assigns to target bag, clears lost data
+  - **Security**: User ownership validation for both disc content and target bags
+  - **Validation**: UUID format validation, required field validation
+  - **Timestamp tracking**: Always updates `updated_at` field
+- [x] **`controllers/bag-contents.mark-lost.controller.js`** - PATCH endpoint with proper error handling (404, 400, 403)
+- [x] **Route**: PATCH `/api/bags/discs/:contentId/lost` with authentication middleware
+- [x] **Comprehensive unit tests** - TDD implementation covering all scenarios:
+  - Lost/found functionality, bag assignment/removal, validation errors, authorization checks
+- [x] **Comprehensive integration tests** - End-to-end API testing with Chance.js test data:
+  - Complete workflow testing, security validation, error scenarios, data integrity
+- [x] **Enhanced functionality**: Automatic date tracking, bag removal on lost, required bag assignment on found
+
+**API Usage:**
+```javascript
+// Mark as lost with notes (removes from bag)
+PATCH /api/bags/discs/:contentId/lost
+{ "is_lost": true, "lost_notes": "prospect park hole 12" }
+
+// Mark as found (requires target bag_id)
+PATCH /api/bags/discs/:contentId/lost  
+{ "is_lost": false, "bag_id": "target-bag-uuid" }
+```
 
 ### Step 13: Remove Disc from Bag Service
 - [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
@@ -1051,3 +1072,36 @@ describe('Friend Bag Viewing', () => {
 **🎯 NEXT STEPS:** Step 12 - Update Bag Get Service to Include Contents (Priority: View before Edit/Remove)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
+
+---
+
+## 🔧 Technical Debt & Refactoring Notes
+
+### Prisma Pattern Inconsistency - REQUIRES STANDARDIZATION
+
+**Issue**: Services use inconsistent Prisma injection patterns across the codebase.
+
+**Current Patterns Found:**
+1. **Modern Pattern** (bag-contents services): `import prisma from '../lib/prisma.js'` + `prismaClient = prisma` parameter for testing
+2. **Legacy Pattern** (discs.approve.service): `import { PrismaClient } from '@prisma/client'` + `const prisma = new PrismaClient()` (not testable)
+
+**Recommended Standard**: Use the modern pattern for all services:
+```javascript
+import prisma from '../lib/prisma.js';
+const myService = async (param1, param2, prismaClient = prisma) => { ... };
+```
+
+**Benefits of Standard Pattern:**
+- Centralized connection management
+- Testable with mock injection
+- Resource efficient (no multiple connections)
+- Consistent across codebase
+
+**TODO - Refactoring Required:**
+- [ ] Audit all service files for Prisma usage patterns
+- [ ] Convert `discs.approve.service.js` and similar files to use standard pattern
+- [ ] Update associated tests to use prismaClient parameter injection
+- [ ] Document the standard in project guidelines
+- [ ] Ensure all future services follow the standard pattern
+
+**Priority**: Medium (technical debt cleanup)

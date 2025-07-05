@@ -101,12 +101,15 @@ const editBagContentService = async (
     throw error;
   }
 
-  // Update the bag content
+  // Update the bag content with updated_at timestamp
   const updatedContent = await prismaClient.bag_contents.update({
     where: {
       id: contentId,
     },
-    data: updateData,
+    data: {
+      ...updateData,
+      updated_at: new Date(),
+    },
   });
 
   return updatedContent;

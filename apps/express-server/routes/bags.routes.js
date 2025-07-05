@@ -6,6 +6,7 @@ import updateBagController from '../controllers/bags.update.controller.js';
 import deleteBagController from '../controllers/bags.delete.controller.js';
 import bagContentsAddController from '../controllers/bag-contents.add.controller.js';
 import bagContentsEditController from '../controllers/bag-contents.edit.controller.js';
+import bagContentsMarkLostController from '../controllers/bag-contents.mark-lost.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -30,5 +31,8 @@ router.post('/:id/discs', authenticateToken, bagContentsAddController);
 
 // PUT /api/bags/:id/discs/:contentId - Edit disc in bag (requires authentication)
 router.put('/:id/discs/:contentId', authenticateToken, bagContentsEditController);
+
+// PATCH /api/bags/discs/:contentId/lost - Mark disc as lost/found (requires authentication)
+router.patch('/discs/:contentId/lost', authenticateToken, bagContentsMarkLostController);
 
 export default router;
