@@ -273,7 +273,7 @@ describe('GET /api/bags/lost-discs - Integration', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.lost_discs).toHaveLength(3);
     expect(response.body.pagination).toEqual({
-      total: 3,
+      total: 5,
       limit: 3,
       offset: 1,
       has_more: true,
