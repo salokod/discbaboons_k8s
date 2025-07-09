@@ -434,10 +434,10 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     expect(response.body.bag_content.turn).toBe(customTurn);
     expect(response.body.bag_content.brand).toBe(customBrand);
 
-    // Verify fallback values are preserved (should be null since not set)
-    expect(response.body.bag_content.glide).toBeNull();
-    expect(response.body.bag_content.fade).toBeNull();
-    expect(response.body.bag_content.model).toBeNull();
+    // Verify fallback values are preserved (should use disc_master values since not set)
+    expect(response.body.bag_content.glide).toBe(createdDisc.glide);
+    expect(response.body.bag_content.fade).toBe(createdDisc.fade);
+    expect(response.body.bag_content.model).toBe(createdDisc.model);
 
     // Clean up
     await prisma.bag_contents.deleteMany({
