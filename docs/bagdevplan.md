@@ -614,23 +614,25 @@ PATCH /api/bags/discs/:contentId/lost
 { "is_lost": false, "bag_id": "target-bag-uuid" }
 ```
 
-### Step 12b: List Lost Discs Service
-- [ ] `services/bag-contents.list-lost.service.js` - List all user's lost discs with filtering/sorting
-- [ ] `controllers/bag-contents.list-lost.controller.js` - GET endpoint for lost discs
-- [ ] Add GET `/api/bags/lost-discs` route with authentication middleware
-- [ ] **Features to implement:**
+### Step 12b: List Lost Discs Service ✅ COMPLETED
+- [x] `services/bag-contents.list-lost.service.js` - List all user's lost discs with filtering/sorting
+- [x] `controllers/bag-contents.list-lost.controller.js` - GET endpoint for lost discs
+- [x] Add GET `/api/bags/lost-discs` route with authentication middleware
+- [x] **Features implemented:**
   - **Lost disc listing**: Query `bag_contents` where `is_lost: true` and `user_id: userId` (SECURITY: Users can only view their own lost discs)
   - **User ownership validation**: Ensure authentication and filter by authenticated user's ID only
   - **Include disc master data**: Full disc information (brand, model, flight numbers)
   - **Lost metadata**: `lost_notes`, `lost_at` timestamp for context
   - **Sorting options**: By `lost_at` (newest/oldest), by disc name, by lost location
   - **Filtering options**: Optional date range, search by lost_notes
-  - **Pagination**: Support for large numbers of lost discs
-- [ ] **Comprehensive testing**: Unit tests with TDD, integration tests with various scenarios
+  - **Pagination**: Support for large numbers of lost discs with correct total count and has_more logic
+  - **Data merging**: Custom flight numbers and brand/model with disc_master fallbacks
+- [x] **Comprehensive testing**: Unit tests with TDD, integration tests with various scenarios
   - **Security tests**: Verify users cannot access other users' lost discs
   - **Authentication tests**: Ensure endpoint requires valid authentication
   - **Authorization tests**: Confirm filtering by user_id prevents cross-user access
-- [ ] **API Response Format**:
+  - **Pagination tests**: Verify correct total count, has_more logic, and pagination parameters
+- [x] **API Response Format**:
 ```javascript
 // GET /api/bags/lost-discs?sort=lost_at&order=desc&limit=20&offset=0
 {
@@ -1132,7 +1134,15 @@ describe('Friend Bag Viewing', () => {
 - **Comprehensive Testing**: Full TDD implementation with unit and integration tests
 - **API Endpoint**: PATCH `/api/bags/discs/:contentId/lost` with proper validation and error handling
 
-**🎯 NEXT STEPS:** Step 12b - List Lost Discs Service (View all lost discs for recovery management)
+**✅ COMPLETED:** Step 12b - List Lost Discs Service with Pagination & Data Merging
+- **Lost Disc Listing**: GET `/api/bags/lost-discs` endpoint with comprehensive filtering and sorting
+- **Fixed Pagination Logic**: Corrected total count calculation and has_more logic (was showing incorrect values)
+- **Data Merging**: Custom flight numbers and brand/model with disc_master fallbacks
+- **Security**: User ownership validation ensures users only see their own lost discs
+- **Comprehensive Testing**: Unit and integration tests with proper pagination validation
+- **Bug Fixes**: Fixed pagination issues where has_more showed true when limit=total, now correctly calculates based on actual total count
+
+**🎯 NEXT STEPS:** Step 13 - Remove Disc from Bag Service (Physical deletion for edge cases)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
 
