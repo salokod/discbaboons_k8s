@@ -389,4 +389,59 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     expect(response.body.success).toBe(false);
     expect(response.body.message).toMatch(/not found or access denied/i);
   });
+
+  test('should preserve custom flight numbers when marking disc as lost', async () => {
+    // Create a disc with custom flight numbers
+    const customSpeed = 13;
+    const customTurn = 0;
+    const customBrand = 'Custom Brand';
+
+    const customDiscData = {
+      disc_id: createdDisc.id,
+      notes: chance.sentence(),
+      weight: chance.floating({ min: 150, max: 180, fixed: 1 }),
+      condition: 'good',
+      // Custom flight numbers
+      speed: customSpeed,
+      turn: customTurn,
+      brand: customBrand,
+      // glide, fade, model will use disc_master values
+    };
+
+    const customDiscRes = await request(app)
+      .post(`/api/bags/${createdBag.id}/discs`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(customDiscData)
+      .expect(201);
+
+    const customBagContent = customDiscRes.body.bag_content;
+
+    // Mark as lost
+    const response = await request(app)
+      .patch(`/api/bags/discs/${customBagContent.id}/lost`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        is_lost: true,
+        lost_notes: 'Lost with custom flight numbers',
+      })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.bag_content.is_lost).toBe(true);
+
+    // Verify custom flight numbers are preserved
+    expect(response.body.bag_content.speed).toBe(customSpeed);
+    expect(response.body.bag_content.turn).toBe(customTurn);
+    expect(response.body.bag_content.brand).toBe(customBrand);
+
+    // Verify fallback values are preserved (should use disc_master values since not set)
+    expect(response.body.bag_content.glide).toBe(createdDisc.glide);
+    expect(response.body.bag_content.fade).toBe(createdDisc.fade);
+    expect(response.body.bag_content.model).toBe(createdDisc.model);
+
+    // Clean up
+    await prisma.bag_contents.deleteMany({
+      where: { id: customBagContent.id },
+    });
+  });
 });

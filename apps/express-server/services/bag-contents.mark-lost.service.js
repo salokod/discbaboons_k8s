@@ -47,6 +47,13 @@ const markDiscLostService = async (userId, bagContentId, lostData, prismaClient 
   const updateData = {
     is_lost: lostData.is_lost,
     updated_at: new Date(), // Always update the timestamp
+    // Preserve existing custom flight numbers and disc info
+    speed: bagContent.speed,
+    glide: bagContent.glide,
+    turn: bagContent.turn,
+    fade: bagContent.fade,
+    brand: bagContent.brand,
+    model: bagContent.model,
   };
 
   if (lostData.is_lost) {

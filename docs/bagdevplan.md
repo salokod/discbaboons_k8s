@@ -614,6 +614,62 @@ PATCH /api/bags/discs/:contentId/lost
 { "is_lost": false, "bag_id": "target-bag-uuid" }
 ```
 
+### Step 12b: List Lost Discs Service
+- [ ] `services/bag-contents.list-lost.service.js` - List all user's lost discs with filtering/sorting
+- [ ] `controllers/bag-contents.list-lost.controller.js` - GET endpoint for lost discs
+- [ ] Add GET `/api/bags/lost-discs` route with authentication middleware
+- [ ] **Features to implement:**
+  - **Lost disc listing**: Query `bag_contents` where `is_lost: true` and `user_id: userId` (SECURITY: Users can only view their own lost discs)
+  - **User ownership validation**: Ensure authentication and filter by authenticated user's ID only
+  - **Include disc master data**: Full disc information (brand, model, flight numbers)
+  - **Lost metadata**: `lost_notes`, `lost_at` timestamp for context
+  - **Sorting options**: By `lost_at` (newest/oldest), by disc name, by lost location
+  - **Filtering options**: Optional date range, search by lost_notes
+  - **Pagination**: Support for large numbers of lost discs
+- [ ] **Comprehensive testing**: Unit tests with TDD, integration tests with various scenarios
+  - **Security tests**: Verify users cannot access other users' lost discs
+  - **Authentication tests**: Ensure endpoint requires valid authentication
+  - **Authorization tests**: Confirm filtering by user_id prevents cross-user access
+- [ ] **API Response Format**:
+```javascript
+// GET /api/bags/lost-discs?sort=lost_at&order=desc&limit=20&offset=0
+{
+  "success": true,
+  "lost_discs": [
+    {
+      "id": "content-uuid",
+      "disc_master": { "brand": "Innova", "model": "Destroyer", ... },
+      "notes": "Original disc notes",
+      "weight": 175.0,
+      "condition": "good", 
+      "plastic_type": "Champion",
+      "color": "Red",
+      "speed": 12, // Custom or fallback flight numbers
+      "glide": 5,
+      "turn": -1, 
+      "fade": 3,
+      "brand": "Custom Brand", // Custom or fallback names
+      "model": "Custom Model",
+      "lost_notes": "prospect park hole 12",
+      "lost_at": "2024-01-15T14:30:00Z",
+      "updated_at": "2024-01-15T14:30:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 15,
+    "limit": 20,
+    "offset": 0,
+    "has_more": false
+  }
+}
+```
+
+**Rationale**: Users need a dedicated view of all their lost discs to:
+- **Review lost inventory**: See what discs they've lost over time
+- **Manage recovery**: Find discs to mark as found when recovered
+- **Track loss patterns**: Understand where/when they lose discs most often
+- **Bulk management**: Potentially mark multiple discs as found from one view
+
 ### Step 13: Remove Disc from Bag Service
 - [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
 - [ ] `controllers/bags.removedisc.controller.js` - DELETE endpoint with confirmation
@@ -1069,7 +1125,14 @@ describe('Friend Bag Viewing', () => {
 
 **✅ COMPLETED:** Add Disc to Bag Service with full security validation including pending disc ownership checks
 
-**🎯 NEXT STEPS:** Step 12 - Update Bag Get Service to Include Contents (Priority: View before Edit/Remove)
+**✅ COMPLETED:** Step 12 - Mark Disc as Lost/Found Service with Enhanced Bag Management
+- **Lost Disc Tracking**: Database migration V16 with `lost_notes` and `lost_at` fields
+- **Bag Management**: Lost discs removed from bags (`bag_id: null`), found discs require target bag assignment
+- **Enhanced Security**: User ownership validation for both disc content and target bags
+- **Comprehensive Testing**: Full TDD implementation with unit and integration tests
+- **API Endpoint**: PATCH `/api/bags/discs/:contentId/lost` with proper validation and error handling
+
+**🎯 NEXT STEPS:** Step 12b - List Lost Discs Service (View all lost discs for recovery management)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
 
