@@ -13,6 +13,14 @@ const listLostDiscsService = async (userId, options = {}, prismaClient = prisma)
   const sortField = options.sort || 'lost_at';
   const sortOrder = options.order || 'desc';
 
+  // Get total count of user's lost discs
+  const totalCount = await prismaClient.bag_contents.count({
+    where: {
+      user_id: userId,
+      is_lost: true,
+    },
+  });
+
   // Query for user's lost discs
   const lostDiscs = await prismaClient.bag_contents.findMany({
     where: {
@@ -44,10 +52,10 @@ const listLostDiscsService = async (userId, options = {}, prismaClient = prisma)
   return {
     lost_discs: mergedLostDiscs,
     pagination: {
-      total: mergedLostDiscs.length,
+      total: totalCount,
       limit,
       offset,
-      has_more: mergedLostDiscs.length === limit,
+      has_more: (offset + limit) < totalCount,
     },
   };
 };

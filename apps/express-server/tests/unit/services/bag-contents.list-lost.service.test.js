@@ -42,6 +42,7 @@ describe('listLostDiscsService', () => {
 
     const mockPrisma = {
       bag_contents: {
+        count: async () => 1,
         findMany: async (query) => {
           expect(query.where.user_id).toBe(userId);
           expect(query.where.is_lost).toBe(true);
@@ -106,6 +107,7 @@ describe('listLostDiscsService', () => {
 
     const mockPrisma = {
       bag_contents: {
+        count: async () => 1,
         findMany: async () => mockLostDiscs,
       },
     };
@@ -128,6 +130,7 @@ describe('listLostDiscsService', () => {
 
     const mockPrisma = {
       bag_contents: {
+        count: async () => 0,
         findMany: async (query) => {
           expect(query.take).toBe(customLimit);
           expect(query.skip).toBe(customOffset);
@@ -152,6 +155,7 @@ describe('listLostDiscsService', () => {
 
     const mockPrisma = {
       bag_contents: {
+        count: async () => 0,
         findMany: async (query) => {
           expect(query.orderBy).toEqual({
             [sortField]: sortOrder,
@@ -174,6 +178,7 @@ describe('listLostDiscsService', () => {
 
     const mockPrisma = {
       bag_contents: {
+        count: async () => 0,
         findMany: async (query) => {
           expect(query.where.user_id).toBe(userId);
           expect(query.where.is_lost).toBe(true);
@@ -195,11 +200,12 @@ describe('listLostDiscsService', () => {
     });
   });
 
-  test('should set has_more flag correctly based on result count', async () => {
+  test('should set has_more flag correctly based on total count', async () => {
     const userId = chance.integer({ min: 1 });
     const limit = 5;
+    const totalCount = 10; // More than limit
 
-    // Mock exactly limit number of results (should set has_more: true)
+    // Mock exactly limit number of results
     const mockLostDiscs = Array.from({ length: limit }, () => ({
       id: chance.guid(),
       user_id: userId,
@@ -219,6 +225,7 @@ describe('listLostDiscsService', () => {
 
     const mockPrisma = {
       bag_contents: {
+        count: async () => totalCount,
         findMany: async () => mockLostDiscs,
       },
     };
@@ -226,6 +233,41 @@ describe('listLostDiscsService', () => {
     const result = await listLostDiscsService(userId, { limit }, mockPrisma);
 
     expect(result.pagination.has_more).toBe(true);
-    expect(result.pagination.total).toBe(limit);
+    expect(result.pagination.total).toBe(totalCount);
+  });
+
+  test('should set has_more to false when limit equals total count', async () => {
+    const userId = chance.integer({ min: 1 });
+    const limit = 2;
+    const totalCount = 2; // Exactly the limit
+
+    const mockLostDiscs = Array.from({ length: limit }, () => ({
+      id: chance.guid(),
+      user_id: userId,
+      disc_id: chance.guid(),
+      is_lost: true,
+      lost_notes: chance.sentence(),
+      lost_at: new Date(),
+      disc_master: {
+        brand: chance.company(),
+        model: chance.word(),
+        speed: chance.integer({ min: 1, max: 15 }),
+        glide: chance.integer({ min: 1, max: 7 }),
+        turn: chance.integer({ min: -5, max: 2 }),
+        fade: chance.integer({ min: 0, max: 5 }),
+      },
+    }));
+
+    const mockPrisma = {
+      bag_contents: {
+        count: async () => totalCount,
+        findMany: async () => mockLostDiscs,
+      },
+    };
+
+    const result = await listLostDiscsService(userId, { limit }, mockPrisma);
+
+    expect(result.pagination.has_more).toBe(false);
+    expect(result.pagination.total).toBe(totalCount);
   });
 });
