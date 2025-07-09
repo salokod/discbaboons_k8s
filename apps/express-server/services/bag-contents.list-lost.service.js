@@ -8,7 +8,7 @@ const listLostDiscsService = async (userId, options = {}, prismaClient = prisma)
   }
 
   // Set default pagination and sorting options
-  const limit = options.limit || 20;
+  const limit = options.limit || 30;
   const offset = options.offset || 0;
   const sortField = options.sort || 'lost_at';
   const sortOrder = options.order || 'desc';

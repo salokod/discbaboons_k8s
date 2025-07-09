@@ -67,7 +67,7 @@ describe('listLostDiscsService', () => {
       lost_discs: [expectedDisc],
       pagination: {
         total: 1,
-        limit: 20,
+        limit: 30,
         offset: 0,
         has_more: false,
       },
@@ -188,7 +188,7 @@ describe('listLostDiscsService', () => {
       lost_discs: [],
       pagination: {
         total: 0,
-        limit: 20,
+        limit: 30,
         offset: 0,
         has_more: false,
       },

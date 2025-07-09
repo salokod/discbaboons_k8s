@@ -81,6 +81,12 @@ describe('markDiscLostService', () => {
       id: bagContentId,
       user_id: userId,
       is_lost: false,
+      speed: chance.integer({ min: 1, max: 15 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+      brand: chance.company(),
+      model: chance.word(),
     };
     const updatedBagContent = {
       id: bagContentId,
@@ -97,8 +103,16 @@ describe('markDiscLostService', () => {
           expect(options.where.id).toBe(bagContentId);
           expect(options.data.is_lost).toBe(true);
           expect(options.data.lost_notes).toBe(lostNotes);
+          expect(options.data.bag_id).toBeNull();
           expect(options.data.lost_at).toBeInstanceOf(Date);
           expect(options.data.updated_at).toBeInstanceOf(Date);
+          // Expect custom flight numbers to be preserved
+          expect(options.data.speed).toBe(mockBagContent.speed);
+          expect(options.data.glide).toBe(mockBagContent.glide);
+          expect(options.data.turn).toBe(mockBagContent.turn);
+          expect(options.data.fade).toBe(mockBagContent.fade);
+          expect(options.data.brand).toBe(mockBagContent.brand);
+          expect(options.data.model).toBe(mockBagContent.model);
           return updatedBagContent;
         },
       },
@@ -122,6 +136,12 @@ describe('markDiscLostService', () => {
       is_lost: true,
       lost_notes: 'prospect park hole 12',
       lost_at: new Date('2024-01-15'),
+      speed: chance.integer({ min: 1, max: 15 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+      brand: chance.company(),
+      model: chance.word(),
     };
     const mockTargetBag = {
       id: targetBagId,
@@ -147,6 +167,13 @@ describe('markDiscLostService', () => {
           expect(options.data.lost_notes).toBeNull();
           expect(options.data.lost_at).toBeNull();
           expect(options.data.updated_at).toBeInstanceOf(Date);
+          // Expect custom flight numbers to be preserved
+          expect(options.data.speed).toBe(mockBagContent.speed);
+          expect(options.data.glide).toBe(mockBagContent.glide);
+          expect(options.data.turn).toBe(mockBagContent.turn);
+          expect(options.data.fade).toBe(mockBagContent.fade);
+          expect(options.data.brand).toBe(mockBagContent.brand);
+          expect(options.data.model).toBe(mockBagContent.model);
           return updatedBagContent;
         },
       },

@@ -7,12 +7,16 @@ import deleteBagController from '../controllers/bags.delete.controller.js';
 import bagContentsAddController from '../controllers/bag-contents.add.controller.js';
 import bagContentsEditController from '../controllers/bag-contents.edit.controller.js';
 import bagContentsMarkLostController from '../controllers/bag-contents.mark-lost.controller.js';
+import listLostDiscsController from '../controllers/bag-contents.list-lost.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // GET /api/bags - List user's bags (requires authentication)
 router.get('/', authenticateToken, bagsListController);
+
+// GET /api/bags/lost-discs - List user's lost discs (requires authentication)
+router.get('/lost-discs', authenticateToken, listLostDiscsController);
 
 // GET /api/bags/:id - Get specific bag (requires authentication)
 router.get('/:id', authenticateToken, getBagController);
