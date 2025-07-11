@@ -117,4 +117,16 @@ describe('bagsRoutes', () => {
     const middlewareNames = (getLostDiscsRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have DELETE /discs/:contentId route for removing disc from account with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const deleteDiscRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/discs/:contentId'
+        && layer.route.methods.delete,
+    );
+    expect(deleteDiscRoute).toBeTruthy();
+    const middlewareNames = (deleteDiscRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
 });
