@@ -9,6 +9,7 @@ import bagContentsEditController from '../controllers/bag-contents.edit.controll
 import bagContentsMarkLostController from '../controllers/bag-contents.mark-lost.controller.js';
 import listLostDiscsController from '../controllers/bag-contents.list-lost.controller.js';
 import removeDiscController from '../controllers/bag-contents.remove.controller.js';
+import moveDiscController from '../controllers/bag-contents.move.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -42,5 +43,8 @@ router.patch('/discs/:contentId/lost', authenticateToken, bagContentsMarkLostCon
 
 // DELETE /api/bags/discs/:contentId - Remove disc from account (requires authentication)
 router.delete('/discs/:contentId', authenticateToken, removeDiscController);
+
+// PUT /api/bags/discs/move - Move discs between bags (requires authentication)
+router.put('/discs/move', authenticateToken, moveDiscController);
 
 export default router;

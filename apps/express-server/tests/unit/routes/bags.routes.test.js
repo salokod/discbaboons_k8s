@@ -129,4 +129,16 @@ describe('bagsRoutes', () => {
     const middlewareNames = (deleteDiscRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have PUT /discs/move route for moving discs between bags with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const moveDiscsRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/discs/move'
+        && layer.route.methods.put,
+    );
+    expect(moveDiscsRoute).toBeTruthy();
+    const middlewareNames = (moveDiscsRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
 });
