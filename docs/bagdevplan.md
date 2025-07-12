@@ -449,41 +449,76 @@ router.get('/friends/:friendUserId/:bagId', authenticateToken, bagsFriendsGetCon
 }
 ```
 
-**DELETE `/api/bags/:id/discs/:contentId`** - Remove Disc from Bag (Phase 2)
+**DELETE `/api/bags/discs/:contentId`** - Remove Disc from Account (Phase 2) ✅ IMPLEMENTED
 ```json
 // Response (200)
 {
   "success": true,
-  "message": "Disc removed from bag successfully"
+  "message": "Disc removed from your account successfully"
+}
+
+// Response (404) - Not Found or Access Denied
+{
+  "success": false,
+  "message": "Disc not found or access denied"
 }
 ```
 
-**POST `/api/bags/discs/:contentId/move`** - Move Disc Between Bags (Phase 2)
+**POST `/api/bags/discs/move`** - Move Discs Between Bags (Bulk Operations) ✅ PLANNED
 ```json
-// Request
+// Single Disc Move
 {
+  "content_ids": ["content-uuid-1"],
   "to_bag_id": "target-bag-uuid",
-  "notes": "Updated notes for new bag",
-  "condition": "good"
+  "update_data": {
+    "notes": "Updated notes for new bag",
+    "condition": "good"
+  }
 }
 
-// Response (200)
+// Multiple Discs Move
+{
+  "content_ids": ["content-uuid-1", "content-uuid-2", "content-uuid-3"],
+  "to_bag_id": "target-bag-uuid",
+  "update_data": {
+    "condition": "tournament-ready"
+  }
+}
+
+// Move All Discs from Source Bag
+{
+  "from_bag_id": "source-bag-uuid",
+  "to_bag_id": "target-bag-uuid",
+  "move_all": true
+}
+
+// Move All Discs Matching Criteria
+{
+  "from_bag_id": "source-bag-uuid", 
+  "to_bag_id": "target-bag-uuid",
+  "filter": {
+    "disc_type": "driver", // Based on speed > 10
+    "condition": "good",
+    "is_lost": false
+  }
+}
+
+// Success Response (200)
 {
   "success": true,
-  "moved_disc": {
-    "id": "new-content-uuid",
-    "bag_id": "target-bag-uuid",
-    "disc": {
-      "id": "disc-uuid",
-      "brand": "Innova",
-      "model": "Destroyer"
-    },
-    "notes": "Updated notes for new bag",
-    "condition": "good",
-    "added_at": "2025-06-28T11:00:00Z"
-  },
+  "moved_count": 3,
+  "moved_discs": [
+    {
+      "id": "new-content-uuid-1",
+      "old_content_id": "content-uuid-1",
+      "disc": { "brand": "Innova", "model": "Destroyer" },
+      "notes": "Updated notes",
+      "condition": "good"
+    }
+  ],
   "from_bag_id": "source-bag-uuid",
-  "to_bag_id": "target-bag-uuid"
+  "to_bag_id": "target-bag-uuid",
+  "operation_time": "2025-06-28T11:00:00Z"
 }
 ```
 
@@ -672,11 +707,39 @@ PATCH /api/bags/discs/:contentId/lost
 - **Track loss patterns**: Understand where/when they lose discs most often
 - **Bulk management**: Potentially mark multiple discs as found from one view
 
-### Step 13: Remove Disc from Bag Service
-- [ ] `services/bags.removedisc.service.js` - Physical deletion (use sparingly, prefer marking lost)
-- [ ] `controllers/bags.removedisc.controller.js` - DELETE endpoint with confirmation
-- [ ] Add DELETE /:id/discs/:contentId route
-- [ ] Tests with proper ownership validation
+### Step 13: Remove Disc from Account Service ✅ COMPLETED
+- [x] `services/bag-contents.remove.service.js` - Complete removal from user's account (permanent deletion)
+- [x] `controllers/bag-contents.remove.controller.js` - DELETE endpoint with proper error handling
+- [x] Add DELETE `/api/bags/discs/:contentId` route with authentication middleware
+- [x] **Comprehensive TDD Implementation**: Full test-driven development with thin slices
+  - **Service Tests**: Unit tests covering validation, UUID checking, ownership validation, and successful deletion
+  - **Controller Tests**: HTTP response handling, error delegation to errorHandler middleware
+  - **Route Tests**: Authentication middleware integration and proper mounting
+  - **Integration Tests**: End-to-end API testing with real database operations
+- [x] **Security Features**: User ownership validation, UUID format checking, proper error responses
+- [x] **Error Handling**: Integration with existing errorHandler middleware for consistent responses
+- [x] **Use Cases**: Perfect for accidental additions, sold/traded discs, data cleanup scenarios
+
+**API Usage:**
+```javascript
+// Remove disc completely from account (permanent deletion)
+DELETE /api/bags/discs/:contentId
+Authorization: Bearer <token>
+
+// Success Response (200)
+{
+  "success": true,
+  "message": "Disc removed from your account successfully"
+}
+
+// Error Responses
+// 401 - No authentication
+// 404 - Invalid UUID or disc not found/access denied
+```
+
+**Key Differences from Mark Lost:**
+- **Remove**: Permanent deletion from database (gone forever)
+- **Mark Lost**: Keeps in database with `is_lost: true` for recovery tracking
 
 ### 🚨 CRITICAL: Fix Hardcoded disc_count After Phase 2 Setup ✅ COMPLETED
 **COMPLETED after Step 7 (bag_contents table creation):**
@@ -693,11 +756,16 @@ PATCH /api/bags/discs/:contentId/lost
 - [x] **Update `tests/integration/api/bags.list.integration.test.js`** - Integration tests work with real disc counts (0 for empty bags, actual count when discs added)
 - [x] **Verify all bag listing functionality works with real disc counts** - Tested and confirmed working
 
-### Step 14: Move Disc Between Bags Service (CRITICAL CONCURRENCY)
-- [ ] `services/bags.movedisc.service.js` - **ATOMIC TRANSACTION** with personal data preservation including flight numbers
-- [ ] `controllers/bags.movedisc.controller.js` - Handle personal data updates during move
-- [ ] Add POST /discs/:contentId/move route
-- [ ] **Comprehensive concurrency tests** including personal data validation
+### Step 14: Move Discs Between Bags Service (BULK OPERATIONS + ATOMIC TRANSACTIONS)
+- [ ] `services/bag-contents.move.service.js` - **ATOMIC BULK TRANSACTION** with personal data preservation
+- [ ] `controllers/bag-contents.move.controller.js` - Handle single, multiple, or all disc movements
+- [ ] Add POST `/api/bags/discs/move` route for bulk operations
+- [ ] **Bulk Movement Support**:
+  - **Single Disc**: Move one disc by contentId
+  - **Multiple Discs**: Move array of contentIds
+  - **All Discs**: Move all discs from source bag to target bag
+  - **Selective Filtering**: Move all discs matching criteria (e.g., all lost discs, specific disc type)
+- [ ] **Comprehensive concurrency tests** including bulk operations and rollback scenarios
 
 ### Step 15: Friend Bag Viewing (Phase 3)
 - [ ] `services/bags.friends.list.service.js` - Show friend's visible bags with disc counts
@@ -794,30 +862,68 @@ const listFriendBagsService = async (userId, friendUserId) => {
 - Prevent race conditions where disc could be "lost" or "duplicated"
 - Validate user owns both bags before starting transaction
 
-### Move Disc Service Implementation Strategy
+### Bulk Move Disc Service Implementation Strategy
 
 ```javascript
-// services/bags.movedisc.service.js
-const moveDiscService = async (userId, contentId, targetBagId, updateData) => {
-  return await prisma.$transaction(async (tx) => {
-    // 1. Get the current bag content with user validation
-    const currentContent = await tx.bag_contents.findFirst({
-      where: { 
-        id: contentId,
-        bags: { user_id: userId }  // Ensure user owns source bag
-      },
-      include: { bags: true }
-    });
+// services/bag-contents.move.service.js
+const moveDiscsService = async (userId, moveRequest, prismaClient = prisma) => {
+  return await prismaClient.$transaction(async (tx) => {
+    // 1. Determine which discs to move
+    let discsToMove = [];
     
-    if (!currentContent) {
-      throw new Error('Disc not found or access denied');
+    if (moveRequest.content_ids) {
+      // Specific discs by ID
+      discsToMove = await tx.bag_contents.findMany({
+        where: {
+          id: { in: moveRequest.content_ids },
+          user_id: userId  // Security: User must own all discs
+        },
+        include: { disc_master: true }
+      });
+    } else if (moveRequest.move_all && moveRequest.from_bag_id) {
+      // All discs from source bag
+      discsToMove = await tx.bag_contents.findMany({
+        where: {
+          bag_id: moveRequest.from_bag_id,
+          user_id: userId,  // Security: User must own source bag
+          is_lost: false   // Don't move lost discs
+        },
+        include: { disc_master: true }
+      });
+    } else if (moveRequest.filter && moveRequest.from_bag_id) {
+      // Filtered discs from source bag
+      const whereClause = {
+        bag_id: moveRequest.from_bag_id,
+        user_id: userId,
+        is_lost: false
+      };
+      
+      // Apply filters
+      if (moveRequest.filter.condition) {
+        whereClause.condition = moveRequest.filter.condition;
+      }
+      if (moveRequest.filter.disc_type === 'driver') {
+        whereClause.OR = [
+          { speed: { gte: 10 } },
+          { disc_master: { speed: { gte: 10 } } }
+        ];
+      }
+      
+      discsToMove = await tx.bag_contents.findMany({
+        where: whereClause,
+        include: { disc_master: true }
+      });
+    }
+    
+    if (discsToMove.length === 0) {
+      throw new Error('No discs found to move');
     }
     
     // 2. Validate target bag ownership
     const targetBag = await tx.bags.findFirst({
       where: { 
-        id: targetBagId,
-        user_id: userId  // Ensure user owns target bag
+        id: moveRequest.to_bag_id,
+        user_id: userId
       }
     });
     
@@ -825,31 +931,48 @@ const moveDiscService = async (userId, contentId, targetBagId, updateData) => {
       throw new Error('Target bag not found or access denied');
     }
     
-    // 3. Create new content in target bag
-    const newContent = await tx.bag_contents.create({
-      data: {
-        bag_id: targetBagId,
-        disc_id: currentContent.disc_id,
-        notes: updateData.notes || currentContent.notes,
-        weight: updateData.weight || currentContent.weight,
-        condition: updateData.condition || currentContent.condition,
-      },
-      include: {
-        disc_master: true,
-        bags: true
+    // 3. Create new content records in target bag (BULK)
+    const newContentData = discsToMove.map(disc => ({
+      bag_id: moveRequest.to_bag_id,
+      disc_id: disc.disc_id,
+      user_id: userId,
+      notes: moveRequest.update_data?.notes || disc.notes,
+      weight: moveRequest.update_data?.weight || disc.weight,
+      condition: moveRequest.update_data?.condition || disc.condition,
+      plastic_type: moveRequest.update_data?.plastic_type || disc.plastic_type,
+      color: moveRequest.update_data?.color || disc.color,
+      speed: moveRequest.update_data?.speed || disc.speed,
+      glide: moveRequest.update_data?.glide || disc.glide,
+      turn: moveRequest.update_data?.turn || disc.turn,
+      fade: moveRequest.update_data?.fade || disc.fade,
+      brand: moveRequest.update_data?.brand || disc.brand,
+      model: moveRequest.update_data?.model || disc.model,
+      is_lost: false
+    }));
+    
+    const newContents = await tx.bag_contents.createMany({
+      data: newContentData
+    });
+    
+    // 4. Delete original content records (BULK)
+    await tx.bag_contents.deleteMany({
+      where: {
+        id: { in: discsToMove.map(d => d.id) }
       }
     });
     
-    // 4. Delete from source bag
-    await tx.bag_contents.delete({
-      where: { id: contentId }
-    });
-    
-    // 5. Return move result
+    // 5. Return detailed results
     return {
-      moved_disc: newContent,
-      from_bag_id: currentContent.bag_id,
-      to_bag_id: targetBagId
+      moved_count: discsToMove.length,
+      moved_discs: discsToMove.map((originalDisc, index) => ({
+        old_content_id: originalDisc.id,
+        disc: originalDisc.disc_master,
+        notes: newContentData[index].notes,
+        condition: newContentData[index].condition,
+        // ... other updated fields
+      })),
+      from_bag_id: discsToMove[0]?.bag_id || moveRequest.from_bag_id,
+      to_bag_id: moveRequest.to_bag_id
     };
   });
 };
@@ -1142,7 +1265,7 @@ describe('Friend Bag Viewing', () => {
 - **Comprehensive Testing**: Unit and integration tests with proper pagination validation
 - **Bug Fixes**: Fixed pagination issues where has_more showed true when limit=total, now correctly calculates based on actual total count
 
-**🎯 NEXT STEPS:** Step 13 - Remove Disc from Bag Service (Physical deletion for edge cases)
+**🎯 NEXT STEPS:** Step 14 - Move Disc Between Bags Service (Atomic transactions for disc movement)
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
 
