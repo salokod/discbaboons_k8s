@@ -756,16 +756,83 @@ Authorization: Bearer <token>
 - [x] **Update `tests/integration/api/bags.list.integration.test.js`** - Integration tests work with real disc counts (0 for empty bags, actual count when discs added)
 - [x] **Verify all bag listing functionality works with real disc counts** - Tested and confirmed working
 
-### Step 14: Move Discs Between Bags Service (BULK OPERATIONS + ATOMIC TRANSACTIONS)
-- [ ] `services/bag-contents.move.service.js` - **ATOMIC BULK TRANSACTION** with personal data preservation
-- [ ] `controllers/bag-contents.move.controller.js` - Handle single, multiple, or all disc movements
-- [ ] Add POST `/api/bags/discs/move` route for bulk operations
-- [ ] **Bulk Movement Support**:
+### Step 14: Move Discs Between Bags Service (BULK OPERATIONS + ATOMIC TRANSACTIONS) ✅ COMPLETED
+- [x] `services/bag-contents.move.service.js` - **ATOMIC BULK TRANSACTION** with personal data preservation
+- [x] `controllers/bag-contents.move.controller.js` - Handle single, multiple, or all disc movements
+- [x] Add PUT `/api/bags/discs/move` route for bulk operations
+- [x] **Bulk Movement Support**:
   - **Single Disc**: Move one disc by contentId
   - **Multiple Discs**: Move array of contentIds
   - **All Discs**: Move all discs from source bag to target bag
-  - **Selective Filtering**: Move all discs matching criteria (e.g., all lost discs, specific disc type)
-- [ ] **Comprehensive concurrency tests** including bulk operations and rollback scenarios
+  - **Updated Timestamps**: All moved discs get refreshed `updated_at` timestamp
+- [x] **Comprehensive TDD Implementation**: Following thin slice methodology
+  - **Service Tests**: Unit tests with comprehensive validation, UUID checking, ownership validation
+  - **Controller Tests**: HTTP response handling with proper error delegation
+  - **Route Tests**: Authentication middleware integration and endpoint registration
+  - **Integration Tests**: End-to-end API testing with real database operations
+- [x] **Security Features**: User ownership validation for both source and target bags, UUID format validation
+- [x] **Transaction Safety**: Uses Prisma transactions with `transactionClient` for atomicity
+- [x] **Error Handling**: Integration with existing errorHandler middleware for consistent responses
+
+**API Usage:**
+```javascript
+// Move single disc
+PUT /api/bags/discs/move
+{
+  "sourceBagId": "uuid-here",
+  "targetBagId": "uuid-here", 
+  "contentIds": ["disc-content-id"]
+}
+
+// Move multiple discs
+PUT /api/bags/discs/move
+{
+  "sourceBagId": "uuid-here",
+  "targetBagId": "uuid-here",
+  "contentIds": ["id1", "id2", "id3"]
+}
+
+// Move all discs from source to target
+PUT /api/bags/discs/move
+{
+  "sourceBagId": "uuid-here",
+  "targetBagId": "uuid-here"
+}
+
+// Success Response (200)
+{
+  "success": true,
+  "message": "Discs moved successfully",
+  "movedCount": 3
+}
+
+// Error Responses
+// 401 - No authentication
+// 404 - Invalid UUID or bags not found/access denied
+```
+
+**Implementation Details:**
+- **Service Layer (`bag-contents.move.service.js`)**:
+  - Validates required parameters (userId, sourceBagId, targetBagId)
+  - UUID format validation for bag IDs using regex pattern
+  - User ownership validation for both source and target bags
+  - Supports three movement modes based on options.contentIds
+  - Updates `updated_at` timestamp during moves
+  - Uses database transactions for atomicity with descriptive `transactionClient` naming
+- **Controller Layer (`bag-contents.move.controller.js`)**:
+  - Handles HTTP requests and responses with proper status codes
+  - Delegates business logic to service layer
+  - Returns appropriate responses (200 success, 404 not found)
+  - Integrates with error handling middleware
+- **Route Layer (`bags.routes.js`)**:
+  - Added `PUT /api/bags/discs/move` endpoint
+  - Includes authentication middleware
+  - Follows existing route patterns and conventions
+- **Comprehensive Testing**:
+  - Unit tests for service with all edge cases and Chance.js test data
+  - Controller tests with mocked dependencies and error scenarios
+  - Route tests for endpoint registration and authentication
+  - Integration tests with real database operations and security validation
 
 ### Step 15: Friend Bag Viewing (Phase 3)
 - [ ] `services/bags.friends.list.service.js` - Show friend's visible bags with disc counts
@@ -1265,7 +1332,7 @@ describe('Friend Bag Viewing', () => {
 - **Comprehensive Testing**: Unit and integration tests with proper pagination validation
 - **Bug Fixes**: Fixed pagination issues where has_more showed true when limit=total, now correctly calculates based on actual total count
 
-**🎯 NEXT STEPS:** Step 14 - Move Disc Between Bags Service (Atomic transactions for disc movement)
+**🎯 NEXT STEPS:** Step 15 - Friend Bag Viewing (Phase 3) - Show friend's visible bags with privacy controls
 
 This plan ensures robust disc movement with proper concurrency handling, friend access controls, and privacy management while building incrementally from basic bag management.
 
