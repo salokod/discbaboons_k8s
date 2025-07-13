@@ -55,10 +55,13 @@ const listFriendBagsService = async (userId, friendUserId, prismaClient = prisma
 
   return {
     friend: { id: friendUserId },
-    bags: bags.map((bag) => ({
-      ...bag,
-      disc_count: bag._count.bag_contents,
-    })),
+    bags: bags.map((bag) => {
+      const { _count, ...bagData } = bag;
+      return {
+        ...bagData,
+        disc_count: _count.bag_contents,
+      };
+    }),
   };
 };
 
