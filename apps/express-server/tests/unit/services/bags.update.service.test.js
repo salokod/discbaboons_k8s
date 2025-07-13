@@ -73,9 +73,13 @@ describe('updateBagService', () => {
       is_friends_visible: true,
     };
 
+    let capturedUpdateData;
     const mockPrisma = {
       bags: {
-        updateMany: async () => ({ count: 1 }),
+        updateMany: async ({ data }) => {
+          capturedUpdateData = data;
+          return { count: 1 };
+        },
         findFirst: async () => updatedBag,
       },
     };
@@ -83,6 +87,10 @@ describe('updateBagService', () => {
     const result = await updateBagService(userId, bagId, updateData, mockPrisma);
 
     expect(result).toEqual(updatedBag);
+    expect(capturedUpdateData).toEqual({
+      ...updateData,
+      updated_at: expect.any(Date),
+    });
   });
 
   test('should return null if bag does not exist or user does not own it', async () => {
