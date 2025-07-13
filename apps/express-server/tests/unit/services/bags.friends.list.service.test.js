@@ -91,15 +91,19 @@ describe('listFriendBagsService', () => {
 
     const result = await listFriendBagsService(userId, friendUserId, mockPrisma);
 
+    // Extract expected bag data without _count
+    const { _count: publicCount, ...expectedPublicBag } = bags[0];
+    const { _count: friendsCount, ...expectedFriendsBag } = bags[1];
+
     expect(result).toEqual({
       friend: { id: friendUserId },
       bags: [
         {
-          ...bags[0],
+          ...expectedPublicBag,
           disc_count: publicBagDiscCount,
         },
         {
-          ...bags[1],
+          ...expectedFriendsBag,
           disc_count: friendsBagDiscCount,
         },
       ],
