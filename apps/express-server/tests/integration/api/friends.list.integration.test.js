@@ -115,10 +115,19 @@ describe('GET /api/friends - Integration', () => {
     expect(Array.isArray(resA.body.friends)).toBe(true);
     expect(
       resA.body.friends.some(
-        (f) => (f.requester_id === userA.id || f.recipient_id === userA.id)
-          && f.status === 'accepted',
+        (f) => f.id === userB.id && f.friendship.status === 'accepted',
       ),
     ).toBe(true);
+
+    // Verify enhanced data structure for User A's friend (User B)
+    const userBFriend = resA.body.friends.find((f) => f.id === userB.id);
+    expect(userBFriend).toHaveProperty('username');
+    expect(userBFriend).toHaveProperty('email');
+    expect(userBFriend).toHaveProperty('friendship');
+    expect(userBFriend).toHaveProperty('bag_stats');
+    expect(userBFriend.bag_stats).toHaveProperty('total_bags');
+    expect(userBFriend.bag_stats).toHaveProperty('visible_bags');
+    expect(userBFriend.bag_stats).toHaveProperty('public_bags');
 
     // User B's friends
     const resB = await request(app)
@@ -128,10 +137,19 @@ describe('GET /api/friends - Integration', () => {
     expect(Array.isArray(resB.body.friends)).toBe(true);
     expect(
       resB.body.friends.some(
-        (f) => (f.requester_id === userB.id || f.recipient_id === userB.id)
-          && f.status === 'accepted',
+        (f) => f.id === userA.id && f.friendship.status === 'accepted',
       ),
     ).toBe(true);
+
+    // Verify enhanced data structure for User B's friend (User A)
+    const userAFriend = resB.body.friends.find((f) => f.id === userA.id);
+    expect(userAFriend).toHaveProperty('username');
+    expect(userAFriend).toHaveProperty('email');
+    expect(userAFriend).toHaveProperty('friendship');
+    expect(userAFriend).toHaveProperty('bag_stats');
+    expect(userAFriend.bag_stats).toHaveProperty('total_bags');
+    expect(userAFriend.bag_stats).toHaveProperty('visible_bags');
+    expect(userAFriend.bag_stats).toHaveProperty('public_bags');
   });
 
   test('should return empty array if user has no accepted friends', async () => {
