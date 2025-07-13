@@ -31,7 +31,10 @@ const updateBagService = async (userId, bagId, updateData, prismaClient = prisma
       id: bagId,
       user_id: userId,
     },
-    data: updateData,
+    data: {
+      ...updateData,
+      updated_at: new Date(),
+    },
   });
 
   // If no rows were updated, bag doesn't exist or user doesn't own it

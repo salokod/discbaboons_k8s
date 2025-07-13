@@ -40,6 +40,11 @@ apps/express-server/
 │   └── unit/        # Service/function tests
 ```
 
+## Human preferences
+- I like to go slow and learn throughout
+- Try and return the thinnest slice each time, first with test like 'function exists' then the prod code to match that
+- go step by step, and explain / give me opportunities to learn
+
 ## Database
 - Use Prisma for all database operations
 - Always use transactions for multi-step operations

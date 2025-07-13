@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import 'dotenv/config';
 import {
   describe, test, expect, beforeEach, afterEach,
@@ -173,6 +174,7 @@ describe('PUT /api/bags/:id - Integration', () => {
     // Verify the original created_at is preserved but updated_at changed
     expect(res.body.bag.created_at).toBe(createdBag.created_at);
     expect(new Date(res.body.bag.updated_at)).toBeInstanceOf(Date);
+    expect(new Date(res.body.bag.updated_at).getTime()).toBeGreaterThan(new Date(createdBag.updated_at).getTime());
   });
 
   test('should allow partial updates', async () => {
@@ -214,6 +216,9 @@ describe('PUT /api/bags/:id - Integration', () => {
         user_id: user.id,
       },
     });
+
+    // Verify updated_at was changed
+    expect(new Date(res.body.bag.updated_at).getTime()).toBeGreaterThan(new Date(createdBag.updated_at).getTime());
   });
 
   test('should return 404 when user tries to update another users bag', async () => {
