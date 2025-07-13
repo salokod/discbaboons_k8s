@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import bagsRoutes from '../../../routes/bags.routes.js';
 
 describe('bagsRoutes', () => {
@@ -139,6 +140,18 @@ describe('bagsRoutes', () => {
     );
     expect(moveDiscsRoute).toBeTruthy();
     const middlewareNames = (moveDiscsRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
+
+  test('should have GET /friends/:friendUserId route for listing friend bags with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const friendBagsRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/friends/:friendUserId'
+        && layer.route.methods.get,
+    );
+    expect(friendBagsRoute).toBeTruthy();
+    const middlewareNames = (friendBagsRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
 });
