@@ -834,13 +834,54 @@ PUT /api/bags/discs/move
   - Route tests for endpoint registration and authentication
   - Integration tests with real database operations and security validation
 
-### Step 15: Friend Bag Viewing (Phase 3)
-- [ ] `services/bags.friends.list.service.js` - Show friend's visible bags with disc counts
-- [ ] `services/bags.friends.get.service.js` - Show friend's bag contents (including personal data)
-- [ ] `controllers/bags.friends.list.controller.js` - GET /friends/:friendUserId
-- [ ] `controllers/bags.friends.get.controller.js` - GET /friends/:friendUserId/:bagId
-- [ ] Add friend bag routes with authentication
+### Step 15: Friend Bag Viewing (Phase 3) - Enhanced Friends List + Bag Viewing
+**Strategy Pivot**: Enhance existing friends list service first, then add dedicated bag viewing services.
+
+#### Step 15a: Enhanced Friends List Service ✅ PLANNED
+- [ ] **Enhance `services/friends.list.service.js`** - Add bag visibility statistics to friends list
+- [ ] **Update friends list response format** - Include user details and bag stats for better UX
+- [ ] **Add comprehensive testing** - Update existing tests and add new functionality tests
+- [ ] **Backward compatibility** - Ensure enhanced service doesn't break existing functionality
+
+**Enhanced Friends List Response Format:**
+```javascript
+// GET /api/friends
+{
+  "success": true,
+  "friends": [
+    {
+      "id": 5,
+      "username": "disc_master_bob",
+      "email": "bob@example.com",
+      "friendship": {
+        "id": 2,
+        "status": "accepted",
+        "created_at": "2025-06-22T23:14:06.055Z"
+      },
+      "bag_stats": {
+        "total_bags": 3,
+        "visible_bags": 2,  // friends-visible + public
+        "public_bags": 1
+      }
+    }
+  ]
+}
+```
+
+#### Step 15b: Dedicated Friend Bag Services
+- [ ] `services/bags.friends.list.service.js` - Show specific friend's visible bags with disc counts
+- [ ] `services/bags.friends.get.service.js` - Show specific friend's bag contents (including personal data)
+- [ ] `controllers/bags.friends.list.controller.js` - GET /bags/friends/:friendUserId
+- [ ] `controllers/bags.friends.get.controller.js` - GET /bags/friends/:friendUserId/:bagId
+- [ ] Add dedicated friend bag routes with authentication
 - [ ] **Comprehensive friendship validation tests** including privacy levels
+
+**Benefits of This Approach:**
+- **Better UX**: Frontend knows which friends have viewable bags before making additional calls
+- **Efficient Discovery**: One API call shows all friends with their bag availability
+- **Backwards Compatible**: Enhanced existing endpoint instead of replacing it
+- **Informative**: Shows public vs friends-only bag counts for UI decision making
+- **Two-Phase Implementation**: Enhanced list first, then dedicated bag viewing services
 
 ---
 
