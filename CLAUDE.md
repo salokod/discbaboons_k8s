@@ -44,6 +44,8 @@ apps/express-server/
 - I like to go slow and learn throughout
 - Try and return the thinnest slice each time, first with test like 'function exists' then the prod code to match that
 - go step by step, and explain / give me opportunities to learn
+- DO NOT run tests or lint commands - human will run these to save tokens
+- DO NOT fix lint issues - human will fix these to save tokens
 
 ## Database
 - Use Prisma for all database operations
