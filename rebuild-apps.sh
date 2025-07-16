@@ -230,6 +230,26 @@ else
 fi
 
 echo ""
+echo -e "${YELLOW}Step 15.6: Loading course-data.csv into courses table...${NC}"
+
+# Convert course-data.csv to SQL insert statements and load into Postgres
+if [ -f "course-data.csv" ]; then
+  echo "Parsing course-data.csv and inserting into courses..."
+
+  # Generate a temp SQL file using dedicated Python script
+  python3 scripts/import_courses.py
+
+  # Copy the SQL file into the Postgres pod and execute it
+  POSTGRES_POD=$(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+  kubectl cp courses_seed.sql $POSTGRES_POD:/tmp/courses_seed.sql
+  kubectl exec $POSTGRES_POD -- psql -U app_user -d discbaboons_db -f /tmp/courses_seed.sql
+
+  echo "✅ courses table seeded from course-data.csv"
+else
+  echo "course-data.csv not found, skipping courses seeding."
+fi
+
+echo ""
 echo -e "${GREEN}✅ VERIFICATION PHASE${NC}"
 echo "====================="
 
@@ -309,6 +329,7 @@ echo ""
 echo -e "${YELLOW}Cleaning up temporary files...${NC}"
 rm -f flyway-migrations-configmap-generated.yaml
 rm -f disc_master_seed.sql
+rm -f courses_seed.sql
 echo "✅ Temporary files cleaned up"
 
 # Optional: Auto-start port forwarding
