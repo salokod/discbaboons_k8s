@@ -11,6 +11,7 @@ import listLostDiscsController from '../controllers/bag-contents.list-lost.contr
 import removeDiscController from '../controllers/bag-contents.remove.controller.js';
 import moveDiscController from '../controllers/bag-contents.move.controller.js';
 import bagsFriendsListController from '../controllers/bags.friends.list.controller.js';
+import getFriendBagController from '../controllers/bags.friends.get.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.get('/lost-discs', authenticateToken, listLostDiscsController);
 
 // GET /api/bags/friends/:friendUserId - List friend's visible bags (requires authentication)
 router.get('/friends/:friendUserId', authenticateToken, bagsFriendsListController);
+
+// GET /api/bags/friends/:friendUserId/:bagId - Get specific friend's bag (requires authentication)
+router.get('/friends/:friendUserId/:bagId', authenticateToken, getFriendBagController);
 
 // GET /api/bags/:id - Get specific bag (requires authentication)
 router.get('/:id', authenticateToken, getBagController);
