@@ -5,12 +5,12 @@ import express from 'express';
 import request from 'supertest';
 
 let coursesRouter;
-let coursesSearchController;
+let courseSearchCont;
 let authenticateToken;
 
 beforeAll(async () => {
   // Mock the controller
-  coursesSearchController = vi.fn((req, res) => {
+  courseSearchCont = vi.fn((req, res) => {
     res.json({ message: 'controller called' });
   });
 
@@ -21,7 +21,7 @@ beforeAll(async () => {
   });
 
   vi.doMock('../../../controllers/courses.search.controller.js', () => ({
-    default: coursesSearchController,
+    default: courseSearchCont,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -43,7 +43,7 @@ describe('courses routes', () => {
 
     expect(response.body).toEqual({ message: 'controller called' });
     expect(authenticateToken).toHaveBeenCalled();
-    expect(coursesSearchController).toHaveBeenCalled();
+    expect(courseSearchCont).toHaveBeenCalled();
   });
 
   test('GET /api/courses with query params should pass to controller', async () => {
@@ -54,8 +54,8 @@ describe('courses routes', () => {
       .get('/api/courses?state=California&city=Sacramento&name=Capitol')
       .expect(200);
 
-    expect(coursesSearchController).toHaveBeenCalled();
-    const lastCall = coursesSearchController.mock.calls[coursesSearchController.mock.calls.length - 1];
+    expect(courseSearchCont).toHaveBeenCalled();
+    const lastCall = courseSearchCont.mock.calls[courseSearchCont.mock.calls.length - 1];
     const req = lastCall[0];
     expect(req.query).toEqual({
       state: 'California',
