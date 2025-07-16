@@ -6,10 +6,12 @@ const coursesSearchController = async (req, res, next) => {
       state: req.query.state,
       city: req.query.city,
       name: req.query.name,
+      limit: req.query.limit,
+      offset: req.query.offset,
     };
 
-    const courses = await coursesSearchService(filters);
-    res.json(courses);
+    const result = await coursesSearchService(filters);
+    res.json(result);
   } catch (error) {
     next(error);
   }

@@ -297,30 +297,48 @@ model users {
 
 ## Development Phases
 
-### Phase 1: Course Management Foundation
+### Phase 1: Course Management Foundation ✅ **COMPLETED**
 **Target: Week 1-2**
 
-#### Step 1.1: Course Data Infrastructure
-- [ ] Create course migration files (V14)
-- [ ] Update Prisma schema
-- [ ] Add course-data.csv import to rebuild-apps.sh
-- [ ] Create course seeding service
-- [ ] Test course data import
+#### Step 1.1: Course Data Infrastructure ✅ **COMPLETED**
+- ✅ Create course migration files (V17__create_courses_table.sql)
+- ✅ Update Prisma schema with courses model
+- ✅ Add course-data.csv import to rebuild-apps.sh with Python script
+- ✅ Create course seeding service (scripts/import_courses.py)
+- ✅ Test course data import (7,008 courses imported successfully)
 
-#### Step 1.2: Course API Endpoints
-- [ ] `GET /api/courses` - Search/filter courses (state, city, name)
+#### Step 1.2: Course API Endpoints **IN PROGRESS**
+- ✅ `GET /api/courses` - Search/filter courses with pagination (state, city, name, limit, offset)
 - [ ] `GET /api/courses/:id` - Get course details
 - [ ] `POST /api/courses` - Submit user course (authenticated)
 - [ ] `GET /api/courses/pending` - Admin: List pending courses
 - [ ] `PUT /api/courses/:id/approve` - Admin: Approve/reject course
 
-#### Step 1.3: Course Services & Controllers
-- [ ] `courses.search.service.js` - Course search with filters
+#### Step 1.3: Course Services & Controllers **IN PROGRESS**
+- ✅ `courses.search.service.js` - Course search with filters and pagination (default 50, max 500)
+- ✅ `courses.search.controller.js` - Controller with parameter extraction
+- ✅ `courses.routes.js` - Route setup with authentication middleware
+- ✅ Integration with server.js and auth middleware
+- ✅ Comprehensive test coverage (unit tests, integration tests)
 - [ ] `courses.get.service.js` - Single course retrieval
 - [ ] `courses.submit.service.js` - User course submission
 - [ ] `courses.admin.service.js` - Admin approval workflow
-- [ ] Controller layer for all course endpoints
-- [ ] Comprehensive test coverage
+
+#### Current API Status ✅
+**Endpoint:** `GET /api/courses` (authenticated)
+- **Response Format:**
+```json
+{
+  "courses": [...],     // Array of course objects
+  "total": 7008,        // Total matching courses
+  "limit": 50,          // Results per page (default 50, max 500)
+  "offset": 0,          // Starting position
+  "hasMore": true       // Whether more results exist
+}
+```
+- **Filters:** state, city, name (case-insensitive partial match)
+- **Pagination:** limit (max 500), offset
+- **Data:** 7,008 US disc golf courses imported from CSV
 
 ### Phase 2: Round Management Core
 **Target: Week 3-4**
@@ -420,11 +438,14 @@ model users {
 ## API Endpoints Overview
 
 ### Course Management
-- `GET /api/courses` - Search courses with filters
-- `GET /api/courses/:id` - Get course details
-- `POST /api/courses` - Submit user course
-- `GET /api/courses/pending` - Admin: pending courses
-- `PUT /api/courses/:id/approve` - Admin: approve course
+- ✅ `GET /api/courses` - Search courses with filters and pagination (authenticated)
+  - **Filters:** `?state=California&city=Sacramento&name=park`
+  - **Pagination:** `?limit=100&offset=50` (max limit: 500)
+  - **Response:** Paginated results with metadata
+- [ ] `GET /api/courses/:id` - Get course details
+- [ ] `POST /api/courses` - Submit user course
+- [ ] `GET /api/courses/pending` - Admin: pending courses
+- [ ] `PUT /api/courses/:id/approve` - Admin: approve course
 
 ### Round Management
 - `POST /api/rounds` - Create round

@@ -23,21 +23,29 @@ describe('coursesSearchController', () => {
   });
 
   test('should extract filters from query params and call service', async () => {
-    const mockCourses = [
-      {
-        id: chance.word(),
-        name: chance.sentence(),
-        city: chance.city(),
-        state: chance.state(),
-        approved: true,
-      },
-    ];
+    const mockResult = {
+      courses: [
+        {
+          id: chance.word(),
+          name: chance.sentence(),
+          city: chance.city(),
+          state: chance.state(),
+          approved: true,
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
 
     const req = {
       query: {
         state: chance.state(),
         city: chance.city(),
         name: chance.word(),
+        limit: '25',
+        offset: '10',
       },
     };
 
@@ -47,7 +55,7 @@ describe('coursesSearchController', () => {
 
     const next = vi.fn();
 
-    coursesSearchService.mockResolvedValue(mockCourses);
+    coursesSearchService.mockResolvedValue(mockResult);
 
     await coursesSearchController(req, res, next);
 
@@ -55,8 +63,10 @@ describe('coursesSearchController', () => {
       state: req.query.state,
       city: req.query.city,
       name: req.query.name,
+      limit: req.query.limit,
+      offset: req.query.offset,
     });
-    expect(res.json).toHaveBeenCalledWith(mockCourses);
+    expect(res.json).toHaveBeenCalledWith(mockResult);
     expect(next).not.toHaveBeenCalled();
   });
 
