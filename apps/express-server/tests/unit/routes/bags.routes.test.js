@@ -154,4 +154,16 @@ describe('bagsRoutes', () => {
     const middlewareNames = (friendBagsRoute.route.stack || []).map((mw) => mw.name);
     expect(middlewareNames).toContain('authenticateToken');
   });
+
+  test('should have GET /friends/:friendUserId/:bagId route for getting friend bag with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const getFriendBagRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/friends/:friendUserId/:bagId'
+        && layer.route.methods.get,
+    );
+    expect(getFriendBagRoute).toBeTruthy();
+    const middlewareNames = (getFriendBagRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
 });

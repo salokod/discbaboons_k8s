@@ -34,15 +34,15 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
         {
           requester_id: userId,
           recipient_id: friendUserId,
-          status: 'accepted'
+          status: 'accepted',
         },
         {
           requester_id: friendUserId,
           recipient_id: userId,
-          status: 'accepted'
-        }
-      ]
-    }
+          status: 'accepted',
+        },
+      ],
+    },
   });
 
   if (!friendship) {
@@ -58,19 +58,19 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
       user_id: friendUserId,
       OR: [
         { is_public: true },
-        { is_friends_visible: true }
-      ]
+        { is_friends_visible: true },
+      ],
     },
     include: {
       bag_contents: {
         where: {
-          is_lost: false
+          is_lost: false,
         },
         include: {
-          disc_master: true
-        }
-      }
-    }
+          disc_master: true,
+        },
+      },
+    },
   });
 
   if (!bag) {
@@ -80,7 +80,7 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
   }
 
   // Transform bag contents to include personal data with fallbacks
-  const contents = bag.bag_contents.map(content => ({
+  const contents = bag.bag_contents.map((content) => ({
     id: content.id,
     disc: content.disc_master,
     notes: content.notes,
@@ -95,18 +95,19 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
     brand: content.brand || content.disc_master.brand,
     model: content.model || content.disc_master.model,
     added_at: content.added_at,
-    updated_at: content.updated_at
+    updated_at: content.updated_at,
   }));
 
   // Remove bag_contents from bag object and add transformed contents
+  // eslint-disable-next-line camelcase, no-unused-vars
   const { bag_contents, ...bagData } = bag;
 
   return {
     friend: { id: friendUserId },
     bag: {
       ...bagData,
-      contents
-    }
+      contents,
+    },
   };
 };
 
