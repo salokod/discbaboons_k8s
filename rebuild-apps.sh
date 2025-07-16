@@ -230,6 +230,50 @@ else
 fi
 
 echo ""
+echo -e "${YELLOW}Step 15.6: Loading course-data.csv into courses table...${NC}"
+
+# Convert course-data.csv to SQL insert statements and load into Postgres
+if [ -f "course-data.csv" ]; then
+  echo "Parsing course-data.csv and inserting into courses..."
+
+  # Generate a temp SQL file
+  python3 -c '
+import csv
+with open("course-data.csv") as f:
+    reader = csv.DictReader(f)
+    with open("courses_seed.sql", "w") as out:
+        for row in reader:
+            course_id = row.get("id", "").replace("\"", "").replace("\\x27", "\\x27\\x27")
+            name = row.get("name", "").replace("\"", "").replace("\\x27", "\\x27\\x27")
+            city = row.get("city", "").replace("\"", "").strip().replace("\\x27", "\\x27\\x27")
+            state = row.get("state", "").replace("\"", "").replace("\\x27", "\\x27\\x27")
+            zip_code = row.get("zip", "").replace("\"", "").strip()
+            hole_count = row.get("holeCount", "18")
+            rating = row.get("rating", "")
+            latitude = row.get("latitude", "")
+            longitude = row.get("longitude", "")
+            
+            # Handle optional fields
+            zip_val = f"\\x27{zip_code}\\x27" if zip_code else "NULL"
+            rating_val = rating if rating and rating.replace(".", "").isdigit() else "NULL"
+            lat_val = latitude if latitude and latitude.replace("-", "").replace(".", "").isdigit() else "NULL"
+            lon_val = longitude if longitude and longitude.replace("-", "").replace(".", "").isdigit() else "NULL"
+            
+            if course_id and name and city and state:
+                out.write(f"INSERT INTO courses (id, name, city, state, zip, hole_count, rating, latitude, longitude, is_user_submitted, approved, created_at, updated_at) VALUES (\\x27{course_id}\\x27, \\x27{name}\\x27, \\x27{city}\\x27, \\x27{state}\\x27, {zip_val}, {hole_count}, {rating_val}, {lat_val}, {lon_val}, FALSE, TRUE, NOW(), NOW());\\n")
+  '
+
+  # Copy the SQL file into the Postgres pod and execute it
+  POSTGRES_POD=$(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+  kubectl cp courses_seed.sql $POSTGRES_POD:/tmp/courses_seed.sql
+  kubectl exec $POSTGRES_POD -- psql -U app_user -d discbaboons_db -f /tmp/courses_seed.sql
+
+  echo "✅ courses table seeded from course-data.csv"
+else
+  echo "course-data.csv not found, skipping courses seeding."
+fi
+
+echo ""
 echo -e "${GREEN}✅ VERIFICATION PHASE${NC}"
 echo "====================="
 
@@ -309,6 +353,7 @@ echo ""
 echo -e "${YELLOW}Cleaning up temporary files...${NC}"
 rm -f flyway-migrations-configmap-generated.yaml
 rm -f disc_master_seed.sql
+rm -f courses_seed.sql
 echo "✅ Temporary files cleaned up"
 
 # Optional: Auto-start port forwarding

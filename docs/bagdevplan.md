@@ -868,7 +868,7 @@ PUT /api/bags/discs/move
 }
 ```
 
-#### Step 15b: Dedicated Friend Bag Services ✅ COMPLETED (15b1) / ⏳ IN PROGRESS (15b2)
+#### Step 15b: Dedicated Friend Bag Services ✅ COMPLETED
 - [x] **15b1: Friend Bag List Service** ✅ COMPLETED (TDD implementation)
   - [x] `services/bags.friends.list.service.js` - Show specific friend's visible bags with disc counts
   - [x] `controllers/bags.friends.list.controller.js` - GET /api/bags/friends/:friendUserId
@@ -878,13 +878,15 @@ PUT /api/bags/discs/move
   - [x] **Full TDD implementation**: Service → Controller → Routes → Integration tests
   - [x] **Security features**: Bidirectional friendship validation, privacy level enforcement
   - [x] **API endpoint**: `GET /api/bags/friends/:friendUserId` returns friend's visible bags with disc counts
-- [ ] **15b2: Friend Bag Get Service** (TDD implementation - NEXT)
-  - [ ] `services/bags.friends.get.service.js` - Show specific friend's bag contents (including personal data)
-  - [ ] `controllers/bags.friends.get.controller.js` - GET /api/bags/friends/:friendUserId/:bagId
-  - [ ] Unit tests: friendship validation, bag visibility, content filtering (hide lost discs)
-  - [ ] Integration tests: end-to-end API testing with real bag contents and personal data
-  - [ ] Route mounting: Add GET /api/bags/friends/:friendUserId/:bagId endpoint
-  - [ ] **Enhanced content display**: Show friend's disc personal data (notes, condition, custom flight numbers, custom names)
+- [x] **15b2: Friend Bag Get Service** ✅ COMPLETED (TDD implementation)
+  - [x] `services/bags.friends.get.service.js` - Show specific friend's bag contents (including personal data)
+  - [x] `controllers/bags.friends.get.controller.js` - GET /api/bags/friends/:friendUserId/:bagId
+  - [x] Unit tests: friendship validation, bag visibility, content filtering (hide lost discs)
+  - [x] Integration tests: end-to-end API testing with real bag contents and personal data
+  - [x] Route mounting: Add GET /api/bags/friends/:friendUserId/:bagId endpoint
+  - [x] **Enhanced content display**: Show friend's disc personal data (notes, condition, custom flight numbers, custom names)
+  - [x] **Data transformation**: Custom flight numbers and brand/model with disc_master fallbacks
+  - [x] **Security validation**: User ownership, friendship verification, bag visibility enforcement
 
 **Benefits of This Approach:**
 - **Better UX**: Frontend knows which friends have viewable bags before making additional calls
@@ -1383,46 +1385,63 @@ describe('Friend Bag Viewing', () => {
 - **Comprehensive Testing**: Unit and integration tests with proper pagination validation
 - **Bug Fixes**: Fixed pagination issues where has_more showed true when limit=total, now correctly calculates based on actual total count
 
-**🎯 CURRENT STATUS:** Step 15b1 - Friend Bag List Service ✅ COMPLETED
+**🎯 CURRENT STATUS:** Step 15b2 - Friend Bag Get Service ✅ COMPLETED
 
-### **Latest Accomplishment: Step 15b1 - Friend Bag List Service** ✅ COMPLETED
-**API Endpoint:** `GET /api/bags/friends/:friendUserId`
+### **Latest Accomplishment: Step 15b2 - Friend Bag Get Service** ✅ COMPLETED
+**API Endpoint:** `GET /api/bags/friends/:friendUserId/:bagId`
 
 **What We Built:**
-- **Service Layer**: Complete friendship validation, privacy enforcement, and bag listing with disc counts
-- **Controller Layer**: HTTP parameter validation, service delegation, proper error handling
-- **Routes Layer**: Authentication middleware integration, endpoint mounting in bags.routes.js
-- **Comprehensive Testing**: Unit tests, controller tests, route tests, and integration tests with real friendship setup
+- **Service Layer**: Complete friendship validation, bag visibility enforcement, and content retrieval with personal data
+- **Controller Layer**: Parameter validation (friendUserId integer + bagId UUID), service delegation, proper error handling
+- **Routes Layer**: Authentication middleware integration, endpoint mounting in bags.routes.js with route testing
+- **Comprehensive Testing**: Unit tests, controller tests, route tests, and integration tests covering all scenarios
 
 **Key Features Implemented:**
 - **Bidirectional Friendship Validation**: Either user can be requester/recipient in friendship table
-- **Privacy Level Enforcement**: Only returns public OR friends-visible bags (private bags hidden)
-- **Disc Count Integration**: Each bag includes accurate disc count using Prisma _count
+- **Bag Visibility Enforcement**: Only returns public OR friends-visible bags (private bags return 403)
+- **Content Filtering**: Excludes lost discs (is_lost: false) from friend's view
+- **Personal Data Display**: Shows friend's notes, condition, plastic type, color, weight
+- **Custom Data Merging**: Custom flight numbers and brand/model with disc_master fallbacks
 - **Security**: User ownership validation, UUID format checking, authentication requirements
 - **Error Handling**: ValidationError, AuthorizationError with proper HTTP status codes
 
 **API Response Example:**
 ```javascript
-GET /api/bags/friends/123
+GET /api/bags/friends/123/550e8400-e29b-41d4-a716-446655440000
 Authorization: Bearer <token>
 
 {
   "success": true,
   "friend": { "id": 123 },
-  "bags": [
-    {
-      "id": "uuid",
-      "name": "Tournament Bag",
-      "description": "My competition discs", 
-      "is_public": true,
-      "disc_count": 15,
-      "created_at": "2025-07-13T10:00:00Z"
-    }
-  ]
+  "bag": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Bob's Tournament Setup",
+    "description": "What I throw in tournaments",
+    "is_friends_visible": true,
+    "created_at": "2025-07-16T10:00:00Z",
+    "contents": [
+      {
+        "id": "content-uuid",
+        "disc": { "brand": "Innova", "model": "Destroyer", "speed": 12, "glide": 5, "turn": -1, "fade": 3 },
+        "notes": "Champion plastic, red",
+        "weight": 175.0,
+        "condition": "good",
+        "plastic_type": "Champion",
+        "color": "Red",
+        "speed": 13, // Custom override
+        "brand": "Custom Brand", // Custom override
+        "model": "Custom Model", // Custom override
+        "added_at": "2025-07-16T10:30:00Z"
+      }
+    ]
+  }
 }
 ```
 
-**🎯 NEXT STEPS:** Step 15b2 - Friend Bag Get Service (View specific friend's bag contents with personal data)
+**🎉 PHASE 3 COMPLETE: Friend Bag Viewing Functionality**
+- ✅ Enhanced friends list with bag statistics
+- ✅ Friend bag listing with disc counts  
+- ✅ Friend bag detailed view with personal data
 
 ### **Step 15b2 Planning: Friend Bag Get Service**
 **Goal**: Allow users to view the contents of a specific friend's bag, including personal data
