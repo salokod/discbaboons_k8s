@@ -14,6 +14,7 @@ describe('GET /api/courses - Integration', () => {
   let token;
   let testId;
   let createdUserIds = [];
+  let createdCourseIds = [];
 
   beforeEach(async () => {
     // Generate unique test identifier for this test run
@@ -21,6 +22,7 @@ describe('GET /api/courses - Integration', () => {
     const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
     testId = `${timestamp}${random}`;
     createdUserIds = [];
+    createdCourseIds = [];
 
     // Register test user
     const userData = {
@@ -36,9 +38,62 @@ describe('GET /api/courses - Integration', () => {
     token = login.body.tokens.accessToken;
     user = login.body.user;
     createdUserIds.push(user.id);
+
+    // Create test course data for integration tests
+    const testCourses = [
+      {
+        id: `test-course-${testId}-1`,
+        name: 'Test Park Disc Golf Course',
+        city: 'Test City',
+        state: 'California',
+        zip: '12345',
+        hole_count: 18,
+        rating: 4.5,
+        latitude: 37.7749,
+        longitude: -122.4194,
+        is_user_submitted: false,
+        approved: true,
+      },
+      {
+        id: `test-course-${testId}-2`,
+        name: 'Another Test Course',
+        city: 'Test City',
+        state: 'California',
+        zip: '12346',
+        hole_count: 9,
+        is_user_submitted: false,
+        approved: true,
+      },
+      {
+        id: `test-course-${testId}-3`,
+        name: 'Heritage Park Course',
+        city: 'Different City',
+        state: 'Texas',
+        zip: '54321',
+        hole_count: 18,
+        is_user_submitted: false,
+        approved: true,
+      },
+    ];
+
+    // Create test courses using Promise.all to avoid ESLint loop issues
+    const coursePromises = testCourses.map(async (course) => {
+      await prisma.courses.create({ data: course });
+      createdCourseIds.push(course.id);
+    });
+    await Promise.all(coursePromises);
   });
 
   afterEach(async () => {
+    // Clean up test courses first
+    if (createdCourseIds.length > 0) {
+      await prisma.courses.deleteMany({
+        where: {
+          id: { in: createdCourseIds },
+        },
+      });
+    }
+
     // Clean up test users
     if (createdUserIds.length > 0) {
       await prisma.users.deleteMany({
@@ -59,7 +114,7 @@ describe('GET /api/courses - Integration', () => {
     });
   });
 
-  test('should return courses from imported CSV data with pagination', async () => {
+  test('should return courses from test data with pagination', async () => {
     const res = await request(app)
       .get('/api/courses')
       .set('Authorization', `Bearer ${token}`)
@@ -75,6 +130,7 @@ describe('GET /api/courses - Integration', () => {
 
     expect(res.body.courses.length).toBeGreaterThan(0);
     expect(res.body.limit).toBe(50); // Default limit
+    expect(res.body.total).toBeGreaterThan(0); // Should have our test courses
 
     // Check structure of first course
     const firstCourse = res.body.courses[0];
@@ -97,13 +153,8 @@ describe('GET /api/courses - Integration', () => {
   });
 
   test('should filter courses by state', async () => {
-    // First get all courses to find a valid state
-    const allCoursesRes = await request(app)
-      .get('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    const targetState = allCoursesRes.body.courses[0].state;
+    // Use California from our test data
+    const targetState = 'California';
 
     const res = await request(app)
       .get(`/api/courses?state=${encodeURIComponent(targetState)}`)
@@ -120,13 +171,8 @@ describe('GET /api/courses - Integration', () => {
   });
 
   test('should filter courses by city', async () => {
-    // First get all courses to find a valid city
-    const allCoursesRes = await request(app)
-      .get('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    const targetCity = allCoursesRes.body.courses[0].city;
+    // Use Test City from our test data
+    const targetCity = 'Test City';
 
     const res = await request(app)
       .get(`/api/courses?city=${encodeURIComponent(targetCity)}`)
@@ -143,7 +189,7 @@ describe('GET /api/courses - Integration', () => {
   });
 
   test('should filter courses by name (case-insensitive partial match)', async () => {
-    // Search for "park" which should match many courses
+    // Search for "park" which should match our test course
     const res = await request(app)
       .get('/api/courses?name=park')
       .set('Authorization', `Bearer ${token}`)
@@ -159,15 +205,9 @@ describe('GET /api/courses - Integration', () => {
   });
 
   test('should combine multiple filters', async () => {
-    // First get courses to find valid state and city combination
-    const allCoursesRes = await request(app)
-      .get('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    const sampleCourse = allCoursesRes.body.courses[0];
-    const targetState = sampleCourse.state;
-    const targetCity = sampleCourse.city;
+    // Use known test data values
+    const targetState = 'California';
+    const targetCity = 'Test City';
 
     const res = await request(app)
       .get(`/api/courses?state=${encodeURIComponent(targetState)}&city=${encodeURIComponent(targetCity)}`)
