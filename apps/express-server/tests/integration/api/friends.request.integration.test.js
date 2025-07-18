@@ -13,8 +13,8 @@ describe('POST /api/friends/request - Integration', () => {
   let userA; let userB; let tokenA; let
     tokenB;
 
-  const userAPrefix = `test-friendreq-a-${chance.string({ length: 2 })}`;
-  const userBPrefix = `test-friendreq-b-${chance.string({ length: 2 })}`;
+  const userAPrefix = `freqa-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
+  const userBPrefix = `freqb-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
 
   beforeEach(async () => {
     // Register User A
@@ -54,7 +54,7 @@ describe('POST /api/friends/request - Integration', () => {
     );
     await query(
       'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2',
-      ['test-friendreq-a-%', 'test-friendreq-b-%'],
+      ['freqa-%', 'freqb-%'],
     );
   });
 
@@ -66,7 +66,7 @@ describe('POST /api/friends/request - Integration', () => {
     );
     await query(
       'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2 OR username LIKE $3',
-      ['test-friendreq-a-%', 'test-friendreq-b-%', 'test-friendreq-c-%'],
+      ['freqa-%', 'freqb-%', 'freqc-%'],
     );
   });
 

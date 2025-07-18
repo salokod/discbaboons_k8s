@@ -61,7 +61,7 @@ describe('GET /api/friends/requests - Integration', () => {
     );
     await query(
       'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2 OR username LIKE $3',
-      ['test-friendreqs-c-%', `%${userAPrefix}%`, `%${userBPrefix}%`],
+      ['freqc-%', `%${userAPrefix}%`, `%${userBPrefix}%`],
     );
   });
 
@@ -108,8 +108,8 @@ describe('GET /api/friends/requests - Integration', () => {
   test('should return empty array if user has no requests', async () => {
     // Register a new user with no requests
     const userCData = {
-      username: `test-friendreqs-c-${chance.string({ length: 2 })}`,
-      email: `test-friendreqs-c-${chance.string({ length: 2 })}@example.com`,
+      username: `freqc-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`,
+      email: `test-friendreqs-c-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}@example.com`,
       password: `Abcdef1!${chance.word({ length: 5 })}`,
     };
     await request(app).post('/api/auth/register').send(userCData).expect(201);

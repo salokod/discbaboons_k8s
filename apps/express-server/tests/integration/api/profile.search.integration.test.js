@@ -1,5 +1,5 @@
 import {
-  describe, test, expect, afterAll, beforeEach, vi,
+  describe, test, expect, beforeEach, afterEach, vi,
 } from 'vitest';
 import request from 'supertest';
 import Chance from 'chance';
@@ -8,37 +8,40 @@ import { query } from '../setup.js';
 
 const chance = new Chance();
 
+// Generate unique identifier for this test file
+const timestamp = Date.now().toString().slice(-6);
+const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
+const testId = `ps${timestamp}${random}`;
+
 describe('GET /api/profile/search - Integration', () => {
-  let user1Data; let
-    user2Data;
-  let user1; let
-    user2;
-  let accessToken1; let
-    accessToken2;
-  let profile1Data; let
-    profile2Data;
+  let user1Data;
+  let user2Data;
+  let user1;
+  let user2;
+  let accessToken1;
+  let accessToken2;
+  let profile1Data;
+  let profile2Data;
+  let createdUserIds = [];
 
   beforeEach(async () => {
-    // Clean up users and profiles before each test
-    await query(
-      'DELETE FROM user_profiles WHERE name LIKE $1',
-      ['%test-search-%'],
-    );
-    await query(
-      'DELETE FROM users WHERE email LIKE $1 OR username LIKE $2',
-      ['%test-search-%', '%testsearch%'],
-    );
+    createdUserIds = [];
+    // Clean up any leftover test data
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
 
     // Register user1
+    const user1Suffix = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
     user1Data = {
-      username: `testsearch1_${chance.string({ length: 5 })}`,
-      email: `test-search-${chance.guid()}@example.com`,
+      username: `u${timestamp}${user1Suffix}1`,
+      email: `${testId}-${user1Suffix}-1@example.com`,
       password: `Abcdef1!${chance.string({ length: 5 })}`,
     };
-    await request(app)
+    const registerRes1 = await request(app)
       .post('/api/auth/register')
       .send(user1Data)
       .expect(201);
+
+    createdUserIds.push(registerRes1.body.user.id);
 
     // Login user1
     const loginRes1 = await request(app)
@@ -52,15 +55,18 @@ describe('GET /api/profile/search - Integration', () => {
     user1 = loginRes1.body.user;
 
     // Register user2
+    const user2Suffix = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
     user2Data = {
-      username: `testsearch2_${chance.string({ length: 5 })}`,
-      email: `test-search-${chance.guid()}@example.com`,
+      username: `u${timestamp}${user2Suffix}2`,
+      email: `${testId}-${user2Suffix}-2@example.com`,
       password: `Abcdef1!${chance.string({ length: 5 })}`,
     };
-    await request(app)
+    const registerRes2 = await request(app)
       .post('/api/auth/register')
       .send(user2Data)
       .expect(201);
+
+    createdUserIds.push(registerRes2.body.user.id);
 
     // Login user2
     const loginRes2 = await request(app)
@@ -111,15 +117,16 @@ describe('GET /api/profile/search - Integration', () => {
       .expect(200);
   });
 
-  afterAll(async () => {
-    await query(
-      'DELETE FROM user_profiles WHERE name LIKE $1',
-      ['%test-search-%'],
-    );
-    await query(
-      'DELETE FROM users WHERE email LIKE $1 OR username LIKE $2',
-      ['%test-search-%', '%testsearch%'],
-    );
+  afterEach(async () => {
+    // Clean up users created in this test by ID
+    if (createdUserIds.length > 0) {
+      await query('DELETE FROM user_profiles WHERE user_id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
+    }
+    // Fallback cleanup by email pattern
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
+    createdUserIds = [];
+
     vi.restoreAllMocks();
   });
 

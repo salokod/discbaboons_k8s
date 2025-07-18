@@ -56,7 +56,7 @@ export async function query(text, params = []) {
     return result;
   } catch (error) {
     console.log('error', error);
-    return null;
+    throw error; // Let the caller handle the error instead of returning null
   } finally {
     client.release();
   }
