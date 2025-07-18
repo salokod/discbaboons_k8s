@@ -6,9 +6,28 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
+// Build DATABASE_URL if not provided (for local development)
+function getDatabaseUrl() {
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+  // Build from components
+  const user = process.env.POSTGRES_USER;
+  const password = process.env.POSTGRES_PASSWORD;
+  const host = process.env.DB_HOST || 'postgres-service';
+  const port = process.env.DB_PORT || 5432;
+  const database = process.env.POSTGRES_DB;
+
+  if (!user || !password || !database) {
+    throw new Error('Missing required database environment variables: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB');
+  }
+
+  return `postgresql://${user}:${password}@${host}:${port}/${database}?schema=public`;
+}
+
 // Create connection pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: getDatabaseUrl(),
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20, // Maximum number of connections
   idleTimeoutMillis: 30000,

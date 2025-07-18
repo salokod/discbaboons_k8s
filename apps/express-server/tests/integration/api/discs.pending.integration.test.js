@@ -8,6 +8,8 @@ import app from '../../../server.js';
 import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
+// Unique suffix for this test file run
+const uniqueSuffix = `pending-${chance.string({ length: 12, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
 
 describe('GET /api/discs/pending - Integration', () => {
   let adminUser;
@@ -17,21 +19,28 @@ describe('GET /api/discs/pending - Integration', () => {
 
   // eslint-disable-next-line no-unused-vars
   let discs = [];
-  const testBrand = `Brand-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz' })}`;
-  const testModelA = `ModelA-${chance.string({ length: 5 })}`;
-  const testModelB = `ModelB-${chance.string({ length: 5 })}`;
-  const testModelC = `ModelC-${chance.string({ length: 5 })}`;
+
+  // Generate unique identifiers for each test run
+  const testBrand = `Brand-${uniqueSuffix}`;
+  let testModelA;
+  let testModelB;
+  let testModelC;
 
   beforeEach(async () => {
-    // Clean up
-    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-pending%']);
+    // Generate fresh unique identifiers for each test
+    testModelA = `ModelA-${chance.string({ length: 5 })}`;
+    testModelB = `ModelB-${chance.string({ length: 5 })}`;
+    testModelC = `ModelC-${chance.string({ length: 5 })}`;
+
+    // Clean up only users/discs created by this test
     await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${uniqueSuffix}%`]);
 
     // Register admin user
     const adminPassword = `Abcdef1!${chance.word({ length: 5 })}`;
     const adminData = {
       username: `testadmin_${chance.string({ length: 5 })}`,
-      email: `test-disc-pending-admin-${chance.guid()}@example.com`,
+      email: `test-disc-pending-admin-${uniqueSuffix}-${chance.guid()}@example.com`,
       password: adminPassword,
     };
     await request(app).post('/api/auth/register').send(adminData).expect(201);
@@ -48,7 +57,7 @@ describe('GET /api/discs/pending - Integration', () => {
     const userPassword = `Abcdef1!${chance.word({ length: 5 })}`;
     const userData = {
       username: `testuser_${chance.string({ length: 5 })}`,
-      email: `test-disc-pending-user-${chance.guid()}@example.com`,
+      email: `test-disc-pending-user-${uniqueSuffix}-${chance.guid()}@example.com`,
       password: userPassword,
     };
     await request(app).post('/api/auth/register').send(userData).expect(201);
@@ -61,6 +70,14 @@ describe('GET /api/discs/pending - Integration', () => {
     normalToken = userLoginRes.body.tokens.accessToken;
 
     // Seed discs
+    // Verify users exist before creating discs
+    if (!adminUser || !adminUser.id) {
+      throw new Error('Admin user not created properly');
+    }
+    if (!normalUser || !normalUser.id) {
+      throw new Error('Normal user not created properly');
+    }
+
     const disc1Data = {
       brand: testBrand,
       model: testModelA,
@@ -105,25 +122,59 @@ describe('GET /api/discs/pending - Integration', () => {
       disc3Data.turn, disc3Data.fade, disc3Data.approved, disc3Data.added_by_id,
     ];
 
-    discs = await Promise.all([
-      queryOne(
-        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-        disc1Params,
-      ),
-      queryOne(
-        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-        disc2Params,
-      ),
-      queryOne(
-        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-        disc3Params,
-      ),
-    ]);
+    // Create disc data in parallel (retry approach for race conditions)
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    // eslint-disable-next-line no-await-in-loop
+    while (retryCount < maxRetries) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        discs = await Promise.all([
+          queryOne(
+            'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            disc1Params,
+          ),
+          queryOne(
+            'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            disc2Params,
+          ),
+          queryOne(
+            'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            disc3Params,
+          ),
+        ]);
+        break; // Success, exit retry loop
+      } catch (error) {
+        if (error.message.includes('disc_master_added_by_id_fkey') && retryCount < maxRetries - 1) {
+          retryCount += 1;
+          console.log(`Retrying disc creation (attempt ${retryCount}/${maxRetries}) due to foreign key error`);
+
+          // Re-verify users still exist and recreate if needed
+          // eslint-disable-next-line no-await-in-loop
+          const adminExists = await queryOne('SELECT id FROM users WHERE id = $1', [adminUser.id]);
+          // eslint-disable-next-line no-await-in-loop
+          const normalExists = await queryOne('SELECT id FROM users WHERE id = $1', [normalUser.id]);
+
+          if (!adminExists || !normalExists) {
+            throw new Error('Users were deleted by another test - test isolation failed');
+          }
+
+          // Short delay before retry
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((resolve) => {
+            setTimeout(resolve, 100);
+          });
+        } else {
+          throw error;
+        }
+      }
+    }
   });
 
   afterEach(async () => {
     await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
-    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-pending%']);
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${uniqueSuffix}%`]);
   });
 
   test('should require authentication', async () => {
