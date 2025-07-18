@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { queryOne } from '../lib/database.js';
 
 const getProfileService = async (user) => {
   // Extract userId from user object (from JWT)
@@ -13,19 +11,16 @@ const getProfileService = async (user) => {
     throw error;
   }
 
-  try {
-    // Find user profile by user_id
-    const profile = await prisma.user_profiles.findUnique({
-      where: { user_id: userId },
-    });
+  // Find user profile by user_id
+  const profile = await queryOne(
+    'SELECT * FROM user_profiles WHERE user_id = $1',
+    [userId],
+  );
 
-    return {
-      success: true,
-      profile,
-    };
-  } finally {
-    await prisma.$disconnect();
-  }
+  return {
+    success: true,
+    profile,
+  };
 };
 
 export default getProfileService;

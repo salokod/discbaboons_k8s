@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -58,18 +58,15 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     createdBag = bagRes.body.bag;
 
     // Create an approved test disc
-    createdDisc = await prisma.disc_master.create({
-      data: {
-        brand: chance.company(),
-        model: chance.word(),
-        speed: chance.integer({ min: 1, max: 15 }),
-        glide: chance.integer({ min: 1, max: 7 }),
-        turn: chance.integer({ min: -5, max: 2 }),
-        fade: chance.integer({ min: 0, max: 5 }),
-        approved: true, // Pre-approved for testing
-        added_by_id: user.id,
-      },
-    });
+    const discSpeed = chance.integer({ min: 1, max: 15 });
+    const discGlide = chance.integer({ min: 1, max: 7 });
+    const discTurn = chance.integer({ min: -5, max: 2 });
+    const discFade = chance.integer({ min: 0, max: 5 });
+
+    createdDisc = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [chance.company(), chance.word(), discSpeed, discGlide, discTurn, discFade, true, user.id],
+    );
 
     // Add disc to bag to create content for testing
     const addToBagData = {
@@ -92,27 +89,19 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
   afterEach(async () => {
     // Clean up test data
     if (createdBagContent) {
-      await prisma.bag_contents.deleteMany({
-        where: { id: createdBagContent.id },
-      });
+      await query('DELETE FROM bag_contents WHERE id = $1', [createdBagContent.id]);
     }
 
     if (createdDisc) {
-      await prisma.disc_master.deleteMany({
-        where: { id: createdDisc.id },
-      });
+      await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
     }
 
     if (createdBag) {
-      await prisma.bags.deleteMany({
-        where: { id: createdBag.id },
-      });
+      await query('DELETE FROM bags WHERE id = $1', [createdBag.id]);
     }
 
     if (createdUserIds.length > 0) {
-      await prisma.users.deleteMany({
-        where: { id: { in: createdUserIds } },
-      });
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 
@@ -337,9 +326,7 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     expect(response.body.message).toMatch(/target bag not found or access denied/i);
 
     // Clean up other bag
-    await prisma.bags.deleteMany({
-      where: { id: otherBag.id },
-    });
+    await query('DELETE FROM bags WHERE id = $1', [otherBag.id]);
   });
 
   test('should remove disc from bag when marking as lost', async () => {
@@ -440,8 +427,6 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     expect(response.body.bag_content.model).toBe(createdDisc.model);
 
     // Clean up
-    await prisma.bag_contents.deleteMany({
-      where: { id: customBagContent.id },
-    });
+    await query('DELETE FROM bag_contents WHERE id = $1', [customBagContent.id]);
   });
 });

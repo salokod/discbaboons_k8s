@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -41,17 +41,14 @@ describe('PUT /api/profile - Integration', () => {
   });
 
   afterAll(async () => {
-    await prisma.user_profiles.deleteMany({
-      where: { name: { contains: 'test-update-' } },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { email: { contains: 'test-update-' } },
-          { username: { contains: 'testupdate' } },
-        ],
-      },
-    });
+    await query(
+      'DELETE FROM user_profiles WHERE name LIKE $1',
+      ['%test-update-%'],
+    );
+    await query(
+      'DELETE FROM users WHERE email LIKE $1 OR username LIKE $2',
+      ['%test-update-%', '%testupdate%'],
+    );
 
     vi.restoreAllMocks();
   });
@@ -79,9 +76,10 @@ describe('PUT /api/profile - Integration', () => {
     });
 
     // Optionally, fetch the profile from DB to verify
-    const dbProfile = await prisma.user_profiles.findUnique({
-      where: { user_id: user.id },
-    });
+    const dbProfile = await queryOne(
+      'SELECT * FROM user_profiles WHERE user_id = $1',
+      [user.id],
+    );
     expect(dbProfile).toMatchObject(updateData);
   });
 });

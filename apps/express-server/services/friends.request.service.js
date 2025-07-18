@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { queryOne } from '../lib/database.js';
 
 const friendsRequestService = async (requesterId, recipientId) => {
   // 1. Check for missing IDs first
@@ -22,14 +20,10 @@ const friendsRequestService = async (requesterId, recipientId) => {
   }
 
   // 3. Check if a request already exists (either direction)
-  const existing = await prisma.friendship_requests.findUnique({
-    where: {
-      requester_id_recipient_id: {
-        requester_id: requesterId,
-        recipient_id: recipientId,
-      },
-    },
-  });
+  const existing = await queryOne(
+    'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+    [requesterId, recipientId],
+  );
   if (existing) {
     const error = new Error('Friend request already exists');
     error.name = 'ValidationError';
@@ -37,14 +31,10 @@ const friendsRequestService = async (requesterId, recipientId) => {
   }
 
   // 4. Check for reverse request
-  const reverse = await prisma.friendship_requests.findUnique({
-    where: {
-      requester_id_recipient_id: {
-        requester_id: recipientId,
-        recipient_id: requesterId,
-      },
-    },
-  });
+  const reverse = await queryOne(
+    'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+    [recipientId, requesterId],
+  );
   if (reverse && reverse.status !== 'denied') {
     const error = new Error('Friend request already exists');
     error.name = 'ValidationError';
@@ -52,13 +42,10 @@ const friendsRequestService = async (requesterId, recipientId) => {
   }
 
   // 5. Create new friend request
-  const newRequest = await prisma.friendship_requests.create({
-    data: {
-      requester_id: requesterId,
-      recipient_id: recipientId,
-      status: 'pending',
-    },
-  });
+  const newRequest = await queryOne(
+    'INSERT INTO friendship_requests (requester_id, recipient_id, status) VALUES ($1, $2, $3) RETURNING *',
+    [requesterId, recipientId, 'pending'],
+  );
 
   return newRequest;
 };

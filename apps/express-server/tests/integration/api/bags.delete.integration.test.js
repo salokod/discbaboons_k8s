@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -45,8 +45,8 @@ describe('DELETE /api/bags/:id - Integration', () => {
   afterEach(async () => {
     // Clean up only data created in this specific test
     if (createdUserIds.length > 0) {
-      await prisma.bags.deleteMany({ where: { user_id: { in: createdUserIds } } });
-      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 

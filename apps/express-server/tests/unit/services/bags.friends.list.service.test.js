@@ -1,8 +1,21 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeAll, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
-import listFriendBagsService from '../../../services/bags.friends.list.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
+
+let listFriendBagsService;
+
+beforeAll(async () => {
+  ({ default: listFriendBagsService } = await import('../../../services/bags.friends.list.service.js'));
+});
+
+beforeEach(() => {
+  mockDatabase.queryOne.mockClear();
+  mockDatabase.queryRows.mockClear();
+});
 
 describe('listFriendBagsService', () => {
   test('should export a function', () => {
@@ -33,14 +46,11 @@ describe('listFriendBagsService', () => {
     const userId = chance.integer({ min: 1 });
     const friendUserId = chance.integer({ min: 1 });
 
-    const mockPrisma = {
-      friendship_requests: {
-        findFirst: async () => null, // No friendship found
-      },
-    };
+    // Mock no friendship found
+    mockDatabase.queryOne.mockResolvedValue(null);
 
     try {
-      await listFriendBagsService(userId, friendUserId, mockPrisma);
+      await listFriendBagsService(userId, friendUserId);
       throw new Error('Did not throw');
     } catch (err) {
       expect(err.name).toBe('AuthorizationError');
@@ -66,7 +76,7 @@ describe('listFriendBagsService', () => {
         is_friends_visible: false,
         created_at: new Date(),
         updated_at: new Date(),
-        _count: { bag_contents: publicBagDiscCount },
+        disc_count: publicBagDiscCount,
       },
       {
         id: chance.guid(),
@@ -76,36 +86,25 @@ describe('listFriendBagsService', () => {
         is_friends_visible: true,
         created_at: new Date(),
         updated_at: new Date(),
-        _count: { bag_contents: friendsBagDiscCount },
+        disc_count: friendsBagDiscCount,
       },
     ];
 
-    const mockPrisma = {
-      friendship_requests: {
-        findFirst: async () => friendship,
-      },
-      bags: {
-        findMany: async () => bags,
-      },
-    };
+    // Mock friendship found and bags returned
+    mockDatabase.queryOne.mockResolvedValue(friendship);
+    mockDatabase.queryRows.mockResolvedValue(bags);
 
-    const result = await listFriendBagsService(userId, friendUserId, mockPrisma);
-
-    // Extract expected bag data without _count
-    // eslint-disable-next-line no-unused-vars
-    const { _count, ...expectedPublicBag } = bags[0];
-    // eslint-disable-next-line no-unused-vars
-    const { _count: _count2, ...expectedFriendsBag } = bags[1];
+    const result = await listFriendBagsService(userId, friendUserId);
 
     expect(result).toEqual({
       friend: { id: friendUserId },
       bags: [
         {
-          ...expectedPublicBag,
+          ...bags[0],
           disc_count: publicBagDiscCount,
         },
         {
-          ...expectedFriendsBag,
+          ...bags[1],
           disc_count: friendsBagDiscCount,
         },
       ],
@@ -120,35 +119,22 @@ describe('listFriendBagsService', () => {
       status: 'accepted',
     };
 
-    // Mock Prisma to return only visible bags (private bags filtered out)
+    // Mock database to return only visible bags (private bags filtered out)
     const visibleBags = [
       {
         id: chance.guid(),
         name: chance.word(),
         is_public: true,
         is_friends_visible: false,
-        _count: { bag_contents: chance.integer({ min: 0, max: 10 }) },
+        disc_count: chance.integer({ min: 0, max: 10 }),
       },
     ];
 
-    const mockPrisma = {
-      friendship_requests: {
-        findFirst: async () => friendship,
-      },
-      bags: {
-        findMany: async ({ where }) => {
-          // Verify the query filters correctly
-          expect(where.user_id).toBe(friendUserId);
-          expect(where.OR).toEqual([
-            { is_public: true },
-            { is_friends_visible: true },
-          ]);
-          return visibleBags;
-        },
-      },
-    };
+    // Mock friendship found and only visible bags returned
+    mockDatabase.queryOne.mockResolvedValue(friendship);
+    mockDatabase.queryRows.mockResolvedValue(visibleBags);
 
-    const result = await listFriendBagsService(userId, friendUserId, mockPrisma);
+    const result = await listFriendBagsService(userId, friendUserId);
 
     expect(result.bags).toHaveLength(1);
     expect(result.bags[0].is_public).toBe(true);

@@ -1,6 +1,6 @@
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 
-const addToBagService = async (userId, bagId, discData, prismaClient = prisma) => {
+const addToBagService = async (userId, bagId, discData) => {
   if (!userId) {
     const error = new Error('user_id is required');
     error.name = 'ValidationError';
@@ -20,12 +20,13 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
   }
 
   // Validate bag ownership (security-first approach)
-  const bag = await prismaClient.bags.findFirst({
-    where: {
-      id: bagId,
-      user_id: userId,
-    },
-  });
+  const bagQuery = `
+    SELECT id, user_id, name, is_public, is_friends_visible, created_at, updated_at
+    FROM bags
+    WHERE id = $1 AND user_id = $2
+  `;
+
+  const bag = await queryOne(bagQuery, [bagId, userId]);
 
   if (!bag) {
     const error = new Error('Bag not found or access denied');
@@ -34,11 +35,13 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
   }
 
   // Validate disc exists
-  const disc = await prismaClient.disc_master.findUnique({
-    where: {
-      id: discData.disc_id,
-    },
-  });
+  const discQuery = `
+    SELECT id, brand, model, speed, glide, turn, fade, approved, added_by_id, created_at, updated_at
+    FROM disc_master
+    WHERE id = $1
+  `;
+
+  const disc = await queryOne(discQuery, [discData.disc_id]);
 
   if (!disc) {
     const error = new Error('Disc not found');
@@ -104,25 +107,37 @@ const addToBagService = async (userId, bagId, discData, prismaClient = prisma) =
   }
 
   // Create bag content
-  const bagContent = await prismaClient.bag_contents.create({
-    data: {
-      user_id: userId,
-      bag_id: bagId,
-      disc_id: discData.disc_id,
-      notes: discData.notes || null,
-      weight: discData.weight || null,
-      condition: discData.condition || null,
-      plastic_type: discData.plastic_type || null,
-      color: discData.color || null,
-      speed: discData.speed ?? disc.speed,
-      glide: discData.glide ?? disc.glide,
-      turn: discData.turn ?? disc.turn,
-      fade: discData.fade ?? disc.fade,
-      brand: discData.brand ?? disc.brand,
-      model: discData.model ?? disc.model,
-      is_lost: false,
-    },
-  });
+  const insertQuery = `
+    INSERT INTO bag_contents (
+      user_id, bag_id, disc_id, notes, weight, condition, plastic_type, color,
+      speed, glide, turn, fade, brand, model, is_lost, added_at, updated_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    ) RETURNING *
+  `;
+
+  const bagContent = await queryOne(insertQuery, [
+    userId,
+    bagId,
+    discData.disc_id,
+    discData.notes || null,
+    discData.weight || null,
+    discData.condition || null,
+    discData.plastic_type || null,
+    discData.color || null,
+    discData.speed ?? disc.speed,
+    discData.glide ?? disc.glide,
+    discData.turn ?? disc.turn,
+    discData.fade ?? disc.fade,
+    discData.brand ?? disc.brand,
+    discData.model ?? disc.model,
+    false, // is_lost
+  ]);
+
+  // Format weight for consistency
+  if (bagContent.weight) {
+    bagContent.weight = parseFloat(bagContent.weight).toString();
+  }
 
   return bagContent;
 };

@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import Chance from 'chance';
 import registerUser from '../../../services/auth.register.service.js';
-import { mockPrisma } from '../setup.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
@@ -18,6 +18,7 @@ describe('AuthService', () => {
   beforeEach(() => {
     // Clear mocks before each test (following your existing pattern)
     vi.clearAllMocks();
+    mockDatabase.queryOne.mockClear();
   });
 
   test('should export registerUser function', () => {
@@ -25,20 +26,22 @@ describe('AuthService', () => {
   });
 
   test('should return user data when registering', async () => {
-    const randomPassword = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
-
     const userData = createTestRegisterData();
     const mockId = chance.integer();
+    const mockCreatedAt = new Date().toISOString();
 
     const createdUser = {
       id: mockId,
       email: userData.email,
       username: userData.username,
-      password_hash: randomPassword,
-      createdAt: new Date().toISOString(),
+      created_at: mockCreatedAt,
     };
 
-    mockPrisma.users.create.mockResolvedValue(createdUser);
+    // Mock database calls: no existing email, no existing username, then create user
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce(null) // No existing username
+      .mockResolvedValueOnce(createdUser); // Return created user
 
     const result = await registerUser(userData);
 
@@ -51,29 +54,29 @@ describe('AuthService', () => {
   test('should save user to database when registering', async () => {
     const mockId = chance.integer();
     const userData = createTestRegisterData();
+    const mockCreatedAt = new Date().toISOString();
 
     const createdUser = {
       id: mockId,
       email: userData.email,
       username: userData.username,
-      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
-      createdAt: new Date().toISOString(),
+      created_at: mockCreatedAt,
     };
 
-    // Mock Prisma to return the created user
-    mockPrisma.users.create.mockResolvedValue(createdUser);
+    // Mock database calls: no existing email, no existing username, then create user
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce(null) // No existing username
+      .mockResolvedValueOnce(createdUser); // Return created user
 
     // Act
     const result = await registerUser(userData);
 
-    // Assert
-    expect(mockPrisma.users.create).toHaveBeenCalledWith({
-      data: {
-        email: userData.email,
-        username: userData.username,
-        password_hash: expect.any(String),
-      },
-    });
+    // Assert - check database insert call
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'INSERT INTO users (email, username, password_hash, created_at)\n     VALUES ($1, $2, $3, $4)\n     RETURNING id, email, username, created_at',
+      [userData.email, userData.username, expect.any(String), expect.any(Date)],
+    );
     expect(result.user.id).toBe(mockId);
     expect(result.user).not.toHaveProperty('password_hash');
   });
@@ -82,17 +85,32 @@ describe('AuthService', () => {
     const randomPassword = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
 
     const userData = createTestRegisterData({ password: randomPassword });
+    const mockCreatedAt = new Date().toISOString();
+
+    const createdUser = {
+      id: chance.integer(),
+      email: userData.email,
+      username: userData.username,
+      created_at: mockCreatedAt,
+    };
+
+    // Mock database calls: no existing email, no existing username, then create user
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce(null) // No existing username
+      .mockResolvedValueOnce(createdUser); // Return created user
 
     await registerUser(userData);
 
-    // Check that Prisma was called with a hashed password (not plain text)
-    expect(mockPrisma.users.create).toHaveBeenCalledWith({
-      data: {
-        email: userData.email,
-        username: userData.username,
-        password_hash: expect.not.stringMatching(randomPassword), // Should NOT be plain text
-      },
-    });
+    // Check that database was called with a hashed password (not plain text)
+    const expectedParams = [
+      userData.email, userData.username, expect.not.stringMatching(randomPassword),
+      expect.any(Date),
+    ];
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'INSERT INTO users (email, username, password_hash, created_at)\n     VALUES ($1, $2, $3, $4)\n     RETURNING id, email, username, created_at',
+      expectedParams,
+    );
   });
 
   test('should throw error when email is missing', async () => {
@@ -118,12 +136,9 @@ describe('AuthService', () => {
     const userData = createTestRegisterData({ email: existingEmail });
 
     // Mock that email already exists in database
-    mockPrisma.users.findUnique.mockResolvedValue({
+    mockDatabase.queryOne.mockResolvedValueOnce({
       id: chance.integer(),
       email: existingEmail,
-      username: chance.string({ length: 8, alpha: true }),
-      password_hash: 'some_hash',
-      created_at: new Date().toISOString(),
     });
 
     await expect(registerUser(userData)).rejects.toThrow('Email or username already registered');
@@ -136,14 +151,13 @@ describe('AuthService', () => {
     });
     const userData = createTestRegisterData({ username: existingUsername });
 
-    // Mock that username already exists in database
-    mockPrisma.users.findUnique.mockResolvedValue({
-      id: chance.integer(),
-      email: chance.email(),
-      username: existingUsername,
-      password_hash: chance.hash(),
-      created_at: new Date().toISOString(),
-    });
+    // Mock that email doesn't exist but username does
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce({
+        id: chance.integer(),
+        username: existingUsername,
+      }); // Existing username
 
     await expect(registerUser(userData)).rejects.toThrow('Email or username already registered');
   });

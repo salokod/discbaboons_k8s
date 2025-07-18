@@ -1,7 +1,7 @@
 {
   "name": "discbaboons-express",
   "version": "2.0.0",
-  "description": "Modern Express app for Kubernetes learning with Prisma ORM",
+  "description": "Modern Express app for Kubernetes learning with raw SQL",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -14,9 +14,6 @@
     "test:ui": "NODE_ENV=test vitest --ui",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "db:generate": "prisma generate",
-    "db:pull": "prisma db pull",
-    "db:studio": "prisma studio",
     "verify": "npm run lint && npm run test && npm run test:integration",
     "semantic-release": "semantic-release"
   },
@@ -26,14 +23,12 @@
   "dependencies": {
     "@azure/msal-node": "^3.6.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
-    "@prisma/client": "^6.8.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^16.5.0",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.0",
-    "prisma": "^6.8.2",
+    "pg": "^8.16.3",
     "redis": "^5.5.6"
   },
   "devDependencies": {

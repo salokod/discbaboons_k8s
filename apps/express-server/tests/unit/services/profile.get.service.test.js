@@ -1,32 +1,17 @@
 import {
-  describe, test, expect, beforeEach, vi,
+  describe, test, expect, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import getProfileService from '../../../services/profile.get.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-// Create mock functions
-const mockFindUnique = vi.fn();
-const mockDisconnect = vi.fn();
-
-// Mock Prisma - return the SAME instance
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    user_profiles: {
-      findUnique: mockFindUnique,
-    },
-    $disconnect: mockDisconnect,
-  })),
-}));
-
-// Dynamic import AFTER mocking
-const { default: getProfileService } = await import('../../../services/profile.get.service.js');
+beforeEach(() => {
+  mockDatabase.queryOne.mockClear();
+});
 
 describe('ProfileGetService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   test('should export a function', () => {
     expect(typeof getProfileService).toBe('function');
   });
@@ -42,13 +27,14 @@ describe('ProfileGetService', () => {
     const user = { userId, username: chance.word() };
 
     // Mock: no profile found
-    mockFindUnique.mockResolvedValue(null);
+    mockDatabase.queryOne.mockResolvedValue(null);
 
     const result = await getProfileService(user);
 
-    expect(mockFindUnique).toHaveBeenCalledWith({
-      where: { user_id: userId },
-    });
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT * FROM user_profiles WHERE user_id = $1',
+      [userId],
+    );
 
     expect(result).toEqual({
       success: true,
@@ -72,13 +58,14 @@ describe('ProfileGetService', () => {
     };
 
     // Mock: profile found
-    mockFindUnique.mockResolvedValue(mockProfile);
+    mockDatabase.queryOne.mockResolvedValue(mockProfile);
 
     const result = await getProfileService(user);
 
-    expect(mockFindUnique).toHaveBeenCalledWith({
-      where: { user_id: userId },
-    });
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT * FROM user_profiles WHERE user_id = $1',
+      [userId],
+    );
 
     expect(result).toEqual({
       success: true,

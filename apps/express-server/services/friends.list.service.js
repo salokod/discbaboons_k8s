@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { queryRows, queryOne } from '../lib/database.js';
 
 const getFriendsListService = async (userId) => {
   if (!userId) {
@@ -10,15 +8,21 @@ const getFriendsListService = async (userId) => {
   }
 
   // Get all accepted friendships where user is either requester or recipient
-  const friendships = await prisma.friendship_requests.findMany({
-    where: {
-      status: 'accepted',
-      OR: [
-        { requester_id: userId },
-        { recipient_id: userId },
-      ],
-    },
-  });
+  const friendshipsQuery = `
+    SELECT 
+      id,
+      requester_id,
+      recipient_id,
+      status,
+      created_at,
+      updated_at
+    FROM friendship_requests
+    WHERE status = 'accepted'
+      AND (requester_id = $1 OR recipient_id = $1)
+    ORDER BY created_at DESC
+  `;
+
+  const friendships = await queryRows(friendshipsQuery, [userId]);
 
   // Transform each friendship into enhanced friend data
   const enhancedFriends = await Promise.all(
@@ -29,32 +33,41 @@ const getFriendsListService = async (userId) => {
         : friendship.requester_id;
 
       // Get friend's user details
-      const friendUser = await prisma.users.findUnique({
-        where: { id: friendUserId },
-        select: { id: true, username: true, email: true },
-      });
+      const friendUserQuery = `
+        SELECT id, username, email
+        FROM users
+        WHERE id = $1
+      `;
+
+      const friendUser = await queryOne(friendUserQuery, [friendUserId]);
 
       // Get friend's bag statistics
-      const totalBags = await prisma.bags.count({
-        where: { user_id: friendUserId },
-      });
+      const totalBagsQuery = `
+        SELECT COUNT(*) as count
+        FROM bags
+        WHERE user_id = $1
+      `;
 
-      const publicBags = await prisma.bags.count({
-        where: {
-          user_id: friendUserId,
-          is_public: true,
-        },
-      });
+      const totalBagsResult = await queryOne(totalBagsQuery, [friendUserId]);
+      const totalBags = parseInt(totalBagsResult.count, 10);
 
-      const visibleBags = await prisma.bags.count({
-        where: {
-          user_id: friendUserId,
-          OR: [
-            { is_public: true },
-            { is_friends_visible: true },
-          ],
-        },
-      });
+      const publicBagsQuery = `
+        SELECT COUNT(*) as count
+        FROM bags
+        WHERE user_id = $1 AND is_public = true
+      `;
+
+      const publicBagsResult = await queryOne(publicBagsQuery, [friendUserId]);
+      const publicBags = parseInt(publicBagsResult.count, 10);
+
+      const visibleBagsQuery = `
+        SELECT COUNT(*) as count
+        FROM bags
+        WHERE user_id = $1 AND (is_public = true OR is_friends_visible = true)
+      `;
+
+      const visibleBagsResult = await queryOne(visibleBagsQuery, [friendUserId]);
+      const visibleBags = parseInt(visibleBagsResult.count, 10);
 
       return {
         id: friendUser.id,

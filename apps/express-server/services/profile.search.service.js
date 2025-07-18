@@ -1,7 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-const SEARCH_MODE = 'insensitive';
+import { queryRows } from '../lib/database.js';
 
 const searchProfilesService = async (query) => {
   if (!query || typeof query !== 'object' || Object.keys(query).length === 0) {
@@ -10,35 +7,50 @@ const searchProfilesService = async (query) => {
     throw error;
   }
 
-  const searchFilters = {};
+  // Build the WHERE clause conditions
+  const whereConditions = [];
+  const params = [];
+
+  // Add city filter if provided
   if (query.city) {
-    searchFilters.city = { contains: query.city, mode: SEARCH_MODE };
+    whereConditions.push(`up.city ILIKE $${params.length + 1}`);
+    params.push(`%${query.city}%`);
   }
-  searchFilters.OR = [
-    { isnamepublic: true },
-    { isbiopublic: true },
-    { islocationpublic: true },
-  ];
 
-  const profiles = await prisma.user_profiles.findMany({
-    where: searchFilters,
-    include: {
-      users: true, // <-- fix: match schema relation name
-    },
-  });
-
-  // Filter by username if provided
-  let filteredProfiles = profiles;
+  // Add username filter if provided
   if (query.username) {
-    filteredProfiles = profiles.filter(
-      (profile) => profile.users?.username
-        ?.toLowerCase()
-        .includes(query.username.toLowerCase()),
-    );
+    whereConditions.push(`u.username ILIKE $${params.length + 1}`);
+    params.push(`%${query.username}%`);
   }
-  return filteredProfiles.map((profile) => {
+
+  // Add visibility conditions (profiles must have at least one public field)
+  whereConditions.push('(up.isnamepublic = true OR up.isbiopublic = true OR up.islocationpublic = true)');
+
+  // Build the complete query
+  const searchQuery = `
+    SELECT 
+      up.user_id,
+      up.name,
+      up.bio,
+      up.city,
+      up.country,
+      up.state_province,
+      up.isnamepublic,
+      up.isbiopublic,
+      up.islocationpublic,
+      u.username
+    FROM user_profiles up
+    JOIN users u ON up.user_id = u.id
+    WHERE ${whereConditions.join(' AND ')}
+    ORDER BY u.username ASC
+  `;
+
+  const profiles = await queryRows(searchQuery, params);
+
+  // Transform profiles to only include public data
+  return profiles.map((profile) => {
     const publicProfile = { user_id: profile.user_id };
-    if (profile.users?.username) publicProfile.username = profile.users.username;
+    if (profile.username) publicProfile.username = profile.username;
     if (profile.isnamepublic) publicProfile.name = profile.name;
     if (profile.isbiopublic) publicProfile.bio = profile.bio;
     if (profile.islocationpublic) {

@@ -1,5 +1,5 @@
 import { isValidEmail } from '../utils/validation.js';
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 import emailService from './email/email.service.js';
 import { getTemplate } from './email/email.template.service.js';
 
@@ -17,9 +17,10 @@ const forgotUsername = async (email) => {
   }
 
   // Look up user by email
-  const user = await prisma.users.findUnique({
-    where: { email },
-  });
+  const user = await queryOne(
+    'SELECT id, username, email FROM users WHERE email = $1',
+    [email],
+  );
 
   // If user exists, send email with username
   if (user) {

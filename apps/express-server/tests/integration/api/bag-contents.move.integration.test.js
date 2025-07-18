@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne, queryRows } from '../setup.js';
 
 const chance = new Chance();
 
@@ -76,18 +76,10 @@ describe('PUT /api/bags/discs/move - Integration', () => {
     // Create test discs and add them to source bag
     const discCount = chance.integer({ min: 3, max: 5 });
     const discPromises = Array.from({ length: discCount }).map(async (_, i) => {
-      const disc = await prisma.disc_master.create({
-        data: {
-          brand: `TestBrand${testId}${i}`,
-          model: `TestModel${testId}${i}`,
-          speed: 12,
-          glide: 5,
-          turn: -1,
-          fade: 3,
-          approved: true,
-          added_by_id: user.id,
-        },
-      });
+      const disc = await queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [`TestBrand${testId}${i}`, `TestModel${testId}${i}`, 12, 5, -1, 3, true, user.id],
+      );
 
       const addToBagData = {
         disc_id: disc.id,
@@ -117,33 +109,38 @@ describe('PUT /api/bags/discs/move - Integration', () => {
   afterEach(async () => {
     // Clean up test data
     if (createdBagContents.length > 0) {
-      await prisma.bag_contents.deleteMany({
-        where: { id: { in: createdBagContents.map((bc) => bc.id) } },
-      });
+      await query(
+        'DELETE FROM bag_contents WHERE id = ANY($1)',
+        [createdBagContents.map((bc) => bc.id)],
+      );
     }
 
     if (createdSourceBag) {
-      await prisma.bags.deleteMany({
-        where: { id: createdSourceBag.id },
-      });
+      await query(
+        'DELETE FROM bags WHERE id = $1',
+        [createdSourceBag.id],
+      );
     }
 
     if (createdTargetBag) {
-      await prisma.bags.deleteMany({
-        where: { id: createdTargetBag.id },
-      });
+      await query(
+        'DELETE FROM bags WHERE id = $1',
+        [createdTargetBag.id],
+      );
     }
 
     if (createdDiscs.length > 0) {
-      await prisma.disc_master.deleteMany({
-        where: { id: { in: createdDiscs.map((d) => d.id) } },
-      });
+      await query(
+        'DELETE FROM disc_master WHERE id = ANY($1)',
+        [createdDiscs.map((d) => d.id)],
+      );
     }
 
     if (createdUserIds.length > 0) {
-      await prisma.users.deleteMany({
-        where: { id: { in: createdUserIds } },
-      });
+      await query(
+        'DELETE FROM users WHERE id = ANY($1)',
+        [createdUserIds],
+      );
     }
   });
 
@@ -166,9 +163,10 @@ describe('PUT /api/bags/discs/move - Integration', () => {
     expect(response.body.movedCount).toBe(1);
 
     // Verify disc was moved to target bag
-    const movedDisc = await prisma.bag_contents.findUnique({
-      where: { id: contentToMove.id },
-    });
+    const movedDisc = await queryOne(
+      'SELECT * FROM bag_contents WHERE id = $1',
+      [contentToMove.id],
+    );
     expect(movedDisc.bag_id).toBe(createdTargetBag.id);
     expect(new Date(movedDisc.updated_at)).toBeInstanceOf(Date);
   });
@@ -192,9 +190,10 @@ describe('PUT /api/bags/discs/move - Integration', () => {
     expect(response.body.movedCount).toBe(2);
 
     // Verify discs were moved to target bag
-    const movedDiscs = await prisma.bag_contents.findMany({
-      where: { id: { in: contentsToMove.map((content) => content.id) } },
-    });
+    const movedDiscs = await queryRows(
+      'SELECT * FROM bag_contents WHERE id = ANY($1)',
+      [contentsToMove.map((content) => content.id)],
+    );
     expect(movedDiscs).toHaveLength(contentsToMove.length);
     movedDiscs.forEach((disc) => {
       expect(disc.bag_id).toBe(createdTargetBag.id);
@@ -218,9 +217,10 @@ describe('PUT /api/bags/discs/move - Integration', () => {
     expect(response.body.movedCount).toBe(createdBagContents.length);
 
     // Verify all discs were moved to target bag
-    const allMovedDiscs = await prisma.bag_contents.findMany({
-      where: { id: { in: createdBagContents.map((bc) => bc.id) } },
-    });
+    const allMovedDiscs = await queryRows(
+      'SELECT * FROM bag_contents WHERE id = ANY($1)',
+      [createdBagContents.map((bc) => bc.id)],
+    );
     expect(allMovedDiscs).toHaveLength(createdBagContents.length);
     allMovedDiscs.forEach((disc) => {
       expect(disc.bag_id).toBe(createdTargetBag.id);

@@ -1,9 +1,7 @@
 /* eslint-disable camelcase, no-underscore-dangle */
-import { PrismaClient } from '@prisma/client';
+import { queryOne } from '../lib/database.js';
 
-const prisma = new PrismaClient();
-
-const createDiscService = async (discData = {}) => {
+const createDiscService = async (discData = {}, dbClient = { queryOne }) => {
   const {
     brand, model, speed, glide, turn, fade, added_by_id,
   } = discData;
@@ -40,12 +38,13 @@ const createDiscService = async (discData = {}) => {
   }
 
   // Check for duplicate (case-insensitive)
-  const existing = await prisma.disc_master.findFirst({
-    where: {
-      brand: { equals: brand, mode: 'insensitive' },
-      model: { equals: model, mode: 'insensitive' },
-    },
-  });
+  const existing = await dbClient.queryOne(
+    `SELECT id, brand, model 
+     FROM disc_master 
+     WHERE LOWER(brand) = LOWER($1) AND LOWER(model) = LOWER($2)`,
+    [brand, model],
+  );
+
   if (existing) {
     const error = new Error('A disc with this brand and model already exists');
     error.name = 'ValidationError';
@@ -53,18 +52,12 @@ const createDiscService = async (discData = {}) => {
   }
 
   // Always create as pending approval
-  return prisma.disc_master.create({
-    data: {
-      brand,
-      model,
-      speed,
-      glide,
-      turn,
-      fade,
-      approved: false,
-      added_by_id,
-    },
-  });
+  return dbClient.queryOne(
+    `INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     RETURNING *`,
+    [brand, model, speed, glide, turn, fade, false, added_by_id, new Date(), new Date()],
+  );
 };
 
 export default createDiscService;

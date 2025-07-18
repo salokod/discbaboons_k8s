@@ -27,7 +27,11 @@ client.on('end', () => {
 
 // Only connect if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (error) {
+    console.error('Failed to connect to Redis:', error);
+  }
 }
 
 export default client;

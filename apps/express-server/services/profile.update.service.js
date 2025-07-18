@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { queryOne } from '../lib/database.js';
 
 const ALLOWED_FIELDS = [
   'name',
@@ -36,19 +34,28 @@ const updateProfileService = async (userId, updateData) => {
     throw error;
   }
 
-  try {
-    const profile = await prisma.user_profiles.upsert({
-      where: { user_id: userId },
-      update: filteredData,
-      create: { user_id: userId, ...filteredData },
-    });
-    return {
-      success: true,
-      profile,
-    };
-  } finally {
-    await prisma.$disconnect();
-  }
+  // Implement upsert logic with raw SQL
+  const fields = Object.keys(filteredData);
+  const values = Object.values(filteredData);
+
+  // Create placeholders for insert values
+  const insertPlaceholders = fields.map((_, index) => `$${index + 2}`).join(', ');
+  const insertFields = fields.join(', ');
+
+  // Create SET clause for update
+  const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+
+  const profile = await queryOne(
+    `INSERT INTO user_profiles (user_id, ${insertFields}) VALUES ($1, ${insertPlaceholders})
+     ON CONFLICT (user_id) DO UPDATE SET ${setClause}
+     RETURNING *`,
+    [userId, ...values],
+  );
+
+  return {
+    success: true,
+    profile,
+  };
 };
 
 export default updateProfileService;

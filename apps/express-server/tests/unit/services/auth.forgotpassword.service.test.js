@@ -5,6 +5,11 @@ import Chance from 'chance';
 
 const chance = new Chance();
 
+// Mock database module
+vi.mock('../../../lib/database.js', () => ({
+  queryOne: vi.fn(),
+}));
+
 // Mock Redis using the same pattern as other tests
 vi.mock('../../../lib/redis.js', () => ({
   default: {
@@ -30,7 +35,7 @@ vi.mock('../../../services/email/email.template.service.js', () => ({
 
 // Dynamic import AFTER mocking (following your pattern)
 const { default: forgotPasswordService } = await import('../../../services/auth.forgotpassword.service.js');
-const { mockPrisma } = await import('../setup.js');
+const { queryOne } = await import('../../../lib/database.js');
 
 describe('ForgotPasswordService', () => {
   beforeEach(async () => {
@@ -54,13 +59,14 @@ describe('ForgotPasswordService', () => {
       email: chance.email(),
     };
 
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    queryOne.mockResolvedValue(mockUser);
 
     await forgotPasswordService({ username });
 
-    expect(mockPrisma.users.findUnique).toHaveBeenCalledWith({
-      where: { username },
-    });
+    expect(queryOne).toHaveBeenCalledWith(
+      'SELECT id, username, email FROM users WHERE username = $1',
+      [username],
+    );
   });
 
   test('should lookup user by email when email provided', async () => {
@@ -71,13 +77,14 @@ describe('ForgotPasswordService', () => {
       email,
     };
 
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    queryOne.mockResolvedValue(mockUser);
 
     await forgotPasswordService({ email });
 
-    expect(mockPrisma.users.findUnique).toHaveBeenCalledWith({
-      where: { email },
-    });
+    expect(queryOne).toHaveBeenCalledWith(
+      'SELECT id, username, email FROM users WHERE email = $1',
+      [email],
+    );
   });
 
   test('should generate and store reset token when user found', async () => {
@@ -90,7 +97,7 @@ describe('ForgotPasswordService', () => {
     };
 
     const { default: redis } = await import('../../../lib/redis.js');
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    queryOne.mockResolvedValue(mockUser);
 
     await forgotPasswordService({ email });
 
@@ -113,7 +120,7 @@ describe('ForgotPasswordService', () => {
     const emailService = await import('../../../services/email/email.service.js');
     const { getTemplate } = await import('../../../services/email/email.template.service.js');
 
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    queryOne.mockResolvedValue(mockUser);
 
     await forgotPasswordService({ email });
 
@@ -134,7 +141,7 @@ describe('ForgotPasswordService', () => {
     const email = chance.email();
 
     // Test when user exists
-    mockPrisma.users.findUnique.mockResolvedValue({
+    queryOne.mockResolvedValue({
       id: chance.integer({ min: 1, max: 1000 }),
       username: chance.word(),
       email,
@@ -143,7 +150,7 @@ describe('ForgotPasswordService', () => {
     const result1 = await forgotPasswordService({ email });
 
     // Test when user doesn't exist
-    mockPrisma.users.findUnique.mockResolvedValue(null);
+    queryOne.mockResolvedValue(null);
 
     const result2 = await forgotPasswordService({ email: chance.email() });
 

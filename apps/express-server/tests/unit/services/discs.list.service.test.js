@@ -1,28 +1,16 @@
 import {
-  describe, test, expect, beforeEach, vi,
+  describe, test, expect, beforeEach,
 } from 'vitest';
-
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
+import listDiscsService from '../../../services/discs.list.service.js';
 
 const chance = new Chance();
 
-// Mock Prisma
-const mockFindMany = vi.fn();
-
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    disc_master: {
-      findMany: mockFindMany,
-    },
-    $disconnect: vi.fn(),
-  })),
-}));
-
-const { default: listDiscsService } = await import('../../../services/discs.list.service.js');
-
 describe('listDiscsService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset all mocks before each test
+    mockDatabase.queryRows.mockReset();
   });
 
   test('should export a function', () => {
@@ -45,70 +33,71 @@ describe('listDiscsService', () => {
     await expect(listDiscsService({ fade: 'sharp' })).rejects.toThrow('Invalid filter value');
   });
 
-  test('should call Prisma with correct filters for single values', async () => {
-    mockFindMany.mockResolvedValue([]);
-    await listDiscsService({ brand: 'Innova', speed: '7', approved: 'true' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        brand: 'Innova',
-        speed: 7,
-        approved: true,
-      }),
-    }));
+  test('should call database with correct filters for single values', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    const brand = chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']);
+    const speed = chance.integer({ min: 1, max: 14 }).toString();
+    await listDiscsService({ brand, speed, approved: 'true' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE brand = $1 AND speed = $2 AND approved = $3 ORDER BY brand ASC, model ASC LIMIT $4 OFFSET $5',
+      [brand, parseInt(speed, 10), true, 50, 0],
+    );
   });
 
-  test('should call Prisma with correct filters for range values', async () => {
-    mockFindMany.mockResolvedValue([]);
-    await listDiscsService({ speed: '2-10', glide: '4-6' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        speed: { gte: 2, lte: 10 },
-        glide: { gte: 4, lte: 6 },
-      }),
-    }));
+  test('should call database with correct filters for range values', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ speed: '2-10', glide: '4-6' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE speed >= $1 AND speed <= $2 AND glide >= $3 AND glide <= $4 AND approved = $5 ORDER BY brand ASC, model ASC LIMIT $6 OFFSET $7',
+      [2, 10, 4, 6, true, 50, 0],
+    );
   });
 
-  test('should call Prisma with model contains filter', async () => {
-    mockFindMany.mockResolvedValue([]);
-    await listDiscsService({ model: 'leo' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        model: { contains: 'leo', mode: 'insensitive' },
-      }),
-    }));
+  test('should call database with model contains filter', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    const model = chance.word({ length: 4 });
+    await listDiscsService({ model }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE model ILIKE $1 AND approved = $2 ORDER BY brand ASC, model ASC LIMIT $3 OFFSET $4',
+      [`%${model}%`, true, 50, 0],
+    );
   });
 
   test('should apply limit and offset', async () => {
-    mockFindMany.mockResolvedValue([]);
-    await listDiscsService({ limit: '10', offset: '20' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      skip: 20,
-      take: 10,
-    }));
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ limit: '10', offset: '20' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [true, 10, 20],
+    );
   });
 
   test('should default to approved=true if approved is not specified', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({});
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        approved: true,
-      }),
-    }));
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [true, 50, 0],
+    );
   });
 
   test('should allow approved=false for admin', async () => {
-    mockFindMany.mockResolvedValue([]);
-    await listDiscsService({ approved: 'false' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        approved: false,
-      }),
-    }));
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ approved: 'false' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [false, 50, 0],
+    );
   });
 
-  test('should call Prisma with random filters', async () => {
-    mockFindMany.mockResolvedValue([]);
+  test('should call database with random filters', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
     const brand = chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']);
     const model = chance.word({ length: 4 });
     const speed = chance.integer({ min: 2, max: 14 }).toString();
@@ -131,87 +120,76 @@ describe('listDiscsService', () => {
       offset,
     });
 
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT * FROM disc_master WHERE'),
+      expect.arrayContaining([
         brand,
-        model: { contains: model, mode: 'insensitive' },
-        speed: Number(speed),
-        glide: Number(glide),
-        turn: Number(turn),
-        fade: Number(fade),
-        approved: approved === 'true',
-      }),
-      skip: Number(offset),
-      take: Number(limit),
-      orderBy: [{ brand: 'asc' }, { model: 'asc' }],
-    }));
+        Number(speed),
+        Number(glide),
+        Number(turn),
+        Number(fade),
+        approved === 'true',
+        Number(limit),
+        Number(offset),
+      ]),
+    );
   });
 
   test('should handle range values for all numeric filters', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({
       speed: '3-7',
       glide: '4-6',
       turn: '0-2',
       fade: '1-3',
     });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        speed: { gte: 3, lte: 7 },
-        glide: { gte: 4, lte: 6 },
-        turn: { gte: 0, lte: 2 },
-        fade: { gte: 1, lte: 3 },
-      }),
-    }));
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT * FROM disc_master WHERE'),
+      expect.arrayContaining([3, 7, 4, 6, 0, 2, 1, 3]),
+    );
   });
 
   test('should handle missing filters gracefully', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({});
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        approved: true,
-      }),
-    }));
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [true, 50, 0],
+    );
   });
 
   test('should handle negative numbers and negative ranges for turn', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({ turn: '-5--2' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        turn: { gte: -5, lte: -2 },
-      }),
-    }));
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE turn >= $1 AND turn <= $2 AND approved = $3 ORDER BY brand ASC, model ASC LIMIT $4 OFFSET $5',
+      [-5, -2, true, 50, 0],
+    );
 
     await listDiscsService({ turn: '-3' });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        turn: -3,
-      }),
-    }));
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE turn = $1 AND approved = $2 ORDER BY brand ASC, model ASC LIMIT $3 OFFSET $4',
+      [-3, true, 50, 0],
+    );
   });
 
   test('should handle negative and positive ranges for all numeric filters', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({
       speed: '-2-10',
       glide: '-1-7',
       turn: '-5-2',
       fade: '-1-4',
     });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        speed: { gte: -2, lte: 10 },
-        glide: { gte: -1, lte: 7 },
-        turn: { gte: -5, lte: 2 },
-        fade: { gte: -1, lte: 4 },
-      }),
-    }));
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE speed >= $1 AND speed <= $2 AND glide >= $3 AND glide <= $4 AND turn >= $5 AND turn <= $6 AND fade >= $7 AND fade <= $8 AND approved = $9 ORDER BY brand ASC, model ASC LIMIT $10 OFFSET $11',
+      [-2, 10, -1, 7, -5, 2, -1, 4, true, 50, 0],
+    );
   });
 
   test('should ignore filters that are undefined or empty strings', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({
       brand: '',
       model: undefined,
@@ -221,63 +199,62 @@ describe('listDiscsService', () => {
       fade: undefined,
       approved: undefined,
     });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { approved: true },
-    }));
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [true, 50, 0],
+    );
   });
 
   test('should throw ValidationError if limit or offset are not numbers', async () => {
     await expect(listDiscsService({ limit: 'foo' })).rejects.toThrow('Invalid limit');
     await expect(listDiscsService({ offset: 'bar' })).rejects.toThrow('Invalid offset');
   });
-  test('should return the results from Prisma (randomized)', async () => {
+  test('should return the results from database (randomized)', async () => {
     const fakeResults = Array.from({ length: chance.integer({ min: 1, max: 5 }) }, () => ({
       id: chance.guid(),
       brand: chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']),
       model: chance.word({ length: 6 }),
       speed: chance.integer({ min: 1, max: 14 }),
     }));
-    mockFindMany.mockResolvedValue(fakeResults);
-    const result = await listDiscsService({ brand: fakeResults[0].brand });
+    mockDatabase.queryRows.mockResolvedValue(fakeResults);
+    const result = await listDiscsService({ brand: fakeResults[0].brand }, mockDatabase);
     expect(result).toBe(fakeResults);
   });
 
   test('should order by brand and model ascending', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     await listDiscsService({});
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      orderBy: [
-        { brand: 'asc' },
-        { model: 'asc' },
-      ],
-    }));
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('ORDER BY brand ASC, model ASC'),
+      [true, 50, 0],
+    );
   });
 
   test('should trim whitespace from string filters', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
+    const brand = chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']);
+    const model = chance.word({ length: 4 });
     await listDiscsService({
-      brand: '  Innova  ',
-      model: '  leo ',
-    });
-    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        brand: 'Innova',
-        model: { contains: 'leo', mode: 'insensitive' },
-      }),
-    }));
+      brand: `  ${brand}  `,
+      model: `  ${model} `,
+    }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE brand = $1 AND model ILIKE $2 AND approved = $3 ORDER BY brand ASC, model ASC LIMIT $4 OFFSET $5',
+      [brand, `%${model}%`, true, 50, 0],
+    );
   });
 
   test('should return only pending discs when approved is false', async () => {
-    mockFindMany.mockResolvedValue([
+    mockDatabase.queryRows.mockResolvedValue([
       {
         id: 1, brand: 'Test', model: 'Pending', approved: false,
       },
     ]);
     const result = await listDiscsService({ approved: false });
-    expect(mockFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ approved: false }),
-      }),
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [false, 50, 0],
     );
     expect(result.every((d) => d.approved === false)).toBe(true);
   });

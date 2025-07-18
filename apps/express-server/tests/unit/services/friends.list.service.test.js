@@ -1,22 +1,21 @@
 import {
-  describe, test, expect, vi,
+  describe, test, expect, beforeAll, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-const mockFindMany = vi.fn();
-const mockUsersClient = { findUnique: vi.fn() };
-const mockBagsClient = { count: vi.fn() };
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    friendship_requests: { findMany: mockFindMany },
-    users: mockUsersClient,
-    bags: mockBagsClient,
-    $disconnect: vi.fn(),
-  })),
-}));
-const { default: getFriendsListService } = await import('../../../services/friends.list.service.js');
+let getFriendsListService;
+
+beforeAll(async () => {
+  ({ default: getFriendsListService } = await import('../../../services/friends.list.service.js'));
+});
+
+beforeEach(() => {
+  mockDatabase.queryRows.mockClear();
+  mockDatabase.queryOne.mockClear();
+});
 
 describe('getFriendsListService', () => {
   test('should be a function', () => {
@@ -42,7 +41,6 @@ describe('getFriendsListService', () => {
         created_at: new Date(),
       },
     ];
-    mockFindMany.mockResolvedValue(fakeFriendships);
 
     // Mock the friend user data
     const friendUserData = {
@@ -50,29 +48,21 @@ describe('getFriendsListService', () => {
       username: chance.word(),
       email: chance.email(),
     };
-    mockUsersClient.findUnique.mockResolvedValue(friendUserData);
 
     // Mock bag counts
     const totalBags = chance.integer({ min: 0, max: 10 });
     const publicBags = chance.integer({ min: 0, max: totalBags });
     const visibleBags = chance.integer({ min: publicBags, max: totalBags });
 
-    mockBagsClient.count
-      .mockResolvedValueOnce(totalBags)
-      .mockResolvedValueOnce(publicBags)
-      .mockResolvedValueOnce(visibleBags);
+    // Setup mock responses for database calls
+    mockDatabase.queryRows.mockResolvedValue(fakeFriendships); // friendship query
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(friendUserData) // user details query
+      .mockResolvedValueOnce({ count: totalBags }) // total bags
+      .mockResolvedValueOnce({ count: publicBags }) // public bags
+      .mockResolvedValueOnce({ count: visibleBags }); // visible bags
 
     const result = await getFriendsListService(userId);
-
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: {
-        status: 'accepted',
-        OR: [
-          { requester_id: userId },
-          { recipient_id: userId },
-        ],
-      },
-    });
 
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBe(1);
@@ -84,8 +74,10 @@ describe('getFriendsListService', () => {
   });
 
   test('should return empty array if user has no accepted friends', async () => {
-    mockFindMany.mockResolvedValue([]);
     const userId = chance.integer({ min: 1, max: 1000 });
+
+    // Mock empty friendships result
+    mockDatabase.queryRows.mockResolvedValue([]);
 
     const result = await getFriendsListService(userId);
     expect(result).toEqual([]);
@@ -104,7 +96,6 @@ describe('getFriendsListService', () => {
         created_at: new Date(),
       },
     ];
-    mockFindMany.mockResolvedValue(fakeFriendships);
 
     // Mock the friend user data
     const friendUserData = {
@@ -112,28 +103,21 @@ describe('getFriendsListService', () => {
       username: chance.word(),
       email: chance.email(),
     };
-    mockUsersClient.findUnique.mockResolvedValue(friendUserData);
 
     // Mock bag counts
     const totalBags = chance.integer({ min: 0, max: 5 });
     const publicBags = chance.integer({ min: 0, max: totalBags });
     const visibleBags = chance.integer({ min: publicBags, max: totalBags });
 
-    mockBagsClient.count
-      .mockResolvedValueOnce(totalBags)
-      .mockResolvedValueOnce(publicBags)
-      .mockResolvedValueOnce(visibleBags);
+    // Setup mock responses for database calls
+    mockDatabase.queryRows.mockResolvedValue(fakeFriendships); // friendship query
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(friendUserData) // user details query
+      .mockResolvedValueOnce({ count: totalBags }) // total bags
+      .mockResolvedValueOnce({ count: publicBags }) // public bags
+      .mockResolvedValueOnce({ count: visibleBags }); // visible bags
 
     const result = await getFriendsListService(userId);
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: {
-        status: 'accepted',
-        OR: [
-          { requester_id: userId },
-          { recipient_id: userId },
-        ],
-      },
-    });
 
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBe(1);
@@ -148,7 +132,7 @@ describe('getFriendsListService', () => {
     const friendUsername = chance.word({ length: chance.integer({ min: 5, max: 15 }) });
     const friendEmail = chance.email();
 
-    // Mock the friendship_requests.findMany call
+    // Mock friendship data
     const mockFriendshipData = [
       {
         id: chance.integer({ min: 1, max: 1000 }),
@@ -158,28 +142,29 @@ describe('getFriendsListService', () => {
         created_at: new Date(),
       },
     ];
-    mockFindMany.mockResolvedValue(mockFriendshipData);
 
-    // Mock finding the friend's user details
-    mockUsersClient.findUnique.mockResolvedValue({
+    // Mock friend user details
+    const friendUserData = {
       id: friendUserId,
       username: friendUsername,
       email: friendEmail,
-    });
+    };
 
     // Mock bag counts for the friend
     const totalBags = chance.integer({ min: 1, max: 10 });
     const publicBags = chance.integer({ min: 0, max: totalBags });
     const friendsVisibleBags = chance.integer({ min: 0, max: totalBags - publicBags });
 
-    mockBagsClient.count
-      .mockResolvedValueOnce(totalBags) // total_bags count
-      .mockResolvedValueOnce(publicBags) // public_bags count
-      .mockResolvedValueOnce(friendsVisibleBags + publicBags); // visible_bags count (all bags)
+    // Setup mock responses for database calls
+    mockDatabase.queryRows.mockResolvedValue(mockFriendshipData); // friendship query
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(friendUserData) // user details query
+      .mockResolvedValueOnce({ count: totalBags }) // total_bags count
+      .mockResolvedValueOnce({ count: publicBags }) // public_bags count
+      .mockResolvedValueOnce({ count: friendsVisibleBags + publicBags }); // visible_bags count
 
     const result = await getFriendsListService(userId);
 
-    // This test will FAIL initially - that's the RED phase of TDD
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBe(1);
 

@@ -1,7 +1,8 @@
 import {
-  describe, test, expect, beforeAll,
+  describe, test, expect, beforeAll, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
@@ -12,6 +13,10 @@ beforeAll(async () => {
 });
 
 describe('editBagContentService', () => {
+  beforeEach(() => {
+    // Reset all mocks before each test
+    mockDatabase.queryOne.mockReset();
+  });
   test('should export a function', () => {
     expect(typeof editBagContentService).toBe('function');
   });
@@ -67,19 +72,25 @@ describe('editBagContentService', () => {
     const contentId = chance.guid();
     const updateData = { notes: chance.sentence() };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => null, // Content not found or not owned
-      },
-    };
+    // Mock queryOne to return null (content not found or not owned)
+    mockDatabase.queryOne.mockResolvedValue(null);
 
     try {
-      await editBagContentService(userId, bagId, contentId, updateData, mockPrisma);
+      await editBagContentService(userId, bagId, contentId, updateData, mockDatabase);
       throw new Error('Did not throw');
     } catch (err) {
       expect(err.name).toBe('AuthorizationError');
       expect(err.message).toMatch(/access denied/i);
     }
+
+    // Verify the database call was made
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      `SELECT bc.*, b.user_id as bag_user_id, b.name, b.created_at as bag_created_at, b.updated_at as bag_updated_at
+     FROM bag_contents bc
+     JOIN bags b ON bc.bag_id = b.id
+     WHERE bc.id = $1 AND bc.bag_id = $2 AND b.user_id = $3`,
+      [contentId, bagId, userId],
+    );
   });
 
   test('should successfully update bag content and return updated content', async () => {
@@ -101,25 +112,53 @@ describe('editBagContentService', () => {
     const mockExistingContent = {
       id: contentId,
       bag_id: bagId,
-      bags: { user_id: userId },
+      user_id: userId,
+      disc_master_id: chance.guid(),
+      bag_user_id: userId,
+      name: chance.word(),
+      bag_created_at: new Date(),
+      bag_updated_at: new Date(),
     };
 
     const mockUpdatedContent = {
       id: contentId,
       bag_id: bagId,
+      user_id: userId,
+      disc_master_id: chance.guid(),
       ...updateData,
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockExistingContent,
-        update: async () => mockUpdatedContent,
-      },
-    };
+    // Mock the sequence of database calls
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(mockExistingContent) // First call: find existing content
+      .mockResolvedValueOnce(mockUpdatedContent); // Second call: update content
 
-    const result = await editBagContentService(userId, bagId, contentId, updateData, mockPrisma);
+    const result = await editBagContentService(userId, bagId, contentId, updateData, mockDatabase);
 
     expect(result).toEqual(mockUpdatedContent);
+
+    // Verify the database calls
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      1,
+      `SELECT bc.*, b.user_id as bag_user_id, b.name, b.created_at as bag_created_at, b.updated_at as bag_updated_at
+     FROM bag_contents bc
+     JOIN bags b ON bc.bag_id = b.id
+     WHERE bc.id = $1 AND bc.bag_id = $2 AND b.user_id = $3`,
+      [contentId, bagId, userId],
+    );
+
+    // Verify update call has correct structure
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/^UPDATE bag_contents/),
+      expect.arrayContaining([
+        ...Object.values(updateData),
+        expect.any(Date), // updated_at
+        contentId, // WHERE clause
+      ]),
+    );
   });
 
   test('should throw ValidationError if speed is less than 1', async () => {

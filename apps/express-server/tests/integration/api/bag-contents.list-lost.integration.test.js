@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -63,27 +63,31 @@ describe('GET /api/bags/lost-discs - Integration', () => {
   afterEach(async () => {
     // Clean up test data
     if (createdBagContents.length > 0) {
-      await prisma.bag_contents.deleteMany({
-        where: { id: { in: createdBagContents.map((c) => c.id) } },
-      });
+      await query(
+        'DELETE FROM bag_contents WHERE id = ANY($1)',
+        [createdBagContents.map((c) => c.id)],
+      );
     }
 
     if (createdDiscs.length > 0) {
-      await prisma.disc_master.deleteMany({
-        where: { id: { in: createdDiscs.map((d) => d.id) } },
-      });
+      await query(
+        'DELETE FROM disc_master WHERE id = ANY($1)',
+        [createdDiscs.map((d) => d.id)],
+      );
     }
 
     if (createdBag) {
-      await prisma.bags.deleteMany({
-        where: { id: createdBag.id },
-      });
+      await query(
+        'DELETE FROM bags WHERE id = $1',
+        [createdBag.id],
+      );
     }
 
     if (createdUserIds.length > 0) {
-      await prisma.users.deleteMany({
-        where: { id: { in: createdUserIds } },
-      });
+      await query(
+        'DELETE FROM users WHERE id = ANY($1)',
+        [createdUserIds],
+      );
     }
   });
 
@@ -105,32 +109,16 @@ describe('GET /api/bags/lost-discs - Integration', () => {
 
   test('should return lost discs with merged flight numbers and disc info', async () => {
     // Create test discs
-    const disc1 = await prisma.disc_master.create({
-      data: {
-        brand: chance.company(),
-        model: chance.word(),
-        speed: 12,
-        glide: 5,
-        turn: -1,
-        fade: 3,
-        approved: true,
-        added_by_id: user.id,
-      },
-    });
+    const disc1 = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [chance.company(), chance.word(), 12, 5, -1, 3, true, user.id],
+    );
     createdDiscs.push(disc1);
 
-    const disc2 = await prisma.disc_master.create({
-      data: {
-        brand: chance.company(),
-        model: chance.word(),
-        speed: 9,
-        glide: 4,
-        turn: -2,
-        fade: 2,
-        approved: true,
-        added_by_id: user.id,
-      },
-    });
+    const disc2 = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [chance.company(), chance.word(), 9, 4, -2, 2, true, user.id],
+    );
     createdDiscs.push(disc2);
 
     // Add discs to bag first
@@ -231,18 +219,15 @@ describe('GET /api/bags/lost-discs - Integration', () => {
   test('should handle pagination parameters', async () => {
     // Create and mark 5 discs as lost
     const discCreationPromises = Array.from({ length: 5 }, async (_, i) => {
-      const disc = await prisma.disc_master.create({
-        data: {
-          brand: chance.company(),
-          model: chance.word(),
-          speed: chance.integer({ min: 1, max: 15 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: true,
-          added_by_id: user.id,
-        },
-      });
+      const speed = chance.integer({ min: 1, max: 15 });
+      const glide = chance.integer({ min: 1, max: 7 });
+      const turn = chance.integer({ min: -5, max: 2 });
+      const fade = chance.integer({ min: 0, max: 5 });
+
+      const disc = await queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [chance.company(), chance.word(), speed, glide, turn, fade, true, user.id],
+      );
       createdDiscs.push(disc);
 
       const contentRes = await request(app)
@@ -282,18 +267,10 @@ describe('GET /api/bags/lost-discs - Integration', () => {
 
   test('should handle sorting parameters', async () => {
     // Create and mark 2 discs as lost with different timestamps
-    const disc1 = await prisma.disc_master.create({
-      data: {
-        brand: 'Brand A',
-        model: 'Model A',
-        speed: 10,
-        glide: 4,
-        turn: -1,
-        fade: 2,
-        approved: true,
-        added_by_id: user.id,
-      },
-    });
+    const disc1 = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      ['Brand A', 'Model A', 10, 4, -1, 2, true, user.id],
+    );
     createdDiscs.push(disc1);
 
     const content1Res = await request(app)
@@ -318,18 +295,10 @@ describe('GET /api/bags/lost-discs - Integration', () => {
       setTimeout(resolve, 10);
     });
 
-    const disc2 = await prisma.disc_master.create({
-      data: {
-        brand: 'Brand B',
-        model: 'Model B',
-        speed: 11,
-        glide: 5,
-        turn: 0,
-        fade: 3,
-        approved: true,
-        added_by_id: user.id,
-      },
-    });
+    const disc2 = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      ['Brand B', 'Model B', 11, 5, 0, 3, true, user.id],
+    );
     createdDiscs.push(disc2);
 
     const content2Res = await request(app)
@@ -395,18 +364,19 @@ describe('GET /api/bags/lost-discs - Integration', () => {
       .expect(201);
     const otherBag = otherBagRes.body.bag;
 
-    const otherDisc = await prisma.disc_master.create({
-      data: {
-        brand: chance.company(),
-        model: chance.word(),
-        speed: chance.integer({ min: 1, max: 15 }),
-        glide: chance.integer({ min: 1, max: 7 }),
-        turn: chance.integer({ min: -5, max: 2 }),
-        fade: chance.integer({ min: 0, max: 5 }),
-        approved: true,
-        added_by_id: otherUser.id,
-      },
-    });
+    const otherDiscSpeed = chance.integer({ min: 1, max: 15 });
+    const otherDiscGlide = chance.integer({ min: 1, max: 7 });
+    const otherDiscTurn = chance.integer({ min: -5, max: 2 });
+    const otherDiscFade = chance.integer({ min: 0, max: 5 });
+
+    const discParams = [
+      chance.company(), chance.word(), otherDiscSpeed, otherDiscGlide,
+      otherDiscTurn, otherDiscFade, true, otherUser.id,
+    ];
+    const otherDisc = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      discParams,
+    );
     createdDiscs.push(otherDisc);
 
     const otherContentRes = await request(app)
@@ -436,8 +406,9 @@ describe('GET /api/bags/lost-discs - Integration', () => {
     expect(response.body.pagination.total).toBe(0);
 
     // Clean up other bag
-    await prisma.bags.deleteMany({
-      where: { id: otherBag.id },
-    });
+    await query(
+      'DELETE FROM bags WHERE id = $1',
+      [otherBag.id],
+    );
   });
 });

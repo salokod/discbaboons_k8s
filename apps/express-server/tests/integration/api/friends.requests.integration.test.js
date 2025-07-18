@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -55,25 +55,14 @@ describe('GET /api/friends/requests - Integration', () => {
 
   afterEach(async () => {
     // Clean up all friendship_requests and users with the test prefix
-    await prisma.friendship_requests.deleteMany({
-      where: {
-        OR: [
-          { requester_id: userA?.id },
-          { recipient_id: userA?.id },
-          { requester_id: userB?.id },
-          { recipient_id: userB?.id },
-        ],
-      },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { username: { startsWith: 'test-friendreqs-c-' } },
-          { username: { contains: userAPrefix } },
-          { username: { contains: userBPrefix } },
-        ],
-      },
-    });
+    await query(
+      'DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)',
+      [[userA?.id, userB?.id].filter(Boolean)],
+    );
+    await query(
+      'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2 OR username LIKE $3',
+      ['test-friendreqs-c-%', `%${userAPrefix}%`, `%${userBPrefix}%`],
+    );
   });
 
   test('should require authentication', async () => {

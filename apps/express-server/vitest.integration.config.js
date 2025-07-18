@@ -11,11 +11,13 @@ export default defineConfig({
         '**/node_modules/**',
         '**/tests/**',
         'coverage/**',
-        '**/prisma/**',
         '**/*.config.js',
       ],
     },
     testTimeout: 10000,
     globals: true,
+  },
+  define: {
+    'process.env.NODE_ENV': '"test"',
   },
 });

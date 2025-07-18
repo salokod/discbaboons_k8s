@@ -1,39 +1,18 @@
 import { vi } from 'vitest';
 
-// Clean, stable mocking approach
-const mockPrisma = {
-  users: {
-    findMany: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    count: vi.fn(),
-    deleteMany: vi.fn(),
-  },
-  user_profiles: {
-    findMany: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    count: vi.fn(),
-  },
-  $connect: vi.fn(),
-  $disconnect: vi.fn(),
-  $queryRaw: vi.fn(),
+// Database mock functions for raw SQL approach
+const mockDatabase = {
+  query: vi.fn(),
+  queryRows: vi.fn(),
+  queryOne: vi.fn(),
+  transaction: vi.fn(),
+  testDatabaseConnection: vi.fn(),
+  QueryBuilder: vi.fn(),
+  table: vi.fn(),
 };
 
-// Mock the entire @prisma/client module first
-vi.doMock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => mockPrisma),
-}));
-
-// Mock the lib/prisma.js module - use relative path from test files
-vi.doMock('../../lib/prisma.js', () => ({
-  default: mockPrisma,
-}));
+// Mock the lib/database.js module - use relative path from test files
+vi.doMock('../../lib/database.js', () => mockDatabase);
 
 // Export for use in tests
-// eslint-disable-next-line import/prefer-default-export
-export { mockPrisma };
+export default mockDatabase;

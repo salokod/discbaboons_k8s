@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -58,18 +58,10 @@ describe('PUT /api/bags/:id/discs/:contentId - Integration', () => {
     createdBag = bagRes.body.bag;
 
     // Create an approved test disc
-    createdDisc = await prisma.disc_master.create({
-      data: {
-        brand: `TestBrand${testId}`,
-        model: `TestModel${testId}`,
-        speed: 12,
-        glide: 5,
-        turn: -1,
-        fade: 3,
-        approved: true, // Pre-approved for testing
-        added_by_id: user.id,
-      },
-    });
+    createdDisc = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [`TestBrand${testId}`, `TestModel${testId}`, 12, 5, -1, 3, true, user.id],
+    );
 
     // Add disc to bag to create content for editing
     const addToBagData = {
@@ -94,27 +86,19 @@ describe('PUT /api/bags/:id/discs/:contentId - Integration', () => {
   afterEach(async () => {
     // Clean up test data
     if (createdBagContent) {
-      await prisma.bag_contents.deleteMany({
-        where: { id: createdBagContent.id },
-      });
+      await query('DELETE FROM bag_contents WHERE id = $1', [createdBagContent.id]);
     }
 
     if (createdBag) {
-      await prisma.bags.deleteMany({
-        where: { id: createdBag.id },
-      });
+      await query('DELETE FROM bags WHERE id = $1', [createdBag.id]);
     }
 
     if (createdDisc) {
-      await prisma.disc_master.deleteMany({
-        where: { id: createdDisc.id },
-      });
+      await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
     }
 
     if (createdUserIds.length > 0) {
-      await prisma.users.deleteMany({
-        where: { id: { in: createdUserIds } },
-      });
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 

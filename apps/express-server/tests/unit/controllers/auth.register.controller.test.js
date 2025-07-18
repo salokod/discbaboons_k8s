@@ -3,10 +3,10 @@ import {
 } from 'vitest';
 import Chance from 'chance';
 
-// ✅ Import the mock setup
-import { mockPrisma } from '../setup.js';
+// Import the mock setup
+import mockDatabase from '../setup.js';
 
-// ✅ Import without mocking first to test the path
+// Import without mocking first to test the path
 import registerController from '../../../controllers/auth.register.controller.js';
 
 const chance = new Chance();
@@ -25,19 +25,31 @@ describe('AuthController', () => {
     vi.clearAllMocks();
     next = vi.fn();
 
-    // ✅ Mock Prisma for controller tests - using Chance!
-    mockPrisma.users.findUnique.mockResolvedValue(null); // No existing users
-    mockPrisma.users.create.mockResolvedValue({
-      id: chance.integer({ min: 1, max: 1000 }),
-      email: chance.email(),
-      username: chance.word(),
-      password_hash: chance.hash(),
-      created_at: new Date().toISOString(),
-    });
+    // Mock database for controller tests
+    mockDatabase.queryOne.mockClear();
   });
 
-  test('should exist', () => {
-    expect(true).toBe(true);
+  test('should call next with error when service throws', async () => {
+    const userData = createTestRegisterData();
+    const mockError = new Error('Database error');
+
+    // Mock database to throw error
+    mockDatabase.queryOne.mockRejectedValue(mockError);
+
+    const req = {
+      body: userData,
+    };
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+
+    await registerController(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(mockError);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   test('should export registerController function', () => {
@@ -47,15 +59,21 @@ describe('AuthController', () => {
   test('should handle register request', async () => {
     const userData = createTestRegisterData();
     const mockId = chance.integer({ min: 1, max: 1000 });
+    const mockCreatedAt = new Date().toISOString();
 
-    // Override the mock for this specific test
-    mockPrisma.users.create.mockResolvedValue({
+    const mockCreatedUser = {
       id: mockId,
       email: userData.email,
       username: userData.username,
-      password_hash: chance.hash(),
-      created_at: new Date().toISOString(),
-    });
+      created_at: mockCreatedAt,
+      updated_at: mockCreatedAt,
+    };
+
+    // Mock database calls - first two check for existing, third creates user
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce(null) // No existing username
+      .mockResolvedValueOnce(mockCreatedUser); // Return created user
 
     const req = {
       body: userData,
@@ -71,12 +89,7 @@ describe('AuthController', () => {
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      user: {
-        id: mockId,
-        email: userData.email,
-        username: userData.username,
-        created_at: expect.any(String),
-      },
+      user: mockCreatedUser,
     });
   });
 });

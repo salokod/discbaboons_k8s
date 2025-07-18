@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import redisClient from '../lib/redis.js';
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 import { isValidEmail } from '../utils/validation.js';
 import sendEmail from './email/email.service.js';
 import { getTemplate } from './email/email.template.service.js';
@@ -23,13 +23,15 @@ const forgotPassword = async (forgotPasswordData) => {
   // Look up user by username or email
   let user;
   if (forgotPasswordData.username) {
-    user = await prisma.users.findUnique({
-      where: { username: forgotPasswordData.username },
-    });
+    user = await queryOne(
+      'SELECT id, username, email FROM users WHERE username = $1',
+      [forgotPasswordData.username],
+    );
   } else if (forgotPasswordData.email) {
-    user = await prisma.users.findUnique({
-      where: { email: forgotPasswordData.email },
-    });
+    user = await queryOne(
+      'SELECT id, username, email FROM users WHERE email = $1',
+      [forgotPasswordData.email],
+    );
   }
 
   // If user found, generate and store reset token

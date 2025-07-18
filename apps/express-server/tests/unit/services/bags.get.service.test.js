@@ -1,10 +1,18 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 import getBagService from '../../../services/bags.get.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
 describe('getBagService', () => {
+  beforeEach(() => {
+    mockDatabase.queryOne.mockClear();
+    mockDatabase.queryRows.mockClear();
+  });
+
   test('should export a function', () => {
     expect(typeof getBagService).toBe('function');
   });
@@ -36,34 +44,40 @@ describe('getBagService', () => {
       id: bagId,
       user_id: userId,
       name: chance.word(),
-      description: chance.sentence(),
       is_public: chance.bool(),
       is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => mockBag,
-      },
-    };
+    const mockContents = [];
 
-    const result = await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue(mockContents);
 
-    expect(result).toEqual(mockBag);
+    const result = await getBagService(userId, bagId, false);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT'),
+      [bagId, userId],
+    );
+    expect(result).toEqual({ ...mockBag, bag_contents: mockContents });
   });
 
   test('should return null if bag does not exist or user does not own it', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
 
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => null, // Bag not found or not owned
-      },
-    };
+    // Mock database to return null (bag not found)
+    mockDatabase.queryOne.mockResolvedValue(null);
 
-    const result = await getBagService(userId, bagId, false, mockPrisma);
+    const result = await getBagService(userId, bagId, false);
 
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT'),
+      [bagId, userId],
+    );
     expect(result).toBeNull();
   });
 
@@ -71,97 +85,154 @@ describe('getBagService', () => {
     const userId = chance.integer({ min: 1 });
     const invalidBagId = 'badBagId'; // Invalid UUID format
 
-    // Mock should not be called since we return early for invalid UUID
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => {
-          throw new Error('Should not reach Prisma for invalid UUID');
-        },
-      },
-    };
+    const result = await getBagService(userId, invalidBagId, false);
 
-    const result = await getBagService(userId, invalidBagId, mockPrisma);
-
+    // Should not call database for invalid UUID
+    expect(mockDatabase.queryOne).not.toHaveBeenCalled();
     expect(result).toBeNull();
   });
 
-  test('should call findFirst with bag_contents include', async () => {
+  test('should query bag contents with disc master data', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
-    let findFirstOptions;
-
-    const mockPrisma = {
-      bags: {
-        findFirst: async (options) => {
-          findFirstOptions = options;
-          return null;
-        },
-      },
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([]);
 
-    expect(findFirstOptions.include).toBeDefined();
-    expect(findFirstOptions.include.bag_contents).toBeDefined();
+    await getBagService(userId, bagId, false);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('JOIN disc_master dm ON bc.disc_id = dm.id'),
+      [bagId],
+    );
   });
 
-  test('should include disc_master with bag_contents', async () => {
+  test('should include disc master data in query result', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
-    let findFirstOptions;
-
-    const mockPrisma = {
-      bags: {
-        findFirst: async (options) => {
-          findFirstOptions = options;
-          return null;
-        },
-      },
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    await getBagService(userId, bagId, false, mockPrisma);
+    const mockContent = {
+      id: chance.guid(),
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: chance.guid(),
+      notes: chance.sentence(),
+      weight: chance.integer({ min: 150, max: 180 }),
+      condition: 'New',
+      plastic_type: 'Champion',
+      color: 'Red',
+      speed: 12,
+      glide: 5,
+      turn: -1,
+      fade: 3,
+      brand: 'Innova',
+      model: 'Destroyer',
+      is_lost: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      disc_master_id: chance.guid(),
+      disc_master_brand: 'Innova',
+      disc_master_model: 'Destroyer',
+      disc_master_speed: 12,
+      disc_master_glide: 5,
+      disc_master_turn: -1,
+      disc_master_fade: 3,
+      disc_master_approved: true,
+      disc_master_added_by_id: chance.integer({ min: 1 }),
+      disc_master_created_at: new Date(),
+      disc_master_updated_at: new Date(),
+    };
 
-    expect(findFirstOptions.include.bag_contents.include).toBeDefined();
-    expect(findFirstOptions.include.bag_contents.include.disc_master).toBe(true);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([mockContent]);
+
+    const result = await getBagService(userId, bagId, false);
+
+    expect(result.bag_contents).toHaveLength(1);
+    expect(result.bag_contents[0]).toHaveProperty('disc_master');
+    expect(result.bag_contents[0].disc_master).toEqual({
+      id: mockContent.disc_master_id,
+      brand: mockContent.disc_master_brand,
+      model: mockContent.disc_master_model,
+      speed: mockContent.disc_master_speed,
+      glide: mockContent.disc_master_glide,
+      turn: mockContent.disc_master_turn,
+      fade: mockContent.disc_master_fade,
+      approved: mockContent.disc_master_approved,
+      added_by_id: mockContent.disc_master_added_by_id,
+      created_at: mockContent.disc_master_created_at,
+      updated_at: mockContent.disc_master_updated_at,
+    });
   });
 
   test('should filter out lost discs by default', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
-    let findFirstOptions;
-
-    const mockPrisma = {
-      bags: {
-        findFirst: async (options) => {
-          findFirstOptions = options;
-          return null;
-        },
-      },
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([]);
 
-    expect(findFirstOptions.include.bag_contents.where).toBeDefined();
-    expect(findFirstOptions.include.bag_contents.where.is_lost).toBe(false);
+    await getBagService(userId, bagId, false);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('AND bc.is_lost = false'),
+      [bagId],
+    );
   });
 
   test('should include lost discs when includeLost is true', async () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
-    let findFirstOptions;
-
-    const mockPrisma = {
-      bags: {
-        findFirst: async (options) => {
-          findFirstOptions = options;
-          return null;
-        },
-      },
+    const mockBag = {
+      id: bagId,
+      user_id: userId,
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    await getBagService(userId, bagId, true, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([]);
 
-    expect(findFirstOptions.include.bag_contents.where).toBeUndefined();
+    await getBagService(userId, bagId, true);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.not.stringContaining('AND bc.is_lost = false'),
+      [bagId],
+    );
   });
 
   test('should use custom flight numbers from bag_contents over disc_master', async () => {
@@ -170,28 +241,50 @@ describe('getBagService', () => {
     const mockBag = {
       id: bagId,
       user_id: userId,
-      bag_contents: [{
-        id: chance.guid(),
-        speed: 9, // Custom override
-        glide: null, // Use disc_master fallback
-        turn: -2, // Custom override
-        fade: null, // Use disc_master fallback
-        disc_master: {
-          speed: 12, // Stock value (should be overridden)
-          glide: 5, // Stock value (should be used)
-          turn: -1, // Stock value (should be overridden)
-          fade: 3, // Stock value (should be used)
-        },
-      }],
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => mockBag,
-      },
+    const mockContent = {
+      id: chance.guid(),
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: chance.guid(),
+      notes: chance.sentence(),
+      weight: chance.integer({ min: 150, max: 180 }),
+      condition: 'New',
+      plastic_type: 'Champion',
+      color: 'Red',
+      speed: 9, // Custom override
+      glide: null, // Use disc_master fallback
+      turn: -2, // Custom override
+      fade: null, // Use disc_master fallback
+      brand: 'Innova',
+      model: 'Destroyer',
+      is_lost: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      disc_master_id: chance.guid(),
+      disc_master_brand: 'Innova',
+      disc_master_model: 'Destroyer',
+      disc_master_speed: 12, // Stock value (should be overridden)
+      disc_master_glide: 5, // Stock value (should be used)
+      disc_master_turn: -1, // Stock value (should be overridden)
+      disc_master_fade: 3, // Stock value (should be used)
+      disc_master_approved: true,
+      disc_master_added_by_id: chance.integer({ min: 1 }),
+      disc_master_created_at: new Date(),
+      disc_master_updated_at: new Date(),
     };
 
-    const result = await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([mockContent]);
+
+    const result = await getBagService(userId, bagId, false);
 
     expect(result.bag_contents[0].speed).toBe(9); // Custom used
     expect(result.bag_contents[0].glide).toBe(5); // Fallback used
@@ -205,28 +298,50 @@ describe('getBagService', () => {
     const mockBag = {
       id: bagId,
       user_id: userId,
-      bag_contents: [{
-        id: chance.guid(),
-        speed: 11, // All custom values
-        glide: 6, // All custom values
-        turn: 0, // All custom values
-        fade: 1, // All custom values
-        disc_master: {
-          speed: 12, // Should be ignored
-          glide: 5, // Should be ignored
-          turn: -1, // Should be ignored
-          fade: 3, // Should be ignored
-        },
-      }],
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => mockBag,
-      },
+    const mockContent = {
+      id: chance.guid(),
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: chance.guid(),
+      notes: chance.sentence(),
+      weight: chance.integer({ min: 150, max: 180 }),
+      condition: 'New',
+      plastic_type: 'Champion',
+      color: 'Red',
+      speed: 11, // All custom values
+      glide: 6, // All custom values
+      turn: 0, // All custom values
+      fade: 1, // All custom values
+      brand: 'Innova',
+      model: 'Destroyer',
+      is_lost: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      disc_master_id: chance.guid(),
+      disc_master_brand: 'Innova',
+      disc_master_model: 'Destroyer',
+      disc_master_speed: 12, // Should be ignored
+      disc_master_glide: 5, // Should be ignored
+      disc_master_turn: -1, // Should be ignored
+      disc_master_fade: 3, // Should be ignored
+      disc_master_approved: true,
+      disc_master_added_by_id: chance.integer({ min: 1 }),
+      disc_master_created_at: new Date(),
+      disc_master_updated_at: new Date(),
     };
 
-    const result = await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([mockContent]);
+
+    const result = await getBagService(userId, bagId, false);
 
     expect(result.bag_contents[0].speed).toBe(11); // All custom values used
     expect(result.bag_contents[0].glide).toBe(6);
@@ -240,24 +355,50 @@ describe('getBagService', () => {
     const mockBag = {
       id: bagId,
       user_id: userId,
-      bag_contents: [{
-        id: chance.guid(),
-        brand: 'Custom Brand', // Custom override
-        model: null, // Use disc_master fallback
-        disc_master: {
-          brand: 'Stock Brand', // Stock value (should be overridden)
-          model: 'Stock Model', // Stock value (should be used)
-        },
-      }],
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => mockBag,
-      },
+    const mockContent = {
+      id: chance.guid(),
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: chance.guid(),
+      notes: chance.sentence(),
+      weight: chance.integer({ min: 150, max: 180 }),
+      condition: 'New',
+      plastic_type: 'Champion',
+      color: 'Red',
+      speed: 12,
+      glide: 5,
+      turn: -1,
+      fade: 3,
+      brand: 'Custom Brand', // Custom override
+      model: null, // Use disc_master fallback
+      is_lost: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      disc_master_id: chance.guid(),
+      disc_master_brand: 'Stock Brand', // Stock value (should be overridden)
+      disc_master_model: 'Stock Model', // Stock value (should be used)
+      disc_master_speed: 12,
+      disc_master_glide: 5,
+      disc_master_turn: -1,
+      disc_master_fade: 3,
+      disc_master_approved: true,
+      disc_master_added_by_id: chance.integer({ min: 1 }),
+      disc_master_created_at: new Date(),
+      disc_master_updated_at: new Date(),
     };
 
-    const result = await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([mockContent]);
+
+    const result = await getBagService(userId, bagId, false);
 
     expect(result.bag_contents[0].brand).toBe('Custom Brand'); // Custom used
     expect(result.bag_contents[0].model).toBe('Stock Model'); // Fallback used
@@ -269,24 +410,50 @@ describe('getBagService', () => {
     const mockBag = {
       id: bagId,
       user_id: userId,
-      bag_contents: [{
-        id: chance.guid(),
-        brand: 'Beat-in Brand', // All custom values
-        model: 'Seasoned Destroyer', // All custom values
-        disc_master: {
-          brand: 'Innova', // Should be ignored
-          model: 'Destroyer', // Should be ignored
-        },
-      }],
+      name: chance.word(),
+      is_public: chance.bool(),
+      is_friends_visible: chance.bool(),
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: async () => mockBag,
-      },
+    const mockContent = {
+      id: chance.guid(),
+      user_id: userId,
+      bag_id: bagId,
+      disc_id: chance.guid(),
+      notes: chance.sentence(),
+      weight: chance.integer({ min: 150, max: 180 }),
+      condition: 'New',
+      plastic_type: 'Champion',
+      color: 'Red',
+      speed: 12,
+      glide: 5,
+      turn: -1,
+      fade: 3,
+      brand: 'Beat-in Brand', // All custom values
+      model: 'Seasoned Destroyer', // All custom values
+      is_lost: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      disc_master_id: chance.guid(),
+      disc_master_brand: 'Innova', // Should be ignored
+      disc_master_model: 'Destroyer', // Should be ignored
+      disc_master_speed: 12,
+      disc_master_glide: 5,
+      disc_master_turn: -1,
+      disc_master_fade: 3,
+      disc_master_approved: true,
+      disc_master_added_by_id: chance.integer({ min: 1 }),
+      disc_master_created_at: new Date(),
+      disc_master_updated_at: new Date(),
     };
 
-    const result = await getBagService(userId, bagId, false, mockPrisma);
+    // Mock database calls
+    mockDatabase.queryOne.mockResolvedValue(mockBag);
+    mockDatabase.queryRows.mockResolvedValue([mockContent]);
+
+    const result = await getBagService(userId, bagId, false);
 
     expect(result.bag_contents[0].brand).toBe('Beat-in Brand'); // All custom values used
     expect(result.bag_contents[0].model).toBe('Seasoned Destroyer');

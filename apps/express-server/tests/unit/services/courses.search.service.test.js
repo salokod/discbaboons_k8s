@@ -1,8 +1,16 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 import coursesSearchService from '../../../services/courses.search.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
+
+beforeEach(() => {
+  mockDatabase.queryOne.mockClear();
+  mockDatabase.queryRows.mockClear();
+});
 
 describe('coursesSearchService', () => {
   test('should export a function', () => {
@@ -21,14 +29,19 @@ describe('coursesSearchService', () => {
       },
     ];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async () => mockCourses,
-        count: async () => 1,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
-    const result = await coursesSearchService({}, mockPrisma);
+    const result = await coursesSearchService({});
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true',
+      [],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      [50, 0],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
   });
@@ -46,17 +59,19 @@ describe('coursesSearchService', () => {
       },
     ];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.where.state).toBe(targetState);
-          return mockCourses;
-        },
-        count: async () => 1,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
-    const result = await coursesSearchService({ state: targetState }, mockPrisma);
+    const result = await coursesSearchService({ state: targetState });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state = $1',
+      [targetState],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND state = $1 ORDER BY state ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [targetState, 50, 0],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
   });
@@ -74,17 +89,19 @@ describe('coursesSearchService', () => {
       },
     ];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.where.city).toBe(targetCity);
-          return mockCourses;
-        },
-        count: async () => 1,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
-    const result = await coursesSearchService({ city: targetCity }, mockPrisma);
+    const result = await coursesSearchService({ city: targetCity });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND city = $1',
+      [targetCity],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND city = $1 ORDER BY state ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [targetCity, 50, 0],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
   });
@@ -102,20 +119,19 @@ describe('coursesSearchService', () => {
       },
     ];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.where.name).toEqual({
-            contains: searchName,
-            mode: 'insensitive',
-          });
-          return mockCourses;
-        },
-        count: async () => 1,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
-    const result = await coursesSearchService({ name: searchName }, mockPrisma);
+    const result = await coursesSearchService({ name: searchName });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND name ILIKE $1',
+      [`%${searchName}%`],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND name ILIKE $1 ORDER BY state ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [`%${searchName}%`, 50, 0],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
   });
@@ -135,27 +151,23 @@ describe('coursesSearchService', () => {
       },
     ];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.where.approved).toBe(true);
-          expect(query.where.state).toBe(targetState);
-          expect(query.where.city).toBe(targetCity);
-          expect(query.where.name).toEqual({
-            contains: searchName,
-            mode: 'insensitive',
-          });
-          return mockCourses;
-        },
-        count: async () => 1,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
     const result = await coursesSearchService({
       state: targetState,
       city: targetCity,
       name: searchName,
-    }, mockPrisma);
+    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state = $1 AND city = $2 AND name ILIKE $3',
+      [targetState, targetCity, `%${searchName}%`],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND state = $1 AND city = $2 AND name ILIKE $3 ORDER BY state ASC, city ASC, name ASC LIMIT $4 OFFSET $5',
+      [targetState, targetCity, `%${searchName}%`, 50, 0],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
   });
@@ -163,18 +175,19 @@ describe('coursesSearchService', () => {
   test('should apply default pagination (limit 50)', async () => {
     const mockCourses = [{ id: chance.word(), approved: true }];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.take).toBe(50);
-          expect(query.skip).toBe(0);
-          return mockCourses;
-        },
-        count: async () => 100,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '100' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
-    const result = await coursesSearchService({}, mockPrisma);
+    const result = await coursesSearchService({});
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true',
+      [],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      [50, 0],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(100);
     expect(result.limit).toBe(50);
@@ -184,21 +197,22 @@ describe('coursesSearchService', () => {
   test('should apply custom pagination parameters', async () => {
     const mockCourses = [{ id: chance.word(), approved: true }];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.take).toBe(100);
-          expect(query.skip).toBe(200);
-          return mockCourses;
-        },
-        count: async () => 500,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '500' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
     const result = await coursesSearchService({
       limit: 100,
       offset: 200,
-    }, mockPrisma);
+    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true',
+      [],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      [100, 200],
+    );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(500);
     expect(result.limit).toBe(100);
@@ -208,19 +222,21 @@ describe('coursesSearchService', () => {
   test('should enforce maximum limit of 500', async () => {
     const mockCourses = [{ id: chance.word(), approved: true }];
 
-    const mockPrisma = {
-      courses: {
-        findMany: async (query) => {
-          expect(query.take).toBe(500);
-          return mockCourses;
-        },
-        count: async () => 1000,
-      },
-    };
+    mockDatabase.queryOne.mockResolvedValue({ count: '1000' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
 
     const result = await coursesSearchService({
       limit: 1000, // Requesting more than max
-    }, mockPrisma);
+    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true',
+      [],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      [500, 0],
+    );
     expect(result.limit).toBe(500);
   });
 });

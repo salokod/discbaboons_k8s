@@ -4,7 +4,7 @@ import {
 import request from 'supertest';
 import { Chance } from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -12,13 +12,7 @@ describe('POST /api/auth/login - Integration Test', () => {
   // Clean up test users after each test
   beforeEach(async () => {
     // Remove any test users that might exist
-    await prisma.users.deleteMany({
-      where: {
-        email: {
-          contains: 'test-login',
-        },
-      },
-    });
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-login%']);
 
     // Set environment variables for JWT
     process.env.JWT_SECRET = 'test-jwt-secret-key-for-integration-tests';
@@ -27,13 +21,7 @@ describe('POST /api/auth/login - Integration Test', () => {
 
   afterAll(async () => {
     // Final cleanup
-    await prisma.users.deleteMany({
-      where: {
-        email: {
-          contains: 'test-login',
-        },
-      },
-    });
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-login%']);
 
     vi.restoreAllMocks();
   });

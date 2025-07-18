@@ -1,29 +1,7 @@
-// apps/express-server/tests/setup.js
-// Test setup and database configuration
+// apps/express-server/tests/integration/setup.js
+// Test setup and database configuration for raw SQL
 import 'dotenv/config';
-import { beforeAll, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { query, queryOne, queryRows } from '../../lib/database.js';
 
-// Create a separate Prisma instance for testing
-const prisma = new PrismaClient({
-  log: ['error'], // Only log errors in tests
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL,
-    },
-  },
-});
-
-// Global test setup
-beforeAll(async () => {
-  await prisma.$connect();
-});
-
-// Global test teardown
-afterAll(async () => {
-  await prisma.$disconnect();
-});
-
-// Export for use in tests
-// eslint-disable-next-line import/prefer-default-export
-export { prisma };
+// Raw SQL database utilities for integration tests
+export { query, queryOne, queryRows };

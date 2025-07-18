@@ -1,8 +1,21 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeAll, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
-import removeDiscService from '../../../services/bag-contents.remove.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
+
+let removeDiscService;
+
+beforeAll(async () => {
+  ({ default: removeDiscService } = await import('../../../services/bag-contents.remove.service.js'));
+});
+
+beforeEach(() => {
+  mockDatabase.queryOne.mockClear();
+  mockDatabase.query.mockClear();
+});
 
 describe('removeDiscService', () => {
   test('should export a function', () => {
@@ -29,13 +42,7 @@ describe('removeDiscService', () => {
     const userId = chance.integer({ min: 1 });
     const invalidUuid = chance.word();
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => null,
-      },
-    };
-
-    const result = await removeDiscService(userId, invalidUuid, mockPrisma);
+    const result = await removeDiscService(userId, invalidUuid);
     expect(result).toBeNull();
   });
 
@@ -43,14 +50,11 @@ describe('removeDiscService', () => {
     const userId = chance.integer({ min: 1 });
     const contentId = chance.guid();
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => null,
-      },
-    };
+    // Mock no content found
+    mockDatabase.queryOne.mockResolvedValue(null);
 
-    await expect(removeDiscService(userId, contentId, mockPrisma)).rejects.toThrow('Disc not found or access denied');
-    await expect(removeDiscService(userId, contentId, mockPrisma)).rejects.toMatchObject({
+    await expect(removeDiscService(userId, contentId)).rejects.toThrow('Disc not found or access denied');
+    await expect(removeDiscService(userId, contentId)).rejects.toMatchObject({
       name: 'NotFoundError',
     });
   });
@@ -65,14 +69,11 @@ describe('removeDiscService', () => {
       disc_id: chance.guid(),
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockDiscContent,
-        delete: async () => mockDiscContent,
-      },
-    };
+    // Mock content found and successful deletion
+    mockDatabase.queryOne.mockResolvedValue(mockDiscContent);
+    mockDatabase.query.mockResolvedValue({ rowCount: 1 });
 
-    const result = await removeDiscService(userId, contentId, mockPrisma);
+    const result = await removeDiscService(userId, contentId);
 
     expect(result).toEqual({
       message: 'Disc removed successfully',

@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -16,17 +16,14 @@ describe('GET/PUT /api/profile - Integration', () => {
 
   beforeEach(async () => {
     // Clean up before each test
-    await prisma.user_profiles.deleteMany({
-      where: { name: { contains: 'test-get-' } },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { email: { contains: 'test-get-' } },
-          { username: { contains: 'testget' } },
-        ],
-      },
-    });
+    await query(
+      'DELETE FROM user_profiles WHERE name LIKE $1',
+      ['%test-get-%'],
+    );
+    await query(
+      'DELETE FROM users WHERE email LIKE $1 OR username LIKE $2',
+      ['%test-get-%', '%testget%'],
+    );
 
     // Register a new user
     const password = `Abcdef1!${chance.string({ length: 5 })}`;
@@ -55,17 +52,14 @@ describe('GET/PUT /api/profile - Integration', () => {
   });
 
   afterAll(async () => {
-    await prisma.user_profiles.deleteMany({
-      where: { name: { contains: 'test-get-' } },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { email: { contains: 'test-get-' } },
-          { username: { contains: 'testget' } },
-        ],
-      },
-    });
+    await query(
+      'DELETE FROM user_profiles WHERE name LIKE $1',
+      ['%test-get-%'],
+    );
+    await query(
+      'DELETE FROM users WHERE email LIKE $1 OR username LIKE $2',
+      ['%test-get-%', '%testget%'],
+    );
 
     vi.restoreAllMocks();
   });

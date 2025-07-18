@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -48,48 +48,26 @@ describe('POST /api/friends/request - Integration', () => {
 
   afterEach(async () => {
     // Clean up all friendship_requests and users with the test prefix
-    await prisma.friendship_requests.deleteMany({
-      where: {
-        OR: [
-          { requester_id: userA?.id },
-          { recipient_id: userA?.id },
-          { requester_id: userB?.id },
-          { recipient_id: userB?.id },
-        ],
-      },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { username: { startsWith: 'test-friendreq-a-' } },
-          { username: { startsWith: 'test-friendreq-b-' } },
-        ],
-      },
-    });
+    await query(
+      'DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)',
+      [[userA?.id, userB?.id].filter(Boolean)],
+    );
+    await query(
+      'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2',
+      ['test-friendreq-a-%', 'test-friendreq-b-%'],
+    );
   });
 
   afterAll(async () => {
     // Final cleanup
-    await prisma.friendship_requests.deleteMany({
-      where: {
-        OR: [
-          { requester_id: userA?.id },
-          { recipient_id: userA?.id },
-          { requester_id: userB?.id },
-          { recipient_id: userB?.id },
-        ],
-      },
-    });
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { username: { startsWith: 'test-friendreq-a-' } },
-          { username: { startsWith: 'test-friendreq-b-' } },
-          { username: { startsWith: 'test-friendreq-c-' } },
-        ],
-      },
-    });
-    await prisma.$disconnect();
+    await query(
+      'DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)',
+      [[userA?.id, userB?.id].filter(Boolean)],
+    );
+    await query(
+      'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2 OR username LIKE $3',
+      ['test-friendreq-a-%', 'test-friendreq-b-%', 'test-friendreq-c-%'],
+    );
   });
 
   test('should require authentication', async () => {
@@ -163,10 +141,10 @@ describe('POST /api/friends/request - Integration', () => {
       .expect(200);
 
     // Simulate denial in DB
-    await prisma.friendship_requests.updateMany({
-      where: { requester_id: userB.id, recipient_id: userA.id },
-      data: { status: 'denied' },
-    });
+    await query(
+      'UPDATE friendship_requests SET status = $1 WHERE requester_id = $2 AND recipient_id = $3',
+      ['denied', userB.id, userA.id],
+    );
 
     // Now User A can request User B
     const res = await request(app)
@@ -189,10 +167,10 @@ describe('POST /api/friends/request - Integration', () => {
       .expect(200);
 
     // Simulate acceptance in DB
-    await prisma.friendship_requests.updateMany({
-      where: { requester_id: userB.id, recipient_id: userA.id },
-      data: { status: 'accepted' },
-    });
+    await query(
+      'UPDATE friendship_requests SET status = $1 WHERE requester_id = $2 AND recipient_id = $3',
+      ['accepted', userB.id, userA.id],
+    );
 
     // Now User A cannot request User B
     const res = await request(app)

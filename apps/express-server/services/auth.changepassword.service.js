@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import redisClient from '../lib/redis.js';
-import prisma from '../lib/prisma.js';
+import { queryOne, query } from '../lib/database.js';
 import { isValidEmail } from '../utils/validation.js';
 
 const changePassword = async (changePasswordData) => {
@@ -24,13 +24,15 @@ const changePassword = async (changePasswordData) => {
   // Look up user to get their ID for Redis key matching
   let user;
   if (changePasswordData.username) {
-    user = await prisma.users.findUnique({
-      where: { username: changePasswordData.username },
-    });
+    user = await queryOne(
+      'SELECT * FROM users WHERE username = $1',
+      [changePasswordData.username],
+    );
   } else if (changePasswordData.email) {
-    user = await prisma.users.findUnique({
-      where: { email: changePasswordData.email },
-    });
+    user = await queryOne(
+      'SELECT * FROM users WHERE email = $1',
+      [changePasswordData.email],
+    );
   }
 
   // Check if user exists and if the reset token matches
@@ -52,10 +54,10 @@ const changePassword = async (changePasswordData) => {
   const hashedPassword = await bcrypt.hash(changePasswordData.newPassword, 10);
 
   // Update user's password in database
-  await prisma.users.update({
-    where: { id: user.id },
-    data: { password_hash: hashedPassword },
-  });
+  await query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [hashedPassword, user.id],
+  );
 
   // Delete the reset token from Redis (one-time use)
   await redisClient.del(`password_reset:${user.id}`);

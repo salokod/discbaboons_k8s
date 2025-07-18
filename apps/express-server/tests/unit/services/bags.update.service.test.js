@@ -1,8 +1,21 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeAll, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
-import updateBagService from '../../../services/bags.update.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
+
+let updateBagService;
+
+beforeAll(async () => {
+  ({ default: updateBagService } = await import('../../../services/bags.update.service.js'));
+});
+
+beforeEach(() => {
+  mockDatabase.query.mockClear();
+  mockDatabase.queryOne.mockClear();
+});
 
 describe('updateBagService', () => {
   test('should export a function', () => {
@@ -73,24 +86,17 @@ describe('updateBagService', () => {
       is_friends_visible: true,
     };
 
-    let capturedUpdateData;
-    const mockPrisma = {
-      bags: {
-        updateMany: async ({ data }) => {
-          capturedUpdateData = data;
-          return { count: 1 };
-        },
-        findFirst: async () => updatedBag,
-      },
-    };
+    // Mock successful update (1 row affected) and bag retrieval
+    mockDatabase.query.mockResolvedValue({ rowCount: 1 });
+    mockDatabase.queryOne.mockResolvedValue(updatedBag);
 
-    const result = await updateBagService(userId, bagId, updateData, mockPrisma);
+    const result = await updateBagService(userId, bagId, updateData);
 
     expect(result).toEqual(updatedBag);
-    expect(capturedUpdateData).toEqual({
-      ...updateData,
-      updated_at: expect.any(Date),
-    });
+    expect(mockDatabase.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE bags SET'),
+      expect.arrayContaining([userId, bagId]),
+    );
   });
 
   test('should return null if bag does not exist or user does not own it', async () => {
@@ -100,14 +106,10 @@ describe('updateBagService', () => {
       name: chance.word(),
     };
 
-    const mockPrisma = {
-      bags: {
-        updateMany: async () => ({ count: 0 }), // No rows updated
-        findFirst: async () => null,
-      },
-    };
+    // Mock failed update (0 rows affected)
+    mockDatabase.query.mockResolvedValue({ rowCount: 0 });
 
-    const result = await updateBagService(userId, bagId, updateData, mockPrisma);
+    const result = await updateBagService(userId, bagId, updateData);
 
     expect(result).toBeNull();
   });

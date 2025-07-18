@@ -1,16 +1,13 @@
 import {
-  describe, test, expect, vi, beforeEach,
+  describe, test, expect, vi, beforeAll, beforeEach,
 } from 'vitest';
+import mockDatabase from '../setup.js';
 
-const mockFindUnique = vi.fn();
+let isAdmin;
 
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    users: { findUnique: mockFindUnique },
-  })),
-}));
-
-const { default: isAdmin } = await import('../../../middleware/isadmin.middleware.js');
+beforeAll(async () => {
+  ({ default: isAdmin } = await import('../../../middleware/isadmin.middleware.js'));
+});
 
 describe('isAdmin middleware', () => {
   let req; let res; let
@@ -20,7 +17,7 @@ describe('isAdmin middleware', () => {
     req = { user: { userId: 123 } };
     res = { status: vi.fn(() => res), json: vi.fn() };
     next = vi.fn();
-    vi.clearAllMocks();
+    mockDatabase.queryOne.mockClear();
   });
 
   test('should export a function', () => {
@@ -36,7 +33,7 @@ describe('isAdmin middleware', () => {
   });
 
   test('should return 403 if user is not found', async () => {
-    mockFindUnique.mockResolvedValue(null);
+    mockDatabase.queryOne.mockResolvedValue(null);
     await isAdmin(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({ error: 'Admin access required' });
@@ -44,7 +41,7 @@ describe('isAdmin middleware', () => {
   });
 
   test('should return 403 if user is not admin', async () => {
-    mockFindUnique.mockResolvedValue({ id: 123, is_admin: false });
+    mockDatabase.queryOne.mockResolvedValue({ id: 123, is_admin: false });
     await isAdmin(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({ error: 'Admin access required' });
@@ -52,7 +49,7 @@ describe('isAdmin middleware', () => {
   });
 
   test('should call next if user is admin', async () => {
-    mockFindUnique.mockResolvedValue({ id: 123, is_admin: true });
+    mockDatabase.queryOne.mockResolvedValue({ id: 123, is_admin: true });
     await isAdmin(req, res, next);
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();

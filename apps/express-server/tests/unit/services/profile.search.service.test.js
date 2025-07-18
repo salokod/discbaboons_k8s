@@ -1,27 +1,17 @@
 import {
-  describe, test, expect, vi, beforeEach,
+  describe, test, expect, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import searchProfilesService from '../../../services/profile.search.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-// Mock Prisma
-const mockFindMany = vi.fn();
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    user_profiles: {
-      findMany: mockFindMany,
-    },
-  })),
-}));
-
-const { default: searchProfilesService } = await import('../../../services/profile.search.service.js');
+beforeEach(() => {
+  mockDatabase.queryRows.mockClear();
+});
 
 describe('searchProfilesService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   test('should be a function', () => {
     expect(typeof searchProfilesService).toBe('function');
   });
@@ -33,7 +23,7 @@ describe('searchProfilesService', () => {
   });
 
   test('should return an array when a valid query is provided', async () => {
-    mockFindMany.mockResolvedValueOnce([]);
+    mockDatabase.queryRows.mockResolvedValueOnce([]);
     const query = { username: chance.word() };
     const result = await searchProfilesService(query);
     expect(Array.isArray(result)).toBe(true);
@@ -51,7 +41,7 @@ describe('searchProfilesService', () => {
       islocationpublic: true,
       users: { username }, // <-- add this line
     };
-    mockFindMany.mockResolvedValueOnce([fakeProfile]);
+    mockDatabase.queryRows.mockResolvedValueOnce([fakeProfile]);
     const result = await searchProfilesService({ username });
     expect(Array.isArray(result)).toBe(true);
     result.forEach((profile) => {
@@ -72,7 +62,7 @@ describe('searchProfilesService', () => {
       users: { username }, // <-- add this line
     };
 
-    mockFindMany.mockResolvedValueOnce([fakeProfile]);
+    mockDatabase.queryRows.mockResolvedValueOnce([fakeProfile]);
 
     const expected = {
       user_id: fakeProfile.user_id,

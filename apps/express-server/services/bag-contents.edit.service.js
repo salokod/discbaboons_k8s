@@ -1,11 +1,11 @@
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 
 const editBagContentService = async (
   userId,
   bagId,
   contentId,
   updateData,
-  prismaClient = prisma,
+  dbClient = { queryOne },
 ) => {
   if (!userId) {
     const error = new Error('userId is required');
@@ -82,18 +82,13 @@ const editBagContentService = async (
   }
 
   // Find the bag content and verify user owns the bag
-  const existingContent = await prismaClient.bag_contents.findFirst({
-    where: {
-      id: contentId,
-      bag_id: bagId,
-      bags: {
-        user_id: userId,
-      },
-    },
-    include: {
-      bags: true,
-    },
-  });
+  const existingContent = await dbClient.queryOne(
+    `SELECT bc.*, b.user_id as bag_user_id, b.name, b.created_at as bag_created_at, b.updated_at as bag_updated_at
+     FROM bag_contents bc
+     JOIN bags b ON bc.bag_id = b.id
+     WHERE bc.id = $1 AND bc.bag_id = $2 AND b.user_id = $3`,
+    [contentId, bagId, userId],
+  );
 
   if (!existingContent) {
     const error = new Error('Content not found or access denied');
@@ -101,16 +96,33 @@ const editBagContentService = async (
     throw error;
   }
 
-  // Update the bag content with updated_at timestamp
-  const updatedContent = await prismaClient.bag_contents.update({
-    where: {
-      id: contentId,
-    },
-    data: {
-      ...updateData,
-      updated_at: new Date(),
-    },
+  // Build update fields dynamically based on provided data
+  const updateFields = [];
+  const updateParams = [];
+  let paramIndex = 1;
+
+  Object.keys(updateData).forEach((key) => {
+    updateFields.push(`${key} = $${paramIndex}`);
+    updateParams.push(updateData[key]);
+    paramIndex += 1;
   });
+
+  // Always update the timestamp
+  updateFields.push(`updated_at = $${paramIndex}`);
+  updateParams.push(new Date());
+  paramIndex += 1;
+
+  // Add WHERE clause parameters
+  updateParams.push(contentId);
+
+  // Update the bag content with updated_at timestamp
+  const updatedContent = await dbClient.queryOne(
+    `UPDATE bag_contents 
+     SET ${updateFields.join(', ')}
+     WHERE id = $${paramIndex}
+     RETURNING *`,
+    updateParams,
+  );
 
   return updatedContent;
 };

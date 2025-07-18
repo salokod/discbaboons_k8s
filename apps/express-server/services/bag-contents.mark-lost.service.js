@@ -1,6 +1,6 @@
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 
-const markDiscLostService = async (userId, bagContentId, lostData, prismaClient = prisma) => {
+const markDiscLostService = async (userId, bagContentId, lostData, dbClient = { queryOne }) => {
   if (!userId) {
     const error = new Error('userId is required');
     error.name = 'ValidationError';
@@ -13,7 +13,7 @@ const markDiscLostService = async (userId, bagContentId, lostData, prismaClient 
     throw error;
   }
 
-  // Validate UUID format - if invalid, return null instead of letting Prisma throw
+  // Validate UUID format - if invalid, return null instead of letting database throw
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(bagContentId)) {
     return null; // Invalid UUID format, bag content not found
@@ -32,78 +32,91 @@ const markDiscLostService = async (userId, bagContentId, lostData, prismaClient 
   }
 
   // Find bag content and ensure user owns it (security)
-  const bagContent = await prismaClient.bag_contents.findFirst({
-    where: {
-      id: bagContentId,
-      user_id: userId,
-    },
-  });
+  const bagContent = await dbClient.queryOne(
+    `SELECT id, user_id, bag_id, speed, glide, turn, fade, brand, model, is_lost, lost_notes, lost_at
+     FROM bag_contents 
+     WHERE id = $1 AND user_id = $2`,
+    [bagContentId, userId],
+  );
 
   if (!bagContent) {
     return null; // Not found or user doesn't own it
   }
 
-  // Prepare update data based on is_lost status
-  const updateData = {
-    is_lost: lostData.is_lost,
-    updated_at: new Date(), // Always update the timestamp
-    // Preserve existing custom flight numbers and disc info
-    speed: bagContent.speed,
-    glide: bagContent.glide,
-    turn: bagContent.turn,
-    fade: bagContent.fade,
-    brand: bagContent.brand,
-    model: bagContent.model,
-  };
-
   if (lostData.is_lost) {
     // Marking as lost: remove from bag, set notes and current timestamp
-    updateData.bag_id = null; // Remove from bag when lost
-    updateData.lost_notes = lostData.lost_notes || null;
-    updateData.lost_at = new Date();
-  } else {
-    // Marking as found: clear lost data and require bag assignment
-    updateData.lost_notes = null;
-    updateData.lost_at = null;
+    const updatedBagContent = await dbClient.queryOne(
+      `UPDATE bag_contents 
+       SET is_lost = $1, bag_id = NULL, lost_notes = $2, lost_at = $3, updated_at = $4,
+           speed = $5, glide = $6, turn = $7, fade = $8, brand = $9, model = $10
+       WHERE id = $11
+       RETURNING *`,
+      [
+        lostData.is_lost,
+        lostData.lost_notes || null,
+        new Date(),
+        new Date(),
+        bagContent.speed,
+        bagContent.glide,
+        bagContent.turn,
+        bagContent.fade,
+        bagContent.brand,
+        bagContent.model,
+        bagContentId,
+      ],
+    );
 
-    // bag_id is required when marking as found
-    if (!lostData.bag_id) {
-      const error = new Error('bag_id is required when marking disc as found');
-      error.name = 'ValidationError';
-      throw error;
-    }
-
-    // Validate UUID format for bag_id
-    if (!uuidRegex.test(lostData.bag_id)) {
-      const error = new Error('Invalid bag_id format');
-      error.name = 'ValidationError';
-      throw error;
-    }
-
-    // Validate user owns the target bag
-    const targetBag = await prismaClient.bags.findFirst({
-      where: {
-        id: lostData.bag_id,
-        user_id: userId,
-      },
-    });
-
-    if (!targetBag) {
-      const error = new Error('Target bag not found or access denied');
-      error.name = 'AuthorizationError';
-      throw error;
-    }
-
-    updateData.bag_id = lostData.bag_id; // Assign to target bag
+    return updatedBagContent;
+  }
+  // Marking as found: clear lost data and require bag assignment
+  // bag_id is required when marking as found
+  if (!lostData.bag_id) {
+    const error = new Error('bag_id is required when marking disc as found');
+    error.name = 'ValidationError';
+    throw error;
   }
 
-  // Update the bag content
-  const updatedBagContent = await prismaClient.bag_contents.update({
-    where: {
-      id: bagContentId,
-    },
-    data: updateData,
-  });
+  // Validate UUID format for bag_id
+  if (!uuidRegex.test(lostData.bag_id)) {
+    const error = new Error('Invalid bag_id format');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate user owns the target bag
+  const targetBag = await dbClient.queryOne(
+    `SELECT id, user_id, name 
+       FROM bags 
+       WHERE id = $1 AND user_id = $2`,
+    [lostData.bag_id, userId],
+  );
+
+  if (!targetBag) {
+    const error = new Error('Target bag not found or access denied');
+    error.name = 'AuthorizationError';
+    throw error;
+  }
+
+  // Update the bag content - marking as found and assigning to target bag
+  const updatedBagContent = await dbClient.queryOne(
+    `UPDATE bag_contents 
+       SET is_lost = $1, bag_id = $2, lost_notes = NULL, lost_at = NULL, updated_at = $3,
+           speed = $4, glide = $5, turn = $6, fade = $7, brand = $8, model = $9
+       WHERE id = $10
+       RETURNING *`,
+    [
+      lostData.is_lost,
+      lostData.bag_id,
+      new Date(),
+      bagContent.speed,
+      bagContent.glide,
+      bagContent.turn,
+      bagContent.fade,
+      bagContent.brand,
+      bagContent.model,
+      bagContentId,
+    ],
+  );
 
   return updatedBagContent;
 };

@@ -11,7 +11,6 @@ export default defineConfig({
         '**/node_modules/**',
         '**/tests/**',
         'coverage/**',
-        '**/prisma/**',
         '**/*.config.js',
       ],
     },
