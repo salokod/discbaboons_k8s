@@ -13,21 +13,22 @@ describe('POST /api/bags/:id/discs - Integration', () => {
   let user;
   let token;
   let testId;
+  let timestamp;
   let createdUserIds = [];
   let createdBag;
   let createdDisc;
 
   beforeEach(async () => {
     // Generate GLOBALLY unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
+    timestamp = Date.now().toString().slice(-6);
     const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    testId = `bc${timestamp}${random}`;
     createdUserIds = [];
 
     // Register user with unique identifier
     const password = `Test1!${chance.word({ length: 2 })}`;
     const userData = {
-      username: `tbc${testId}`, // tbc for "test bag content"
+      username: `tbc${timestamp}`, // tbc for "test bag content"
       email: `tbc${testId}@ex.co`,
       password,
     };
@@ -56,21 +57,37 @@ describe('POST /api/bags/:id/discs - Integration', () => {
       .expect(201);
     createdBag = bagRes.body.bag;
 
-    // Create an approved test disc
+    // Create an approved test disc with dynamic flight numbers
+    const discSpeed = chance.integer({ min: 1, max: 14 });
+    const discGlide = chance.integer({ min: 1, max: 7 });
+    const discTurn = chance.integer({ min: -5, max: 2 });
+    const discFade = chance.integer({ min: 0, max: 5 });
+
     createdDisc = await queryOne(
       'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      ['Test Brand', `Test Model ${testId}`, 12, 5, -1, 3, true, user.id],
+      [`TestBrand${testId}`, `TestModel${testId}`, discSpeed, discGlide, discTurn, discFade, true, user.id],
     );
   });
 
   afterEach(async () => {
-    // Clean up test data
+    // Clean up test data in proper order to avoid foreign key violations
+    // 1. Delete bag_contents first (has foreign keys to bags and disc_master)
     if (createdDisc) {
       await query('DELETE FROM bag_contents WHERE disc_id = $1', [createdDisc.id]);
+    }
+
+    // 2. Delete bags (has foreign key to users)
+    if (createdBag) {
+      await query('DELETE FROM bags WHERE id = $1', [createdBag.id]);
+    }
+
+    // 3. Delete disc_master (has foreign key to users)
+    if (createdDisc) {
       await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
     }
+
+    // 4. Delete users last (referenced by other tables)
     if (createdUserIds.length > 0) {
-      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
       await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
@@ -168,7 +185,7 @@ describe('POST /api/bags/:id/discs - Integration', () => {
   test('should return 403 when trying to add disc to another user\'s bag', async () => {
     // Create another user and their bag
     const otherUserData = {
-      username: `other${testId}`,
+      username: `oth${timestamp}`,
       email: `other${testId}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };

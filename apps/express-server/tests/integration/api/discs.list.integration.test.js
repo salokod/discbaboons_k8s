@@ -9,29 +9,38 @@ import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
+// Generate unique identifier for this test file
+const timestamp = Date.now().toString().slice(-6);
+const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
+const testId = `dl${timestamp}${random}`;
+
 describe('GET /api/discs/master - Integration', () => {
   let user;
   let token;
   // eslint-disable-next-line no-unused-vars
   let discs = [];
-  const testBrand = `Brand-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz' })}`;
-  const testModelA = `ModelA-${chance.string({ length: 5 })}`;
-  const testModelB = `ModelB-${chance.string({ length: 5 })}`;
-  const testModelC = `ModelC-${chance.string({ length: 5 })}`;
+  let createdUserIds = [];
+  const testBrand = `Brand-${testId}`;
+  const testModelA = `ModelA-${testId}`;
+  const testModelB = `ModelB-${testId}`;
+  const testModelC = `ModelC-${testId}`;
 
   beforeEach(async () => {
-    // Clean up
-    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-list%']);
+    createdUserIds = [];
+    // Clean up any leftover test data
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
     await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
 
     // Register user
     const password = `Abcdef1!${chance.word({ length: 5 })}`;
+    const userSuffix = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
     const userData = {
-      username: `testdiscuser_${chance.string({ length: 5 })}`,
-      email: `test-disc-list-${chance.guid()}@example.com`,
+      username: `u${timestamp}${userSuffix}`,
+      email: `${testId}-${userSuffix}@example.com`,
       password,
     };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
+    const registerRes = await request(app).post('/api/auth/register').send(userData).expect(201);
+    createdUserIds.push(registerRes.body.user.id);
 
     // Login
     const loginRes = await request(app).post('/api/auth/login').send({
@@ -75,8 +84,15 @@ describe('GET /api/discs/master - Integration', () => {
   });
 
   afterEach(async () => {
+    // Clean up in proper order to avoid foreign key violations
     await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
-    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-list%']);
+
+    if (createdUserIds.length > 0) {
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
+    }
+    // Fallback cleanup by email pattern
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
+    createdUserIds = [];
   });
 
   test('should require authentication', async () => {
