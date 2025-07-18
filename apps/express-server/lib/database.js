@@ -55,7 +55,7 @@ export async function query(text, params = []) {
     const result = await client.query(text, params);
     return result;
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'production') {
       console.log('error', error);
     }
     throw error; // Let the caller handle the error instead of returning null
