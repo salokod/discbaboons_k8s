@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
   // Validation errors (client-side issues)
+  console.log('this be the err', err);
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
