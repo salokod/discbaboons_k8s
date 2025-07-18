@@ -1,60 +1,58 @@
-# Authentication API
+# Authentication API Endpoints
 
-This directory contains documentation for all authentication-related endpoints.
+## Overview
+The authentication system provides user registration, login, password recovery, and token management functionality.
 
 ## Endpoints
 
-### User Registration
-- [POST /auth/register](./register.md) - Register a new user account
+### User Registration & Login
+- **[POST /api/auth/register](./POST_register.md)** - Create new user account
+- **[POST /api/auth/login](./POST_login.md)** - Authenticate user and receive tokens
 
-## Coming Soon
+### Token Management  
+- **[POST /api/auth/refresh](./POST_refresh.md)** - Refresh access token using refresh token
 
-### User Authentication  
-- `POST /auth/login` - Authenticate user and receive JWT token
-- `POST /auth/logout` - Invalidate user session
-- `POST /auth/refresh` - Refresh JWT token
-
-### Password Management
-- `POST /auth/forgot-password` - Request password reset
-- `POST /auth/reset-password` - Reset password with token
-- `POST /auth/change-password` - Change password (authenticated)
-
-### Profile Management
-- `GET /auth/profile` - Get current user profile
-- `PUT /auth/profile` - Update user profile
-- `DELETE /auth/account` - Delete user account
-
-## Authentication Flow
-
-1. **Register** - Create new account with `/auth/register`
-2. **Login** - Authenticate with `/auth/login` to receive JWT
-3. **Protected Requests** - Include JWT in `Authorization: Bearer <token>` header
-4. **Refresh** - Use `/auth/refresh` when token expires
-5. **Logout** - Call `/auth/logout` to invalidate session
+### Password Recovery
+- **[POST /api/auth/forgot-username](./POST_forgot-username.md)** - Recover forgotten username via email
+- **[POST /api/auth/forgot-password](./POST_forgot-password.md)** - Request password reset code
+- **[POST /api/auth/change-password](./POST_change-password.md)** - Complete password reset with code
 
 ## Security Features
 
-- **Password Hashing**: bcrypt with 12 salt rounds
-- **JWT Tokens**: Secure token-based authentication
-- **Validation**: Comprehensive input validation
-- **Rate Limiting**: Protection against brute force attacks
-- **HTTPS Only**: All authentication endpoints require HTTPS in production
+### Password Requirements
+- 8-32 characters
+- Uppercase letter (A-Z)
+- Lowercase letter (a-z) 
+- Number (0-9)
+- Special character (!@#$%^&*(),.?":{}|<>)
+
+### Username Requirements
+- 4-20 characters
+- Must be unique
+
+### Token Security
+- **Access Token**: 15-minute expiration
+- **Refresh Token**: 14-day expiration with rotation
+- **Reset Codes**: 6-digit hex, 30-minute expiration
+
+### Security Measures
+- bcrypt password hashing (12 rounds for registration, 10 for reset)
+- JWT token signing with separate secrets
+- Generic error messages to prevent information disclosure
+- Redis-based temporary storage for reset codes
+- One-time use reset codes
 
 ## Error Handling
 
-All authentication endpoints follow consistent error response format:
+### Common Error Types
+- **ValidationError (400)**: Invalid input data
+- **UnauthorizedError (401)**: Invalid credentials
+- **ConflictError (409)**: Duplicate username/email
 
+### Example Error Response
 ```json
 {
-  "success": false,
-  "message": "Descriptive error message"
+  "error": "ValidationError",
+  "message": "Password must contain uppercase letter, lowercase letter, number, and special character"
 }
 ```
-
-Common error scenarios:
-- `400` - Invalid input/validation errors
-- `401` - Authentication required or invalid credentials  
-- `403` - Access forbidden
-- `409` - Resource conflict (duplicate email/username)
-- `429` - Rate limit exceeded
-- `500` - Internal server error
