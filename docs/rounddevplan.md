@@ -433,6 +433,24 @@ model users {
 - [ ] Round monitoring
 - [ ] System analytics
 
+#### Step 5.4: Logging System Implementation
+- [ ] Install winston or pino logging library
+- [ ] Create centralized logger configuration (`lib/logger.js`)
+- [ ] Replace console.log statements throughout codebase
+- [ ] Configure log levels by environment (dev/test/prod)
+- [ ] Add structured logging for database operations
+- [ ] Implement log rotation and retention policies
+- [ ] Add request/response logging middleware
+- [ ] Set up log aggregation for production monitoring
+
+**Current Issue:** Database errors are logged via console.log in lib/database.js which clutters CI/CD pipeline logs. Need environment-aware logging that only shows detailed errors in development mode.
+
+**Files to Update:**
+- `lib/database.js` - Replace console.log with proper logger
+- `server.js` - Add request logging middleware  
+- `middleware/errorHandler.js` - Structured error logging
+- `services/*.js` - Replace any console.log with logger calls
+
 ---
 
 ## API Endpoints Overview
@@ -588,3 +606,4 @@ model users {
 - Course partnerships
 - Sponsorship integration
 - Event management
+
