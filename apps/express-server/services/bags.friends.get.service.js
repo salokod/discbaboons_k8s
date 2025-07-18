@@ -1,6 +1,6 @@
-import prisma from '../lib/prisma.js';
+import { queryOne, queryRows } from '../lib/database.js';
 
-const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = prisma) => {
+const getFriendBagService = async (userId, friendUserId, bagId) => {
   if (!userId) {
     const error = new Error('userId is required');
     error.name = 'ValidationError';
@@ -28,22 +28,12 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
   }
 
   // Verify friendship exists and is accepted (bidirectional)
-  const friendship = await prismaClient.friendship_requests.findFirst({
-    where: {
-      OR: [
-        {
-          requester_id: userId,
-          recipient_id: friendUserId,
-          status: 'accepted',
-        },
-        {
-          requester_id: friendUserId,
-          recipient_id: userId,
-          status: 'accepted',
-        },
-      ],
-    },
-  });
+  const friendship = await queryOne(
+    `SELECT id FROM friendship_requests 
+     WHERE ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1)) 
+     AND status = 'accepted'`,
+    [userId, friendUserId],
+  );
 
   if (!friendship) {
     const error = new Error('You are not friends with this user');
@@ -52,26 +42,11 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
   }
 
   // Get the specific bag if it's visible to friends or public
-  const bag = await prismaClient.bags.findFirst({
-    where: {
-      id: bagId,
-      user_id: friendUserId,
-      OR: [
-        { is_public: true },
-        { is_friends_visible: true },
-      ],
-    },
-    include: {
-      bag_contents: {
-        where: {
-          is_lost: false,
-        },
-        include: {
-          disc_master: true,
-        },
-      },
-    },
-  });
+  const bag = await queryOne(
+    `SELECT * FROM bags 
+     WHERE id = $1 AND user_id = $2 AND (is_public = true OR is_friends_visible = true)`,
+    [bagId, friendUserId],
+  );
 
   if (!bag) {
     const error = new Error('Bag not found or not visible');
@@ -79,34 +54,68 @@ const getFriendBagService = async (userId, friendUserId, bagId, prismaClient = p
     throw error;
   }
 
+  // Get bag contents with disc master data
+  const contents = await queryRows(
+    `SELECT 
+      bc.id,
+      bc.notes,
+      bc.weight,
+      bc.condition,
+      bc.plastic_type,
+      bc.color,
+      bc.speed,
+      bc.glide,
+      bc.turn,
+      bc.fade,
+      bc.brand,
+      bc.model,
+      bc.added_at,
+      bc.updated_at,
+      dm.id as disc_master_id,
+      dm.speed as disc_master_speed,
+      dm.glide as disc_master_glide,
+      dm.turn as disc_master_turn,
+      dm.fade as disc_master_fade,
+      dm.brand as disc_master_brand,
+      dm.model as disc_master_model
+     FROM bag_contents bc
+     LEFT JOIN disc_master dm ON bc.disc_id = dm.id
+     WHERE bc.bag_id = $1 AND bc.is_lost = false`,
+    [bagId],
+  );
+
   // Transform bag contents to include personal data with fallbacks
-  const contents = bag.bag_contents.map((content) => ({
+  const transformedContents = contents.map((content) => ({
     id: content.id,
-    disc: content.disc_master,
+    disc: {
+      id: content.disc_master_id,
+      speed: content.disc_master_speed,
+      glide: content.disc_master_glide,
+      turn: content.disc_master_turn,
+      fade: content.disc_master_fade,
+      brand: content.disc_master_brand,
+      model: content.disc_master_model,
+    },
     notes: content.notes,
-    weight: content.weight,
+    weight: content.weight ? parseFloat(content.weight).toString() : content.weight,
     condition: content.condition,
     plastic_type: content.plastic_type,
     color: content.color,
-    speed: content.speed || content.disc_master.speed,
-    glide: content.glide || content.disc_master.glide,
-    turn: content.turn || content.disc_master.turn,
-    fade: content.fade || content.disc_master.fade,
-    brand: content.brand || content.disc_master.brand,
-    model: content.model || content.disc_master.model,
+    speed: content.speed || content.disc_master_speed,
+    glide: content.glide || content.disc_master_glide,
+    turn: content.turn || content.disc_master_turn,
+    fade: content.fade || content.disc_master_fade,
+    brand: content.brand || content.disc_master_brand,
+    model: content.model || content.disc_master_model,
     added_at: content.added_at,
     updated_at: content.updated_at,
   }));
 
-  // Remove bag_contents from bag object and add transformed contents
-  // eslint-disable-next-line camelcase, no-unused-vars
-  const { bag_contents, ...bagData } = bag;
-
   return {
     friend: { id: friendUserId },
     bag: {
-      ...bagData,
-      contents,
+      ...bag,
+      contents: transformedContents,
     },
   };
 };

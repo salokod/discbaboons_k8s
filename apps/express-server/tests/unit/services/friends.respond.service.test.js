@@ -1,27 +1,12 @@
 import {
-  describe, test, expect, beforeEach, vi,
+  describe, test, expect, beforeEach,
 } from 'vitest';
-
-// Mock Prisma
-const mockFindUnique = vi.fn();
-const mockUpdate = vi.fn();
-
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    friendship_requests: {
-      findUnique: mockFindUnique,
-      update: mockUpdate,
-    },
-    $disconnect: vi.fn(),
-  })),
-}));
-
-// Import AFTER mocking
-const { default: respondToFriendRequestService } = await import('../../../services/friends.respond.service.js');
+import respondToFriendRequestService from '../../../services/friends.respond.service.js';
+import mockDatabase from '../setup.js';
 
 describe('respondToFriendRequestService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockDatabase.queryOne.mockClear();
   });
   test('should be a function', () => {
     expect(typeof respondToFriendRequestService).toBe('function');
@@ -52,20 +37,25 @@ describe('respondToFriendRequestService', () => {
   });
 
   test('should throw if friend request does not exist', async () => {
-  // We'll use a fake Prisma mock for now
     const fakeRequestId = 99999;
     const fakeUserId = 1;
     const action = 'accept';
 
-    // You may need to mock your DB call here if you use dependency injection or a mock library.
+    mockDatabase.queryOne.mockResolvedValue(null);
+
     await expect(respondToFriendRequestService(fakeRequestId, fakeUserId, action))
       .rejects
       .toThrow(/friend request not found/i);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, recipient_id, status FROM friendship_requests WHERE id = $1',
+      [fakeRequestId],
+    );
   });
 
   test('should throw if user is not the recipient', async () => {
     // Mock a found request with recipient_id = 42
-    mockFindUnique.mockResolvedValue({
+    mockDatabase.queryOne.mockResolvedValue({
       id: 1,
       requester_id: 10,
       recipient_id: 42,
@@ -76,11 +66,16 @@ describe('respondToFriendRequestService', () => {
     await expect(respondToFriendRequestService(1, 99, 'accept'))
       .rejects
       .toThrow(/not authorized/i);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, recipient_id, status FROM friendship_requests WHERE id = $1',
+      [1],
+    );
   });
 
   test('should throw if request is not pending', async () => {
-  // Mock a found request with status 'accepted'
-    mockFindUnique.mockResolvedValue({
+    // Mock a found request with status 'accepted'
+    mockDatabase.queryOne.mockResolvedValue({
       id: 1,
       requester_id: 10,
       recipient_id: 42,
@@ -90,15 +85,20 @@ describe('respondToFriendRequestService', () => {
     await expect(respondToFriendRequestService(1, 42, 'accept'))
       .rejects
       .toThrow(/request is not pending/i);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, recipient_id, status FROM friendship_requests WHERE id = $1',
+      [1],
+    );
   });
 
   test('should update status to accepted and return updated request', async () => {
-    mockFindUnique.mockResolvedValue({
+    const pendingRequest = {
       id: 1,
       requester_id: 10,
       recipient_id: 42,
       status: 'pending',
-    });
+    };
 
     const updatedRequest = {
       id: 1,
@@ -106,23 +106,31 @@ describe('respondToFriendRequestService', () => {
       recipient_id: 42,
       status: 'accepted',
     };
-    mockUpdate.mockResolvedValue(updatedRequest);
+
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(pendingRequest) // Find the request
+      .mockResolvedValueOnce(updatedRequest); // Update the request
 
     const result = await respondToFriendRequestService(1, 42, 'accept');
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { status: 'accepted' },
-    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, recipient_id, status FROM friendship_requests WHERE id = $1',
+      [1],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'UPDATE friendship_requests SET status = $1 WHERE id = $2 RETURNING *',
+      ['accepted', 1],
+    );
     expect(result).toEqual(updatedRequest);
   });
 
   test('should update status to denied and return updated request', async () => {
-    mockFindUnique.mockResolvedValue({
+    const pendingRequest = {
       id: 2,
       requester_id: 11,
       recipient_id: 43,
       status: 'pending',
-    });
+    };
 
     const updatedRequest = {
       id: 2,
@@ -130,13 +138,21 @@ describe('respondToFriendRequestService', () => {
       recipient_id: 43,
       status: 'denied',
     };
-    mockUpdate.mockResolvedValue(updatedRequest);
+
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(pendingRequest) // Find the request
+      .mockResolvedValueOnce(updatedRequest); // Update the request
 
     const result = await respondToFriendRequestService(2, 43, 'deny');
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 2 },
-      data: { status: 'denied' },
-    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, recipient_id, status FROM friendship_requests WHERE id = $1',
+      [2],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'UPDATE friendship_requests SET status = $1 WHERE id = $2 RETURNING *',
+      ['denied', 2],
+    );
     expect(result).toEqual(updatedRequest);
   });
 });

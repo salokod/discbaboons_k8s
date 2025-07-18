@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -57,29 +57,21 @@ describe('POST /api/bags/:id/discs - Integration', () => {
     createdBag = bagRes.body.bag;
 
     // Create an approved test disc
-    createdDisc = await prisma.disc_master.create({
-      data: {
-        brand: 'Test Brand',
-        model: `Test Model ${testId}`,
-        speed: 12,
-        glide: 5,
-        turn: -1,
-        fade: 3,
-        approved: true,
-        added_by_id: user.id,
-      },
-    });
+    createdDisc = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      ['Test Brand', `Test Model ${testId}`, 12, 5, -1, 3, true, user.id],
+    );
   });
 
   afterEach(async () => {
     // Clean up test data
     if (createdDisc) {
-      await prisma.bag_contents.deleteMany({ where: { disc_id: createdDisc.id } });
-      await prisma.disc_master.delete({ where: { id: createdDisc.id } });
+      await query('DELETE FROM bag_contents WHERE disc_id = $1', [createdDisc.id]);
+      await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
     }
     if (createdUserIds.length > 0) {
-      await prisma.bags.deleteMany({ where: { user_id: { in: createdUserIds } } });
-      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 

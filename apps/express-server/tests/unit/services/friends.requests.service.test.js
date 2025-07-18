@@ -1,26 +1,17 @@
 import {
-  describe, test, expect, vi, beforeEach,
+  describe, test, expect, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import getFriendRequestsService from '../../../services/friends.requests.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-// Mock Prisma
-const mockFindMany = vi.fn();
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    friendship_requests: { findMany: mockFindMany },
-    findMany: mockFindMany,
-    $disconnect: vi.fn(),
-  })),
-}));
-
-const { default: getFriendRequestsService } = await import('../../../services/friends.requests.service.js');
+beforeEach(() => {
+  mockDatabase.queryRows.mockClear();
+});
 
 describe('getFriendRequestsService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
   test('should be a function', () => {
     expect(typeof getFriendRequestsService).toBe('function');
   });
@@ -59,12 +50,17 @@ describe('getFriendRequestsService', () => {
         status: 'pending',
       },
     ];
-    mockFindMany.mockResolvedValue(fakeRequests);
+    mockDatabase.queryRows.mockResolvedValue(fakeRequests);
 
     const result = await getFriendRequestsService(userId, 'incoming');
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: { recipient_id: userId, status: 'pending' },
-    });
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      `
+      SELECT * FROM friendship_requests 
+      WHERE recipient_id = $1 AND status = 'pending'
+      ORDER BY created_at DESC
+    `,
+      [userId],
+    );
     expect(result).toEqual(fakeRequests);
   });
 
@@ -84,17 +80,22 @@ describe('getFriendRequestsService', () => {
         status: 'pending',
       },
     ];
-    mockFindMany.mockResolvedValue(fakeRequests);
+    mockDatabase.queryRows.mockResolvedValue(fakeRequests);
 
     const result = await getFriendRequestsService(userId, 'outgoing');
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: { requester_id: userId, status: 'pending' },
-    });
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      `
+      SELECT * FROM friendship_requests 
+      WHERE requester_id = $1 AND status = 'pending'
+      ORDER BY created_at DESC
+    `,
+      [userId],
+    );
     expect(result).toEqual(fakeRequests);
   });
 
   test('should return empty array if no requests found', async () => {
-    mockFindMany.mockResolvedValue([]);
+    mockDatabase.queryRows.mockResolvedValue([]);
     const userId = chance.integer({ min: 1, max: 1000 });
 
     const result = await getFriendRequestsService(userId, 'incoming');
@@ -117,18 +118,18 @@ describe('getFriendRequestsService', () => {
         status: 'pending',
       }, // outgoing
     ];
-    mockFindMany.mockResolvedValue(fakeRequests);
+    mockDatabase.queryRows.mockResolvedValue(fakeRequests);
 
     const result = await getFriendRequestsService(userId, 'all');
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: {
-        status: 'pending',
-        OR: [
-          { recipient_id: userId },
-          { requester_id: userId },
-        ],
-      },
-    });
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      `
+      SELECT * FROM friendship_requests 
+      WHERE status = 'pending' 
+        AND (recipient_id = $1 OR requester_id = $1)
+      ORDER BY created_at DESC
+    `,
+      [userId],
+    );
     expect(result).toEqual(fakeRequests);
   });
 });

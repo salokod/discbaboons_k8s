@@ -7,7 +7,7 @@ import Chance from 'chance';
 
 // Import our routes
 import authRoutes from '../../../routes/auth.routes.js';
-import { prisma } from '../setup.js'; // adjust the path as needed
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -18,23 +18,24 @@ app.use('/api/auth', authRoutes); // Mount auth routes
 
 describe('Auth Integration Tests', () => {
   afterEach(async () => {
-    await prisma.users.deleteMany({
-      where: {
-        email: { contains: 'test-auth' },
-      },
-    });
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-auth%']);
 
     vi.restoreAllMocks();
   });
 
-  // Remove afterAll cleanup, since mockPrisma is a mock and does not touch the real DB
+  // No cleanup needed for integration tests as they use real database
   // No cleanup is needed for mocks
 
   test('POST /api/auth/register should create a new user', async () => {
+    const lowercase = chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' });
+    const uppercase = chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' });
+    const number = chance.integer({ min: 0, max: 9 });
+    const special = chance.pick(['!', '@', '#', '$', '%', '^', '&', '*']);
+
     const userData = {
       email: `test-auth-oasiojfsioj-${chance.guid()}@example.com`, // <--- use a unique, catchable prefix
       username: chance.string({ length: 8, alpha: true }),
-      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+      password: `${lowercase}${uppercase}${number}${special}`,
     };
 
     const response = await request(app)

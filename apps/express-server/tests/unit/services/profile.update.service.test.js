@@ -1,30 +1,17 @@
 import {
-  describe, test, expect, beforeEach, vi,
+  describe, test, expect, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import updateProfileService from '../../../services/profile.update.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-// Mock Prisma update method for later tests
-const mockUpdate = vi.fn();
-const mockDisconnect = vi.fn();
-
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    user_profiles: {
-      upsert: mockUpdate,
-    },
-    $disconnect: mockDisconnect,
-  })),
-}));
-
-const { default: updateProfileService } = await import('../../../services/profile.update.service.js');
+beforeEach(() => {
+  mockDatabase.queryOne.mockClear();
+});
 
 describe('updateProfileService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   test('should be a function', () => {
     expect(typeof updateProfileService).toBe('function');
   });
@@ -46,15 +33,16 @@ describe('updateProfileService', () => {
     const updatedProfile = { user_id: userId, bio: 'Updated bio' };
 
     // Mock the upsert to resolve with updatedProfile
-    mockUpdate.mockResolvedValueOnce(updatedProfile);
+    mockDatabase.queryOne.mockResolvedValueOnce(updatedProfile);
 
     const result = await updateProfileService(userId, updateData);
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { user_id: userId },
-      update: updateData,
-      create: { user_id: userId, ...updateData },
-    });
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      `INSERT INTO user_profiles (user_id, bio) VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE SET bio = $2
+     RETURNING *`,
+      [userId, 'Updated bio'],
+    );
     expect(result).toEqual({
       success: true,
       profile: updatedProfile,
@@ -67,15 +55,16 @@ describe('updateProfileService', () => {
     const createdProfile = { user_id: userId, bio: 'New user bio' };
 
     // Mock upsert to resolve with created profile
-    mockUpdate.mockResolvedValueOnce(createdProfile);
+    mockDatabase.queryOne.mockResolvedValueOnce(createdProfile);
 
     const result = await updateProfileService(userId, updateData);
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { user_id: userId },
-      update: updateData,
-      create: { user_id: userId, ...updateData },
-    });
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      `INSERT INTO user_profiles (user_id, bio) VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE SET bio = $2
+     RETURNING *`,
+      [userId, 'New user bio'],
+    );
     expect(result).toEqual({
       success: true,
       profile: createdProfile,
@@ -95,15 +84,16 @@ describe('updateProfileService', () => {
     const updateData = { name: validName, id: chance.integer(), user_id: userId };
     const updatedProfile = { user_id: userId, name: validName };
 
-    mockUpdate.mockResolvedValueOnce(updatedProfile);
+    mockDatabase.queryOne.mockResolvedValueOnce(updatedProfile);
 
     const result = await updateProfileService(userId, updateData);
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { user_id: userId },
-      update: { name: validName },
-      create: { user_id: userId, name: validName },
-    });
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      `INSERT INTO user_profiles (user_id, name) VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE SET name = $2
+     RETURNING *`,
+      [userId, validName],
+    );
     expect(result).toEqual({
       success: true,
       profile: updatedProfile,
@@ -119,15 +109,17 @@ describe('updateProfileService', () => {
     };
     const updatedProfile = { user_id: userId, ...updateData };
 
-    mockUpdate.mockResolvedValueOnce(updatedProfile);
+    mockDatabase.queryOne.mockResolvedValueOnce(updatedProfile);
 
     const result = await updateProfileService(userId, updateData);
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { user_id: userId },
-      update: updateData,
-      create: { user_id: userId, ...updateData },
-    });
+    const expectedParams = [
+      userId, updateData.isnamepublic, updateData.isbiopublic, updateData.islocationpublic,
+    ];
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO user_profiles'),
+      expect.arrayContaining(expectedParams),
+    );
     expect(result).toEqual({
       success: true,
       profile: updatedProfile,

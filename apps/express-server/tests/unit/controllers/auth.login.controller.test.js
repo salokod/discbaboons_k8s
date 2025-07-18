@@ -2,6 +2,7 @@ import {
   describe, test, expect, vi, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
@@ -21,7 +22,6 @@ vi.mock('jsonwebtoken', () => ({
 }));
 
 // Import AFTER mocking
-const { mockPrisma } = await import('../setup.js');
 const { default: loginController } = await import('../../../controllers/auth.login.controller.js');
 
 // Import the mocked modules
@@ -46,6 +46,9 @@ describe('AuthLoginController', () => {
     // Set up environment variables
     process.env.JWT_SECRET = chance.string({ length: 32 });
     process.env.JWT_REFRESH_SECRET = chance.string({ length: 32 });
+
+    // Clear database mock
+    mockDatabase.queryOne.mockClear();
   });
 
   test('should export a function', () => {
@@ -70,7 +73,7 @@ describe('AuthLoginController', () => {
     const mockRefreshToken = chance.string({ length: 50 });
 
     // Mock the database and crypto operations
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
     vi.mocked(bcrypt.default.compare).mockResolvedValue(true); // This should work now!
     vi.mocked(jwt.default.sign)
       .mockReturnValueOnce(mockAccessToken)
@@ -103,7 +106,7 @@ describe('AuthLoginController', () => {
     };
 
     // Mock user not found
-    mockPrisma.users.findUnique.mockResolvedValue(null);
+    mockDatabase.queryOne.mockResolvedValue(null);
 
     req.body = loginData;
 
@@ -139,7 +142,7 @@ describe('AuthLoginController', () => {
     };
 
     // Mock database error
-    mockPrisma.users.findUnique.mockRejectedValue(new Error('Database connection failed'));
+    mockDatabase.queryOne.mockRejectedValue(new Error('Database connection failed'));
 
     req.body = loginData;
 

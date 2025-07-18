@@ -1,7 +1,8 @@
 import {
-  describe, test, expect, beforeAll,
+  describe, test, expect, beforeAll, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
@@ -9,6 +10,10 @@ let addToBagService;
 
 beforeAll(async () => {
   ({ default: addToBagService } = await import('../../../services/bag-contents.add.service.js'));
+});
+
+beforeEach(() => {
+  mockDatabase.queryOne.mockClear();
 });
 
 describe('addToBagService', () => {
@@ -42,13 +47,10 @@ describe('addToBagService', () => {
     const bagId = chance.guid({ version: 4 });
     const discData = { disc_id: chance.guid({ version: 4 }) };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => null,
-      },
-    };
+    // Mock bag not found
+    mockDatabase.queryOne.mockResolvedValue(null);
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma)).rejects.toThrow('Bag not found or access denied');
+    await expect(addToBagService(userId, bagId, discData)).rejects.toThrow('Bag not found or access denied');
   });
 
   test('should throw error if disc does not exist', async () => {
@@ -56,16 +58,12 @@ describe('addToBagService', () => {
     const bagId = chance.guid({ version: 4 });
     const discData = { disc_id: chance.guid({ version: 4 }) };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => null,
-      },
-    };
+    // Mock bag found, disc not found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce(null); // Disc not found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma)).rejects.toThrow('Disc not found');
+    await expect(addToBagService(userId, bagId, discData)).rejects.toThrow('Disc not found');
   });
 
   test('should successfully create bag content', async () => {
@@ -91,23 +89,28 @@ describe('addToBagService', () => {
       plastic_type: null,
       color: null,
       is_lost: false,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({
-          id: discId, brand: 'Innova', model: 'Destroyer', approved: true,
-        }),
-      },
-      bag_contents: {
-        create: () => mockBagContent,
-      },
+    const mockDisc = {
+      id: discId,
+      brand: chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']),
+      model: chance.word({ length: 8 }),
+      speed: 12,
+      glide: 5,
+      turn: -1,
+      fade: 3,
+      approved: true,
     };
 
-    const result = await addToBagService(userId, bagId, discData, mockPrisma);
+    // Mock bag found, disc found, content created
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce(mockDisc) // Disc found
+      .mockResolvedValueOnce(mockBagContent); // Content created
+
+    const result = await addToBagService(userId, bagId, discData);
 
     expect(result).toEqual(mockBagContent);
   });
@@ -119,22 +122,20 @@ describe('addToBagService', () => {
     const discId = chance.guid({ version: 4 });
     const discData = { disc_id: discId };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({
-          id: discId,
-          brand: 'Innova',
-          model: 'Destroyer',
-          approved: false,
-          added_by_id: otherUserId,
-        }),
-      },
+    const mockDisc = {
+      id: discId,
+      brand: chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']),
+      model: chance.word({ length: 8 }),
+      approved: false,
+      added_by_id: otherUserId,
     };
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma)).rejects.toThrow('Cannot add pending disc created by another user');
+    // Mock bag found, pending disc found created by another user
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce(mockDisc); // Disc found but pending by another user
+
+    await expect(addToBagService(userId, bagId, discData)).rejects.toThrow('Cannot add pending disc created by another user');
   });
 
   test('should accept optional flight numbers in discData', async () => {
@@ -168,25 +169,19 @@ describe('addToBagService', () => {
       is_lost: false,
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({
-          id: discId, brand: 'Innova', model: 'Destroyer', approved: true,
-        }),
-      },
-      bag_contents: {
-        create: () => mockBagContent,
-      },
-    };
+    // Mock bag found, disc found, content created
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({
+        id: discId, brand: chance.pickone(['Innova', 'Discraft', 'Latitude 64', 'MVP', 'Axiom Discs']), model: chance.word({ length: 8 }), approved: true,
+      }) // Disc found
+      .mockResolvedValueOnce(mockBagContent); // Content created
 
-    const result = await addToBagService(userId, bagId, discData, mockPrisma);
+    const result = await addToBagService(userId, bagId, discData);
     expect(result).toEqual(mockBagContent);
   });
 
-  test('should pass flight numbers to Prisma create method', async () => {
+  test('should pass flight numbers to database create method', async () => {
     const userId = chance.integer({ min: 1, max: 1000 });
     const bagId = chance.guid({ version: 4 });
     const discId = chance.guid({ version: 4 });
@@ -198,30 +193,30 @@ describe('addToBagService', () => {
       fade: 2,
     };
 
-    let createCallData;
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({
-          id: discId, brand: 'Innova', model: 'Teebird', approved: true,
-        }),
-      },
-      bag_contents: {
-        create: (data) => {
-          createCallData = data.data;
-          return { id: chance.guid(), ...data.data };
-        },
-      },
+    const mockBagContent = {
+      id: chance.guid(),
+      bag_id: bagId,
+      disc_id: discId,
+      speed: 9,
+      glide: 4,
+      turn: -2,
+      fade: 2,
     };
 
-    await addToBagService(userId, bagId, discData, mockPrisma);
+    // Mock successful responses
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({
+        id: discId, brand: chance.company(), model: chance.word(), approved: true,
+      }) // Disc found
+      .mockResolvedValueOnce(mockBagContent); // Content created
 
-    expect(createCallData.speed).toBe(9);
-    expect(createCallData.glide).toBe(4);
-    expect(createCallData.turn).toBe(-2);
-    expect(createCallData.fade).toBe(2);
+    const result = await addToBagService(userId, bagId, discData);
+
+    expect(result.speed).toBe(9);
+    expect(result.glide).toBe(4);
+    expect(result.turn).toBe(-2);
+    expect(result.fade).toBe(2);
   });
 
   test('should allow adding own pending disc', async () => {
@@ -244,25 +239,19 @@ describe('addToBagService', () => {
       is_lost: false,
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({
-          id: discId,
-          brand: 'Innova',
-          model: 'Destroyer',
-          approved: false,
-          added_by_id: userId,
-        }),
-      },
-      bag_contents: {
-        create: () => mockBagContent,
-      },
-    };
+    // Mock successful responses
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({
+        id: discId,
+        brand: chance.company(),
+        model: chance.word(),
+        approved: false,
+        added_by_id: userId,
+      }) // Own pending disc found
+      .mockResolvedValueOnce(mockBagContent); // Content created
 
-    const result = await addToBagService(userId, bagId, discData, mockPrisma);
+    const result = await addToBagService(userId, bagId, discData);
 
     expect(result).toEqual(mockBagContent);
   });
@@ -275,16 +264,12 @@ describe('addToBagService', () => {
       speed: 0, // Invalid: below 1
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('speed must be between 1 and 15');
   });
 
@@ -296,16 +281,12 @@ describe('addToBagService', () => {
       speed: 16, // Invalid: above 15
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('speed must be between 1 and 15');
   });
 
@@ -317,16 +298,12 @@ describe('addToBagService', () => {
       glide: 0, // Invalid: below 1
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('glide must be between 1 and 7');
   });
 
@@ -338,16 +315,12 @@ describe('addToBagService', () => {
       glide: 8, // Invalid: above 7
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('glide must be between 1 and 7');
   });
 
@@ -359,16 +332,12 @@ describe('addToBagService', () => {
       turn: -6, // Invalid: below -5
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('turn must be between -5 and 2');
   });
 
@@ -380,16 +349,12 @@ describe('addToBagService', () => {
       turn: 3, // Invalid: above 2
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('turn must be between -5 and 2');
   });
 
@@ -401,16 +366,12 @@ describe('addToBagService', () => {
       fade: -1, // Invalid: below 0
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('fade must be between 0 and 5');
   });
 
@@ -422,16 +383,12 @@ describe('addToBagService', () => {
       fade: 6, // Invalid: above 5
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('fade must be between 0 and 5');
   });
 
@@ -443,16 +400,12 @@ describe('addToBagService', () => {
       brand: 'a'.repeat(51), // Invalid: 51 characters
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('brand must be a string with maximum 50 characters');
   });
 
@@ -464,16 +417,12 @@ describe('addToBagService', () => {
       model: 'b'.repeat(51), // Invalid: 51 characters
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('model must be a string with maximum 50 characters');
   });
 
@@ -485,16 +434,12 @@ describe('addToBagService', () => {
       brand: 123, // Invalid: not a string
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discData.disc_id, approved: true }),
-      },
-    };
+    // Mock bag found, disc found
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discData.disc_id, approved: true }); // Disc found
 
-    await expect(addToBagService(userId, bagId, discData, mockPrisma))
+    await expect(addToBagService(userId, bagId, discData))
       .rejects.toThrow('brand must be a string with maximum 50 characters');
   });
 
@@ -503,7 +448,7 @@ describe('addToBagService', () => {
     const bagId = chance.guid({ version: 4 });
     const discId = chance.guid({ version: 4 });
     const customBrand = 'Custom Brand';
-    const customModel = 'Beat-in Destroyer';
+    const customModel = `${chance.word({ length: 6 })}-${chance.word({ length: 8 })}`;
 
     const discData = {
       disc_id: discId,
@@ -522,19 +467,13 @@ describe('addToBagService', () => {
       notes: discData.notes,
     };
 
-    const mockPrisma = {
-      bags: {
-        findFirst: () => ({ id: bagId, user_id: userId }),
-      },
-      disc_master: {
-        findUnique: () => ({ id: discId, approved: true }),
-      },
-      bag_contents: {
-        create: () => mockBagContent,
-      },
-    };
+    // Mock bag found, disc found, content created
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: bagId, user_id: userId }) // Bag found
+      .mockResolvedValueOnce({ id: discId, approved: true }) // Disc found
+      .mockResolvedValueOnce(mockBagContent); // Content created
 
-    const result = await addToBagService(userId, bagId, discData, mockPrisma);
+    const result = await addToBagService(userId, bagId, discData);
 
     expect(result).toEqual(mockBagContent);
   });

@@ -1,10 +1,15 @@
 import {
-  describe, test, expect, vi,
+  describe, test, expect, beforeEach, vi,
 } from 'vitest';
 import Chance from 'chance';
 import moveDiscService from '../../../services/bag-contents.move.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
+
+beforeEach(() => {
+  mockDatabase.transaction.mockClear();
+});
 
 describe('moveDiscService', () => {
   test('should export a function', () => {
@@ -71,34 +76,19 @@ describe('moveDiscService', () => {
     const targetBagId = chance.guid({ version: 4 });
     const contentId = chance.guid({ version: 4 });
 
-    const mockPrismaClient = {
-      bags: {
-        findFirst: vi.fn(),
-      },
-      bag_contents: {
-        findMany: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      $transaction: vi.fn(),
+    const mockClient = {
+      query: vi.fn(),
     };
 
-    // Mock both bags exist and belong to user
-    mockPrismaClient.bags.findFirst
-      .mockResolvedValueOnce({ id: sourceBagId, user_id: userId })
-      .mockResolvedValueOnce({ id: targetBagId, user_id: userId });
-
-    // Mock finding the disc content
-    mockPrismaClient.bag_contents.findMany.mockResolvedValue([
-      { id: contentId, bag_id: sourceBagId },
-    ]);
-
-    // Mock the update operation
-    mockPrismaClient.bag_contents.updateMany.mockResolvedValue({ count: 1 });
-
     // Mock transaction to execute the callback
-    mockPrismaClient.$transaction.mockImplementation(
-      async (callback) => callback(mockPrismaClient),
-    );
+    mockDatabase.transaction.mockImplementation(async (callback) => callback(mockClient));
+
+    // Mock both bags exist and belong to user
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [{ id: sourceBagId }] }) // Source bag validation
+      .mockResolvedValueOnce({ rows: [{ id: targetBagId }] }) // Target bag validation
+      .mockResolvedValueOnce({ rows: [{ id: contentId }] }) // Find specific discs
+      .mockResolvedValueOnce({ rowCount: 1 }); // Update operation
 
     const options = { contentIds: [contentId] };
     const result = await moveDiscService(
@@ -106,19 +96,26 @@ describe('moveDiscService', () => {
       sourceBagId,
       targetBagId,
       options,
-      mockPrismaClient,
     );
 
     expect(result.message).toBe('Discs moved successfully');
     expect(result.movedCount).toBe(1);
-    expect(mockPrismaClient.bags.findFirst).toHaveBeenCalledTimes(2);
-    expect(mockPrismaClient.bag_contents.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: [contentId] } },
-      data: {
-        bag_id: targetBagId,
-        updated_at: expect.any(Date),
-      },
-    });
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [sourceBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [targetBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bag_contents WHERE id IN ($2) AND bag_id = $1',
+      [sourceBagId, ...options.contentIds],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'UPDATE bag_contents SET bag_id = $1, updated_at = $2 WHERE id IN ($3)',
+      [targetBagId, expect.any(Date), contentId],
+    );
   });
 
   test('should move multiple discs by contentIds array with updated timestamps', async () => {
@@ -128,33 +125,20 @@ describe('moveDiscService', () => {
     const discCount = chance.integer({ min: 2, max: 5 });
     const contentIds = Array.from({ length: discCount }, () => chance.guid({ version: 4 }));
 
-    const mockPrismaClient = {
-      bags: {
-        findFirst: vi.fn(),
-      },
-      bag_contents: {
-        findMany: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      $transaction: vi.fn(),
+    const mockClient = {
+      query: vi.fn(),
     };
 
-    // Mock both bags exist and belong to user
-    mockPrismaClient.bags.findFirst
-      .mockResolvedValueOnce({ id: sourceBagId, user_id: userId })
-      .mockResolvedValueOnce({ id: targetBagId, user_id: userId });
-
-    // Mock finding the disc contents
-    const foundDiscs = contentIds.map((id) => ({ id, bag_id: sourceBagId }));
-    mockPrismaClient.bag_contents.findMany.mockResolvedValue(foundDiscs);
-
-    // Mock the update operation
-    mockPrismaClient.bag_contents.updateMany.mockResolvedValue({ count: discCount });
-
     // Mock transaction to execute the callback
-    mockPrismaClient.$transaction.mockImplementation(
-      async (callback) => callback(mockPrismaClient),
-    );
+    mockDatabase.transaction.mockImplementation(async (callback) => callback(mockClient));
+
+    // Mock both bags exist and belong to user
+    const foundDiscs = contentIds.map((id) => ({ id }));
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [{ id: sourceBagId }] }) // Source bag validation
+      .mockResolvedValueOnce({ rows: [{ id: targetBagId }] }) // Target bag validation
+      .mockResolvedValueOnce({ rows: foundDiscs }) // Find specific discs
+      .mockResolvedValueOnce({ rowCount: discCount }); // Update operation
 
     const options = { contentIds };
     const result = await moveDiscService(
@@ -162,19 +146,26 @@ describe('moveDiscService', () => {
       sourceBagId,
       targetBagId,
       options,
-      mockPrismaClient,
     );
 
     expect(result.message).toBe('Discs moved successfully');
     expect(result.movedCount).toBe(discCount);
-    expect(mockPrismaClient.bags.findFirst).toHaveBeenCalledTimes(2);
-    expect(mockPrismaClient.bag_contents.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: contentIds } },
-      data: {
-        bag_id: targetBagId,
-        updated_at: expect.any(Date),
-      },
-    });
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [sourceBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [targetBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT id FROM bag_contents WHERE id IN'),
+      [sourceBagId, ...contentIds],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE bag_contents SET bag_id = $1, updated_at = $2 WHERE id IN'),
+      [targetBagId, expect.any(Date), ...contentIds],
+    );
   });
 
   test('should move all discs from source to target bag when no contentIds specified', async () => {
@@ -183,36 +174,24 @@ describe('moveDiscService', () => {
     const targetBagId = chance.guid({ version: 4 });
     const discCount = chance.integer({ min: 3, max: 8 });
 
-    const mockPrismaClient = {
-      bags: {
-        findFirst: vi.fn(),
-      },
-      bag_contents: {
-        findMany: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      $transaction: vi.fn(),
+    const mockClient = {
+      query: vi.fn(),
     };
 
-    // Mock both bags exist and belong to user
-    mockPrismaClient.bags.findFirst
-      .mockResolvedValueOnce({ id: sourceBagId, user_id: userId })
-      .mockResolvedValueOnce({ id: targetBagId, user_id: userId });
+    // Mock transaction to execute the callback
+    mockDatabase.transaction.mockImplementation(async (callback) => callback(mockClient));
 
     // Mock finding all disc contents in source bag with random count
     const allDiscsInBag = Array.from({ length: discCount }, () => ({
       id: chance.guid({ version: 4 }),
-      bag_id: sourceBagId,
     }));
-    mockPrismaClient.bag_contents.findMany.mockResolvedValue(allDiscsInBag);
+    const allDiscIds = allDiscsInBag.map((disc) => disc.id);
 
-    // Mock the update operation
-    mockPrismaClient.bag_contents.updateMany.mockResolvedValue({ count: discCount });
-
-    // Mock transaction to execute the callback
-    mockPrismaClient.$transaction.mockImplementation(
-      async (callback) => callback(mockPrismaClient),
-    );
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [{ id: sourceBagId }] }) // Source bag validation
+      .mockResolvedValueOnce({ rows: [{ id: targetBagId }] }) // Target bag validation
+      .mockResolvedValueOnce({ rows: allDiscsInBag }) // Find all discs in source bag
+      .mockResolvedValueOnce({ rowCount: discCount }); // Update operation
 
     const options = {}; // No contentIds means move all
     const result = await moveDiscService(
@@ -220,23 +199,26 @@ describe('moveDiscService', () => {
       sourceBagId,
       targetBagId,
       options,
-      mockPrismaClient,
     );
 
     expect(result.message).toBe('Discs moved successfully');
     expect(result.movedCount).toBe(discCount);
-    expect(mockPrismaClient.bags.findFirst).toHaveBeenCalledTimes(2);
-    expect(mockPrismaClient.bag_contents.findMany).toHaveBeenCalledWith({
-      where: { bag_id: sourceBagId },
-      select: { id: true },
-    });
-    expect(mockPrismaClient.bag_contents.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: allDiscsInBag.map((disc) => disc.id) } },
-      data: {
-        bag_id: targetBagId,
-        updated_at: expect.any(Date),
-      },
-    });
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [sourceBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [targetBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bag_contents WHERE bag_id = $1',
+      [sourceBagId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE bag_contents SET bag_id = $1, updated_at = $2 WHERE id IN'),
+      [targetBagId, expect.any(Date), ...allDiscIds],
+    );
   });
 
   test('should throw NotFoundError when source bag does not exist or user does not own it', async () => {
@@ -244,26 +226,26 @@ describe('moveDiscService', () => {
     const sourceBagId = chance.guid({ version: 4 });
     const targetBagId = chance.guid({ version: 4 });
 
-    const mockPrismaClient = {
-      bags: {
-        findFirst: vi.fn(),
-      },
-      $transaction: vi.fn(),
+    const mockClient = {
+      query: vi.fn(),
     };
 
-    // Mock source bag not found or not owned by user
-    mockPrismaClient.bags.findFirst.mockResolvedValueOnce(null);
-
     // Mock transaction to execute the callback
-    mockPrismaClient.$transaction.mockImplementation(
-      async (callback) => callback(mockPrismaClient),
-    );
+    mockDatabase.transaction.mockImplementation(async (callback) => callback(mockClient));
+
+    // Mock source bag not found or not owned by user
+    mockClient.query.mockResolvedValueOnce({ rows: [] });
 
     const options = {};
 
     await expect(
-      moveDiscService(userId, sourceBagId, targetBagId, options, mockPrismaClient),
+      moveDiscService(userId, sourceBagId, targetBagId, options),
     ).rejects.toThrow('Source bag not found or access denied');
+
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [sourceBagId, userId],
+    );
   });
 
   test('should throw NotFoundError when target bag does not exist or user does not own it', async () => {
@@ -271,27 +253,31 @@ describe('moveDiscService', () => {
     const sourceBagId = chance.guid({ version: 4 });
     const targetBagId = chance.guid({ version: 4 });
 
-    const mockPrismaClient = {
-      bags: {
-        findFirst: vi.fn(),
-      },
-      $transaction: vi.fn(),
+    const mockClient = {
+      query: vi.fn(),
     };
 
-    // Mock source bag exists but target bag not found
-    mockPrismaClient.bags.findFirst
-      .mockResolvedValueOnce({ id: sourceBagId, user_id: userId })
-      .mockResolvedValueOnce(null);
-
     // Mock transaction to execute the callback
-    mockPrismaClient.$transaction.mockImplementation(
-      async (callback) => callback(mockPrismaClient),
-    );
+    mockDatabase.transaction.mockImplementation(async (callback) => callback(mockClient));
+
+    // Mock source bag exists but target bag not found
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [{ id: sourceBagId }] }) // Source bag found
+      .mockResolvedValueOnce({ rows: [] }); // Target bag not found
 
     const options = {};
 
     await expect(
-      moveDiscService(userId, sourceBagId, targetBagId, options, mockPrismaClient),
+      moveDiscService(userId, sourceBagId, targetBagId, options),
     ).rejects.toThrow('Target bag not found or access denied');
+
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [sourceBagId, userId],
+    );
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'SELECT id FROM bags WHERE id = $1 AND user_id = $2',
+      [targetBagId, userId],
+    );
   });
 });

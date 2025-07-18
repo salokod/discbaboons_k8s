@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -43,44 +43,27 @@ describe('GET /api/bags/:id - Integration', () => {
     createdUserIds.push(user.id);
 
     // Create approved test discs for the tests
-    createdDiscs = await Promise.all([
-      prisma.disc_master.create({
-        data: {
-          brand: 'Test Brand',
-          model: `Test Model 1 ${testId}`,
-          speed: 12,
-          glide: 5,
-          turn: -1,
-          fade: 3,
-          approved: true,
-          added_by_id: user.id,
-        },
-      }),
-      prisma.disc_master.create({
-        data: {
-          brand: 'Test Brand',
-          model: `Test Model 2 ${testId}`,
-          speed: 9,
-          glide: 4,
-          turn: -2,
-          fade: 2,
-          approved: true,
-          added_by_id: user.id,
-        },
-      }),
-    ]);
+    const disc1 = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      ['Test Brand', `Test Model 1 ${testId}`, 12, 5, -1, 3, true, user.id],
+    );
+    const disc2 = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      ['Test Brand', `Test Model 2 ${testId}`, 9, 4, -2, 2, true, user.id],
+    );
+    createdDiscs = [disc1, disc2];
   });
 
   afterEach(async () => {
     // Clean up only data created in this specific test
     if (createdDiscs.length > 0) {
       const discIds = createdDiscs.map((disc) => disc.id);
-      await prisma.bag_contents.deleteMany({ where: { disc_id: { in: discIds } } });
-      await prisma.disc_master.deleteMany({ where: { id: { in: discIds } } });
+      await query('DELETE FROM bag_contents WHERE disc_id = ANY($1)', [discIds]);
+      await query('DELETE FROM disc_master WHERE id = ANY($1)', [discIds]);
     }
     if (createdUserIds.length > 0) {
-      await prisma.bags.deleteMany({ where: { user_id: { in: createdUserIds } } });
-      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
     createdDiscs = [];
   });
@@ -300,10 +283,7 @@ describe('GET /api/bags/:id - Integration', () => {
       .expect(201);
 
     // Mark second disc as lost in database
-    await prisma.bag_contents.update({
-      where: { id: addDiscRes.body.bag_content.id },
-      data: { is_lost: true },
-    });
+    await queryOne('UPDATE bag_contents SET is_lost = $1 WHERE id = $2 RETURNING *', [true, addDiscRes.body.bag_content.id]);
 
     // Get bag without include_lost - should only show non-lost disc
     const res = await request(app)
@@ -353,10 +333,7 @@ describe('GET /api/bags/:id - Integration', () => {
       .expect(201);
 
     // Mark second disc as lost in database
-    await prisma.bag_contents.update({
-      where: { id: addDiscRes.body.bag_content.id },
-      data: { is_lost: true },
-    });
+    await queryOne('UPDATE bag_contents SET is_lost = $1 WHERE id = $2 RETURNING *', [true, addDiscRes.body.bag_content.id]);
 
     // Get bag with include_lost=true - should show both discs
     const res = await request(app)

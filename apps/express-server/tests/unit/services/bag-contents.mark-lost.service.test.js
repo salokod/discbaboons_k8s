@@ -1,10 +1,17 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 import markDiscLostService from '../../../services/bag-contents.mark-lost.service.js';
 
 const chance = new Chance();
 
 describe('markDiscLostService', () => {
+  beforeEach(() => {
+    // Reset all mocks before each test
+    mockDatabase.queryOne.mockReset();
+  });
   test('should export a function', () => {
     expect(typeof markDiscLostService).toBe('function');
   });
@@ -62,15 +69,18 @@ describe('markDiscLostService', () => {
     const userId = chance.integer({ min: 1 });
     const bagContentId = chance.guid();
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => null, // Not found or not owned
-      },
-    };
+    // Mock queryOne to return null (not found or not owned)
+    mockDatabase.queryOne.mockResolvedValue(null);
 
-    const result = await markDiscLostService(userId, bagContentId, { is_lost: true }, mockPrisma);
+    const result = await markDiscLostService(userId, bagContentId, { is_lost: true }, mockDatabase);
 
     expect(result).toBeNull();
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      `SELECT id, user_id, bag_id, speed, glide, turn, fade, brand, model, is_lost, lost_notes, lost_at
+     FROM bag_contents 
+     WHERE id = $1 AND user_id = $2`,
+      [bagContentId, userId],
+    );
   });
 
   test('should mark disc as lost with notes and automatic date', async () => {
@@ -94,36 +104,51 @@ describe('markDiscLostService', () => {
       is_lost: true,
       lost_notes: lostNotes,
       lost_at: new Date(),
+      bag_id: null,
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-        update: async (options) => {
-          expect(options.where.id).toBe(bagContentId);
-          expect(options.data.is_lost).toBe(true);
-          expect(options.data.lost_notes).toBe(lostNotes);
-          expect(options.data.bag_id).toBeNull();
-          expect(options.data.lost_at).toBeInstanceOf(Date);
-          expect(options.data.updated_at).toBeInstanceOf(Date);
-          // Expect custom flight numbers to be preserved
-          expect(options.data.speed).toBe(mockBagContent.speed);
-          expect(options.data.glide).toBe(mockBagContent.glide);
-          expect(options.data.turn).toBe(mockBagContent.turn);
-          expect(options.data.fade).toBe(mockBagContent.fade);
-          expect(options.data.brand).toBe(mockBagContent.brand);
-          expect(options.data.model).toBe(mockBagContent.model);
-          return updatedBagContent;
-        },
-      },
-    };
+    // Mock the sequence of database calls
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(mockBagContent) // First call: find bag content
+      .mockResolvedValueOnce(updatedBagContent); // Second call: update bag content
 
     const result = await markDiscLostService(userId, bagContentId, {
       is_lost: true,
       lost_notes: lostNotes,
-    }, mockPrisma);
+    }, mockDatabase);
 
     expect(result).toEqual(updatedBagContent);
+
+    // Verify the database calls
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      1,
+      `SELECT id, user_id, bag_id, speed, glide, turn, fade, brand, model, is_lost, lost_notes, lost_at
+     FROM bag_contents 
+     WHERE id = $1 AND user_id = $2`,
+      [bagContentId, userId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      2,
+      `UPDATE bag_contents 
+       SET is_lost = $1, bag_id = NULL, lost_notes = $2, lost_at = $3, updated_at = $4,
+           speed = $5, glide = $6, turn = $7, fade = $8, brand = $9, model = $10
+       WHERE id = $11
+       RETURNING *`,
+      [
+        true,
+        lostNotes,
+        expect.any(Date),
+        expect.any(Date),
+        mockBagContent.speed,
+        mockBagContent.glide,
+        mockBagContent.turn,
+        mockBagContent.fade,
+        mockBagContent.brand,
+        mockBagContent.model,
+        bagContentId,
+      ],
+    );
   });
 
   test('should mark disc as found and clear lost data', async () => {
@@ -157,37 +182,55 @@ describe('markDiscLostService', () => {
       lost_at: null,
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-        update: async (options) => {
-          expect(options.where.id).toBe(bagContentId);
-          expect(options.data.is_lost).toBe(false);
-          expect(options.data.bag_id).toBe(targetBagId);
-          expect(options.data.lost_notes).toBeNull();
-          expect(options.data.lost_at).toBeNull();
-          expect(options.data.updated_at).toBeInstanceOf(Date);
-          // Expect custom flight numbers to be preserved
-          expect(options.data.speed).toBe(mockBagContent.speed);
-          expect(options.data.glide).toBe(mockBagContent.glide);
-          expect(options.data.turn).toBe(mockBagContent.turn);
-          expect(options.data.fade).toBe(mockBagContent.fade);
-          expect(options.data.brand).toBe(mockBagContent.brand);
-          expect(options.data.model).toBe(mockBagContent.model);
-          return updatedBagContent;
-        },
-      },
-      bags: {
-        findFirst: async () => mockTargetBag, // Valid target bag
-      },
-    };
+    // Mock the sequence of database calls
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(mockBagContent) // First call: find bag content
+      .mockResolvedValueOnce(mockTargetBag) // Second call: validate target bag
+      .mockResolvedValueOnce(updatedBagContent); // Third call: update bag content
 
     const result = await markDiscLostService(userId, bagContentId, {
       is_lost: false,
       bag_id: targetBagId,
-    }, mockPrisma);
+    }, mockDatabase);
 
     expect(result).toEqual(updatedBagContent);
+
+    // Verify the database calls
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(3);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      1,
+      `SELECT id, user_id, bag_id, speed, glide, turn, fade, brand, model, is_lost, lost_notes, lost_at
+     FROM bag_contents 
+     WHERE id = $1 AND user_id = $2`,
+      [bagContentId, userId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      2,
+      `SELECT id, user_id, name 
+       FROM bags 
+       WHERE id = $1 AND user_id = $2`,
+      [targetBagId, userId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      3,
+      `UPDATE bag_contents 
+       SET is_lost = $1, bag_id = $2, lost_notes = NULL, lost_at = NULL, updated_at = $3,
+           speed = $4, glide = $5, turn = $6, fade = $7, brand = $8, model = $9
+       WHERE id = $10
+       RETURNING *`,
+      [
+        false,
+        targetBagId,
+        expect.any(Date),
+        mockBagContent.speed,
+        mockBagContent.glide,
+        mockBagContent.turn,
+        mockBagContent.fade,
+        mockBagContent.brand,
+        mockBagContent.model,
+        bagContentId,
+      ],
+    );
   });
 
   test('should remove disc from bag when marking as lost', async () => {
@@ -198,6 +241,12 @@ describe('markDiscLostService', () => {
       user_id: userId,
       bag_id: chance.guid(), // Currently in a bag
       is_lost: false,
+      speed: 5,
+      glide: 5,
+      turn: 0,
+      fade: 2,
+      brand: 'Innova',
+      model: 'Champion Leopard3',
     };
     const updatedBagContent = {
       id: bagContentId,
@@ -208,25 +257,40 @@ describe('markDiscLostService', () => {
       lost_at: new Date(),
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-        update: async (options) => {
-          expect(options.where.id).toBe(bagContentId);
-          expect(options.data.is_lost).toBe(true);
-          expect(options.data.bag_id).toBeNull(); // Key test: removed from bag
-          expect(options.data.lost_at).toBeInstanceOf(Date);
-          expect(options.data.updated_at).toBeInstanceOf(Date);
-          return updatedBagContent;
-        },
-      },
-    };
+    // Mock the sequence of database calls
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(mockBagContent) // First call: find bag content
+      .mockResolvedValueOnce(updatedBagContent); // Second call: update bag content
 
     const result = await markDiscLostService(userId, bagContentId, {
       is_lost: true,
-    }, mockPrisma);
+    }, mockDatabase);
 
     expect(result).toEqual(updatedBagContent);
+
+    // Verify the database calls
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      2,
+      `UPDATE bag_contents 
+       SET is_lost = $1, bag_id = NULL, lost_notes = $2, lost_at = $3, updated_at = $4,
+           speed = $5, glide = $6, turn = $7, fade = $8, brand = $9, model = $10
+       WHERE id = $11
+       RETURNING *`,
+      [
+        true,
+        null,
+        expect.any(Date),
+        expect.any(Date),
+        mockBagContent.speed,
+        mockBagContent.glide,
+        mockBagContent.turn,
+        mockBagContent.fade,
+        mockBagContent.brand,
+        mockBagContent.model,
+        bagContentId,
+      ],
+    );
   });
 
   test('should throw ValidationError when marking as found without bag_id', async () => {
@@ -239,21 +303,21 @@ describe('markDiscLostService', () => {
       is_lost: true,
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-      },
-    };
+    // Mock queryOne to return the bag content on first call
+    mockDatabase.queryOne.mockResolvedValueOnce(mockBagContent);
 
     try {
       await markDiscLostService(userId, bagContentId, {
         is_lost: false, // No bag_id provided
-      }, mockPrisma);
+      }, mockDatabase);
       throw new Error('Did not throw');
     } catch (err) {
       expect(err.name).toBe('ValidationError');
       expect(err.message).toMatch(/bag_id is required when marking disc as found/i);
     }
+
+    // Verify only one database call was made (to find the bag content)
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
   });
 
   test('should throw ValidationError when bag_id is not valid UUID format', async () => {
@@ -267,22 +331,22 @@ describe('markDiscLostService', () => {
       is_lost: true,
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-      },
-    };
+    // Mock queryOne to return the bag content on first call
+    mockDatabase.queryOne.mockResolvedValueOnce(mockBagContent);
 
     try {
       await markDiscLostService(userId, bagContentId, {
         is_lost: false,
         bag_id: invalidBagId,
-      }, mockPrisma);
+      }, mockDatabase);
       throw new Error('Did not throw');
     } catch (err) {
       expect(err.name).toBe('ValidationError');
       expect(err.message).toMatch(/invalid bag_id format/i);
     }
+
+    // Verify only one database call was made (to find the bag content)
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
   });
 
   test('should throw AuthorizationError when target bag not found or not owned', async () => {
@@ -296,25 +360,31 @@ describe('markDiscLostService', () => {
       is_lost: true,
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-      },
-      bags: {
-        findFirst: async () => null, // Target bag not found or not owned
-      },
-    };
+    // Mock the sequence of database calls
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(mockBagContent) // First call: find bag content
+      .mockResolvedValueOnce(null); // Second call: target bag not found
 
     try {
       await markDiscLostService(userId, bagContentId, {
         is_lost: false,
         bag_id: targetBagId,
-      }, mockPrisma);
+      }, mockDatabase);
       throw new Error('Did not throw');
     } catch (err) {
       expect(err.name).toBe('AuthorizationError');
       expect(err.message).toMatch(/target bag not found or access denied/i);
     }
+
+    // Verify two database calls were made
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      2,
+      `SELECT id, user_id, name 
+       FROM bags 
+       WHERE id = $1 AND user_id = $2`,
+      [targetBagId, userId],
+    );
   });
 
   test('should mark disc as found and assign to valid bag', async () => {
@@ -326,6 +396,12 @@ describe('markDiscLostService', () => {
       user_id: userId,
       bag_id: null,
       is_lost: true,
+      speed: 7,
+      glide: 5,
+      turn: -1,
+      fade: 1,
+      brand: 'Discraft',
+      model: 'ESP Buzzz',
     };
     const mockTargetBag = {
       id: targetBagId,
@@ -341,29 +417,40 @@ describe('markDiscLostService', () => {
       lost_at: null,
     };
 
-    const mockPrisma = {
-      bag_contents: {
-        findFirst: async () => mockBagContent,
-        update: async (options) => {
-          expect(options.where.id).toBe(bagContentId);
-          expect(options.data.is_lost).toBe(false);
-          expect(options.data.bag_id).toBe(targetBagId); // Key test: assigned to bag
-          expect(options.data.lost_notes).toBeNull();
-          expect(options.data.lost_at).toBeNull();
-          expect(options.data.updated_at).toBeInstanceOf(Date);
-          return updatedBagContent;
-        },
-      },
-      bags: {
-        findFirst: async () => mockTargetBag, // Valid target bag
-      },
-    };
+    // Mock the sequence of database calls
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(mockBagContent) // First call: find bag content
+      .mockResolvedValueOnce(mockTargetBag) // Second call: validate target bag
+      .mockResolvedValueOnce(updatedBagContent); // Third call: update bag content
 
     const result = await markDiscLostService(userId, bagContentId, {
       is_lost: false,
       bag_id: targetBagId,
-    }, mockPrisma);
+    }, mockDatabase);
 
     expect(result).toEqual(updatedBagContent);
+
+    // Verify the database calls
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(3);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      3,
+      `UPDATE bag_contents 
+       SET is_lost = $1, bag_id = $2, lost_notes = NULL, lost_at = NULL, updated_at = $3,
+           speed = $4, glide = $5, turn = $6, fade = $7, brand = $8, model = $9
+       WHERE id = $10
+       RETURNING *`,
+      [
+        false,
+        targetBagId,
+        expect.any(Date),
+        mockBagContent.speed,
+        mockBagContent.glide,
+        mockBagContent.turn,
+        mockBagContent.fade,
+        mockBagContent.brand,
+        mockBagContent.model,
+        bagContentId,
+      ],
+    );
   });
 });

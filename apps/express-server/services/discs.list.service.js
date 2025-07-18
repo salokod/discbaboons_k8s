@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { queryRows } from '../lib/database.js';
 
-const prisma = new PrismaClient();
-
-const listDiscsService = async (filters = {}) => {
+const listDiscsService = async (filters = {}, dbClient = { queryRows }) => {
   let { brand, model } = filters;
   const {
     speed, glide, turn, fade, approved, limit = '50', offset = '0',
@@ -60,30 +58,111 @@ const listDiscsService = async (filters = {}) => {
     return undefined;
   }
 
-  const where = {};
-  if (brand) where.brand = brand;
-  if (model) where.model = { contains: model, mode: 'insensitive' };
-  if (speed) where.speed = parseRange(speed);
-  if (glide) where.glide = parseRange(glide);
-  if (turn) where.turn = parseRange(turn);
-  if (fade) where.fade = parseRange(fade);
+  // Build WHERE conditions and parameters
+  const whereConditions = [];
+  const params = [];
+  let paramIndex = 1;
 
-  if (typeof approved !== 'undefined') {
-    if (approved === 'false' || approved === false) {
-      where.approved = false;
-    } else {
-      where.approved = true;
-    }
-  } else {
-    where.approved = true;
+  // Brand filter (exact match)
+  if (brand) {
+    whereConditions.push(`brand = $${paramIndex}`);
+    params.push(brand);
+    paramIndex += 1;
   }
 
-  return prisma.disc_master.findMany({
-    where,
-    skip: Number(offset),
-    take: Number(limit),
-    orderBy: [{ brand: 'asc' }, { model: 'asc' }],
-  });
+  // Model filter (case-insensitive partial match)
+  if (model) {
+    whereConditions.push(`model ILIKE $${paramIndex}`);
+    params.push(`%${model}%`);
+    paramIndex += 1;
+  }
+
+  // Speed filter (single value or range)
+  if (speed) {
+    const speedRange = parseRange(speed);
+    if (typeof speedRange === 'number') {
+      whereConditions.push(`speed = $${paramIndex}`);
+      params.push(speedRange);
+      paramIndex += 1;
+    } else if (speedRange && speedRange.gte !== undefined && speedRange.lte !== undefined) {
+      whereConditions.push(`speed >= $${paramIndex} AND speed <= $${paramIndex + 1}`);
+      params.push(speedRange.gte, speedRange.lte);
+      paramIndex += 2;
+    }
+  }
+
+  // Glide filter (single value or range)
+  if (glide) {
+    const glideRange = parseRange(glide);
+    if (typeof glideRange === 'number') {
+      whereConditions.push(`glide = $${paramIndex}`);
+      params.push(glideRange);
+      paramIndex += 1;
+    } else if (glideRange && glideRange.gte !== undefined && glideRange.lte !== undefined) {
+      whereConditions.push(`glide >= $${paramIndex} AND glide <= $${paramIndex + 1}`);
+      params.push(glideRange.gte, glideRange.lte);
+      paramIndex += 2;
+    }
+  }
+
+  // Turn filter (single value or range)
+  if (turn) {
+    const turnRange = parseRange(turn);
+    if (typeof turnRange === 'number') {
+      whereConditions.push(`turn = $${paramIndex}`);
+      params.push(turnRange);
+      paramIndex += 1;
+    } else if (turnRange && turnRange.gte !== undefined && turnRange.lte !== undefined) {
+      whereConditions.push(`turn >= $${paramIndex} AND turn <= $${paramIndex + 1}`);
+      params.push(turnRange.gte, turnRange.lte);
+      paramIndex += 2;
+    }
+  }
+
+  // Fade filter (single value or range)
+  if (fade) {
+    const fadeRange = parseRange(fade);
+    if (typeof fadeRange === 'number') {
+      whereConditions.push(`fade = $${paramIndex}`);
+      params.push(fadeRange);
+      paramIndex += 1;
+    } else if (fadeRange && fadeRange.gte !== undefined && fadeRange.lte !== undefined) {
+      whereConditions.push(`fade >= $${paramIndex} AND fade <= $${paramIndex + 1}`);
+      params.push(fadeRange.gte, fadeRange.lte);
+      paramIndex += 2;
+    }
+  }
+
+  // Approved filter
+  if (typeof approved !== 'undefined') {
+    if (approved === 'false' || approved === false) {
+      whereConditions.push(`approved = $${paramIndex}`);
+      params.push(false);
+      paramIndex += 1;
+    } else {
+      whereConditions.push(`approved = $${paramIndex}`);
+      params.push(true);
+      paramIndex += 1;
+    }
+  } else {
+    whereConditions.push(`approved = $${paramIndex}`);
+    params.push(true);
+    paramIndex += 1;
+  }
+
+  // Build the complete query
+  let query = 'SELECT * FROM disc_master';
+
+  if (whereConditions.length > 0) {
+    query += ` WHERE ${whereConditions.join(' AND ')}`;
+  }
+
+  query += ' ORDER BY brand ASC, model ASC';
+  query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+
+  params.push(Number(limit), Number(offset));
+
+  return dbClient.queryRows(query, params);
 };
 
 export default listDiscsService;

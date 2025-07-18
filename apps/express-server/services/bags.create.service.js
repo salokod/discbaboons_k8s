@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 
-const createBagService = async (userId, bagData = {}, prismaClient = prisma) => {
+const createBagService = async (userId, bagData = {}) => {
   const {
     name,
     description,
@@ -41,12 +41,10 @@ const createBagService = async (userId, bagData = {}, prismaClient = prisma) => 
   }
 
   // Check for duplicate bag name (case-insensitive)
-  const existing = await prismaClient.bags.findFirst({
-    where: {
-      user_id: userId,
-      name: { equals: name, mode: 'insensitive' },
-    },
-  });
+  const existing = await queryOne(
+    'SELECT id FROM bags WHERE user_id = $1 AND LOWER(name) = LOWER($2)',
+    [userId, name],
+  );
   if (existing) {
     const error = new Error('Bag with this name already exists for this user');
     error.name = 'ValidationError';
@@ -54,15 +52,10 @@ const createBagService = async (userId, bagData = {}, prismaClient = prisma) => 
   }
 
   // Create the bag
-  return prismaClient.bags.create({
-    data: {
-      user_id: userId,
-      name,
-      description,
-      is_public,
-      is_friends_visible,
-    },
-  });
+  return queryOne(
+    'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [userId, name, description, is_public, is_friends_visible],
+  );
 };
 
 export default createBagService;

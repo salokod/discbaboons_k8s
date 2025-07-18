@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 
 const loginUser = async (loginData) => {
   if (!loginData.username) {
@@ -16,9 +16,10 @@ const loginUser = async (loginData) => {
   }
 
   // Check if user exists in database
-  const user = await prisma.users.findUnique({
-    where: { username: loginData.username },
-  });
+  const user = await queryOne(
+    'SELECT id, username, email, password_hash, created_at FROM users WHERE username = $1',
+    [loginData.username],
+  );
 
   // If user doesn't exist, throw error
   if (!user) {

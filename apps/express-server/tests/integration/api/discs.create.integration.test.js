@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -18,8 +18,8 @@ describe('POST /api/discs/master - Integration', () => {
 
   beforeEach(async () => {
     // Clean up
-    await prisma.users.deleteMany({ where: { email: { contains: 'test-disc-create' } } });
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-create%']);
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
 
     // Register user
     const password = `Abcdef1!${chance.word({ length: 5 })}`;
@@ -40,8 +40,8 @@ describe('POST /api/discs/master - Integration', () => {
   });
 
   afterEach(async () => {
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
-    await prisma.users.deleteMany({ where: { email: { contains: 'test-disc-create' } } });
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-create%']);
   });
 
   test('should require authentication', async () => {
@@ -87,9 +87,7 @@ describe('POST /api/discs/master - Integration', () => {
     });
 
     // Confirm in DB
-    createdDisc = await prisma.disc_master.findUnique({
-      where: { id: res.body.id },
-    });
+    createdDisc = await queryOne('SELECT * FROM disc_master WHERE id = $1', [res.body.id]);
     expect(createdDisc).not.toBeNull();
     expect(createdDisc.brand).toBe(discData.brand);
     expect(createdDisc.model).toBe(discData.model);

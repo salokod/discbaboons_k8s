@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -78,7 +78,14 @@ describe('GET /api/courses - Integration', () => {
 
     // Create test courses using Promise.all to avoid ESLint loop issues
     const coursePromises = testCourses.map(async (course) => {
-      await prisma.courses.create({ data: course });
+      const courseParams = [
+        course.id, course.name, course.city, course.state, course.zip,
+        course.hole_count, course.latitude, course.longitude, course.approved,
+      ];
+      await queryOne(
+        'INSERT INTO courses (id, name, city, state, zip, hole_count, latitude, longitude, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+        courseParams,
+      );
       createdCourseIds.push(course.id);
     });
     await Promise.all(coursePromises);
@@ -87,20 +94,12 @@ describe('GET /api/courses - Integration', () => {
   afterEach(async () => {
     // Clean up test courses first
     if (createdCourseIds.length > 0) {
-      await prisma.courses.deleteMany({
-        where: {
-          id: { in: createdCourseIds },
-        },
-      });
+      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
     }
 
     // Clean up test users
     if (createdUserIds.length > 0) {
-      await prisma.users.deleteMany({
-        where: {
-          id: { in: createdUserIds },
-        },
-      });
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 

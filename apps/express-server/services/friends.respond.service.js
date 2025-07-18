@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { queryOne } from '../lib/database.js';
 
 const respondToFriendRequestService = async (requestId, userId, action) => {
   if (!requestId) {
@@ -19,9 +17,10 @@ const respondToFriendRequestService = async (requestId, userId, action) => {
     throw error;
   }
 
-  const request = await prisma.friendship_requests.findUnique({
-    where: { id: Number(requestId) },
-  });
+  const request = await queryOne(
+    'SELECT id, recipient_id, status FROM friendship_requests WHERE id = $1',
+    [Number(requestId)],
+  );
   if (!request) {
     const error = new Error('Friend request not found');
     error.name = 'NotFoundError';
@@ -41,10 +40,10 @@ const respondToFriendRequestService = async (requestId, userId, action) => {
   }
 
   // Update the request status
-  const updated = await prisma.friendship_requests.update({
-    where: { id: Number(requestId) },
-    data: { status: action === 'accept' ? 'accepted' : 'denied' },
-  });
+  const updated = await queryOne(
+    'UPDATE friendship_requests SET status = $1 WHERE id = $2 RETURNING *',
+    [action === 'accept' ? 'accepted' : 'denied', Number(requestId)],
+  );
 
   return updated;
 };

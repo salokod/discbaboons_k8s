@@ -5,6 +5,11 @@ import Chance from 'chance';
 
 const chance = new Chance();
 
+// Mock database module
+vi.mock('../../../lib/database.js', () => ({
+  queryOne: vi.fn(),
+}));
+
 // Mock the email template service
 vi.mock('../../../services/email/email.template.service.js', () => ({
   getTemplate: vi.fn().mockResolvedValue({
@@ -23,7 +28,7 @@ vi.mock('../../../services/email/email.service.js', () => ({
 
 // Dynamic import AFTER mocking (following your pattern)
 const { default: forgotUsername } = await import('../../../services/auth.forgotusername.service.js');
-const { mockPrisma } = await import('../setup.js');
+const { queryOne } = await import('../../../lib/database.js');
 
 describe('ForgotUsernameService', () => {
   beforeEach(() => {
@@ -51,7 +56,7 @@ describe('ForgotUsernameService', () => {
     const validEmail = chance.email();
 
     // Mock database to return a user with Chance data
-    mockPrisma.users.findUnique.mockResolvedValue({
+    queryOne.mockResolvedValue({
       id: chance.integer({ min: 1, max: 1000 }),
       username: chance.word(),
       email: validEmail,
@@ -60,16 +65,17 @@ describe('ForgotUsernameService', () => {
     await forgotUsername(validEmail);
 
     // Check that database was called with correct email
-    expect(mockPrisma.users.findUnique).toHaveBeenCalledWith({
-      where: { email: validEmail },
-    });
+    expect(queryOne).toHaveBeenCalledWith(
+      'SELECT id, username, email FROM users WHERE email = $1',
+      [validEmail],
+    );
   });
 
   test('should return success message when user is found', async () => {
     const validEmail = chance.email();
 
     // Mock database to return a user
-    mockPrisma.users.findUnique.mockResolvedValue({
+    queryOne.mockResolvedValue({
       id: chance.integer({ min: 1, max: 1000 }),
       username: chance.word(),
       email: validEmail,
@@ -87,7 +93,7 @@ describe('ForgotUsernameService', () => {
     const validEmail = chance.email();
 
     // Mock database to return null (user not found)
-    mockPrisma.users.findUnique.mockResolvedValue(null);
+    queryOne.mockResolvedValue(null);
 
     const result = await forgotUsername(validEmail);
 
@@ -104,7 +110,7 @@ describe('ForgotUsernameService', () => {
     const mockHtml = chance.paragraph();
 
     // Mock database to return a user
-    mockPrisma.users.findUnique.mockResolvedValue({
+    queryOne.mockResolvedValue({
       id: chance.integer({ min: 1, max: 1000 }),
       username: mockUsername,
       email: validEmail,
@@ -144,7 +150,7 @@ describe('ForgotUsernameService', () => {
     const validEmail = chance.email();
 
     // Mock database to return null (user not found)
-    mockPrisma.users.findUnique.mockResolvedValue(null);
+    queryOne.mockResolvedValue(null);
 
     // Import mocked modules to get their references
     const { getTemplate } = await import('../../../services/email/email.template.service.js');

@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -21,8 +21,8 @@ describe('GET /api/discs/master - Integration', () => {
 
   beforeEach(async () => {
     // Clean up
-    await prisma.users.deleteMany({ where: { email: { contains: 'test-disc-list' } } });
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-list%']);
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
 
     // Register user
     const password = `Abcdef1!${chance.word({ length: 5 })}`;
@@ -42,49 +42,41 @@ describe('GET /api/discs/master - Integration', () => {
     user = loginRes.body.user;
 
     // Seed discs
+    const discAParams = [
+      testBrand, testModelA, chance.integer({ min: 1, max: 14 }),
+      chance.integer({ min: 1, max: 7 }), chance.integer({ min: -5, max: 2 }),
+      chance.integer({ min: 0, max: 5 }), true, user.id,
+    ];
+    const discBParams = [
+      testBrand, testModelB, chance.integer({ min: 1, max: 14 }),
+      chance.integer({ min: 1, max: 7 }), chance.integer({ min: -5, max: 2 }),
+      chance.integer({ min: 0, max: 5 }), true, user.id,
+    ];
+    const discCParams = [
+      testBrand, testModelC, chance.integer({ min: 1, max: 14 }),
+      chance.integer({ min: 1, max: 7 }), chance.integer({ min: -5, max: 2 }),
+      chance.integer({ min: 0, max: 5 }), false, user.id,
+    ];
+
     discs = await Promise.all([
-      prisma.disc_master.create({
-        data: {
-          brand: testBrand,
-          model: testModelA,
-          speed: chance.integer({ min: 1, max: 14 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: true,
-          added_by_id: user.id,
-        },
-      }),
-      prisma.disc_master.create({
-        data: {
-          brand: testBrand,
-          model: testModelB,
-          speed: chance.integer({ min: 1, max: 14 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: true,
-          added_by_id: user.id,
-        },
-      }),
-      prisma.disc_master.create({
-        data: {
-          brand: testBrand,
-          model: testModelC,
-          speed: chance.integer({ min: 1, max: 14 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: false,
-          added_by_id: user.id,
-        },
-      }),
+      queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        discAParams,
+      ),
+      queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        discBParams,
+      ),
+      queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        discCParams,
+      ),
     ]);
   });
 
   afterEach(async () => {
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
-    await prisma.users.deleteMany({ where: { email: { contains: 'test-disc-list' } } });
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-list%']);
   });
 
   test('should require authentication', async () => {

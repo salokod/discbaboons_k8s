@@ -4,7 +4,7 @@ import {
 import request from 'supertest';
 import { Chance } from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -12,26 +12,12 @@ describe('POST /api/auth/register - Integration Test', () => {
   // Clean up test users after each test
   beforeEach(async () => {
     // Remove any test users that might exist
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { email: { contains: 'test-register' } },
-          { username: { contains: 'testuser' } }, // covers testuser* usernames
-        ],
-      },
-    });
+    await query('DELETE FROM users WHERE email LIKE $1 OR username LIKE $2', ['%test-register%', '%testuser%']);
   });
 
   afterAll(async () => {
     // Final cleanup
-    await prisma.users.deleteMany({
-      where: {
-        OR: [
-          { email: { contains: 'test-register' } },
-          { username: { contains: 'testuser' } },
-        ],
-      },
-    });
+    await query('DELETE FROM users WHERE email LIKE $1 OR username LIKE $2', ['%test-register%', '%testuser%']);
     vi.restoreAllMocks();
   });
 
@@ -61,9 +47,7 @@ describe('POST /api/auth/register - Integration Test', () => {
     expect(response.body.user).not.toHaveProperty('password_hash');
 
     // Verify user was actually created in database
-    const userInDb = await prisma.users.findUnique({
-      where: { email: newUser.email },
-    });
+    const userInDb = await queryOne('SELECT * FROM users WHERE email = $1', [newUser.email]);
 
     expect(userInDb).toBeTruthy();
     expect(userInDb.username).toBe(newUser.username);

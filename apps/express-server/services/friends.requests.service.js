@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { queryRows } from '../lib/database.js';
 
-const prisma = new PrismaClient();
-
-const getFriendRequestsService = async (userId, type) => {
+const getFriendRequestsService = async (userId, type, dbClient = { queryRows }) => {
   if (!userId) {
     const error = new Error('User ID is required');
     error.name = 'ValidationError';
@@ -20,26 +18,33 @@ const getFriendRequestsService = async (userId, type) => {
   }
 
   if (type === 'incoming') {
-    return prisma.friendship_requests.findMany({
-      where: { recipient_id: userId, status: 'pending' },
-    });
+    const query = `
+      SELECT * FROM friendship_requests 
+      WHERE recipient_id = $1 AND status = 'pending'
+      ORDER BY created_at DESC
+    `;
+    return dbClient.queryRows(query, [userId]);
   }
+
   if (type === 'outgoing') {
-    return prisma.friendship_requests.findMany({
-      where: { requester_id: userId, status: 'pending' },
-    });
+    const query = `
+      SELECT * FROM friendship_requests 
+      WHERE requester_id = $1 AND status = 'pending'
+      ORDER BY created_at DESC
+    `;
+    return dbClient.queryRows(query, [userId]);
   }
+
   if (type === 'all') {
-    return prisma.friendship_requests.findMany({
-      where: {
-        status: 'pending',
-        OR: [
-          { recipient_id: userId },
-          { requester_id: userId },
-        ],
-      },
-    });
+    const query = `
+      SELECT * FROM friendship_requests 
+      WHERE status = 'pending' 
+        AND (recipient_id = $1 OR requester_id = $1)
+      ORDER BY created_at DESC
+    `;
+    return dbClient.queryRows(query, [userId]);
   }
+
   return [];
 };
 

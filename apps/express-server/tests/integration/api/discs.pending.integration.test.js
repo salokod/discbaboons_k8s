@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -24,8 +24,8 @@ describe('GET /api/discs/pending - Integration', () => {
 
   beforeEach(async () => {
     // Clean up
-    await prisma.users.deleteMany({ where: { email: { contains: 'test-disc-pending' } } });
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-pending%']);
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
 
     // Register admin user
     const adminPassword = `Abcdef1!${chance.word({ length: 5 })}`;
@@ -36,10 +36,7 @@ describe('GET /api/discs/pending - Integration', () => {
     };
     await request(app).post('/api/auth/register').send(adminData).expect(201);
     // Make admin in DB
-    adminUser = await prisma.users.update({
-      where: { username: adminData.username },
-      data: { is_admin: true },
-    });
+    adminUser = await queryOne('UPDATE users SET is_admin = $1 WHERE username = $2 RETURNING *', [true, adminData.username]);
     // Login admin
     const adminLoginRes = await request(app).post('/api/auth/login').send({
       username: adminData.username,
@@ -55,7 +52,7 @@ describe('GET /api/discs/pending - Integration', () => {
       password: userPassword,
     };
     await request(app).post('/api/auth/register').send(userData).expect(201);
-    normalUser = await prisma.users.findUnique({ where: { username: userData.username } });
+    normalUser = await queryOne('SELECT * FROM users WHERE username = $1', [userData.username]);
     // Login normal user
     const userLoginRes = await request(app).post('/api/auth/login').send({
       username: userData.username,
@@ -64,49 +61,69 @@ describe('GET /api/discs/pending - Integration', () => {
     normalToken = userLoginRes.body.tokens.accessToken;
 
     // Seed discs
+    const disc1Data = {
+      brand: testBrand,
+      model: testModelA,
+      speed: chance.integer({ min: 1, max: 14 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+      approved: true,
+      added_by_id: adminUser.id,
+    };
+    const disc2Data = {
+      brand: testBrand,
+      model: testModelB,
+      speed: chance.integer({ min: 1, max: 14 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+      approved: true,
+      added_by_id: normalUser.id,
+    };
+    const disc3Data = {
+      brand: testBrand,
+      model: testModelC,
+      speed: chance.integer({ min: 1, max: 14 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+      approved: false,
+      added_by_id: normalUser.id,
+    };
+
+    const disc1Params = [
+      disc1Data.brand, disc1Data.model, disc1Data.speed, disc1Data.glide,
+      disc1Data.turn, disc1Data.fade, disc1Data.approved, disc1Data.added_by_id,
+    ];
+    const disc2Params = [
+      disc2Data.brand, disc2Data.model, disc2Data.speed, disc2Data.glide,
+      disc2Data.turn, disc2Data.fade, disc2Data.approved, disc2Data.added_by_id,
+    ];
+    const disc3Params = [
+      disc3Data.brand, disc3Data.model, disc3Data.speed, disc3Data.glide,
+      disc3Data.turn, disc3Data.fade, disc3Data.approved, disc3Data.added_by_id,
+    ];
+
     discs = await Promise.all([
-      prisma.disc_master.create({
-        data: {
-          brand: testBrand,
-          model: testModelA,
-          speed: chance.integer({ min: 1, max: 14 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: true,
-          added_by_id: adminUser.id,
-        },
-      }),
-      prisma.disc_master.create({
-        data: {
-          brand: testBrand,
-          model: testModelB,
-          speed: chance.integer({ min: 1, max: 14 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: true,
-          added_by_id: normalUser.id,
-        },
-      }),
-      prisma.disc_master.create({
-        data: {
-          brand: testBrand,
-          model: testModelC,
-          speed: chance.integer({ min: 1, max: 14 }),
-          glide: chance.integer({ min: 1, max: 7 }),
-          turn: chance.integer({ min: -5, max: 2 }),
-          fade: chance.integer({ min: 0, max: 5 }),
-          approved: false,
-          added_by_id: normalUser.id,
-        },
-      }),
+      queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        disc1Params,
+      ),
+      queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        disc2Params,
+      ),
+      queryOne(
+        'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        disc3Params,
+      ),
     ]);
   });
 
   afterEach(async () => {
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
-    await prisma.users.deleteMany({ where: { email: { contains: 'test-disc-pending' } } });
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
+    await query('DELETE FROM users WHERE email LIKE $1', ['%test-disc-pending%']);
   });
 
   test('should require authentication', async () => {

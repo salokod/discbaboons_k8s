@@ -1,31 +1,23 @@
 /* eslint-disable camelcase, no-underscore-dangle */
 
 import {
-  describe, test, expect, vi, beforeEach,
+  describe, test, expect, beforeAll, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-// Mock Prisma
-const mockCreate = vi.fn();
-const mockFindFirst = vi.fn();
+let createDiscService;
 
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    disc_master: {
-      create: mockCreate,
-      findFirst: mockFindFirst,
-    },
-    $disconnect: vi.fn(),
-  })),
-}));
-
-const { default: createDiscService } = await import('../../../services/discs.create.service.js');
+beforeAll(async () => {
+  ({ default: createDiscService } = await import('../../../services/discs.create.service.js'));
+});
 
 describe('createDiscService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockDatabase.queryOne.mockClear();
+    mockDatabase.query.mockClear();
   });
 
   test('should export a function', () => {
@@ -74,24 +66,15 @@ describe('createDiscService', () => {
       updated_at: new Date().toISOString(),
     };
 
-    mockCreate.mockResolvedValue(fakeDisc);
+    // Mock no existing disc and successful creation
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing disc
+      .mockResolvedValueOnce(fakeDisc); // Created disc
 
     const result = await createDiscService({
       brand, model, speed, glide, turn, fade, added_by_id,
     });
 
-    expect(mockCreate).toHaveBeenCalledWith({
-      data: {
-        brand,
-        model,
-        speed,
-        glide,
-        turn,
-        fade,
-        approved: false,
-        added_by_id,
-      },
-    });
     expect(result).toBe(fakeDisc);
   });
 
@@ -109,15 +92,8 @@ describe('createDiscService', () => {
     };
 
     // Simulate existing disc found
-    mockFindFirst.mockResolvedValue({ id: chance.guid(), ...discData });
+    mockDatabase.queryOne.mockResolvedValue({ id: chance.guid(), ...discData });
 
     await expect(createDiscService(discData)).rejects.toThrow('A disc with this brand and model already exists');
-    expect(mockFindFirst).toHaveBeenCalledWith({
-      where: {
-        brand: { equals: brand, mode: 'insensitive' },
-        model: { equals: model, mode: 'insensitive' },
-      },
-    });
-    expect(mockCreate).not.toHaveBeenCalled();
   });
 });

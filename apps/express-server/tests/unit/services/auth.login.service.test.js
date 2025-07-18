@@ -2,6 +2,7 @@ import {
   describe, test, expect, beforeEach, vi,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
@@ -22,7 +23,6 @@ vi.mock('jsonwebtoken', () => ({
 
 // Dynamic import AFTER mocking
 const { default: loginUser } = await import('../../../services/auth.login.service.js');
-const { mockPrisma } = await import('../setup.js');
 
 // Import the mocked modules
 const bcrypt = await import('bcrypt');
@@ -65,7 +65,7 @@ describe('LoginService', () => {
       }),
     };
 
-    mockPrisma.users.findUnique.mockResolvedValue(null);
+    mockDatabase.queryOne.mockResolvedValue(null);
 
     await expect(loginUser(loginData)).rejects.toThrow('Invalid username or password');
   });
@@ -86,7 +86,7 @@ describe('LoginService', () => {
       created_at: chance.date().toISOString(),
     };
 
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
     vi.mocked(bcrypt.default.compare).mockResolvedValue(false);
 
     await expect(loginUser(loginData)).rejects.toThrow('Invalid username or password');
@@ -118,7 +118,7 @@ describe('LoginService', () => {
     const mockRefreshToken = chance.string({ length: 50 });
 
     // Set up mocks
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
     vi.mocked(bcrypt.default.compare).mockResolvedValue(true); // This SHOULD work!
 
     vi.mocked(jwt.default.sign)

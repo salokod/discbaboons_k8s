@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -87,30 +87,15 @@ describe('GET /api/bags/friends/:friendUserId - Integration', () => {
   afterEach(async () => {
     // Clean up bags first (foreign key constraints)
     if (createdBagIds.length > 0) {
-      await prisma.bags.deleteMany({
-        where: {
-          id: { in: createdBagIds },
-        },
-      });
+      await query('DELETE FROM bags WHERE id = ANY($1)', [createdBagIds]);
     }
 
     // Clean up friendship_requests
     if (createdUserIds.length > 0) {
-      await prisma.friendship_requests.deleteMany({
-        where: {
-          OR: [
-            { requester_id: { in: createdUserIds } },
-            { recipient_id: { in: createdUserIds } },
-          ],
-        },
-      });
+      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($2)', [createdUserIds, createdUserIds]);
 
       // Clean up users
-      await prisma.users.deleteMany({
-        where: {
-          id: { in: createdUserIds },
-        },
-      });
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 

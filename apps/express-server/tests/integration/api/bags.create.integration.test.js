@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 
@@ -45,8 +45,8 @@ describe('POST /api/bags - Integration', () => {
   afterEach(async () => {
     // Clean up only data created in this specific test
     if (createdUserIds.length > 0) {
-      await prisma.bags.deleteMany({ where: { user_id: { in: createdUserIds } } });
-      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 
@@ -89,9 +89,7 @@ describe('POST /api/bags - Integration', () => {
     });
 
     // Confirm in DB
-    createdBag = await prisma.bags.findUnique({
-      where: { id: res.body.bag.id },
-    });
+    createdBag = await queryOne('SELECT * FROM bags WHERE id = $1', [res.body.bag.id]);
     expect(createdBag).not.toBeNull();
     expect(createdBag.name).toBe(bagData.name);
     expect(createdBag.description).toBe(bagData.description);
@@ -123,9 +121,7 @@ describe('POST /api/bags - Integration', () => {
     });
 
     // Confirm in DB
-    const bag = await prisma.bags.findUnique({
-      where: { id: res.body.bag.id },
-    });
+    const bag = await queryOne('SELECT * FROM bags WHERE id = $1', [res.body.bag.id]);
     expect(bag).not.toBeNull();
     expect(bag.name).toBe(bagData.name);
     expect(bag.description).toBeNull();

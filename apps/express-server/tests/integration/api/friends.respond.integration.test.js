@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query } from '../setup.js';
 
 const chance = new Chance();
 
@@ -61,15 +61,11 @@ describe('POST /api/friends/respond - Integration', () => {
   afterEach(async () => {
     // Clean up only data created in this specific test
     if (createdUserIds.length > 0) {
-      await prisma.friendship_requests.deleteMany({
-        where: {
-          OR: [
-            { requester_id: { in: createdUserIds } },
-            { recipient_id: { in: createdUserIds } },
-          ],
-        },
-      });
-      await prisma.users.deleteMany({ where: { id: { in: createdUserIds } } });
+      await query(
+        'DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)',
+        [createdUserIds],
+      );
+      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
   });
 
@@ -127,12 +123,10 @@ describe('POST /api/friends/respond - Integration', () => {
 
   test('should allow recipient to deny a friend request', async () => {
   // Clean up any existing requests between these users
-    await prisma.friendship_requests.deleteMany({
-      where: {
-        requester_id: userA.id,
-        recipient_id: userB.id,
-      },
-    });
+    await query(
+      'DELETE FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [userA.id, userB.id],
+    );
 
     // Create a new request for this test
     const reqRes = await request(app)

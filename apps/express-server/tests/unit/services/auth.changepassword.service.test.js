@@ -2,6 +2,8 @@ import {
   describe, test, expect, beforeEach, vi,
 } from 'vitest';
 import Chance from 'chance';
+import mockDatabase from '../setup.js';
+import changePasswordService from '../../../services/auth.changepassword.service.js';
 
 const chance = new Chance();
 
@@ -16,17 +18,15 @@ vi.mock('../../../lib/redis.js', () => ({
 // Mock bcrypt
 vi.mock('bcrypt', () => ({
   default: {
-    hash: vi.fn().mockResolvedValue(chance.string({ length: 60 })),
+    hash: vi.fn().mockResolvedValue('$2b$10$mocked.hash.value.here'),
   },
 }));
-
-// Dynamic import AFTER mocking
-const { default: changePasswordService } = await import('../../../services/auth.changepassword.service.js');
-const { mockPrisma } = await import('../setup.js');
 
 describe('ChangePasswordService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockDatabase.queryOne.mockClear();
+    mockDatabase.query.mockClear();
   });
 
   test('should throw ValidationError when no data provided', async () => {
@@ -74,7 +74,7 @@ describe('ChangePasswordService', () => {
       username,
       email: chance.email(),
     };
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
 
     const { default: redis } = await import('../../../lib/redis.js');
 
@@ -88,9 +88,10 @@ describe('ChangePasswordService', () => {
     })).rejects.toThrow('Invalid or expired reset code');
 
     // Should have looked up the user
-    expect(mockPrisma.users.findUnique).toHaveBeenCalledWith({
-      where: { username },
-    });
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT * FROM users WHERE username = $1',
+      [username],
+    );
 
     // Should have attempted to look up the token in Redis
     expect(redis.get).toHaveBeenCalledWith(`password_reset:${userId}`);
@@ -109,8 +110,8 @@ describe('ChangePasswordService', () => {
       username,
       email: chance.email(),
     };
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
-    mockPrisma.users.update.mockResolvedValue({ ...mockUser, password_hash: hashedPassword });
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
+    mockDatabase.query.mockResolvedValue();
 
     const { default: redis } = await import('../../../lib/redis.js');
     const bcrypt = await import('bcrypt');
@@ -131,10 +132,10 @@ describe('ChangePasswordService', () => {
     expect(bcrypt.default.hash).toHaveBeenCalledWith(newPassword, 10);
 
     // Should update user's password in database
-    expect(mockPrisma.users.update).toHaveBeenCalledWith({
-      where: { id: userId },
-      data: { password_hash: hashedPassword },
-    });
+    expect(mockDatabase.query).toHaveBeenCalledWith(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [hashedPassword, userId],
+    );
   });
 
   test('should delete reset token from Redis after successful password change', async () => {
@@ -150,8 +151,8 @@ describe('ChangePasswordService', () => {
       username,
       email: chance.email(),
     };
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
-    mockPrisma.users.update.mockResolvedValue({ ...mockUser, password_hash: hashedPassword });
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
+    mockDatabase.query.mockResolvedValue();
 
     const { default: redis } = await import('../../../lib/redis.js');
     const bcrypt = await import('bcrypt');
@@ -183,8 +184,8 @@ describe('ChangePasswordService', () => {
       username,
       email: chance.email(),
     };
-    mockPrisma.users.findUnique.mockResolvedValue(mockUser);
-    mockPrisma.users.update.mockResolvedValue({ ...mockUser, password_hash: hashedPassword });
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
+    mockDatabase.query.mockResolvedValue();
 
     const { default: redis } = await import('../../../lib/redis.js');
     const bcrypt = await import('bcrypt');

@@ -1,10 +1,17 @@
-import { describe, test, expect } from 'vitest';
+import {
+  describe, test, expect, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 import deleteBagService from '../../../services/bags.delete.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
 describe('deleteBagService', () => {
+  beforeEach(() => {
+    mockDatabase.query.mockClear();
+  });
+
   test('should export a function', () => {
     expect(typeof deleteBagService).toBe('function');
   });
@@ -42,14 +49,15 @@ describe('deleteBagService', () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
 
-    const mockPrisma = {
-      bags: {
-        deleteMany: async () => ({ count: 1 }),
-      },
-    };
+    // Mock successful deletion (rowCount = 1)
+    mockDatabase.query.mockResolvedValue({ rowCount: 1 });
 
-    const result = await deleteBagService(userId, bagId, mockPrisma);
+    const result = await deleteBagService(userId, bagId);
 
+    expect(mockDatabase.query).toHaveBeenCalledWith(
+      'DELETE FROM bags WHERE id = $1 AND user_id = $2',
+      [bagId, userId],
+    );
     expect(result).toBe(true);
   });
 
@@ -57,14 +65,15 @@ describe('deleteBagService', () => {
     const userId = chance.integer({ min: 1 });
     const bagId = chance.guid();
 
-    const mockPrisma = {
-      bags: {
-        deleteMany: async () => ({ count: 0 }), // No rows deleted
-      },
-    };
+    // Mock no rows deleted (rowCount = 0)
+    mockDatabase.query.mockResolvedValue({ rowCount: 0 });
 
-    const result = await deleteBagService(userId, bagId, mockPrisma);
+    const result = await deleteBagService(userId, bagId);
 
+    expect(mockDatabase.query).toHaveBeenCalledWith(
+      'DELETE FROM bags WHERE id = $1 AND user_id = $2',
+      [bagId, userId],
+    );
     expect(result).toBeNull();
   });
 });

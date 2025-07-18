@@ -1,8 +1,8 @@
 import bcrypt from 'bcrypt';
-import prisma from '../lib/prisma.js';
+import { queryOne } from '../lib/database.js';
 import { isValidEmail } from '../utils/validation.js';
 
-const registerUser = async (userData) => {
+const registerUser = async (userData, dbClient = { queryOne }) => {
   // Validate required fields - these are ValidationError (400)
   if (!userData.email) {
     const error = new Error('Email is required');
@@ -67,13 +67,15 @@ const registerUser = async (userData) => {
   }
 
   // Check if email already exists
-  const existingEmail = await prisma.users.findUnique({
-    where: { email: userData.email },
-  });
+  const existingEmail = await dbClient.queryOne(
+    'SELECT id, email FROM users WHERE email = $1',
+    [userData.email],
+  );
 
-  const existingUsername = await prisma.users.findUnique({
-    where: { username: userData.username },
-  });
+  const existingUsername = await dbClient.queryOne(
+    'SELECT id, username FROM users WHERE username = $1',
+    [userData.username],
+  );
 
   if (existingEmail || existingUsername) {
     const error = new Error('Email or username already registered');
@@ -85,21 +87,16 @@ const registerUser = async (userData) => {
   const hashedPassword = await bcrypt.hash(userData.password, 12);
 
   // Save user to database
-  const createdUser = await prisma.users.create({
-    data: {
-      email: userData.email,
-      username: userData.username,
-      password_hash: hashedPassword,
-    },
-  });
-
-  // Remove sensitive data before returning
-  // eslint-disable-next-line no-unused-vars, camelcase
-  const { password_hash, ...userWithoutPassword } = createdUser;
+  const createdUser = await dbClient.queryOne(
+    `INSERT INTO users (email, username, password_hash, created_at)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, email, username, created_at`,
+    [userData.email, userData.username, hashedPassword, new Date()],
+  );
 
   return {
     success: true,
-    user: userWithoutPassword,
+    user: createdUser,
   };
 };
 

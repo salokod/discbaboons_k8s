@@ -5,7 +5,7 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { prisma } from '../setup.js';
+import { query, queryOne } from '../setup.js';
 
 const chance = new Chance();
 // Unique suffix for this test file run
@@ -23,8 +23,8 @@ describe('PATCH /api/discs/:id/approve - Integration', () => {
 
   beforeEach(async () => {
     // Clean up only users/discs created by this test file
-    await prisma.users.deleteMany({ where: { email: { contains: uniqueSuffix } } });
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${uniqueSuffix}%`]);
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
 
     // Register admin user
     const adminPassword = `Abcdef1!${chance.word({ length: 5 })}`;
@@ -35,10 +35,10 @@ describe('PATCH /api/discs/:id/approve - Integration', () => {
     };
     await request(app).post('/api/auth/register').send(adminData).expect(201);
     // Make admin in DB
-    adminUser = await prisma.users.update({
-      where: { username: adminData.username },
-      data: { is_admin: true },
-    });
+    adminUser = await queryOne(
+      'UPDATE users SET is_admin = $1 WHERE username = $2 RETURNING *',
+      [true, adminData.username],
+    );
     // Login admin
     const adminLoginRes = await request(app).post('/api/auth/login').send({
       username: adminData.username,
@@ -66,23 +66,20 @@ describe('PATCH /api/discs/:id/approve - Integration', () => {
     }
 
     // Seed a pending disc
-    pendingDisc = await prisma.disc_master.create({
-      data: {
-        brand: testBrand,
-        model: testModel,
-        speed: chance.integer({ min: 1, max: 14 }),
-        glide: chance.integer({ min: 1, max: 7 }),
-        turn: chance.integer({ min: -5, max: 2 }),
-        fade: chance.integer({ min: 0, max: 5 }),
-        approved: false,
-        added_by_id: normalUser.id,
-      },
-    });
+    const discParams = [
+      testBrand, testModel, chance.integer({ min: 1, max: 14 }),
+      chance.integer({ min: 1, max: 7 }), chance.integer({ min: -5, max: 2 }),
+      chance.integer({ min: 0, max: 5 }), false, normalUser.id,
+    ];
+    pendingDisc = await queryOne(
+      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      discParams,
+    );
   });
 
   afterEach(async () => {
-    await prisma.disc_master.deleteMany({ where: { brand: testBrand } });
-    await prisma.users.deleteMany({ where: { email: { contains: uniqueSuffix } } });
+    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
+    await query('DELETE FROM users WHERE email LIKE $1', [`%${uniqueSuffix}%`]);
   });
 
   test('should require authentication', async () => {
@@ -113,7 +110,7 @@ describe('PATCH /api/discs/:id/approve - Integration', () => {
     });
 
     // Confirm in DB
-    const updated = await prisma.disc_master.findUnique({ where: { id: pendingDisc.id } });
+    const updated = await queryOne('SELECT * FROM disc_master WHERE id = $1', [pendingDisc.id]);
     expect(updated).not.toBeNull();
     expect(updated.approved).toBe(true);
   });

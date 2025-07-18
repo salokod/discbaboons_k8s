@@ -1,29 +1,15 @@
 import {
-  describe, test, expect, beforeEach, vi,
+  describe, test, expect, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
+import friendsRequestService from '../../../services/friends.request.service.js';
+import mockDatabase from '../setup.js';
 
 const chance = new Chance();
 
-// Mock Prisma
-const mockFindUnique = vi.fn();
-const mockCreate = vi.fn();
-
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => ({
-    friendship_requests: {
-      findUnique: mockFindUnique,
-      create: mockCreate,
-    },
-    $disconnect: vi.fn(),
-  })),
-}));
-
-const { default: friendsRequestService } = await import('../../../services/friends.request.service.js');
-
 describe('friendsRequestService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockDatabase.queryOne.mockClear();
   });
 
   test('should export a function', () => {
@@ -51,8 +37,13 @@ describe('friendsRequestService', () => {
     while (recipientId === requesterId) {
       recipientId = chance.integer({ min: 1, max: 1000 });
     }
-    mockFindUnique.mockResolvedValue({ id: chance.integer({ min: 1001, max: 2000 }), status: 'pending' });
+    mockDatabase.queryOne.mockResolvedValue({ id: chance.integer({ min: 1001, max: 2000 }), status: 'pending' });
     await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
   });
 
   test('should create and return a new friend request if none exists', async () => {
@@ -61,23 +52,32 @@ describe('friendsRequestService', () => {
     while (recipientId === requesterId) {
       recipientId = chance.integer({ min: 1, max: 1000 });
     }
-    mockFindUnique.mockResolvedValue(null);
     const fakeRequest = {
       id: chance.integer({ min: 1001, max: 2000 }),
       requester_id: requesterId,
       recipient_id: recipientId,
       status: 'pending',
     };
-    mockCreate.mockResolvedValue(fakeRequest);
+
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No direct request exists
+      .mockResolvedValueOnce(null) // No reverse request exists
+      .mockResolvedValueOnce(fakeRequest); // Create new request
 
     const result = await friendsRequestService(requesterId, recipientId);
-    expect(mockCreate).toHaveBeenCalledWith({
-      data: {
-        requester_id: requesterId,
-        recipient_id: recipientId,
-        status: 'pending',
-      },
-    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [recipientId, requesterId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status) VALUES ($1, $2, $3) RETURNING *',
+      [requesterId, recipientId, 'pending'],
+    );
     expect(result).toEqual(fakeRequest);
   });
 
@@ -88,12 +88,20 @@ describe('friendsRequestService', () => {
       recipientId = chance.integer({ min: 1, max: 1000 });
     }
     // Simulate no direct request, but a reverse request exists
-    mockFindUnique.mockResolvedValueOnce(null); // No direct request
-    // Simulate reverse request exists
-    mockFindUnique.mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'pending' });
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No direct request
+      .mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'pending' }); // Reverse request exists
 
-    // Patch the service to check both directions (see below)
     await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [recipientId, requesterId],
+    );
   });
 
   test('should allow a new request if reverse request was denied', async () => {
@@ -102,25 +110,32 @@ describe('friendsRequestService', () => {
     while (recipientId === requesterId) {
       recipientId = chance.integer({ min: 1, max: 1000 });
     }
-    mockFindUnique.mockResolvedValueOnce(null); // No direct request
-    mockFindUnique.mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'denied' }); // Reverse denied
-
     const fakeRequest = {
       id: chance.integer({ min: 3001, max: 4000 }),
       requester_id: requesterId,
       recipient_id: recipientId,
       status: 'pending',
     };
-    mockCreate.mockResolvedValue(fakeRequest);
+
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No direct request
+      .mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'denied' }) // Reverse denied
+      .mockResolvedValueOnce(fakeRequest); // Create new request
 
     const result = await friendsRequestService(requesterId, recipientId);
-    expect(mockCreate).toHaveBeenCalledWith({
-      data: {
-        requester_id: requesterId,
-        recipient_id: recipientId,
-        status: 'pending',
-      },
-    });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [recipientId, requesterId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status) VALUES ($1, $2, $3) RETURNING *',
+      [requesterId, recipientId, 'pending'],
+    );
     expect(result).toEqual(fakeRequest);
   });
 
@@ -130,9 +145,19 @@ describe('friendsRequestService', () => {
     while (recipientId === requesterId) {
       recipientId = chance.integer({ min: 1, max: 1000 });
     }
-    mockFindUnique.mockResolvedValueOnce(null); // No direct request
-    mockFindUnique.mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'accepted' }); // Reverse accepted
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No direct request
+      .mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'accepted' }); // Reverse accepted
 
     await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [recipientId, requesterId],
+    );
   });
 });
