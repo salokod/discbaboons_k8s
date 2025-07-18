@@ -53,6 +53,9 @@ export async function query(text, params = []) {
   try {
     const result = await client.query(text, params);
     return result;
+  } catch (error) {
+    console.log('error', error);
+    return null;
   } finally {
     client.release();
   }
