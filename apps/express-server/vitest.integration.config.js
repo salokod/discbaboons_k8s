@@ -15,7 +15,7 @@ export default defineConfig({
       ],
     },
     testTimeout: 10000,
-    globals: true,
+    globals: true
   },
   define: {
     'process.env.NODE_ENV': '"test"',
