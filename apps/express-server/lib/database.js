@@ -28,7 +28,8 @@ function getDatabaseUrl() {
 // Create connection pool
 const pool = new Pool({
   connectionString: getDatabaseUrl(),
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: false,
   max: 20, // Maximum number of connections
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
