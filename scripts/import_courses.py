@@ -21,7 +21,6 @@ def main():
                     country = escape_sql_string(row.get("country", "US").replace('"', '').strip())  # Default to US
                     postal_code = row.get("zip", "").replace('"', '').strip()
                     hole_count = row.get("holeCount", "18").strip()
-                    rating = row.get("rating", "").strip()
                     latitude = row.get("latitude", "").strip()
                     longitude = row.get("longitude", "").strip()
                     
@@ -31,13 +30,12 @@ def main():
                     
                     # Handle optional fields
                     postal_code_val = f"'{escape_sql_string(postal_code)}'" if postal_code else "NULL"
-                    rating_val = rating if (rating and rating.replace(".", "").replace("-", "").isdigit()) else "NULL"
                     lat_val = latitude if (latitude and latitude.replace("-", "").replace(".", "").isdigit()) else "NULL"
                     lon_val = longitude if (longitude and longitude.replace("-", "").replace(".", "").isdigit()) else "NULL"
                     
                     # Only insert if we have required fields
                     if course_id and name and city and state_province:
-                        sql = f"INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, rating, latitude, longitude, is_user_submitted, approved, created_at, updated_at) VALUES ('{course_id}', '{name}', '{city}', '{state_province}', '{country}', {postal_code_val}, {hole_count}, {rating_val}, {lat_val}, {lon_val}, FALSE, TRUE, NOW(), NOW());\n"
+                        sql = f"INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, created_at, updated_at) VALUES ('{course_id}', '{name}', '{city}', '{state_province}', '{country}', {postal_code_val}, {hole_count}, {lat_val}, {lon_val}, FALSE, TRUE, NOW(), NOW());\n"
                         out.write(sql)
         
         print("Successfully generated courses_seed.sql")

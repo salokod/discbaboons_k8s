@@ -45,7 +45,6 @@ GET /api/courses
       "state": "Texas",
       "zip": "78701",
       "hole_count": 18,
-      "rating": 4.2,
       "latitude": 30.2672,
       "longitude": -97.7431,
       "is_user_submitted": false,
@@ -84,7 +83,6 @@ GET /api/courses
 | `state` | string | State where course is located |
 | `zip` | string | ZIP/postal code |
 | `hole_count` | integer | Number of holes on the course |
-| `rating` | number | Course rating (1-5 scale) |
 | `latitude` | number | GPS latitude coordinate |
 | `longitude` | number | GPS longitude coordinate |
 | `is_user_submitted` | boolean | Whether course was user-submitted |

@@ -8,7 +8,7 @@ const coursesSubmitService = async (userId, courseData = {}) => {
   }
 
   const {
-    name, city, stateProvince, country = 'US', holeCount, postalCode, latitude, longitude, rating,
+    name, city, stateProvince, country = 'US', holeCount, postalCode, latitude, longitude,
   } = courseData;
 
   if (!name) {
@@ -99,22 +99,13 @@ const coursesSubmitService = async (userId, courseData = {}) => {
     }
   }
 
-  // Validate optional rating
-  if (rating !== undefined && rating !== null) {
-    if (typeof rating !== 'number' || rating < 1.0 || rating > 5.0) {
-      const error = new Error('Rating must be between 1.0 and 5.0');
-      error.name = 'ValidationError';
-      throw error;
-    }
-  }
-
   // Generate URL-friendly course ID
   const courseId = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${city.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${stateProvince.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${country.toLowerCase()}`;
 
   // Insert course into database (updated field names)
   const result = await queryOne(
-    `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, rating, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+    `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
     [
       courseId,
       name,
@@ -123,7 +114,6 @@ const coursesSubmitService = async (userId, courseData = {}) => {
       country.toUpperCase(),
       postalCode,
       holeCount,
-      rating,
       latitude,
       longitude,
       true,
@@ -138,9 +128,6 @@ const coursesSubmitService = async (userId, courseData = {}) => {
   }
   if (result.longitude) {
     result.longitude = parseFloat(result.longitude);
-  }
-  if (result.rating) {
-    result.rating = parseFloat(result.rating);
   }
 
   return result;
