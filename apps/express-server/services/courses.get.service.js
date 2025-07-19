@@ -1,4 +1,5 @@
 import { queryOne } from '../lib/database.js';
+import { processCourseCoordinates } from '../lib/coordinates.js';
 
 const coursesGetService = async (courseId, userId = null) => {
   if (!courseId) {
@@ -37,7 +38,7 @@ const coursesGetService = async (courseId, userId = null) => {
   }
 
   const course = await queryOne(query, params);
-  return course;
+  return processCourseCoordinates(course);
 };
 
 export default coursesGetService;

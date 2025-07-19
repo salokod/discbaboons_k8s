@@ -1,6 +1,19 @@
 import { queryOne, queryRows } from '../lib/database.js';
+import { processCoursesCoordinates } from '../lib/coordinates.js';
 
 const coursesSearchService = async (filters = {}, userId = null) => {
+  // Validate boolean filters
+  if (filters.is_user_submitted !== undefined && typeof filters.is_user_submitted !== 'boolean') {
+    const error = new Error('is_user_submitted must be a boolean value (true or false)');
+    error.name = 'ValidationError';
+    throw error;
+  }
+  if (filters.approved !== undefined && typeof filters.approved !== 'boolean') {
+    const error = new Error('approved must be a boolean value (true or false)');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Build WHERE conditions
   const whereConditions = [];
   const params = [];
@@ -51,6 +64,18 @@ const coursesSearchService = async (filters = {}, userId = null) => {
     params.push(`%${filters.name}%`);
   }
 
+  // is_user_submitted filter (boolean)
+  if (filters.is_user_submitted !== undefined) {
+    whereConditions.push(`is_user_submitted = $${params.length + 1}`);
+    params.push(filters.is_user_submitted);
+  }
+
+  // approved filter (boolean)
+  if (filters.approved !== undefined) {
+    whereConditions.push(`approved = $${params.length + 1}`);
+    params.push(filters.approved);
+  }
+
   const whereClause = whereConditions.join(' AND ');
 
   // Pagination parameters
@@ -71,7 +96,7 @@ const coursesSearchService = async (filters = {}, userId = null) => {
   );
 
   return {
-    courses,
+    courses: processCoursesCoordinates(courses),
     total,
     limit,
     offset,

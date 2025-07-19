@@ -15,16 +15,21 @@ GET /api/courses
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `state` | string | No | - | Filter by exact state name |
-| `city` | string | No | - | Filter by exact city name |
+| `country` | string | No | - | Filter by country code (partial match, case-insensitive) |
+| `stateProvince` | string | No | - | Filter by state/province (partial match, case-insensitive) |
+| `state` | string | No | - | Legacy parameter for stateProvince (partial match, case-insensitive) |
+| `city` | string | No | - | Filter by city name (partial match, case-insensitive) |
 | `name` | string | No | - | Filter by course name (partial match, case-insensitive) |
+| `is_user_submitted` | boolean | No | - | Filter by submission type (true/false only) |
+| `approved` | boolean | No | - | Filter by approval status (true/false only) |
 | `limit` | integer | No | 50 | Number of results per page (max 500) |
 | `offset` | integer | No | 0 | Number of results to skip |
 
 ### Filtering Rules
-- **State**: Exact match (case-sensitive)
-- **City**: Exact match (case-sensitive) 
-- **Name**: Partial match using ILIKE (case-insensitive)
+- **Text Fields** (country, stateProvince, city, name): Partial match using ILIKE (case-insensitive)
+- **Boolean Fields** (is_user_submitted, approved): Exact match, must be true or false
+- **Legacy Support**: `state` parameter maps to `stateProvince` for backward compatibility
+- **Validation**: Boolean parameters reject invalid values (returns 400 error)
 - **Visibility**: Returns approved courses + user's own unapproved courses + friends' unapproved courses
 
 ### Pagination
@@ -42,8 +47,9 @@ GET /api/courses
       "id": "disc-golf-course-austin-tx",
       "name": "Zilker Park Disc Golf Course",
       "city": "Austin",
-      "state": "Texas",
-      "zip": "78701",
+      "state_province": "Texas",
+      "country": "US",
+      "postal_code": "78701",
       "hole_count": 18,
       "latitude": 30.2672,
       "longitude": -97.7431,
@@ -64,11 +70,18 @@ GET /api/courses
 
 ### Error Responses
 
+#### 400 Bad Request - Invalid Boolean Parameter
+```json
+{
+  "success": false,
+  "message": "is_user_submitted must be a boolean value (true or false)"
+}
+```
+
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
-  "message": "Access token required"
+  "error": "Access token required"
 }
 ```
 
@@ -80,8 +93,9 @@ GET /api/courses
 | `id` | string | Unique course identifier (URL-friendly) |
 | `name` | string | Course name |
 | `city` | string | City where course is located |
-| `state` | string | State where course is located |
-| `zip` | string | ZIP/postal code |
+| `state_province` | string | State/province where course is located |
+| `country` | string | Two-letter country code |
+| `postal_code` | string | ZIP/postal code |
 | `hole_count` | integer | Number of holes on the course |
 | `latitude` | number | GPS latitude coordinate |
 | `longitude` | number | GPS longitude coordinate |
@@ -128,15 +142,15 @@ curl -X GET http://localhost:3000/api/courses \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### Filter by State
+### Filter by State/Province
 ```bash
-curl -X GET "http://localhost:3000/api/courses?state=California" \
+curl -X GET "http://localhost:3000/api/courses?stateProvince=California" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### Filter by State and City
+### Filter by Country and State
 ```bash
-curl -X GET "http://localhost:3000/api/courses?state=California&city=Sacramento" \
+curl -X GET "http://localhost:3000/api/courses?country=US&stateProvince=California" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
@@ -152,17 +166,35 @@ curl -X GET "http://localhost:3000/api/courses?limit=100&offset=50" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
+### Filter by Boolean Fields
+```bash
+# Find user-submitted courses
+curl -X GET "http://localhost:3000/api/courses?is_user_submitted=true" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Find unapproved courses (user can edit)
+curl -X GET "http://localhost:3000/api/courses?approved=false" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
 ### Combined Filters
 ```bash
-curl -X GET "http://localhost:3000/api/courses?state=Texas&name=zilker&limit=10" \
+curl -X GET "http://localhost:3000/api/courses?country=US&stateProvince=Texas&name=zilker&limit=10" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Find editable courses for the user
+curl -X GET "http://localhost:3000/api/courses?is_user_submitted=true&approved=false" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ## Use Cases
 - **Course Discovery**: Find disc golf courses in specific areas
 - **Round Planning**: Search for courses before travel
-- **Location-Based Search**: Find nearby courses by state/city
+- **Location-Based Search**: Find nearby courses by country/state/city
 - **Course Selection**: Browse available courses for round creation
+- **User Content Management**: Find courses the user can edit (`is_user_submitted=true&approved=false`)
+- **Admin Workflow**: Find pending user submissions (`approved=false`)
+- **Content Filtering**: Separate user-submitted from imported course data
 
 ## Performance Considerations
 - **Indexed Queries**: State, city, and location fields are indexed
