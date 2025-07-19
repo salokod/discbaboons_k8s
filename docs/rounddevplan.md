@@ -336,23 +336,26 @@ model users {
 - ✅ Create course seeding service (scripts/import_courses.py)
 - ✅ Test course data import (7,008 courses imported successfully)
 
-#### Step 1.2: Course API Endpoints **IN PROGRESS**
+#### Step 1.2: Course API Endpoints ✅ **COMPLETED**
 - ✅ `GET /api/courses` - Search/filter courses with pagination (state, city, name, limit, offset)
 - ✅ `GET /api/courses/:id` - Get course details
-- [ ] **🌍 PIVOT: International Course Support** - Add migration V18 for country/state_province fields
-- [ ] `POST /api/courses` - Submit user course (authenticated) - **Update for international support**
+- ✅ **🌍 PIVOT: International Course Support** - Add migration V18 for country/state_province fields
+- ✅ `POST /api/courses` - Submit user course (authenticated) - **Updated for international support**
 - [ ] `GET /api/courses/pending` - Admin: List pending courses
 - [ ] `PUT /api/courses/:id/approve` - Admin: Approve/reject course
 
-#### Step 1.3: Course Services & Controllers **IN PROGRESS**
+#### Step 1.3: Course Services & Controllers ✅ **COMPLETED**
 - ✅ `courses.search.service.js` - Course search with filters and pagination (default 50, max 500)
 - ✅ `courses.search.controller.js` - Controller with parameter extraction
 - ✅ `courses.get.service.js` - Single course retrieval
 - ✅ `courses.get.controller.js` - Controller for course details
-- ✅ `courses.routes.js` - Route setup with authentication middleware (search + get)
+- ✅ `courses.submit.service.js` - User course submission with international validation
+- ✅ `courses.submit.controller.js` - Controller for course submission
+- ✅ `courses.routes.js` - Route setup with authentication middleware (search + get + submit)
 - ✅ Integration with server.js and auth middleware
 - ✅ Comprehensive test coverage (unit tests, integration tests)
-- [ ] `courses.submit.service.js` - User course submission
+- ✅ Updated all tests for international schema (country, state_province, postal_code)
+- ✅ Updated import script for international schema
 - [ ] `courses.admin.service.js` - Admin approval workflow
 
 #### Current API Status ✅
@@ -368,15 +371,24 @@ model users {
      "hasMore": true       // Whether more results exist
    }
    ```
-   - **Filters:** state, city, name (case-insensitive partial match)
+   - **Filters:** country, stateProvince (or legacy state), city, name (case-insensitive partial match)
    - **Pagination:** limit (max 500), offset
+   - **Sorting:** ORDER BY country ASC, state_province ASC, city ASC, name ASC
 
 2. **`GET /api/courses/:id`** (authenticated) - Get course details
    - **Response:** Single course object or null if not found
    - **Validation:** Returns 400 if courseId is missing
    - **Security:** Only returns approved courses
 
-- **Data:** 7,008 US disc golf courses imported from CSV
+3. **`POST /api/courses`** (authenticated) - Submit user course for approval
+   - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode)
+   - **Validation:** Country-specific state/province validation (strict for US/CA, inclusive for others)
+   - **Response:** 201 Created with course object (approved: false, is_user_submitted: true)
+   - **Security:** Requires authentication, validates user ownership
+   - **Documentation:** `/docs/api/courses/POST_courses.md`
+
+- **Data:** 7,008 US disc golf courses imported from CSV + user-submitted courses
+- **International Support:** Full country/state_province/postal_code schema with migration V18
 
 ### Phase 2: Round Management Core
 **Target: Week 3-4**
@@ -501,7 +513,7 @@ model users {
 - ✅ `GET /api/courses/:id` - Get course details (authenticated)
   - **Response:** Single course object or null
   - **Security:** Only approved courses
-- [ ] `POST /api/courses` - Submit user course
+- ✅ `POST /api/courses` - Submit user course (with international support)
 - [ ] `GET /api/courses/pending` - Admin: pending courses
 - [ ] `PUT /api/courses/:id/approve` - Admin: approve course
 

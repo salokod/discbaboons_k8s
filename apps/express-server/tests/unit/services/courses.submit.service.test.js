@@ -45,6 +45,32 @@ describe('courses.submit.service', () => {
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('State/Province is required');
   });
 
+  it('should throw ValidationError when holeCount is missing', async () => {
+    const userId = chance.integer({ min: 1 });
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      // Missing holeCount
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Hole count is required and must be a positive integer');
+  });
+
+  it('should throw ValidationError when holeCount is invalid', async () => {
+    const userId = chance.integer({ min: 1 });
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      holeCount: -5, // Invalid negative hole count
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Hole count is required and must be a positive integer');
+  });
+
   it('should throw ValidationError when country is missing', async () => {
     const userId = chance.integer({ min: 1 });
     const courseData = {
@@ -52,6 +78,7 @@ describe('courses.submit.service', () => {
       city: chance.city(),
       stateProvince: chance.state({ abbreviated: true }),
       country: '', // Empty country
+      holeCount: chance.integer({ min: 9, max: 27 }),
     };
 
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Country is required');
@@ -65,6 +92,7 @@ describe('courses.submit.service', () => {
       city: chance.city(),
       stateProvince: chance.state({ abbreviated: true }),
       country: invalidCountry,
+      holeCount: chance.integer({ min: 9, max: 27 }),
     };
 
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Country must be a valid 2-character ISO code (e.g., US, CA, AU, GB, JP, BR, MX)');
@@ -78,6 +106,7 @@ describe('courses.submit.service', () => {
       city: chance.city(),
       stateProvince: invalidState, // Invalid US state
       country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
     };
 
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('State must be a valid 2-character US state abbreviation (e.g., CA, TX, NY)');
@@ -91,6 +120,7 @@ describe('courses.submit.service', () => {
       city: chance.city(),
       stateProvince: invalidProvince, // Invalid Canadian province
       country: 'CA',
+      holeCount: chance.integer({ min: 9, max: 27 }),
     };
 
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Province must be a valid 2-character Canadian province code (e.g., ON, BC, QC)');
@@ -98,7 +128,8 @@ describe('courses.submit.service', () => {
 
   it('should create course with required fields and return course data', async () => {
     const userId = chance.integer({ min: 1 });
-    const validState = chance.state({ abbreviated: true });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates); // Pick from known valid US states
     const validCountry = 'US'; // Keep US for this test since we're testing the US validation path
     const courseData = {
       name: chance.string(),

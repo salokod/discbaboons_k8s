@@ -54,6 +54,14 @@ beforeAll(async () => {
 });
 
 describe('courses routes', () => {
+  beforeEach(() => {
+    // Clear all mock calls before each test
+    courseSearchCont.mockClear();
+    courseGetCont.mockClear();
+    courseSubmitCont.mockClear();
+    authenticateToken.mockClear();
+  });
+
   test('GET /api/courses should require authentication and call controller', async () => {
     const app = express();
     app.use('/api/courses', coursesRouter);

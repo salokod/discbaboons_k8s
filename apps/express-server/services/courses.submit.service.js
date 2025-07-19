@@ -29,6 +29,12 @@ const coursesSubmitService = async (userId, courseData = {}) => {
     throw error;
   }
 
+  if (!holeCount || !Number.isInteger(holeCount) || holeCount < 1) {
+    const error = new Error('Hole count is required and must be a positive integer');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   if (!country) {
     const error = new Error('Country is required');
     error.name = 'ValidationError';
