@@ -1,9 +1,31 @@
 import { queryOne, queryRows } from '../lib/database.js';
 
-const coursesSearchService = async (filters = {}) => {
+const coursesSearchService = async (filters = {}, userId = null) => {
   // Build WHERE conditions
-  const whereConditions = ['approved = true'];
+  const whereConditions = [];
   const params = [];
+
+  // Base visibility rules: approved courses OR user's own unapproved courses
+  // OR friend's unapproved courses
+  if (userId) {
+    whereConditions.push(`(
+      approved = true 
+      OR submitted_by_id = $${params.length + 1}
+      OR (approved = false AND submitted_by_id IN (
+        SELECT CASE 
+          WHEN requester_id = $${params.length + 1} THEN recipient_id
+          WHEN recipient_id = $${params.length + 1} THEN requester_id
+        END as friend_id
+        FROM friendship_requests 
+        WHERE status = 'accepted' 
+          AND (requester_id = $${params.length + 1} OR recipient_id = $${params.length + 1})
+      ))
+    )`);
+    params.push(userId);
+  } else {
+    // No user context - only show approved courses
+    whereConditions.push('approved = true');
+  }
 
   // Country filter (new for international support)
   if (filters.country) {

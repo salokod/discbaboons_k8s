@@ -244,4 +244,112 @@ describe('coursesSearchService', () => {
     );
     expect(result.limit).toBe(500);
   });
+
+  test('should include user own unapproved courses when userId provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        approved: false,
+        submitted_by_id: userId,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({}, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('submitted_by_id = $1'),
+      [userId],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('submitted_by_id = $1'),
+      [userId, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should include friend unapproved courses when userId provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        approved: false,
+        submitted_by_id: chance.integer({ min: 1 }),
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({}, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('friendship_requests'),
+      [userId],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('friendship_requests'),
+      [userId, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should only show approved courses when no userId provided', async () => {
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({});
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true',
+      [],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      [50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should combine filters with user visibility when userId provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const targetState = chance.state({ abbreviated: true });
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        state_province: targetState,
+        approved: false,
+        submitted_by_id: userId,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ state: targetState }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('state_province = $2'),
+      [userId, targetState],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('state_province = $2'),
+      [userId, targetState, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
 });

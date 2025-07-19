@@ -357,6 +357,12 @@ model users {
 - ✅ Add latitude and longitude to optional fields to the course submit endpoint (rating removed).
 - ✅ Remove rating field from courses system (V19 migration, services, tests, docs)
 - ✅ Add duplicate course detection to prevent 500 errors on identical submissions
+- [ ] **🎯 NEW PRIORITY: Unapproved Course Visibility**
+  - [ ] Update course search/get services to include user's own unapproved courses
+  - [ ] Update course search/get services to include unapproved courses from accepted friends
+  - [ ] Add friend relationship checking logic
+  - [ ] Update tests for new visibility rules
+  - [ ] Update API documentation for unapproved course access
 - [ ] `courses.admin.service.js` - Admin approval workflow
 
 #### Current API Status ✅

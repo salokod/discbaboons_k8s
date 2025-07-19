@@ -53,7 +53,7 @@ describe('courses.get.controller', () => {
 
     await coursesGetController(req, res, next);
 
-    expect(mockCoursesGetService).toHaveBeenCalledWith(testCourseId);
+    expect(mockCoursesGetService).toHaveBeenCalledWith(testCourseId, null);
     expect(res.json).toHaveBeenCalledWith(mockCourse);
     expect(next).not.toHaveBeenCalled();
   });
@@ -67,8 +67,29 @@ describe('courses.get.controller', () => {
 
     await coursesGetController(req, res, next);
 
-    expect(mockCoursesGetService).toHaveBeenCalledWith(testCourseId);
+    expect(mockCoursesGetService).toHaveBeenCalledWith(testCourseId, null);
     expect(res.json).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(testError);
+  });
+
+  it('should pass userId to service when user is authenticated', async () => {
+    const testCourseId = chance.string({ alpha: true });
+    const userId = chance.integer({ min: 1 });
+    const mockCourse = {
+      id: testCourseId,
+      name: chance.string(),
+      approved: false,
+      submitted_by_id: userId,
+    };
+
+    req.params.id = testCourseId;
+    req.user = { userId };
+    mockCoursesGetService.mockResolvedValue(mockCourse);
+
+    await coursesGetController(req, res, next);
+
+    expect(mockCoursesGetService).toHaveBeenCalledWith(testCourseId, userId);
+    expect(res.json).toHaveBeenCalledWith(mockCourse);
+    expect(next).not.toHaveBeenCalled();
   });
 });
