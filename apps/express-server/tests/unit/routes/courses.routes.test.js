@@ -49,6 +49,19 @@ beforeAll(async () => {
     default: authenticateToken,
   }));
 
+  // Mock the services to avoid database calls
+  vi.doMock('../../../services/courses.search.service.js', () => ({
+    default: vi.fn().mockResolvedValue([]),
+  }));
+
+  vi.doMock('../../../services/courses.get.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
+  vi.doMock('../../../services/courses.submit.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: coursesRouter } = await import('../../../routes/courses.routes.js'));
 });
@@ -101,7 +114,7 @@ describe('courses routes', () => {
     const app = express();
     app.use('/api/courses', coursesRouter);
 
-    const testCourseId = chance.string();
+    const testCourseId = `${chance.word()}-${chance.word()}-${chance.word()}-us`;
     const response = await request(app)
       .get(`/api/courses/${testCourseId}`)
       .expect(200);

@@ -26,7 +26,10 @@ Content-Type: application/json
   "stateProvince": "string (required)",
   "country": "string (required, 2-character ISO code)",
   "postalCode": "string (optional)",
-  "holeCount": "integer (required, positive)"
+  "holeCount": "integer (required, positive)",
+  "latitude": "number (optional)",
+  "longitude": "number (optional)",
+  "rating": "number (optional)"
 }
 ```
 
@@ -40,6 +43,9 @@ Content-Type: application/json
 | `country` | string | Yes | 2-character ISO country code (e.g., US, CA, AU, GB) |
 | `postalCode` | string | No | ZIP code, postal code, or equivalent |
 | `holeCount` | integer | Yes | Number of holes (must be positive integer) |
+| `latitude` | number | No | Course latitude coordinate (must be between -90 and 90) |
+| `longitude` | number | No | Course longitude coordinate (must be between -180 and 180) |
+| `rating` | number | No | Course difficulty rating (must be between 1.0 and 5.0) |
 
 #### Validation Rules
 
@@ -51,6 +57,9 @@ Content-Type: application/json
 **General Validation:**
 - `country` must be exactly 2 characters (ISO 3166-1 alpha-2)
 - `holeCount` must be a positive integer (≥ 1)
+- `latitude` must be between -90 and 90 (if provided)
+- `longitude` must be between -180 and 180 (if provided)
+- `rating` must be a decimal number (if provided)
 - All required fields must be provided and non-empty
 
 ## Response
@@ -67,6 +76,9 @@ Content-Type: application/json
   "country": "US",
   "postal_code": "95821",
   "hole_count": 18,
+  "latitude": 38.5816,
+  "longitude": -121.4944,
+  "rating": 4.2,
   "is_user_submitted": true,
   "approved": false,
   "submitted_by_id": 123,
@@ -79,6 +91,9 @@ Content-Type: application/json
 - `id`: Auto-generated URL-friendly identifier from location data
 - `state_province`: Converted to uppercase for consistency
 - `country`: Converted to uppercase for consistency
+- `latitude`: Course latitude coordinate (null if not provided)
+- `longitude`: Course longitude coordinate (null if not provided)
+- `rating`: Course difficulty rating (null if not provided)
 - `is_user_submitted`: Always `true` for user submissions
 - `approved`: Always `false` - requires admin approval
 - `submitted_by_id`: ID of the user who submitted the course
@@ -102,6 +117,9 @@ Content-Type: application/json
 - `"Country must be a valid 2-character ISO code (e.g., US, CA, AU, GB, JP, BR, MX)"`
 - `"State must be a valid 2-character US state abbreviation (e.g., CA, TX, NY)"`
 - `"Province must be a valid 2-character Canadian province code (e.g., ON, BC, QC)"`
+- `"Latitude must be between -90 and 90"`
+- `"Longitude must be between -180 and 180"`
+- `"Rating must be between 1.0 and 5.0"`
 
 #### 401 Unauthorized
 ```json
@@ -120,7 +138,7 @@ Content-Type: application/json
 
 ## Examples
 
-### Example 1: US Course Submission
+### Example 1: US Course Submission with Optional Fields
 ```bash
 curl -X POST https://api.discbaboons.com/api/courses \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
@@ -131,7 +149,10 @@ curl -X POST https://api.discbaboons.com/api/courses \
     "stateProvince": "TX", 
     "country": "US",
     "postalCode": "78701",
-    "holeCount": 18
+    "holeCount": 18,
+    "latitude": 30.2672,
+    "longitude": -97.7431,
+    "rating": 4.5
   }'
 ```
 
@@ -145,6 +166,9 @@ curl -X POST https://api.discbaboons.com/api/courses \
   "country": "US", 
   "postal_code": "78701",
   "hole_count": 18,
+  "latitude": 30.2672,
+  "longitude": -97.7431,
+  "rating": 4.5,
   "is_user_submitted": true,
   "approved": false,
   "submitted_by_id": 456,
@@ -185,7 +209,7 @@ curl -X POST https://api.discbaboons.com/api/courses \
 }
 ```
 
-### Example 3: Validation Error
+### Example 3: Validation Error (Invalid State)
 ```bash
 curl -X POST https://api.discbaboons.com/api/courses \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
@@ -204,6 +228,30 @@ curl -X POST https://api.discbaboons.com/api/courses \
 {
   "success": false,
   "message": "State must be a valid 2-character US state abbreviation (e.g., CA, TX, NY)"
+}
+```
+
+### Example 4: Validation Error (Invalid Coordinates)
+```bash
+curl -X POST https://api.discbaboons.com/api/courses \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Course",
+    "city": "Austin",
+    "stateProvince": "TX",
+    "country": "US",
+    "holeCount": 18,
+    "latitude": 91,
+    "rating": 5.5
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": false,
+  "message": "Latitude must be between -90 and 90"
 }
 ```
 

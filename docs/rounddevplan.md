@@ -356,7 +356,7 @@ model users {
 - ✅ Comprehensive test coverage (unit tests, integration tests)
 - ✅ Updated all tests for international schema (country, state_province, postal_code)
 - ✅ Updated import script for international schema
-- [ ] Add latitude and longitude and rating to optional fields to the course submit endpoint.
+- ✅ Add latitude and longitude and rating to optional fields to the course submit endpoint.
 - [ ] `courses.admin.service.js` - Admin approval workflow
 
 #### Current API Status ✅

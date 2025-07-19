@@ -154,8 +154,8 @@ describe('courses.submit.service', () => {
     const result = await coursesSubmitService(userId, courseData);
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, is_user_submitted, approved, submitted_by_id) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, rating, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         expectedCourseId,
         courseData.name,
@@ -164,6 +164,9 @@ describe('courses.submit.service', () => {
         courseData.country,
         undefined,
         courseData.holeCount,
+        undefined,
+        undefined,
+        undefined,
         true,
         false,
         userId,
@@ -194,5 +197,211 @@ describe('courses.submit.service', () => {
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([randomStateProvince.toUpperCase(), randomCountry]),
     );
+  });
+
+  it('should accept optional latitude field when provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const latitude = chance.latitude();
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude,
+    };
+
+    const mockResult = { id: chance.string() };
+    mockDatabase.queryOne.mockResolvedValue(mockResult);
+
+    const result = await coursesSubmitService(userId, courseData);
+
+    expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO courses'),
+      expect.arrayContaining([latitude]),
+    );
+  });
+
+  it('should accept optional longitude field when provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const longitude = chance.longitude();
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      longitude,
+    };
+
+    const mockResult = { id: chance.string() };
+    mockDatabase.queryOne.mockResolvedValue(mockResult);
+
+    const result = await coursesSubmitService(userId, courseData);
+
+    expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO courses'),
+      expect.arrayContaining([longitude]),
+    );
+  });
+
+  it('should accept optional rating field when provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const rating = chance.floating({ min: 1.0, max: 5.0, fixed: 1 });
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      rating,
+    };
+
+    const mockResult = { id: chance.string() };
+    mockDatabase.queryOne.mockResolvedValue(mockResult);
+
+    const result = await coursesSubmitService(userId, courseData);
+
+    expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO courses'),
+      expect.arrayContaining([rating]),
+    );
+  });
+
+  it('should accept all optional fields together', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const latitude = chance.latitude();
+    const longitude = chance.longitude();
+    const rating = chance.floating({ min: 1.0, max: 5.0, fixed: 1 });
+    const postalCode = chance.zip();
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude,
+      longitude,
+      rating,
+      postalCode,
+    };
+
+    const mockResult = { id: chance.string() };
+    mockDatabase.queryOne.mockResolvedValue(mockResult);
+
+    const result = await coursesSubmitService(userId, courseData);
+
+    expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO courses'),
+      expect.arrayContaining([latitude, longitude, rating, postalCode]),
+    );
+  });
+
+  it('should throw ValidationError when latitude is greater than 90', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude: 91, // Invalid - too high
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Latitude must be between -90 and 90');
+  });
+
+  it('should throw ValidationError when latitude is less than -90', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude: -91, // Invalid - too low
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Latitude must be between -90 and 90');
+  });
+
+  it('should throw ValidationError when longitude is greater than 180', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      longitude: 181, // Invalid - too high
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Longitude must be between -180 and 180');
+  });
+
+  it('should throw ValidationError when longitude is less than -180', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      longitude: -181, // Invalid - too low
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Longitude must be between -180 and 180');
+  });
+
+  it('should throw ValidationError when rating is greater than 5', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      rating: 5.1, // Invalid - too high
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Rating must be between 1.0 and 5.0');
+  });
+
+  it('should throw ValidationError when rating is less than 1', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      rating: 0.9, // Invalid - too low
+    };
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Rating must be between 1.0 and 5.0');
   });
 });
