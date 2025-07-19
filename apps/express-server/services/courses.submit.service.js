@@ -1,0 +1,102 @@
+import { queryOne } from '../lib/database.js';
+
+const coursesSubmitService = async (userId, courseData = {}) => {
+  if (!userId) {
+    const error = new Error('userId is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  const {
+    name, city, stateProvince, country = 'US', holeCount, postalCode,
+  } = courseData;
+
+  if (!name) {
+    const error = new Error('Course name is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (!city) {
+    const error = new Error('City is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (!stateProvince) {
+    const error = new Error('State/Province is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (!country) {
+    const error = new Error('Country is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate country-specific state/province codes
+  const validateStateProvince = (countryCode, stateProvinceCode) => {
+    const validationRules = {
+      US: {
+        values: [
+          'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+          'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+          'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+          'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+          'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+        ],
+        error: 'State must be a valid 2-character US state abbreviation (e.g., CA, TX, NY)',
+      },
+      CA: {
+        values: ['AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'],
+        error: 'Province must be a valid 2-character Canadian province code (e.g., ON, BC, QC)',
+      },
+      // For other countries, we'll be more lenient for now
+    };
+
+    const rules = validationRules[countryCode.toUpperCase()];
+    if (rules && !rules.values.includes(stateProvinceCode.toUpperCase())) {
+      const error = new Error(rules.error);
+      error.name = 'ValidationError';
+      throw error;
+    }
+  };
+
+  // Validate country code (inclusive approach - accept any valid ISO format)
+  const isValidCountryCode = (code) => /^[A-Z]{2}$/.test(code.toUpperCase());
+
+  if (!isValidCountryCode(country)) {
+    const error = new Error('Country must be a valid 2-character ISO code (e.g., US, CA, AU, GB, JP, BR, MX)');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate state/province for the given country
+  validateStateProvince(country, stateProvince);
+
+  // Generate URL-friendly course ID
+  const courseId = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${city.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${stateProvince.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${country.toLowerCase()}`;
+
+  // Insert course into database (updated field names)
+  const result = await queryOne(
+    `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, is_user_submitted, approved, submitted_by_id) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+    [
+      courseId,
+      name,
+      city,
+      stateProvince.toUpperCase(),
+      country.toUpperCase(),
+      postalCode,
+      holeCount,
+      true,
+      false,
+      userId,
+    ],
+  );
+
+  return result;
+};
+
+export default coursesSubmitService;

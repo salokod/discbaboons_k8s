@@ -27,7 +27,8 @@ describe('courses.get.service', () => {
       id: testCourseId,
       name: chance.string(),
       city: chance.city(),
-      state: chance.state(),
+      state_province: chance.state({ abbreviated: true }),
+      country: 'US',
       hole_count: chance.integer({ min: 9, max: 18 }),
     };
 

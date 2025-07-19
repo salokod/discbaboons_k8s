@@ -37,7 +37,36 @@ CREATE INDEX idx_courses_is_user_submitted ON courses(is_user_submitted);
 CREATE INDEX idx_courses_location ON courses(latitude, longitude);
 ```
 
-**`V18__create_rounds_table.sql`**
+**`V18__internationalize_courses_table.sql`** 🌍 **NEW - INTERNATIONAL SUPPORT**
+```sql
+-- Add country column (required for international support)
+ALTER TABLE courses ADD COLUMN country VARCHAR(2) NOT NULL DEFAULT 'US';
+
+-- Update all existing courses to be explicitly marked as USA
+UPDATE courses SET country = 'US' WHERE country = 'US';
+
+-- Rename state to state_province for international compatibility
+ALTER TABLE courses RENAME COLUMN state TO state_province;
+
+-- Rename zip to postal_code for international compatibility  
+ALTER TABLE courses RENAME COLUMN zip TO postal_code;
+
+-- Drop old indexes
+DROP INDEX IF EXISTS idx_courses_state;
+
+-- Create new indexes for international fields
+CREATE INDEX idx_courses_country ON courses(country);
+CREATE INDEX idx_courses_state_province ON courses(state_province);
+CREATE INDEX idx_courses_country_state_province ON courses(country, state_province);
+CREATE INDEX idx_courses_country_city ON courses(country, city);
+
+-- Add comments for clarity
+COMMENT ON COLUMN courses.country IS 'Two-letter ISO country code (e.g., US, CA, AU, GB)';
+COMMENT ON COLUMN courses.state_province IS 'State, province, or region within country';
+COMMENT ON COLUMN courses.postal_code IS 'ZIP code, postal code, or equivalent for the country';
+```
+
+**`V19__create_rounds_table.sql`**
 ```sql
 CREATE TABLE rounds (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -61,7 +90,7 @@ CREATE INDEX idx_rounds_start_time ON rounds(start_time);
 CREATE INDEX idx_rounds_status ON rounds(status);
 ```
 
-**`V19__create_round_players_table.sql`**
+**`V20__create_round_players_table.sql`**
 ```sql
 CREATE TABLE round_players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,7 +112,7 @@ CREATE INDEX idx_round_players_user_id ON round_players(user_id);
 CREATE UNIQUE INDEX idx_round_players_unique_user ON round_players(round_id, user_id) WHERE user_id IS NOT NULL;
 ```
 
-**`V20__create_scores_table.sql`**
+**`V21__create_scores_table.sql`**
 ```sql
 CREATE TABLE scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -107,7 +136,7 @@ CREATE INDEX idx_scores_hole_number ON scores(hole_number);
 CREATE UNIQUE INDEX idx_scores_unique ON scores(round_id, player_id, hole_number);
 ```
 
-**`V21__create_side_bets_table.sql`**
+**`V22__create_side_bets_table.sql`**
 ```sql
 CREATE TABLE side_bets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -127,7 +156,7 @@ CREATE INDEX idx_side_bets_round_id ON side_bets(round_id);
 CREATE INDEX idx_side_bets_hole_number ON side_bets(hole_number);
 ```
 
-**`V22__create_side_bet_participants_table.sql`**
+**`V23__create_side_bet_participants_table.sql`**
 ```sql
 CREATE TABLE side_bet_participants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -310,7 +339,8 @@ model users {
 #### Step 1.2: Course API Endpoints **IN PROGRESS**
 - ✅ `GET /api/courses` - Search/filter courses with pagination (state, city, name, limit, offset)
 - ✅ `GET /api/courses/:id` - Get course details
-- [ ] `POST /api/courses` - Submit user course (authenticated)
+- [ ] **🌍 PIVOT: International Course Support** - Add migration V18 for country/state_province fields
+- [ ] `POST /api/courses` - Submit user course (authenticated) - **Update for international support**
 - [ ] `GET /api/courses/pending` - Admin: List pending courses
 - [ ] `PUT /api/courses/:id/approve` - Admin: Approve/reject course
 
@@ -352,7 +382,7 @@ model users {
 **Target: Week 3-4**
 
 #### Step 2.1: Round Creation & Management
-- [ ] Create round-related migration files (V15-V16)
+- [ ] Create round-related migration files (V19-V23) **Updated migration numbers due to internationalization**
 - [ ] `POST /api/rounds` - Create round with course and players
 - [ ] `GET /api/rounds` - List user's rounds (upcoming/in-progress/completed)
 - [ ] `GET /api/rounds/:id` - Get round details with players

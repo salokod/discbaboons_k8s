@@ -44,8 +44,9 @@ describe('GET /api/courses/:id - Integration', () => {
       id: `test-course-${testId}`,
       name: 'Test Park Disc Golf Course',
       city: 'Test City',
-      state: 'California',
-      zip: '12345',
+      state_province: 'CA',
+      country: 'US',
+      postal_code: '12345',
       hole_count: 18,
       rating: 4.5,
       latitude: 38.5816,
@@ -55,14 +56,15 @@ describe('GET /api/courses/:id - Integration', () => {
     };
 
     await query(
-      `INSERT INTO courses (id, name, city, state, zip, hole_count, rating, latitude, longitude, is_user_submitted, approved)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, rating, latitude, longitude, is_user_submitted, approved)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         testCourse.id,
         testCourse.name,
         testCourse.city,
-        testCourse.state,
-        testCourse.zip,
+        testCourse.state_province,
+        testCourse.country,
+        testCourse.postal_code,
         testCourse.hole_count,
         testCourse.rating,
         testCourse.latitude,
@@ -98,8 +100,9 @@ describe('GET /api/courses/:id - Integration', () => {
       id: courseId,
       name: 'Test Park Disc Golf Course',
       city: 'Test City',
-      state: 'California',
-      zip: '12345',
+      state_province: 'CA',
+      country: 'US',
+      postal_code: '12345',
       hole_count: 18,
       rating: '4.5',
       latitude: '38.58160000',
