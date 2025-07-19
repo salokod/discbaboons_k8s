@@ -355,6 +355,8 @@ model users {
 - ✅ Updated all tests for international schema (country, state_province, postal_code)
 - ✅ Updated import script for international schema
 - ✅ Add latitude and longitude to optional fields to the course submit endpoint (rating removed).
+- ✅ Remove rating field from courses system (V19 migration, services, tests, docs)
+- ✅ Add duplicate course detection to prevent 500 errors on identical submissions
 - [ ] `courses.admin.service.js` - Admin approval workflow
 
 #### Current API Status ✅
@@ -380,10 +382,10 @@ model users {
    - **Security:** Only returns approved courses
 
 3. **`POST /api/courses`** (authenticated) - Submit user course for approval
-   - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode)
-   - **Validation:** Country-specific state/province validation (strict for US/CA, inclusive for others)
+   - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode, latitude, longitude)
+   - **Validation:** Country-specific state/province validation (strict for US/CA, inclusive for others), coordinate validation, duplicate detection
    - **Response:** 201 Created with course object (approved: false, is_user_submitted: true)
-   - **Security:** Requires authentication, validates user ownership
+   - **Security:** Requires authentication, validates user ownership, prevents duplicate submissions
    - **Documentation:** `/docs/api/courses/POST_courses.md`
 
 - **Data:** 7,008 US disc golf courses imported from CSV + user-submitted courses
