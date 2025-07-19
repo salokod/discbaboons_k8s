@@ -18,7 +18,6 @@ CREATE TABLE courses (
   state VARCHAR(50) NOT NULL,
   zip VARCHAR(10),
   hole_count INTEGER NOT NULL,
-  rating DECIMAL(3,1), -- Course rating like 4.5
   latitude DECIMAL(10,8),
   longitude DECIMAL(11,8),
   is_user_submitted BOOLEAN DEFAULT false,
@@ -184,7 +183,6 @@ model courses {
   state             String     @db.VarChar(50)
   zip               String?    @db.VarChar(10)
   hole_count        Int
-  rating            Decimal?   @db.Decimal(3,1)
   latitude          Decimal?   @db.Decimal(10,8)
   longitude         Decimal?   @db.Decimal(11,8)
   is_user_submitted Boolean    @default(false)
@@ -356,7 +354,9 @@ model users {
 - ✅ Comprehensive test coverage (unit tests, integration tests)
 - ✅ Updated all tests for international schema (country, state_province, postal_code)
 - ✅ Updated import script for international schema
-- [ ] Add latitude and longitude and rating to optional fields to the course submit endpoint.
+- ✅ Add latitude and longitude to optional fields to the course submit endpoint (rating removed).
+- ✅ Remove rating field from courses system (V19 migration, services, tests, docs)
+- ✅ Add duplicate course detection to prevent 500 errors on identical submissions
 - [ ] `courses.admin.service.js` - Admin approval workflow
 
 #### Current API Status ✅
@@ -382,10 +382,10 @@ model users {
    - **Security:** Only returns approved courses
 
 3. **`POST /api/courses`** (authenticated) - Submit user course for approval
-   - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode)
-   - **Validation:** Country-specific state/province validation (strict for US/CA, inclusive for others)
+   - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode, latitude, longitude)
+   - **Validation:** Country-specific state/province validation (strict for US/CA, inclusive for others), coordinate validation, duplicate detection
    - **Response:** 201 Created with course object (approved: false, is_user_submitted: true)
-   - **Security:** Requires authentication, validates user ownership
+   - **Security:** Requires authentication, validates user ownership, prevents duplicate submissions
    - **Documentation:** `/docs/api/courses/POST_courses.md`
 
 - **Data:** 7,008 US disc golf courses imported from CSV + user-submitted courses
@@ -643,7 +643,7 @@ model users {
 ## Future Enhancements
 
 ### Advanced Analytics
-- Course difficulty ratings
+- Course difficulty analysis (without ratings)
 - Player skill analysis
 - Predictive scoring
 - Performance insights

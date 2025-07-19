@@ -8,7 +8,7 @@ const coursesSubmitService = async (userId, courseData = {}) => {
   }
 
   const {
-    name, city, stateProvince, country = 'US', holeCount, postalCode,
+    name, city, stateProvince, country = 'US', holeCount, postalCode, latitude, longitude,
   } = courseData;
 
   if (!name) {
@@ -81,13 +81,43 @@ const coursesSubmitService = async (userId, courseData = {}) => {
   // Validate state/province for the given country
   validateStateProvince(country, stateProvince);
 
+  // Validate optional latitude
+  if (latitude !== undefined && latitude !== null) {
+    if (typeof latitude !== 'number' || latitude < -90 || latitude > 90) {
+      const error = new Error('Latitude must be between -90 and 90');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
+  // Validate optional longitude
+  if (longitude !== undefined && longitude !== null) {
+    if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+      const error = new Error('Longitude must be between -180 and 180');
+      error.name = 'ValidationError';
+      throw error;
+    }
+  }
+
   // Generate URL-friendly course ID
   const courseId = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${city.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${stateProvince.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${country.toLowerCase()}`;
 
+  // Check if course already exists
+  const existingCourse = await queryOne(
+    'SELECT id FROM courses WHERE id = $1',
+    [courseId],
+  );
+
+  if (existingCourse) {
+    const error = new Error('A course with this name and location already exists');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Insert course into database (updated field names)
   const result = await queryOne(
-    `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, is_user_submitted, approved, submitted_by_id) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+    `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
     [
       courseId,
       name,
@@ -96,11 +126,21 @@ const coursesSubmitService = async (userId, courseData = {}) => {
       country.toUpperCase(),
       postalCode,
       holeCount,
+      latitude,
+      longitude,
       true,
       false,
       userId,
     ],
   );
+
+  // Convert decimal fields to numbers for consistency
+  if (result.latitude) {
+    result.latitude = parseFloat(result.latitude);
+  }
+  if (result.longitude) {
+    result.longitude = parseFloat(result.longitude);
+  }
 
   return result;
 };

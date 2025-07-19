@@ -49,7 +49,6 @@ describe('GET /api/courses - Integration', () => {
         country: 'US',
         postal_code: '12345',
         hole_count: 18,
-        rating: 4.5,
         latitude: 37.7749,
         longitude: -122.4194,
         is_user_submitted: false,

@@ -290,4 +290,105 @@ describe('POST /api/courses - Integration', () => {
     expect(res.body.submitted_by_id).toBe(user.id);
     createdCourseIds.push(res.body.id);
   });
+
+  test('should accept optional latitude and longitude fields', async () => {
+    const latitude = chance.latitude();
+    const longitude = chance.longitude();
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude,
+      longitude,
+    };
+
+    const res = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(201);
+
+    expect(res.body.latitude).toBe(latitude);
+    expect(res.body.longitude).toBe(longitude);
+    createdCourseIds.push(res.body.id);
+  });
+
+  test('should return validation error for invalid latitude', async () => {
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude: 91, // Invalid latitude
+    };
+
+    const res = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'Latitude must be between -90 and 90',
+    });
+  });
+
+  test('should return validation error for invalid longitude', async () => {
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      longitude: 181, // Invalid longitude
+    };
+
+    const res = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'Longitude must be between -180 and 180',
+    });
+  });
+
+  test('should return validation error for duplicate course submission', async () => {
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude: chance.latitude(),
+      longitude: chance.longitude(),
+    };
+
+    // Submit the course first time - should succeed
+    const firstRes = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(201);
+
+    createdCourseIds.push(firstRes.body.id);
+
+    // Submit the same course again - should fail with validation error
+    const secondRes = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(400);
+
+    expect(secondRes.body).toMatchObject({
+      success: false,
+      message: 'A course with this name and location already exists',
+    });
+  });
 });
