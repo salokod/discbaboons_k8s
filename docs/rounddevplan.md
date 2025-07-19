@@ -357,13 +357,41 @@ model users {
 - ✅ Add latitude and longitude to optional fields to the course submit endpoint (rating removed).
 - ✅ Remove rating field from courses system (V19 migration, services, tests, docs)
 - ✅ Add duplicate course detection to prevent 500 errors on identical submissions
-- [ ] **🎯 NEW PRIORITY: Unapproved Course Visibility**
-  - [ ] Update course search/get services to include user's own unapproved courses
-  - [ ] Update course search/get services to include unapproved courses from accepted friends
-  - [ ] Add friend relationship checking logic
-  - [ ] Update tests for new visibility rules
-  - [ ] Update API documentation for unapproved course access
-- [ ] `courses.admin.service.js` - Admin approval workflow
+- ✅ **🎯 COMPLETED: Unapproved Course Visibility**
+  - ✅ Update course search/get services to include user's own unapproved courses
+  - ✅ Update course search/get services to include unapproved courses from accepted friends
+  - ✅ Add friend relationship checking logic
+  - ✅ Update tests for new visibility rules
+  - ✅ Update API documentation for unapproved course access
+- ✅ **🎯 COMPLETED: Case-Insensitive Search**
+  - ✅ Update all text-based search filters to use case-insensitive partial matching
+  - ✅ Fix 'east moline' vs 'East Moline' search compatibility
+  - ✅ Add comprehensive unit and integration tests for case-insensitive search
+  - ✅ Update existing tests to reflect new search behavior
+- ✅ **🎯 COMPLETED: Course Admin & Editing System**
+  - ✅ `courses.admin.service.js` - Admin approval workflow (list pending, approve/reject)
+  - ✅ `courses.edit.service.js` - Course editing with permission system:
+    - ✅ Admins can edit any course
+    - ✅ Users can edit their own submitted courses
+    - ✅ Approved friends can edit each other's courses
+  - ✅ `GET /api/courses/pending` - Admin: List pending courses
+  - ✅ `PUT /api/courses/:id/approve` - Admin: Approve/reject course
+  - ✅ `PUT /api/courses/:id` - Edit course (user/friend/admin permissions)
+  - ✅ Admin authentication middleware integration
+  - ✅ Comprehensive test coverage for admin and editing functionality
+  - ✅ Complete API documentation for all new endpoints
+- ✅ **🎯 COMPLETED: Advanced Search Filters & Test Optimization**
+  - ✅ `is_user_submitted` boolean filter - Find user-submitted vs system courses
+  - ✅ `approved` boolean filter - Find approved vs pending courses
+  - ✅ Boolean validation with proper error handling (400 responses)
+  - ✅ Controller-level query parameter parsing (string "true"/"false" → boolean)
+  - ✅ Service-level validation with ValidationError handling
+  - ✅ **Test Suite Optimization**: Split large integration test file (33→30 tests)
+    - ✅ `courses.search.basic.integration.test.js` - Location/filtering tests (16 tests)
+    - ✅ `courses.search.permissions.integration.test.js` - Visibility/boolean tests (14 tests)
+    - ✅ Shared helper (`courses.search.helper.js`) - Reusable setup/teardown
+    - ✅ **Performance**: Parallel test execution, faster CI/CD pipeline
+    - ✅ **Maintainability**: Logical separation, reduced code duplication
 
 #### Current API Status ✅
 **Endpoints:**
@@ -378,14 +406,17 @@ model users {
      "hasMore": true       // Whether more results exist
    }
    ```
-   - **Filters:** country, stateProvince (or legacy state), city, name (case-insensitive partial match)
+   - **Text Filters:** country, stateProvince (or legacy state), city, name (case-insensitive partial match)
+   - **Boolean Filters:** is_user_submitted, approved (exact match, validated)
    - **Pagination:** limit (max 500), offset
    - **Sorting:** ORDER BY country ASC, state_province ASC, city ASC, name ASC
+   - **Visibility:** Approved courses + user's own unapproved + friends' unapproved courses
+   - **Validation:** Boolean parameters validated, returns 400 for invalid values
 
 2. **`GET /api/courses/:id`** (authenticated) - Get course details
    - **Response:** Single course object or null if not found
    - **Validation:** Returns 400 if courseId is missing
-   - **Security:** Only returns approved courses
+   - **Visibility:** Approved courses + user's own unapproved + friends' unapproved courses
 
 3. **`POST /api/courses`** (authenticated) - Submit user course for approval
    - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode, latitude, longitude)
@@ -514,15 +545,18 @@ model users {
 
 ### Course Management
 - ✅ `GET /api/courses` - Search courses with filters and pagination (authenticated)
-  - **Filters:** `?state=California&city=Sacramento&name=park`
+  - **Text Filters:** `?country=US&stateProvince=California&city=Sacramento&name=park`
+  - **Boolean Filters:** `?is_user_submitted=true&approved=false`
   - **Pagination:** `?limit=100&offset=50` (max limit: 500)
   - **Response:** Paginated results with metadata
+  - **Validation:** 400 error for invalid boolean values
 - ✅ `GET /api/courses/:id` - Get course details (authenticated)
   - **Response:** Single course object or null
-  - **Security:** Only approved courses
+  - **Visibility:** Approved + user's own + friends' unapproved courses
 - ✅ `POST /api/courses` - Submit user course (with international support)
-- [ ] `GET /api/courses/pending` - Admin: pending courses
-- [ ] `PUT /api/courses/:id/approve` - Admin: approve course
+- ✅ `GET /api/courses/pending` - Admin: pending courses
+- ✅ `PUT /api/courses/:id/approve` - Admin: approve course  
+- ✅ `PUT /api/courses/:id` - Edit course (user/friend/admin permissions)
 
 ### Round Management
 - `POST /api/rounds` - Create round

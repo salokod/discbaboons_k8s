@@ -495,4 +495,216 @@ describe('coursesSearchService', () => {
     );
     expect(result.courses).toEqual(mockCourses);
   });
+
+  test('should filter courses by is_user_submitted=true', async () => {
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        is_user_submitted: true,
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ is_user_submitted: true });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND is_user_submitted = $1',
+      [true],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND is_user_submitted = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [true, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should filter courses by is_user_submitted=false', async () => {
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        is_user_submitted: false,
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ is_user_submitted: false });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND is_user_submitted = $1',
+      [false],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND is_user_submitted = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [false, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should filter courses by approved=true', async () => {
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ approved: true });
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND approved = $1',
+      [true],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM courses WHERE approved = true AND approved = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [true, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should filter courses by approved=false when userId provided', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        approved: false,
+        submitted_by_id: userId,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ approved: false }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('approved = $2'),
+      [userId, false],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('approved = $2'),
+      [userId, false, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should combine is_user_submitted and approved filters', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        is_user_submitted: true,
+        approved: false,
+        submitted_by_id: userId,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({
+      is_user_submitted: true,
+      approved: false,
+    }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('is_user_submitted = $2'),
+      [userId, true, false],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('is_user_submitted = $2'),
+      [userId, true, false, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should combine boolean filters with text filters', async () => {
+    const userId = chance.integer({ min: 1 });
+    const targetState = chance.state({ abbreviated: true });
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        state_province: targetState,
+        is_user_submitted: true,
+        approved: false,
+        submitted_by_id: userId,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({
+      state: targetState,
+      is_user_submitted: true,
+      approved: false,
+    }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringMatching(/state_province ILIKE.*is_user_submitted.*approved/),
+      [userId, `%${targetState}%`, true, false],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringMatching(/state_province ILIKE.*is_user_submitted.*approved/),
+      [userId, `%${targetState}%`, true, false, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should throw error for invalid is_user_submitted value', async () => {
+    await expect(coursesSearchService({ is_user_submitted: 'invalid' }))
+      .rejects
+      .toThrow('is_user_submitted must be a boolean value (true or false)');
+
+    await expect(coursesSearchService({ is_user_submitted: 1 }))
+      .rejects
+      .toThrow('is_user_submitted must be a boolean value (true or false)');
+
+    await expect(coursesSearchService({ is_user_submitted: 'true' }))
+      .rejects
+      .toThrow('is_user_submitted must be a boolean value (true or false)');
+  });
+
+  test('should throw error for invalid approved value', async () => {
+    await expect(coursesSearchService({ approved: 'invalid' }))
+      .rejects
+      .toThrow('approved must be a boolean value (true or false)');
+
+    await expect(coursesSearchService({ approved: 0 }))
+      .rejects
+      .toThrow('approved must be a boolean value (true or false)');
+
+    await expect(coursesSearchService({ approved: 'false' }))
+      .rejects
+      .toThrow('approved must be a boolean value (true or false)');
+  });
+
+  test('should allow undefined values for boolean filters', async () => {
+    const mockCourses = [{ id: chance.word(), approved: true }];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    // Should not throw errors for undefined values
+    await expect(coursesSearchService({
+      is_user_submitted: undefined,
+      approved: undefined,
+    })).resolves.toBeDefined();
+
+    await expect(coursesSearchService({})).resolves.toBeDefined();
+  });
 });

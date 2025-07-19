@@ -13,6 +13,7 @@ describe('GET /api/courses/:id - Integration', () => {
   let user;
   let token;
   let testId;
+  let testCourse;
   let createdUserIds = [];
   let createdCourseIds = [];
 
@@ -40,7 +41,7 @@ describe('GET /api/courses/:id - Integration', () => {
     createdUserIds.push(user.id);
 
     // Create test course for integration tests
-    const testCourse = {
+    testCourse = {
       id: `test-course-${testId}`,
       name: 'Test Park Disc Golf Course',
       city: 'Test City',
@@ -48,8 +49,8 @@ describe('GET /api/courses/:id - Integration', () => {
       country: 'US',
       postal_code: '12345',
       hole_count: 18,
-      latitude: 38.5816,
-      longitude: -121.4944,
+      latitude: chance.latitude({ fixed: 8 }), // Random coordinates with high precision
+      longitude: chance.longitude({ fixed: 8 }),
       is_user_submitted: false,
       approved: true,
     };
@@ -94,6 +95,10 @@ describe('GET /api/courses/:id - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
+    // Calculate expected truncated coordinates (5 decimal places)
+    const expectedLat = Math.round(testCourse.latitude * 100000) / 100000;
+    const expectedLng = Math.round(testCourse.longitude * 100000) / 100000;
+
     expect(response.body).toEqual({
       id: courseId,
       name: 'Test Park Disc Golf Course',
@@ -102,8 +107,8 @@ describe('GET /api/courses/:id - Integration', () => {
       country: 'US',
       postal_code: '12345',
       hole_count: 18,
-      latitude: '38.58160000',
-      longitude: '-121.49440000',
+      latitude: expectedLat, // Truncated to 5 decimal places
+      longitude: expectedLng, // Truncated to 5 decimal places
       is_user_submitted: false,
       approved: true,
       submitted_by_id: null,

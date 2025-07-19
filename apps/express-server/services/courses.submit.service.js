@@ -1,4 +1,5 @@
 import { queryOne } from '../lib/database.js';
+import { truncateCoordinates, processCourseCoordinates } from '../lib/coordinates.js';
 
 const coursesSubmitService = async (userId, courseData = {}) => {
   if (!userId) {
@@ -114,6 +115,12 @@ const coursesSubmitService = async (userId, courseData = {}) => {
     throw error;
   }
 
+  // Truncate coordinates to 5 decimal places for consistency
+  const {
+    latitude: truncatedLat,
+    longitude: truncatedLng,
+  } = truncateCoordinates(latitude, longitude);
+
   // Insert course into database (updated field names)
   const result = await queryOne(
     `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
@@ -126,23 +133,15 @@ const coursesSubmitService = async (userId, courseData = {}) => {
       country.toUpperCase(),
       postalCode,
       holeCount,
-      latitude,
-      longitude,
+      truncatedLat,
+      truncatedLng,
       true,
       false,
       userId,
     ],
   );
 
-  // Convert decimal fields to numbers for consistency
-  if (result.latitude) {
-    result.latitude = parseFloat(result.latitude);
-  }
-  if (result.longitude) {
-    result.longitude = parseFloat(result.longitude);
-  }
-
-  return result;
+  return processCourseCoordinates(result);
 };
 
 export default coursesSubmitService;
