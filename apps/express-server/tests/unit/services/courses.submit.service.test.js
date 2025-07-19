@@ -72,7 +72,7 @@ describe('courses.submit.service', () => {
 
   it('should throw ValidationError when US state is invalid', async () => {
     const userId = chance.integer({ min: 1 });
-    const invalidState = chance.string({ length: 2, alpha: true });
+    const invalidState = 'ZZ'; // Guaranteed invalid US state
     const courseData = {
       name: chance.string(),
       city: chance.city(),
@@ -85,7 +85,7 @@ describe('courses.submit.service', () => {
 
   it('should throw ValidationError when Canadian province is invalid', async () => {
     const userId = chance.integer({ min: 1 });
-    const invalidProvince = chance.string({ length: 2, alpha: true });
+    const invalidProvince = 'ZZ'; // Guaranteed invalid Canadian province
     const courseData = {
       name: chance.string(),
       city: chance.city(),
