@@ -24,7 +24,7 @@
 ## Code Standards
 - Use ES6 imports/exports
 - Follow existing file structure patterns in the codebase
-- Services should accept a `prismaClient` parameter for testing (default to main prisma instance)
+- Services should accept a database connection parameter for testing (default to main DB instance)
 - Controllers should be thin - delegate business logic to services
 - Always validate user ownership/permissions in services
 
@@ -48,7 +48,7 @@ apps/express-server/
 - DO NOT fix lint issues - human will fix these to save tokens
 
 ## Database
-- Use Prisma for all database operations
+- Use raw PostgreSQL queries for all database operations
 - Always use transactions for multi-step operations
 - Follow existing naming conventions (snake_case for DB fields)
 
@@ -60,4 +60,3 @@ apps/express-server/
 ## Commands to Run
 - Tests: `npm test` or specific test files
 - Linting: `npm run lint`
-- To Create new `prisma.schema` file, we will create the `migrations` file first, then go to the `apps/express-server` folder and run `npm run db:pull` after we connect to it locally, i can help run these for you
