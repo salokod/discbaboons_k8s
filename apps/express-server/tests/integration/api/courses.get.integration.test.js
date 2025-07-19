@@ -113,6 +113,8 @@ describe('GET /api/courses/:id - Integration', () => {
       approved: true,
       submitted_by_id: null,
       admin_notes: null,
+      reviewed_at: null,
+      reviewed_by_id: null,
       created_at: expect.any(String),
       updated_at: expect.any(String),
     });

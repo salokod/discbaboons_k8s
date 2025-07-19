@@ -1,7 +1,7 @@
 # GET /api/courses/pending
 
 ## Overview
-Retrieves a list of user-submitted courses awaiting admin approval. This endpoint is restricted to administrators and returns paginated results of courses that have been submitted by users but not yet approved or rejected.
+Retrieves a list of user-submitted courses awaiting admin review. This endpoint is restricted to administrators and returns paginated results of courses that have been submitted by users but not yet reviewed by an admin.
 
 ## Endpoint
 ```
@@ -43,6 +43,8 @@ GET /api/courses/pending
       "approved": false,
       "submitted_by_id": 123,
       "admin_notes": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
       "created_at": "2024-01-15T10:30:00.000Z",
       "updated_at": "2024-01-15T10:30:00.000Z"
     }
@@ -85,7 +87,9 @@ GET /api/courses/pending
 | `latitude` | number | GPS latitude coordinate (optional) |
 | `longitude` | number | GPS longitude coordinate (optional) |
 | `is_user_submitted` | boolean | Always true for pending courses |
-| `approved` | boolean | Always false for pending courses |
+| `approved` | boolean | Approval status (false for rejected, true for approved, varies for pending) |
+| `reviewed_at` | string (ISO 8601) | Always null for pending courses |
+| `reviewed_by_id` | integer | Always null for pending courses |
 | `submitted_by_id` | integer | User ID who submitted the course |
 | `admin_notes` | string | Admin notes (null for new submissions) |
 | `created_at` | string (ISO 8601) | Course submission timestamp |
@@ -105,14 +109,14 @@ GET /api/courses/pending
 
 ### Key Features
 - **Admin Only**: Restricted to users with `is_admin = true`
-- **Pending Only**: Only returns courses with `approved = false` and `is_user_submitted = true`
+- **Pending Only**: Only returns courses with `is_user_submitted = true` and `reviewed_at IS NULL`
 - **Pagination Support**: Configurable limit and offset with maximum limit
 - **SQL Injection Protection**: Parameterized queries
 - **Chronological Order**: Ordered by creation date (oldest first)
 
 ### Database Operations
-- Count query: `SELECT COUNT(*) FROM courses WHERE approved = false AND is_user_submitted = true`
-- Search query: `SELECT * FROM courses WHERE approved = false AND is_user_submitted = true ORDER BY created_at ASC`
+- Count query: `SELECT COUNT(*) FROM courses WHERE is_user_submitted = true AND reviewed_at IS NULL`
+- Search query: `SELECT * FROM courses WHERE is_user_submitted = true AND reviewed_at IS NULL ORDER BY created_at ASC`
 
 ## Example Usage
 
@@ -128,11 +132,17 @@ curl -X GET "http://localhost:3000/api/courses/pending?limit=10&offset=10" \
   -H "Authorization: Bearer YOUR_ADMIN_ACCESS_TOKEN"
 ```
 
+## Key Behavior
+- **Review Tracking**: Once an admin reviews a course (approve/reject), it will no longer appear in pending list
+- **Single Review**: Each course only appears once in the pending queue regardless of approval decision
+- **Admin Audit**: Tracks which admin reviewed each course and when
+
 ## Use Cases
 - **Admin Review**: Review courses submitted by users
-- **Approval Workflow**: See all courses awaiting approval
+- **Approval Workflow**: See all courses awaiting first-time review
 - **Quality Control**: Moderate user-generated content
 - **Course Management**: Manage course database quality
+- **Workflow Efficiency**: Prevents duplicate review of already-processed courses
 
 ## Related Endpoints
 - **[PUT /api/courses/:id/approve](./PUT_courses_id_approve.md)** - Approve or reject pending course
