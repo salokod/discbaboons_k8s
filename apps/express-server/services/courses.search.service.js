@@ -29,21 +29,21 @@ const coursesSearchService = async (filters = {}, userId = null) => {
 
   // Country filter (new for international support)
   if (filters.country) {
-    whereConditions.push(`country = $${params.length + 1}`);
-    params.push(filters.country.toUpperCase());
+    whereConditions.push(`country ILIKE $${params.length + 1}`);
+    params.push(`%${filters.country}%`);
   }
 
   // State/Province filter (updated field name)
   if (filters.stateProvince || filters.state) {
     // Support both old 'state' and new 'stateProvince' for backward compatibility
     const stateValue = filters.stateProvince || filters.state;
-    whereConditions.push(`state_province = $${params.length + 1}`);
-    params.push(stateValue);
+    whereConditions.push(`state_province ILIKE $${params.length + 1}`);
+    params.push(`%${stateValue}%`);
   }
 
   if (filters.city) {
-    whereConditions.push(`city = $${params.length + 1}`);
-    params.push(filters.city);
+    whereConditions.push(`city ILIKE $${params.length + 1}`);
+    params.push(`%${filters.city}%`);
   }
 
   if (filters.name) {

@@ -67,12 +67,12 @@ describe('coursesSearchService', () => {
     const result = await coursesSearchService({ state: targetState });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state_province = $1',
-      [targetState],
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state_province ILIKE $1',
+      [`%${targetState}%`],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND state_province = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
-      [targetState, 50, 0],
+      'SELECT * FROM courses WHERE approved = true AND state_province ILIKE $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [`%${targetState}%`, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
@@ -98,12 +98,12 @@ describe('coursesSearchService', () => {
     const result = await coursesSearchService({ city: targetCity });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND city = $1',
-      [targetCity],
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND city ILIKE $1',
+      [`%${targetCity}%`],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND city = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
-      [targetCity, 50, 0],
+      'SELECT * FROM courses WHERE approved = true AND city ILIKE $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      [`%${targetCity}%`, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
@@ -166,12 +166,12 @@ describe('coursesSearchService', () => {
     });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state_province = $1 AND city = $2 AND name ILIKE $3',
-      [targetState, targetCity, `%${searchName}%`],
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state_province ILIKE $1 AND city ILIKE $2 AND name ILIKE $3',
+      [`%${targetState}%`, `%${targetCity}%`, `%${searchName}%`],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND state_province = $1 AND city = $2 AND name ILIKE $3 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $4 OFFSET $5',
-      [targetState, targetCity, `%${searchName}%`, 50, 0],
+      'SELECT * FROM courses WHERE approved = true AND state_province ILIKE $1 AND city ILIKE $2 AND name ILIKE $3 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $4 OFFSET $5',
+      [`%${targetState}%`, `%${targetCity}%`, `%${searchName}%`, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
     expect(result.total).toBe(1);
@@ -343,12 +343,155 @@ describe('coursesSearchService', () => {
     const result = await coursesSearchService({ state: targetState }, userId);
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      expect.stringContaining('state_province = $2'),
-      [userId, targetState],
+      expect.stringContaining('state_province ILIKE $2'),
+      [userId, `%${targetState}%`],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('state_province = $2'),
-      [userId, targetState, 50, 0],
+      expect.stringContaining('state_province ILIKE $2'),
+      [userId, `%${targetState}%`, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  // Case-insensitive search tests
+  test('should perform case-insensitive search for city', async () => {
+    const userId = chance.integer({ min: 1 });
+    const targetCity = 'East Moline';
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        city: 'east moline', // lowercase in database
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ city: targetCity }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('city ILIKE'),
+      [userId, `%${targetCity}%`],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('city ILIKE'),
+      [userId, `%${targetCity}%`, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should perform case-insensitive search for state/province', async () => {
+    const userId = chance.integer({ min: 1 });
+    const targetState = 'california';
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        state_province: 'CA', // abbreviated in database
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ stateProvince: targetState }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('state_province ILIKE'),
+      [userId, `%${targetState}%`],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('state_province ILIKE'),
+      [userId, `%${targetState}%`, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should perform case-insensitive search for country', async () => {
+    const userId = chance.integer({ min: 1 });
+    const targetCountry = 'us';
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: chance.sentence(),
+        country: 'US', // uppercase in database
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ country: targetCountry }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('country ILIKE'),
+      [userId, `%${targetCountry}%`],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('country ILIKE'),
+      [userId, `%${targetCountry}%`, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should perform case-insensitive search for name', async () => {
+    const userId = chance.integer({ min: 1 });
+    const searchName = 'PARK';
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: 'Heritage park disc golf course', // lowercase in database
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService({ name: searchName }, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('name ILIKE'),
+      [userId, `%${searchName}%`],
+    );
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('name ILIKE'),
+      [userId, `%${searchName}%`, 50, 0],
+    );
+    expect(result.courses).toEqual(mockCourses);
+  });
+
+  test('should combine case-insensitive filters', async () => {
+    const userId = chance.integer({ min: 1 });
+    const filters = {
+      city: 'East Moline',
+      stateProvince: 'illinois',
+      country: 'us',
+      name: 'PARK',
+    };
+    const mockCourses = [
+      {
+        id: chance.word(),
+        name: 'heritage park',
+        city: 'east moline',
+        state_province: 'IL',
+        country: 'US',
+        approved: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValue(mockCourses);
+
+    const result = await coursesSearchService(filters, userId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      expect.stringMatching(/country ILIKE.*state_province ILIKE.*city ILIKE.*name ILIKE/),
+      [userId, `%${filters.country}%`, `%${filters.stateProvince}%`, `%${filters.city}%`, `%${filters.name}%`],
     );
     expect(result.courses).toEqual(mockCourses);
   });

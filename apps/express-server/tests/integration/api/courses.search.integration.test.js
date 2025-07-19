@@ -261,9 +261,9 @@ describe('GET /api/courses - Integration', () => {
     expect(res.body.courses).toBeDefined();
     expect(res.body.courses.length).toBeGreaterThan(0);
 
-    // All returned courses should match the state filter
+    // All returned courses should contain the state filter (case-insensitive partial match)
     res.body.courses.forEach((course) => {
-      expect(course.state_province).toBe(targetState);
+      expect(course.state_province.toLowerCase()).toContain(targetState.toLowerCase());
     });
   });
 
@@ -279,9 +279,9 @@ describe('GET /api/courses - Integration', () => {
     expect(res.body.courses).toBeDefined();
     expect(res.body.courses.length).toBeGreaterThan(0);
 
-    // All returned courses should match the city filter
+    // All returned courses should contain the city filter (case-insensitive partial match)
     res.body.courses.forEach((course) => {
-      expect(course.city).toBe(targetCity);
+      expect(course.city.toLowerCase()).toContain(targetCity.toLowerCase());
     });
   });
 
@@ -314,10 +314,10 @@ describe('GET /api/courses - Integration', () => {
     expect(res.body.courses).toBeDefined();
     expect(res.body.courses.length).toBeGreaterThan(0);
 
-    // All returned courses should match both filters
+    // All returned courses should contain both filters (case-insensitive partial match)
     res.body.courses.forEach((course) => {
-      expect(course.state_province).toBe(targetState);
-      expect(course.city).toBe(targetCity);
+      expect(course.state_province.toLowerCase()).toContain(targetState.toLowerCase());
+      expect(course.city.toLowerCase()).toContain(targetCity.toLowerCase());
     });
   });
 
@@ -454,5 +454,224 @@ describe('GET /api/courses - Integration', () => {
     expect(res.body.courses[0].id).toBe(`friend-unapproved-${testId}`);
     expect(res.body.courses[0].state_province).toBe('TX');
     expect(res.body.courses[0].approved).toBe(false);
+  });
+
+  // Case-insensitive search tests
+  test('should perform case-insensitive city search', async () => {
+    // Create a course with lowercase city
+    const caseTestCourse = {
+      id: `case-test-${testId}`,
+      name: 'Case Test Course',
+      city: 'east moline', // lowercase
+      state_province: 'IL',
+      country: 'US',
+      hole_count: 18,
+      is_user_submitted: false,
+      approved: true,
+    };
+
+    await queryOne(
+      'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        caseTestCourse.id,
+        caseTestCourse.name,
+        caseTestCourse.city,
+        caseTestCourse.state_province,
+        caseTestCourse.country,
+        caseTestCourse.hole_count,
+        caseTestCourse.is_user_submitted,
+        caseTestCourse.approved,
+      ],
+    );
+    createdCourseIds.push(caseTestCourse.id);
+
+    // Search with different case
+    const res = await request(app)
+      .get('/api/courses?city=East Moline')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.courses).toBeDefined();
+    expect(res.body.courses.length).toBeGreaterThan(0);
+
+    // Should find the course despite case difference
+    const foundCourse = res.body.courses.find((course) => course.id === caseTestCourse.id);
+    expect(foundCourse).toBeDefined();
+    expect(foundCourse.city).toBe('east moline');
+  });
+
+  test('should perform case-insensitive state search', async () => {
+    // Create a course with mixed case state
+    const stateTestCourse = {
+      id: `state-test-${testId}`,
+      name: 'State Test Course',
+      city: 'Chicago',
+      state_province: 'Illinois', // full name
+      country: 'US',
+      hole_count: 18,
+      is_user_submitted: false,
+      approved: true,
+    };
+
+    await queryOne(
+      'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        stateTestCourse.id,
+        stateTestCourse.name,
+        stateTestCourse.city,
+        stateTestCourse.state_province,
+        stateTestCourse.country,
+        stateTestCourse.hole_count,
+        stateTestCourse.is_user_submitted,
+        stateTestCourse.approved,
+      ],
+    );
+    createdCourseIds.push(stateTestCourse.id);
+
+    // Search with partial state name in different case
+    const res = await request(app)
+      .get('/api/courses?stateProvince=ILLI')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.courses).toBeDefined();
+    expect(res.body.courses.length).toBeGreaterThan(0);
+
+    // Should find the course despite case difference
+    const foundCourse = res.body.courses.find((course) => course.id === stateTestCourse.id);
+    expect(foundCourse).toBeDefined();
+    expect(foundCourse.state_province).toBe('Illinois');
+  });
+
+  test('should perform case-insensitive country search', async () => {
+    // Create a course with uppercase country
+    const countryTestCourse = {
+      id: `country-test-${testId}`,
+      name: 'Country Test Course',
+      city: 'Toronto',
+      state_province: 'ON',
+      country: 'CA', // uppercase
+      hole_count: 18,
+      is_user_submitted: false,
+      approved: true,
+    };
+
+    await queryOne(
+      'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        countryTestCourse.id,
+        countryTestCourse.name,
+        countryTestCourse.city,
+        countryTestCourse.state_province,
+        countryTestCourse.country,
+        countryTestCourse.hole_count,
+        countryTestCourse.is_user_submitted,
+        countryTestCourse.approved,
+      ],
+    );
+    createdCourseIds.push(countryTestCourse.id);
+
+    // Search with lowercase country
+    const res = await request(app)
+      .get('/api/courses?country=ca')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.courses).toBeDefined();
+    expect(res.body.courses.length).toBeGreaterThan(0);
+
+    // Should find the course despite case difference
+    const foundCourse = res.body.courses.find((course) => course.id === countryTestCourse.id);
+    expect(foundCourse).toBeDefined();
+    expect(foundCourse.country).toBe('CA');
+  });
+
+  test('should perform case-insensitive name search', async () => {
+    // Create a course with mixed case name
+    const nameTestCourse = {
+      id: `name-test-${testId}`,
+      name: 'Heritage Park Disc Golf Course', // mixed case
+      city: 'Sample City',
+      state_province: 'CA',
+      country: 'US',
+      hole_count: 18,
+      is_user_submitted: false,
+      approved: true,
+    };
+
+    await queryOne(
+      'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        nameTestCourse.id,
+        nameTestCourse.name,
+        nameTestCourse.city,
+        nameTestCourse.state_province,
+        nameTestCourse.country,
+        nameTestCourse.hole_count,
+        nameTestCourse.is_user_submitted,
+        nameTestCourse.approved,
+      ],
+    );
+    createdCourseIds.push(nameTestCourse.id);
+
+    // Search with all uppercase partial name
+    const res = await request(app)
+      .get('/api/courses?name=HERITAGE')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.courses).toBeDefined();
+    expect(res.body.courses.length).toBeGreaterThan(0);
+
+    // Should find the course despite case difference
+    const foundCourse = res.body.courses.find((course) => course.id === nameTestCourse.id);
+    expect(foundCourse).toBeDefined();
+    expect(foundCourse.name).toBe('Heritage Park Disc Golf Course');
+  });
+
+  test('should combine case-insensitive filters', async () => {
+    // Create a course with various case patterns
+    const combinedTestCourse = {
+      id: `combined-test-${testId}`,
+      name: 'riverside park disc golf',
+      city: 'east moline',
+      state_province: 'il',
+      country: 'us',
+      hole_count: 18,
+      is_user_submitted: false,
+      approved: true,
+    };
+
+    await queryOne(
+      'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        combinedTestCourse.id,
+        combinedTestCourse.name,
+        combinedTestCourse.city,
+        combinedTestCourse.state_province,
+        combinedTestCourse.country,
+        combinedTestCourse.hole_count,
+        combinedTestCourse.is_user_submitted,
+        combinedTestCourse.approved,
+      ],
+    );
+    createdCourseIds.push(combinedTestCourse.id);
+
+    // Search with different cases for all filters
+    const res = await request(app)
+      .get('/api/courses?city=East Moline&stateProvince=IL&country=US&name=RIVERSIDE')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.courses).toBeDefined();
+    expect(res.body.courses.length).toBeGreaterThan(0);
+
+    // Should find the course despite all case differences
+    const foundCourse = res.body.courses.find((course) => course.id === combinedTestCourse.id);
+    expect(foundCourse).toBeDefined();
+    expect(foundCourse.name).toBe('riverside park disc golf');
+    expect(foundCourse.city).toBe('east moline');
+    expect(foundCourse.state_province).toBe('il');
+    expect(foundCourse.country).toBe('us');
   });
 });
