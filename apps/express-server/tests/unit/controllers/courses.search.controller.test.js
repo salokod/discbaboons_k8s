@@ -61,11 +61,13 @@ describe('coursesSearchController', () => {
 
     expect(coursesSearchService).toHaveBeenCalledWith({
       state: req.query.state,
+      stateProvince: undefined,
+      country: undefined,
       city: req.query.city,
       name: req.query.name,
       limit: req.query.limit,
       offset: req.query.offset,
-    });
+    }, null);
     expect(res.json).toHaveBeenCalledWith(mockResult);
     expect(next).not.toHaveBeenCalled();
   });
@@ -81,7 +83,61 @@ describe('coursesSearchController', () => {
 
     await coursesSearchController(req, res, next);
 
+    expect(coursesSearchService).toHaveBeenCalledWith({
+      state: undefined,
+      stateProvince: undefined,
+      country: undefined,
+      city: undefined,
+      name: undefined,
+      limit: undefined,
+      offset: undefined,
+    }, null);
     expect(next).toHaveBeenCalledWith(error);
     expect(res.json).not.toHaveBeenCalled();
+  });
+
+  test('should pass userId to service when user is authenticated', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockResult = {
+      courses: [
+        {
+          id: chance.word(),
+          name: chance.sentence(),
+          approved: false,
+          submitted_by_id: userId,
+        },
+      ],
+      total: 1,
+    };
+
+    const req = {
+      query: {
+        stateProvince: 'CA',
+        country: 'US',
+      },
+      user: { userId },
+    };
+
+    const res = {
+      json: vi.fn(),
+    };
+
+    const next = vi.fn();
+
+    coursesSearchService.mockResolvedValue(mockResult);
+
+    await coursesSearchController(req, res, next);
+
+    expect(coursesSearchService).toHaveBeenCalledWith({
+      state: undefined,
+      stateProvince: 'CA',
+      country: 'US',
+      city: undefined,
+      name: undefined,
+      limit: undefined,
+      offset: undefined,
+    }, userId);
+    expect(res.json).toHaveBeenCalledWith(mockResult);
+    expect(next).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 # GET /api/courses
 
 ## Overview
-Searches and retrieves disc golf courses with filtering and pagination capabilities. Returns approved courses from the course database.
+Searches and retrieves disc golf courses with filtering and pagination capabilities. Returns approved courses from the course database, plus unapproved courses submitted by the authenticated user and their accepted friends.
 
 ## Endpoint
 ```
@@ -25,7 +25,7 @@ GET /api/courses
 - **State**: Exact match (case-sensitive)
 - **City**: Exact match (case-sensitive) 
 - **Name**: Partial match using ILIKE (case-insensitive)
-- **Approved Only**: Only returns approved courses (`approved = true`)
+- **Visibility**: Returns approved courses + user's own unapproved courses + friends' unapproved courses
 
 ### Pagination
 - **Default Limit**: 50 courses
@@ -86,7 +86,7 @@ GET /api/courses
 | `latitude` | number | GPS latitude coordinate |
 | `longitude` | number | GPS longitude coordinate |
 | `is_user_submitted` | boolean | Whether course was user-submitted |
-| `approved` | boolean | Always true (only approved courses returned) |
+| `approved` | boolean | Approval status (true for approved, false for pending user/friend submissions) |
 | `submitted_by_id` | integer | User ID who submitted (null for imported courses) |
 | `admin_notes` | string | Admin notes about the course |
 | `created_at` | string (ISO 8601) | Course creation timestamp |
