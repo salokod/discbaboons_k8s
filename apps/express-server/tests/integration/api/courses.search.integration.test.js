@@ -82,8 +82,16 @@ describe('GET /api/courses - Integration', () => {
     // Create test courses using Promise.all to avoid ESLint loop issues
     const coursePromises = testCourses.map(async (course) => {
       const courseParams = [
-        course.id, course.name, course.city, course.state_province, course.country, course.postal_code,
-        course.hole_count, course.latitude, course.longitude, course.approved,
+        course.id,
+        course.name,
+        course.city,
+        course.state_province,
+        course.country,
+        course.postal_code,
+        course.hole_count,
+        course.latitude,
+        course.longitude,
+        course.approved,
       ];
       await queryOne(
         'INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
@@ -151,8 +159,8 @@ describe('GET /api/courses - Integration', () => {
     const sortedByLocation = res.body.courses.every((course, index) => {
       if (index === 0) return true;
       const prev = res.body.courses[index - 1];
-      return course.country >= prev.country || 
-             (course.country === prev.country && course.state_province >= prev.state_province);
+      return course.country >= prev.country
+             || (course.country === prev.country && course.state_province >= prev.state_province);
     });
     expect(sortedByLocation).toBe(true);
   });

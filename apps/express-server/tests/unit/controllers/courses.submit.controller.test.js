@@ -3,15 +3,15 @@ import {
 } from 'vitest';
 import Chance from 'chance';
 
+import coursesSubmitController from '../../../controllers/courses.submit.controller.js';
+import coursesSubmitService from '../../../services/courses.submit.service.js';
+
 const chance = new Chance();
 
 // Mock the service
 vi.mock('../../../services/courses.submit.service.js', () => ({
   default: vi.fn(),
 }));
-
-import coursesSubmitController from '../../../controllers/courses.submit.controller.js';
-import coursesSubmitService from '../../../services/courses.submit.service.js';
 
 const mockCoursesSubmitService = vi.mocked(coursesSubmitService);
 

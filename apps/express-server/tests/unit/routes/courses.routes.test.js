@@ -3,10 +3,14 @@ import {
 } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import Chance from 'chance';
+
+const chance = new Chance();
 
 let coursesRouter;
 let courseSearchCont;
 let courseGetCont;
+let courseSubmitCont;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -17,6 +21,10 @@ beforeAll(async () => {
 
   courseGetCont = vi.fn((req, res) => {
     res.json({ message: 'get controller called' });
+  });
+
+  courseSubmitCont = vi.fn((req, res) => {
+    res.status(201).json({ message: 'submit controller called' });
   });
 
   // Mock the auth middleware
@@ -31,6 +39,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/courses.get.controller.js', () => ({
     default: courseGetCont,
+  }));
+
+  vi.doMock('../../../controllers/courses.submit.controller.js', () => ({
+    default: courseSubmitCont,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -59,17 +71,21 @@ describe('courses routes', () => {
     const app = express();
     app.use('/api/courses', coursesRouter);
 
+    const testState = chance.state();
+    const testCity = chance.city();
+    const testName = chance.word();
+
     await request(app)
-      .get('/api/courses?state=California&city=Sacramento&name=Capitol')
+      .get(`/api/courses?state=${encodeURIComponent(testState)}&city=${encodeURIComponent(testCity)}&name=${encodeURIComponent(testName)}`)
       .expect(200);
 
     expect(courseSearchCont).toHaveBeenCalled();
     const lastCall = courseSearchCont.mock.calls[courseSearchCont.mock.calls.length - 1];
     const req = lastCall[0];
     expect(req.query).toEqual({
-      state: 'California',
-      city: 'Sacramento',
-      name: 'Capitol',
+      state: testState,
+      city: testCity,
+      name: testName,
     });
   });
 
@@ -77,7 +93,7 @@ describe('courses routes', () => {
     const app = express();
     app.use('/api/courses', coursesRouter);
 
-    const testCourseId = 'test-course-id';
+    const testCourseId = chance.string();
     const response = await request(app)
       .get(`/api/courses/${testCourseId}`)
       .expect(200);
@@ -90,5 +106,51 @@ describe('courses routes', () => {
     const lastCall = courseGetCont.mock.calls[courseGetCont.mock.calls.length - 1];
     const req = lastCall[0];
     expect(req.params.id).toBe(testCourseId);
+  });
+
+  test('POST /api/courses should require authentication and call submit controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/courses', coursesRouter);
+
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: chance.string({ length: 2, alpha: true }).toUpperCase(),
+    };
+
+    const response = await request(app)
+      .post('/api/courses')
+      .send(courseData)
+      .expect(201);
+
+    expect(response.body).toEqual({ message: 'submit controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(courseSubmitCont).toHaveBeenCalled();
+  });
+
+  test('POST /api/courses should pass course data in request body', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/courses', coursesRouter);
+
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: chance.string({ length: 2, alpha: true }).toUpperCase(),
+      holeCount: chance.integer({ min: 9, max: 27 }),
+    };
+
+    await request(app)
+      .post('/api/courses')
+      .send(courseData)
+      .expect(201);
+
+    expect(courseSubmitCont).toHaveBeenCalled();
+    const lastCall = courseSubmitCont.mock.calls[courseSubmitCont.mock.calls.length - 1];
+    const req = lastCall[0];
+    expect(req.body).toEqual(courseData);
   });
 });
