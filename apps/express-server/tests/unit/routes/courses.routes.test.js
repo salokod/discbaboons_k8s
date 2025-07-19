@@ -6,12 +6,17 @@ import request from 'supertest';
 
 let coursesRouter;
 let courseSearchCont;
+let courseGetCont;
 let authenticateToken;
 
 beforeAll(async () => {
-  // Mock the controller
+  // Mock the controllers
   courseSearchCont = vi.fn((req, res) => {
-    res.json({ message: 'controller called' });
+    res.json({ message: 'search controller called' });
+  });
+
+  courseGetCont = vi.fn((req, res) => {
+    res.json({ message: 'get controller called' });
   });
 
   // Mock the auth middleware
@@ -22,6 +27,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/courses.search.controller.js', () => ({
     default: courseSearchCont,
+  }));
+
+  vi.doMock('../../../controllers/courses.get.controller.js', () => ({
+    default: courseGetCont,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -41,7 +50,7 @@ describe('courses routes', () => {
       .get('/api/courses')
       .expect(200);
 
-    expect(response.body).toEqual({ message: 'controller called' });
+    expect(response.body).toEqual({ message: 'search controller called' });
     expect(authenticateToken).toHaveBeenCalled();
     expect(courseSearchCont).toHaveBeenCalled();
   });
@@ -62,5 +71,24 @@ describe('courses routes', () => {
       city: 'Sacramento',
       name: 'Capitol',
     });
+  });
+
+  test('GET /api/courses/:id should require authentication and call get controller', async () => {
+    const app = express();
+    app.use('/api/courses', coursesRouter);
+
+    const testCourseId = 'test-course-id';
+    const response = await request(app)
+      .get(`/api/courses/${testCourseId}`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'get controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(courseGetCont).toHaveBeenCalled();
+
+    // Verify courseId is passed in params
+    const lastCall = courseGetCont.mock.calls[courseGetCont.mock.calls.length - 1];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(testCourseId);
   });
 });

@@ -9,7 +9,7 @@ const coursesGetService = async (courseId) => {
 
   const course = await queryOne(
     'SELECT * FROM courses WHERE id = $1 AND approved = true',
-    [courseId]
+    [courseId],
   );
 
   return course;

@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  describe, it, expect, beforeEach,
+} from 'vitest';
 import Chance from 'chance';
 import mockDatabase from '../setup.js';
 import coursesGetService from '../../../services/courses.get.service.js';
@@ -26,7 +28,7 @@ describe('courses.get.service', () => {
       name: chance.string(),
       city: chance.city(),
       state: chance.state(),
-      hole_count: chance.integer({ min: 9, max: 18 })
+      hole_count: chance.integer({ min: 9, max: 18 }),
     };
 
     mockDatabase.queryOne.mockResolvedValue(mockCourse);
@@ -35,7 +37,7 @@ describe('courses.get.service', () => {
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       'SELECT * FROM courses WHERE id = $1 AND approved = true',
-      [testCourseId]
+      [testCourseId],
     );
     expect(result).toEqual(mockCourse);
   });
@@ -49,7 +51,7 @@ describe('courses.get.service', () => {
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       'SELECT * FROM courses WHERE id = $1 AND approved = true',
-      [testCourseId]
+      [testCourseId],
     );
     expect(result).toBe(null);
   });
