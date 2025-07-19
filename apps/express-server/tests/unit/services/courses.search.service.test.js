@@ -23,7 +23,8 @@ describe('coursesSearchService', () => {
         id: chance.word(),
         name: chance.sentence(),
         city: chance.city(),
-        state: chance.state(),
+        state_province: chance.state({ abbreviated: true }),
+        country: 'US',
         hole_count: chance.integer({ min: 9, max: 27 }),
         approved: true,
       },
@@ -39,7 +40,7 @@ describe('coursesSearchService', () => {
       [],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      'SELECT * FROM courses WHERE approved = true ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
       [50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -47,13 +48,14 @@ describe('coursesSearchService', () => {
   });
 
   test('should filter courses by state', async () => {
-    const targetState = chance.state();
+    const targetState = chance.state({ abbreviated: true });
     const mockCourses = [
       {
         id: chance.word(),
         name: chance.sentence(),
         city: chance.city(),
-        state: targetState,
+        state_province: targetState,
+        country: 'US',
         hole_count: chance.integer({ min: 9, max: 27 }),
         approved: true,
       },
@@ -65,11 +67,11 @@ describe('coursesSearchService', () => {
     const result = await coursesSearchService({ state: targetState });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state = $1',
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state_province = $1',
       [targetState],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND state = $1 ORDER BY state ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      'SELECT * FROM courses WHERE approved = true AND state_province = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
       [targetState, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -83,7 +85,8 @@ describe('coursesSearchService', () => {
         id: chance.word(),
         name: chance.sentence(),
         city: targetCity,
-        state: chance.state(),
+        state_province: chance.state({ abbreviated: true }),
+        country: 'US',
         hole_count: chance.integer({ min: 9, max: 27 }),
         approved: true,
       },
@@ -99,7 +102,7 @@ describe('coursesSearchService', () => {
       [targetCity],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND city = $1 ORDER BY state ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      'SELECT * FROM courses WHERE approved = true AND city = $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
       [targetCity, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -113,7 +116,8 @@ describe('coursesSearchService', () => {
         id: chance.word(),
         name: `${searchName} Disc Golf Course`,
         city: chance.city(),
-        state: chance.state(),
+        state_province: chance.state({ abbreviated: true }),
+        country: 'US',
         hole_count: chance.integer({ min: 9, max: 27 }),
         approved: true,
       },
@@ -129,7 +133,7 @@ describe('coursesSearchService', () => {
       [`%${searchName}%`],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND name ILIKE $1 ORDER BY state ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
+      'SELECT * FROM courses WHERE approved = true AND name ILIKE $1 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $2 OFFSET $3',
       [`%${searchName}%`, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -137,7 +141,7 @@ describe('coursesSearchService', () => {
   });
 
   test('should combine multiple filters', async () => {
-    const targetState = chance.state();
+    const targetState = chance.state({ abbreviated: true });
     const targetCity = chance.city();
     const searchName = chance.word();
     const mockCourses = [
@@ -145,7 +149,8 @@ describe('coursesSearchService', () => {
         id: chance.word(),
         name: `${searchName} Park`,
         city: targetCity,
-        state: targetState,
+        state_province: targetState,
+        country: 'US',
         hole_count: chance.integer({ min: 9, max: 27 }),
         approved: true,
       },
@@ -161,11 +166,11 @@ describe('coursesSearchService', () => {
     });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state = $1 AND city = $2 AND name ILIKE $3',
+      'SELECT COUNT(*) as count FROM courses WHERE approved = true AND state_province = $1 AND city = $2 AND name ILIKE $3',
       [targetState, targetCity, `%${searchName}%`],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true AND state = $1 AND city = $2 AND name ILIKE $3 ORDER BY state ASC, city ASC, name ASC LIMIT $4 OFFSET $5',
+      'SELECT * FROM courses WHERE approved = true AND state_province = $1 AND city = $2 AND name ILIKE $3 ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $4 OFFSET $5',
       [targetState, targetCity, `%${searchName}%`, 50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -185,7 +190,7 @@ describe('coursesSearchService', () => {
       [],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      'SELECT * FROM courses WHERE approved = true ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
       [50, 0],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -210,7 +215,7 @@ describe('coursesSearchService', () => {
       [],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      'SELECT * FROM courses WHERE approved = true ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
       [100, 200],
     );
     expect(result.courses).toEqual(mockCourses);
@@ -234,7 +239,7 @@ describe('coursesSearchService', () => {
       [],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM courses WHERE approved = true ORDER BY state ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
+      'SELECT * FROM courses WHERE approved = true ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $1 OFFSET $2',
       [500, 0],
     );
     expect(result.limit).toBe(500);

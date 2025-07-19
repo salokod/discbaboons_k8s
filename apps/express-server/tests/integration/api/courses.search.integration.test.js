@@ -45,8 +45,9 @@ describe('GET /api/courses - Integration', () => {
         id: `test-course-${testId}-1`,
         name: 'Test Park Disc Golf Course',
         city: 'Test City',
-        state: 'California',
-        zip: '12345',
+        state_province: 'CA',
+        country: 'US',
+        postal_code: '12345',
         hole_count: 18,
         rating: 4.5,
         latitude: 37.7749,
@@ -58,8 +59,9 @@ describe('GET /api/courses - Integration', () => {
         id: `test-course-${testId}-2`,
         name: 'Another Test Course',
         city: 'Test City',
-        state: 'California',
-        zip: '12346',
+        state_province: 'CA',
+        country: 'US',
+        postal_code: '12346',
         hole_count: 9,
         is_user_submitted: false,
         approved: true,
@@ -68,8 +70,9 @@ describe('GET /api/courses - Integration', () => {
         id: `test-course-${testId}-3`,
         name: 'Heritage Park Course',
         city: 'Different City',
-        state: 'Texas',
-        zip: '54321',
+        state_province: 'TX',
+        country: 'US',
+        postal_code: '54321',
         hole_count: 18,
         is_user_submitted: false,
         approved: true,
@@ -79,11 +82,19 @@ describe('GET /api/courses - Integration', () => {
     // Create test courses using Promise.all to avoid ESLint loop issues
     const coursePromises = testCourses.map(async (course) => {
       const courseParams = [
-        course.id, course.name, course.city, course.state, course.zip,
-        course.hole_count, course.latitude, course.longitude, course.approved,
+        course.id,
+        course.name,
+        course.city,
+        course.state_province,
+        course.country,
+        course.postal_code,
+        course.hole_count,
+        course.latitude,
+        course.longitude,
+        course.approved,
       ];
       await queryOne(
-        'INSERT INTO courses (id, name, city, state, zip, hole_count, latitude, longitude, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+        'INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, approved) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
         courseParams,
       );
       createdCourseIds.push(course.id);
@@ -137,23 +148,26 @@ describe('GET /api/courses - Integration', () => {
       id: expect.any(String),
       name: expect.any(String),
       city: expect.any(String),
-      state: expect.any(String),
+      state_province: expect.any(String),
+      country: expect.any(String),
       hole_count: expect.any(Number),
       approved: true,
       is_user_submitted: false,
     });
 
-    // Should be sorted by state, city, name
-    const sortedByState = res.body.courses.every((course, index) => {
+    // Should be sorted by country, state_province, city, name
+    const sortedByLocation = res.body.courses.every((course, index) => {
       if (index === 0) return true;
-      return course.state >= res.body.courses[index - 1].state;
+      const prev = res.body.courses[index - 1];
+      return course.country >= prev.country
+             || (course.country === prev.country && course.state_province >= prev.state_province);
     });
-    expect(sortedByState).toBe(true);
+    expect(sortedByLocation).toBe(true);
   });
 
   test('should filter courses by state', async () => {
-    // Use California from our test data
-    const targetState = 'California';
+    // Use CA from our test data
+    const targetState = 'CA';
 
     const res = await request(app)
       .get(`/api/courses?state=${encodeURIComponent(targetState)}`)
@@ -165,7 +179,7 @@ describe('GET /api/courses - Integration', () => {
 
     // All returned courses should match the state filter
     res.body.courses.forEach((course) => {
-      expect(course.state).toBe(targetState);
+      expect(course.state_province).toBe(targetState);
     });
   });
 
@@ -205,7 +219,7 @@ describe('GET /api/courses - Integration', () => {
 
   test('should combine multiple filters', async () => {
     // Use known test data values
-    const targetState = 'California';
+    const targetState = 'CA';
     const targetCity = 'Test City';
 
     const res = await request(app)
@@ -218,7 +232,7 @@ describe('GET /api/courses - Integration', () => {
 
     // All returned courses should match both filters
     res.body.courses.forEach((course) => {
-      expect(course.state).toBe(targetState);
+      expect(course.state_province).toBe(targetState);
       expect(course.city).toBe(targetCity);
     });
   });

@@ -172,6 +172,6 @@ curl -X GET "http://localhost:3000/api/courses?state=Texas&name=zilker&limit=10"
 - **Approved Only**: Filter reduces query scope significantly
 
 ## Related Endpoints
+- **[GET /api/courses/:id](./GET_courses_id.md)** - Get specific course details
 - **[POST /api/courses](./POST_courses.md)** - Submit new course (when implemented)
-- **[GET /api/courses/:id](./GET_courses_id.md)** - Get specific course details (when implemented)
 - Course-related round endpoints (when round management is implemented)

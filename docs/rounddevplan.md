@@ -37,7 +37,36 @@ CREATE INDEX idx_courses_is_user_submitted ON courses(is_user_submitted);
 CREATE INDEX idx_courses_location ON courses(latitude, longitude);
 ```
 
-**`V18__create_rounds_table.sql`**
+**`V18__internationalize_courses_table.sql`** 🌍 **NEW - INTERNATIONAL SUPPORT**
+```sql
+-- Add country column (required for international support)
+ALTER TABLE courses ADD COLUMN country VARCHAR(2) NOT NULL DEFAULT 'US';
+
+-- Update all existing courses to be explicitly marked as USA
+UPDATE courses SET country = 'US' WHERE country = 'US';
+
+-- Rename state to state_province for international compatibility
+ALTER TABLE courses RENAME COLUMN state TO state_province;
+
+-- Rename zip to postal_code for international compatibility  
+ALTER TABLE courses RENAME COLUMN zip TO postal_code;
+
+-- Drop old indexes
+DROP INDEX IF EXISTS idx_courses_state;
+
+-- Create new indexes for international fields
+CREATE INDEX idx_courses_country ON courses(country);
+CREATE INDEX idx_courses_state_province ON courses(state_province);
+CREATE INDEX idx_courses_country_state_province ON courses(country, state_province);
+CREATE INDEX idx_courses_country_city ON courses(country, city);
+
+-- Add comments for clarity
+COMMENT ON COLUMN courses.country IS 'Two-letter ISO country code (e.g., US, CA, AU, GB)';
+COMMENT ON COLUMN courses.state_province IS 'State, province, or region within country';
+COMMENT ON COLUMN courses.postal_code IS 'ZIP code, postal code, or equivalent for the country';
+```
+
+**`V19__create_rounds_table.sql`**
 ```sql
 CREATE TABLE rounds (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -61,7 +90,7 @@ CREATE INDEX idx_rounds_start_time ON rounds(start_time);
 CREATE INDEX idx_rounds_status ON rounds(status);
 ```
 
-**`V19__create_round_players_table.sql`**
+**`V20__create_round_players_table.sql`**
 ```sql
 CREATE TABLE round_players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,7 +112,7 @@ CREATE INDEX idx_round_players_user_id ON round_players(user_id);
 CREATE UNIQUE INDEX idx_round_players_unique_user ON round_players(round_id, user_id) WHERE user_id IS NOT NULL;
 ```
 
-**`V20__create_scores_table.sql`**
+**`V21__create_scores_table.sql`**
 ```sql
 CREATE TABLE scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -107,7 +136,7 @@ CREATE INDEX idx_scores_hole_number ON scores(hole_number);
 CREATE UNIQUE INDEX idx_scores_unique ON scores(round_id, player_id, hole_number);
 ```
 
-**`V21__create_side_bets_table.sql`**
+**`V22__create_side_bets_table.sql`**
 ```sql
 CREATE TABLE side_bets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -127,7 +156,7 @@ CREATE INDEX idx_side_bets_round_id ON side_bets(round_id);
 CREATE INDEX idx_side_bets_hole_number ON side_bets(hole_number);
 ```
 
-**`V22__create_side_bet_participants_table.sql`**
+**`V23__create_side_bet_participants_table.sql`**
 ```sql
 CREATE TABLE side_bet_participants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -307,44 +336,66 @@ model users {
 - ✅ Create course seeding service (scripts/import_courses.py)
 - ✅ Test course data import (7,008 courses imported successfully)
 
-#### Step 1.2: Course API Endpoints **IN PROGRESS**
+#### Step 1.2: Course API Endpoints ✅ **COMPLETED**
 - ✅ `GET /api/courses` - Search/filter courses with pagination (state, city, name, limit, offset)
-- [ ] `GET /api/courses/:id` - Get course details
-- [ ] `POST /api/courses` - Submit user course (authenticated)
+- ✅ `GET /api/courses/:id` - Get course details
+- ✅ **🌍 PIVOT: International Course Support** - Add migration V18 for country/state_province fields
+- ✅ `POST /api/courses` - Submit user course (authenticated) - **Updated for international support**
 - [ ] `GET /api/courses/pending` - Admin: List pending courses
 - [ ] `PUT /api/courses/:id/approve` - Admin: Approve/reject course
 
-#### Step 1.3: Course Services & Controllers **IN PROGRESS**
+#### Step 1.3: Course Services & Controllers ✅ **COMPLETED**
 - ✅ `courses.search.service.js` - Course search with filters and pagination (default 50, max 500)
 - ✅ `courses.search.controller.js` - Controller with parameter extraction
-- ✅ `courses.routes.js` - Route setup with authentication middleware
+- ✅ `courses.get.service.js` - Single course retrieval
+- ✅ `courses.get.controller.js` - Controller for course details
+- ✅ `courses.submit.service.js` - User course submission with international validation
+- ✅ `courses.submit.controller.js` - Controller for course submission
+- ✅ `courses.routes.js` - Route setup with authentication middleware (search + get + submit)
 - ✅ Integration with server.js and auth middleware
 - ✅ Comprehensive test coverage (unit tests, integration tests)
-- [ ] `courses.get.service.js` - Single course retrieval
-- [ ] `courses.submit.service.js` - User course submission
+- ✅ Updated all tests for international schema (country, state_province, postal_code)
+- ✅ Updated import script for international schema
+- [ ] Add latitude and longitude and rating to optional fields to the course submit endpoint.
 - [ ] `courses.admin.service.js` - Admin approval workflow
 
 #### Current API Status ✅
-**Endpoint:** `GET /api/courses` (authenticated)
-- **Response Format:**
-```json
-{
-  "courses": [...],     // Array of course objects
-  "total": 7008,        // Total matching courses
-  "limit": 50,          // Results per page (default 50, max 500)
-  "offset": 0,          // Starting position
-  "hasMore": true       // Whether more results exist
-}
-```
-- **Filters:** state, city, name (case-insensitive partial match)
-- **Pagination:** limit (max 500), offset
-- **Data:** 7,008 US disc golf courses imported from CSV
+**Endpoints:**
+1. **`GET /api/courses`** (authenticated) - Search/filter courses
+   - **Response Format:**
+   ```json
+   {
+     "courses": [...],     // Array of course objects
+     "total": 7008,        // Total matching courses
+     "limit": 50,          // Results per page (default 50, max 500)
+     "offset": 0,          // Starting position
+     "hasMore": true       // Whether more results exist
+   }
+   ```
+   - **Filters:** country, stateProvince (or legacy state), city, name (case-insensitive partial match)
+   - **Pagination:** limit (max 500), offset
+   - **Sorting:** ORDER BY country ASC, state_province ASC, city ASC, name ASC
+
+2. **`GET /api/courses/:id`** (authenticated) - Get course details
+   - **Response:** Single course object or null if not found
+   - **Validation:** Returns 400 if courseId is missing
+   - **Security:** Only returns approved courses
+
+3. **`POST /api/courses`** (authenticated) - Submit user course for approval
+   - **Request:** Course data with international support (name, city, stateProvince, country, holeCount, postalCode)
+   - **Validation:** Country-specific state/province validation (strict for US/CA, inclusive for others)
+   - **Response:** 201 Created with course object (approved: false, is_user_submitted: true)
+   - **Security:** Requires authentication, validates user ownership
+   - **Documentation:** `/docs/api/courses/POST_courses.md`
+
+- **Data:** 7,008 US disc golf courses imported from CSV + user-submitted courses
+- **International Support:** Full country/state_province/postal_code schema with migration V18
 
 ### Phase 2: Round Management Core
 **Target: Week 3-4**
 
 #### Step 2.1: Round Creation & Management
-- [ ] Create round-related migration files (V15-V16)
+- [ ] Create round-related migration files (V19-V23) **Updated migration numbers due to internationalization**
 - [ ] `POST /api/rounds` - Create round with course and players
 - [ ] `GET /api/rounds` - List user's rounds (upcoming/in-progress/completed)
 - [ ] `GET /api/rounds/:id` - Get round details with players
@@ -460,8 +511,10 @@ model users {
   - **Filters:** `?state=California&city=Sacramento&name=park`
   - **Pagination:** `?limit=100&offset=50` (max limit: 500)
   - **Response:** Paginated results with metadata
-- [ ] `GET /api/courses/:id` - Get course details
-- [ ] `POST /api/courses` - Submit user course
+- ✅ `GET /api/courses/:id` - Get course details (authenticated)
+  - **Response:** Single course object or null
+  - **Security:** Only approved courses
+- ✅ `POST /api/courses` - Submit user course (with international support)
 - [ ] `GET /api/courses/pending` - Admin: pending courses
 - [ ] `PUT /api/courses/:id/approve` - Admin: approve course
 

@@ -5,9 +5,18 @@ const coursesSearchService = async (filters = {}) => {
   const whereConditions = ['approved = true'];
   const params = [];
 
-  if (filters.state) {
-    whereConditions.push(`state = $${params.length + 1}`);
-    params.push(filters.state);
+  // Country filter (new for international support)
+  if (filters.country) {
+    whereConditions.push(`country = $${params.length + 1}`);
+    params.push(filters.country.toUpperCase());
+  }
+
+  // State/Province filter (updated field name)
+  if (filters.stateProvince || filters.state) {
+    // Support both old 'state' and new 'stateProvince' for backward compatibility
+    const stateValue = filters.stateProvince || filters.state;
+    whereConditions.push(`state_province = $${params.length + 1}`);
+    params.push(stateValue);
   }
 
   if (filters.city) {
@@ -33,9 +42,9 @@ const coursesSearchService = async (filters = {}) => {
   );
   const total = parseInt(totalResult.count, 10);
 
-  // Get paginated results
+  // Get paginated results (updated ordering for international support)
   const courses = await queryRows(
-    `SELECT * FROM courses WHERE ${whereClause} ORDER BY state ASC, city ASC, name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    `SELECT * FROM courses WHERE ${whereClause} ORDER BY country ASC, state_province ASC, city ASC, name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limit, offset],
   );
 
