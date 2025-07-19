@@ -185,7 +185,14 @@ describe('Admin Course Management - Integration', () => {
         id: `pending-course-${testId}`,
         approved: true,
         admin_notes: adminNotes,
+        reviewed_by_id: adminUser.id,
+        reviewed_at: expect.any(String),
       });
+
+      // Verify the course is timestamped in database
+      const courseInDb = await queryOne('SELECT reviewed_at, reviewed_by_id FROM courses WHERE id = $1', [`pending-course-${testId}`]);
+      expect(courseInDb.reviewed_at).not.toBeNull();
+      expect(courseInDb.reviewed_by_id).toBe(adminUser.id);
     });
 
     test('should reject a course', async () => {
@@ -201,7 +208,14 @@ describe('Admin Course Management - Integration', () => {
         id: `pending-course-${testId}`,
         approved: false,
         admin_notes: adminNotes,
+        reviewed_by_id: adminUser.id,
+        reviewed_at: expect.any(String),
       });
+
+      // Verify the course is timestamped in database
+      const courseInDb = await queryOne('SELECT reviewed_at, reviewed_by_id FROM courses WHERE id = $1', [`pending-course-${testId}`]);
+      expect(courseInDb.reviewed_at).not.toBeNull();
+      expect(courseInDb.reviewed_by_id).toBe(adminUser.id);
     });
 
     test('should return 404 for non-existent course', async () => {
@@ -226,6 +240,78 @@ describe('Admin Course Management - Integration', () => {
       expect(res.body).toMatchObject({
         error: 'Approved status must be true or false',
       });
+    });
+
+    test('should remove reviewed courses from pending list (approved)', async () => {
+      // First, verify the course appears in pending list
+      let pendingRes = await request(app)
+        .get('/api/courses/pending')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      let testCourse = pendingRes.body.courses.find((course) => course.id === `pending-course-${testId}`);
+      expect(testCourse).toBeDefined();
+
+      // Approve the course
+      await request(app)
+        .put(`/api/courses/pending-course-${testId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ approved: true, adminNotes: 'Approved' })
+        .expect(200);
+
+      // Verify the course no longer appears in pending list
+      pendingRes = await request(app)
+        .get('/api/courses/pending')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      testCourse = pendingRes.body.courses.find((course) => course.id === `pending-course-${testId}`);
+      expect(testCourse).toBeUndefined();
+    });
+
+    test('should remove reviewed courses from pending list (rejected)', async () => {
+      // Create a second pending course for this test
+      const secondCourseId = `pending-course-2-${testId}`;
+      await queryOne(
+        'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved, submitted_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+        [
+          secondCourseId,
+          'Second Pending Course',
+          'Test City 2',
+          'CA',
+          'US',
+          18,
+          true,
+          false,
+          regularUser.id,
+        ],
+      );
+      createdCourseIds.push(secondCourseId);
+
+      // First, verify the course appears in pending list
+      let pendingRes = await request(app)
+        .get('/api/courses/pending')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      let testCourse = pendingRes.body.courses.find((course) => course.id === secondCourseId);
+      expect(testCourse).toBeDefined();
+
+      // Reject the course
+      await request(app)
+        .put(`/api/courses/${secondCourseId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ approved: false, adminNotes: 'Rejected' })
+        .expect(200);
+
+      // Verify the course no longer appears in pending list
+      pendingRes = await request(app)
+        .get('/api/courses/pending')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      testCourse = pendingRes.body.courses.find((course) => course.id === secondCourseId);
+      expect(testCourse).toBeUndefined();
     });
   });
 });

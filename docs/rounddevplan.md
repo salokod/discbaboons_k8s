@@ -65,7 +65,26 @@ COMMENT ON COLUMN courses.state_province IS 'State, province, or region within c
 COMMENT ON COLUMN courses.postal_code IS 'ZIP code, postal code, or equivalent for the country';
 ```
 
-**`V19__create_rounds_table.sql`**
+**`V20__add_course_review_tracking.sql`** 🔧 **ADMIN WORKFLOW FIX** ✅
+```sql
+-- Add reviewed_at and reviewed_by fields to track admin review status
+ALTER TABLE courses ADD COLUMN reviewed_at TIMESTAMP NULL;
+ALTER TABLE courses ADD COLUMN reviewed_by_id INTEGER NULL;
+
+-- Add foreign key for reviewed_by_id
+ALTER TABLE courses ADD CONSTRAINT fk_courses_reviewed_by 
+  FOREIGN KEY (reviewed_by_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- Create index for pending course queries (unreviewed user submissions)
+CREATE INDEX idx_courses_pending ON courses(is_user_submitted, reviewed_at) 
+  WHERE is_user_submitted = true AND reviewed_at IS NULL;
+
+-- Add comments for clarity
+COMMENT ON COLUMN courses.reviewed_at IS 'Timestamp when admin reviewed the course (approved or denied)';
+COMMENT ON COLUMN courses.reviewed_by_id IS 'Admin user ID who reviewed the course';
+```
+
+**`V21__create_rounds_table.sql`**
 ```sql
 CREATE TABLE rounds (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,7 +108,7 @@ CREATE INDEX idx_rounds_start_time ON rounds(start_time);
 CREATE INDEX idx_rounds_status ON rounds(status);
 ```
 
-**`V20__create_round_players_table.sql`**
+**`V22__create_round_players_table.sql`**
 ```sql
 CREATE TABLE round_players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -111,7 +130,7 @@ CREATE INDEX idx_round_players_user_id ON round_players(user_id);
 CREATE UNIQUE INDEX idx_round_players_unique_user ON round_players(round_id, user_id) WHERE user_id IS NOT NULL;
 ```
 
-**`V21__create_scores_table.sql`**
+**`V23__create_scores_table.sql`**
 ```sql
 CREATE TABLE scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,7 +154,7 @@ CREATE INDEX idx_scores_hole_number ON scores(hole_number);
 CREATE UNIQUE INDEX idx_scores_unique ON scores(round_id, player_id, hole_number);
 ```
 
-**`V22__create_side_bets_table.sql`**
+**`V24__create_side_bets_table.sql`**
 ```sql
 CREATE TABLE side_bets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -155,7 +174,7 @@ CREATE INDEX idx_side_bets_round_id ON side_bets(round_id);
 CREATE INDEX idx_side_bets_hole_number ON side_bets(hole_number);
 ```
 
-**`V23__create_side_bet_participants_table.sql`**
+**`V25__create_side_bet_participants_table.sql`**
 ```sql
 CREATE TABLE side_bet_participants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -180,8 +199,9 @@ model courses {
   id                String     @id @db.VarChar(100)
   name              String     @db.VarChar(200)
   city              String     @db.VarChar(100)
-  state             String     @db.VarChar(50)
-  zip               String?    @db.VarChar(10)
+  state_province    String     @db.VarChar(50)
+  country           String     @default("US") @db.VarChar(2)
+  postal_code       String?    @db.VarChar(10)
   hole_count        Int
   latitude          Decimal?   @db.Decimal(10,8)
   longitude         Decimal?   @db.Decimal(11,8)
@@ -189,16 +209,23 @@ model courses {
   approved          Boolean    @default(true)
   submitted_by_id   Int?
   admin_notes       String?
+  reviewed_at       DateTime?  @db.Timestamp(6)
+  reviewed_by_id    Int?
   created_at        DateTime?  @default(now()) @db.Timestamp(6)
   updated_at        DateTime?  @default(now()) @db.Timestamp(6)
-  users             users?     @relation("CourseSubmissions", fields: [submitted_by_id], references: [id], onDelete: SetNull)
+  users_submitted   users?     @relation("CourseSubmissions", fields: [submitted_by_id], references: [id], onDelete: SetNull)
+  users_reviewed    users?     @relation("CourseReviews", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
   rounds            rounds[]
 
-  @@index([state], map: "idx_courses_state")
+  @@index([country], map: "idx_courses_country")
+  @@index([state_province], map: "idx_courses_state_province")
+  @@index([country, state_province], map: "idx_courses_country_state_province")
+  @@index([country, city], map: "idx_courses_country_city")
   @@index([city], map: "idx_courses_city")
   @@index([approved], map: "idx_courses_approved")
   @@index([is_user_submitted], map: "idx_courses_is_user_submitted")
   @@index([latitude, longitude], map: "idx_courses_location")
+  @@index([is_user_submitted, reviewed_at], map: "idx_courses_pending", where: "is_user_submitted = true AND reviewed_at IS NULL")
 }
 
 model rounds {
@@ -312,7 +339,8 @@ model users {
   user_profiles                                               user_profiles?
   
   // New round-related relationships
-  courses                                                     courses[]             @relation("CourseSubmissions")
+  courses_submitted                                           courses[]             @relation("CourseSubmissions")
+  courses_reviewed                                            courses[]             @relation("CourseReviews")
   rounds                                                      rounds[]              @relation("RoundCreators")
   round_players                                               round_players[]       @relation("RoundParticipants")
 
@@ -392,6 +420,12 @@ model users {
     - ✅ Shared helper (`courses.search.helper.js`) - Reusable setup/teardown
     - ✅ **Performance**: Parallel test execution, faster CI/CD pipeline
     - ✅ **Maintainability**: Logical separation, reduced code duplication
+- ✅ **🎯 COMPLETED: Course Review Tracking System**
+  - ✅ V20__add_course_review_tracking.sql migration - Add reviewed_at and reviewed_by_id fields
+  - ✅ Updated courses.admin.service.js to track admin review with timestamp and user ID
+  - ✅ Updated pending courses query to filter on reviewed_at IS NULL instead of approved = false
+  - ✅ Fixed admin workflow: denied courses no longer appear in pending list after review
+  - ✅ Added partial index for efficient pending course queries
 
 #### Current API Status ✅
 **Endpoints:**
@@ -432,7 +466,7 @@ model users {
 **Target: Week 3-4**
 
 #### Step 2.1: Round Creation & Management
-- [ ] Create round-related migration files (V19-V23) **Updated migration numbers due to internationalization**
+- [ ] Create round-related migration files (V21-V25) **Updated migration numbers due to course review tracking**
 - [ ] `POST /api/rounds` - Create round with course and players
 - [ ] `GET /api/rounds` - List user's rounds (upcoming/in-progress/completed)
 - [ ] `GET /api/rounds/:id` - Get round details with players
@@ -456,7 +490,7 @@ model users {
 **Target: Week 5-6**
 
 #### Step 3.1: Score Entry & Management
-- [ ] Create scores migration (V17)
+- [ ] Create scores migration (V23)
 - [ ] `POST /api/rounds/:id/scores` - Submit/update scores
 - [ ] `GET /api/rounds/:id/scores` - Get all round scores
 - [ ] `GET /api/rounds/:id/leaderboard` - Real-time leaderboard
@@ -487,7 +521,7 @@ model users {
 - [ ] Skins leaderboard display
 
 #### Step 4.2: Side Bets
-- [ ] Create side bets migrations (V18-V19)
+- [ ] Create side bets migrations (V24-V25)
 - [ ] `POST /api/rounds/:id/side-bets` - Create side bet
 - [ ] `POST /api/rounds/:id/side-bets/:betId/join` - Join side bet
 - [ ] `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner

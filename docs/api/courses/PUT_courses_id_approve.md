@@ -1,7 +1,7 @@
 # PUT /api/courses/:id/approve
 
 ## Overview
-Approves or rejects a user-submitted course. This endpoint is restricted to administrators and allows them to moderate course submissions by either approving them for public visibility or rejecting them with optional admin notes.
+Reviews and approves or rejects a user-submitted course. This endpoint is restricted to administrators and allows them to moderate course submissions by either approving them for public visibility or rejecting them with optional admin notes. Once reviewed, courses will no longer appear in the pending list.
 
 ## Endpoint
 ```
@@ -50,6 +50,8 @@ PUT /api/courses/:id/approve
   "approved": true,
   "submitted_by_id": 123,
   "admin_notes": "Course approved after verification. Good location data provided.",
+  "reviewed_at": "2024-01-15T14:45:00.000Z",
+  "reviewed_by_id": 456,
   "created_at": "2024-01-15T10:30:00.000Z",
   "updated_at": "2024-01-15T14:45:00.000Z"
 }
@@ -110,6 +112,8 @@ PUT /api/courses/:id/approve
 | `approved` | boolean | Updated approval status |
 | `submitted_by_id` | integer | User ID who submitted the course |
 | `admin_notes` | string | Admin notes about the approval decision |
+| `reviewed_at` | string (ISO 8601) | Timestamp when admin reviewed the course |
+| `reviewed_by_id` | integer | User ID of the admin who reviewed the course |
 | `created_at` | string (ISO 8601) | Course submission timestamp |
 | `updated_at` | string (ISO 8601) | Timestamp of approval/rejection |
 
@@ -118,12 +122,14 @@ PUT /api/courses/:id/approve
 
 ### Key Features
 - **Admin Only**: Restricted to users with `is_admin = true`
-- **Status Update**: Updates both approval status and admin notes
+- **Status Update**: Updates approval status and admin notes
+- **Review Tracking**: Records review timestamp and reviewing admin
 - **Audit Trail**: Updates `updated_at` timestamp
+- **Pending List**: Removes course from pending list after review
 - **SQL Injection Protection**: Parameterized queries
 
 ### Database Operations
-- Update query: `UPDATE courses SET approved = $1, admin_notes = $2, updated_at = NOW() WHERE id = $3 RETURNING *`
+- Update query: `UPDATE courses SET approved = $1, admin_notes = $2, reviewed_at = NOW(), reviewed_by_id = $3, updated_at = NOW() WHERE id = $4 RETURNING *`
 
 ## Example Usage
 
@@ -165,7 +171,13 @@ curl -X PUT http://localhost:3000/api/courses/user-course-789/approve \
 - **Duplicate Management**: Reject duplicate course submissions
 - **Content Management**: Maintain course database integrity
 
-## Effects of Approval
+## Effects of Review
+
+### All Reviews (Approved or Rejected)
+- Course is removed from pending list immediately
+- `reviewed_at` timestamp is set to current time
+- `reviewed_by_id` is set to the reviewing admin's user ID
+- Course will not reappear in pending list regardless of decision
 
 ### When `approved: true`
 - Course becomes visible in public search results
@@ -176,6 +188,7 @@ curl -X PUT http://localhost:3000/api/courses/user-course-789/approve \
 - Course remains hidden from public search
 - Course only visible to submitter and their friends
 - Course cannot be used for public rounds
+- Course does not reappear in pending list for re-review
 
 ## Admin Notes Guidelines
 - **Approval**: Explain what made the course acceptable

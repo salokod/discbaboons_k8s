@@ -18,6 +18,7 @@ const approveController = async (req, res, next) => {
   try {
     const { id: courseId } = req.params;
     const { approved, adminNotes } = req.body;
+    const adminUserId = req.user.userId;
 
     if (!courseId) {
       return res.status(400).json({ error: 'Course ID is required' });
@@ -27,7 +28,7 @@ const approveController = async (req, res, next) => {
       return res.status(400).json({ error: 'Approved status must be true or false' });
     }
 
-    const result = await coursesAdminService.approve(courseId, approved, adminNotes);
+    const result = await coursesAdminService.approve(courseId, approved, adminNotes, adminUserId);
 
     if (!result) {
       return res.status(404).json({ error: 'Course not found' });
