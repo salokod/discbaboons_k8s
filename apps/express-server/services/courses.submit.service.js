@@ -102,6 +102,18 @@ const coursesSubmitService = async (userId, courseData = {}) => {
   // Generate URL-friendly course ID
   const courseId = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${city.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${stateProvince.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${country.toLowerCase()}`;
 
+  // Check if course already exists
+  const existingCourse = await queryOne(
+    'SELECT id FROM courses WHERE id = $1',
+    [courseId],
+  );
+
+  if (existingCourse) {
+    const error = new Error('A course with this name and location already exists');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Insert course into database (updated field names)
   const result = await queryOne(
     `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 

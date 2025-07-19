@@ -149,11 +149,19 @@ describe('courses.submit.service', () => {
       submitted_by_id: userId,
     };
 
-    mockDatabase.queryOne.mockResolvedValue(mockResult);
+    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
-    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      1,
+      'SELECT id FROM courses WHERE id = $1',
+      [expectedCourseId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
+      2,
       `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
@@ -187,11 +195,13 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValue(mockResult);
+    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([randomStateProvince.toUpperCase(), randomCountry]),
@@ -213,11 +223,13 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValue(mockResult);
+    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([latitude]),
@@ -239,11 +251,13 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValue(mockResult);
+    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([longitude]),
@@ -269,11 +283,13 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValue(mockResult);
+    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([latitude, longitude, postalCode]),
@@ -342,5 +358,24 @@ describe('courses.submit.service', () => {
     };
 
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('Longitude must be between -180 and 180');
+  });
+
+  it('should throw ValidationError when course already exists', async () => {
+    const userId = chance.integer({ min: 1 });
+    const validStates = ['CA', 'TX', 'NY', 'FL', 'WA', 'OR', 'CO', 'IL', 'PA', 'OH'];
+    const validState = chance.pickone(validStates);
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: validState,
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+    };
+
+    // Mock that a course with the same ID already exists
+    const existingCourse = { id: 'existing-course' };
+    mockDatabase.queryOne.mockResolvedValueOnce(existingCourse); // First call finds existing course
+
+    await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('A course with this name and location already exists');
   });
 });

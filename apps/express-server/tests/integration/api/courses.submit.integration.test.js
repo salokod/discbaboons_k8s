@@ -358,4 +358,37 @@ describe('POST /api/courses - Integration', () => {
       message: 'Longitude must be between -180 and 180',
     });
   });
+
+  test('should return validation error for duplicate course submission', async () => {
+    const courseData = {
+      name: chance.string(),
+      city: chance.city(),
+      stateProvince: chance.state({ abbreviated: true }),
+      country: 'US',
+      holeCount: chance.integer({ min: 9, max: 27 }),
+      latitude: chance.latitude(),
+      longitude: chance.longitude(),
+    };
+
+    // Submit the course first time - should succeed
+    const firstRes = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(201);
+
+    createdCourseIds.push(firstRes.body.id);
+
+    // Submit the same course again - should fail with validation error
+    const secondRes = await request(app)
+      .post('/api/courses')
+      .set('Authorization', `Bearer ${token}`)
+      .send(courseData)
+      .expect(400);
+
+    expect(secondRes.body).toMatchObject({
+      success: false,
+      message: 'A course with this name and location already exists',
+    });
+  });
 });

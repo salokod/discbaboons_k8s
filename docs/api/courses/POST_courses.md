@@ -114,6 +114,7 @@ Content-Type: application/json
 - `"Province must be a valid 2-character Canadian province code (e.g., ON, BC, QC)"`
 - `"Latitude must be between -90 and 90"`
 - `"Longitude must be between -180 and 180"`
+- `"A course with this name and location already exists"`
 
 #### 401 Unauthorized
 ```json
@@ -246,13 +247,40 @@ curl -X POST https://api.discbaboons.com/api/courses \
 }
 ```
 
+### Example 5: Duplicate Course Error
+```bash
+curl -X POST https://api.discbaboons.com/api/courses \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sunset Hills Disc Golf",
+    "city": "Austin",
+    "stateProvince": "TX",
+    "country": "US",
+    "holeCount": 18
+  }'
+```
+
+**Response (if course already exists):**
+```json
+{
+  "success": false,
+  "message": "A course with this name and location already exists"
+}
+```
+
 ## Notes
 
 ### Course Approval Process
 - All user-submitted courses require admin approval before appearing in search results
 - Submitted courses are stored with `approved: false` status
 - Users can submit multiple courses but should verify accuracy before submission
-- Duplicate submissions are currently allowed but discouraged
+
+### Duplicate Prevention
+- Duplicate course submissions are automatically detected and prevented
+- Course uniqueness is determined by name, city, state/province, and country
+- If a course with identical location data already exists, submission will be rejected
+- This prevents database errors and maintains data quality
 
 ### International Support
 - DiscBaboons supports course submissions from any country

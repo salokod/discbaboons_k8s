@@ -48,7 +48,6 @@ describe('GET /api/courses/:id - Integration', () => {
       country: 'US',
       postal_code: '12345',
       hole_count: 18,
-      rating: 4.5,
       latitude: 38.5816,
       longitude: -121.4944,
       is_user_submitted: false,
@@ -56,8 +55,8 @@ describe('GET /api/courses/:id - Integration', () => {
     };
 
     await query(
-      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, rating, latitude, longitude, is_user_submitted, approved)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         testCourse.id,
         testCourse.name,
@@ -66,7 +65,6 @@ describe('GET /api/courses/:id - Integration', () => {
         testCourse.country,
         testCourse.postal_code,
         testCourse.hole_count,
-        testCourse.rating,
         testCourse.latitude,
         testCourse.longitude,
         testCourse.is_user_submitted,
@@ -104,7 +102,6 @@ describe('GET /api/courses/:id - Integration', () => {
       country: 'US',
       postal_code: '12345',
       hole_count: 18,
-      rating: '4.5',
       latitude: '38.58160000',
       longitude: '-121.49440000',
       is_user_submitted: false,
