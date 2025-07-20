@@ -20,6 +20,7 @@
 - Test files should follow the pattern: `*.integration.test.js` or `*.test.js`
 - Always clean up test data in `beforeEach` and `afterEach` hooks
 - Use unique test identifiers (like `testbc` for bag create tests) to avoid conflicts
+- **IMPORTANT: Error response format is `{ success: false, message: "..." }` NOT `{ error: "..." }`**
 
 ## Code Standards
 - Use ES6 imports/exports
