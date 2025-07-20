@@ -1,13 +1,13 @@
 import { queryOne } from '../lib/database.js';
 
 const roundsCreateService = async (roundData, userId) => {
-  const { 
-    courseId, 
-    name, 
-    startingHole = 1, 
-    isPrivate = false, 
-    skinsEnabled = false, 
-    skinsValue 
+  const {
+    courseId,
+    name,
+    startingHole = 1,
+    isPrivate = false,
+    skinsEnabled = false,
+    skinsValue,
   } = roundData;
 
   // Validate required fields
