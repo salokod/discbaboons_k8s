@@ -91,21 +91,29 @@ CREATE TABLE rounds (
   created_by_id INTEGER NOT NULL,
   course_id VARCHAR(100) NOT NULL,
   name VARCHAR(200) NOT NULL,
-  start_time TIMESTAMP NOT NULL,
+  start_time TIMESTAMP NOT NULL DEFAULT NOW(), -- Always current time, no future rounds
+  starting_hole INTEGER NOT NULL DEFAULT 1, -- Which hole to start on (1-N)
   is_private BOOLEAN DEFAULT false,
   skins_enabled BOOLEAN DEFAULT false,
-  skins_value DECIMAL(10,2), -- Per hole skins value
-  status VARCHAR(20) DEFAULT 'upcoming', -- upcoming, in_progress, completed, cancelled
+  skins_value DECIMAL(10,2), -- Per hole skins value, carries over on ties
+  status VARCHAR(20) DEFAULT 'in_progress', -- in_progress, completed, cancelled
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE RESTRICT
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE RESTRICT,
+  CONSTRAINT check_starting_hole CHECK (starting_hole > 0 AND starting_hole <= 50)
 );
 
 CREATE INDEX idx_rounds_created_by ON rounds(created_by_id);
 CREATE INDEX idx_rounds_course_id ON rounds(course_id);
 CREATE INDEX idx_rounds_start_time ON rounds(start_time);
 CREATE INDEX idx_rounds_status ON rounds(status);
+CREATE INDEX idx_rounds_starting_hole ON rounds(starting_hole);
+
+-- Add comments for clarity
+COMMENT ON COLUMN rounds.start_time IS 'Round start time - always set to creation time, no future scheduling';
+COMMENT ON COLUMN rounds.starting_hole IS 'Which hole number to start the round on (default 1)';
+COMMENT ON COLUMN rounds.skins_value IS 'Dollar amount per hole for skins game, carries over on ties';
 ```
 
 **`V22__create_round_players_table.sql`**
@@ -233,11 +241,12 @@ model rounds {
   created_by_id  Int
   course_id      String          @db.VarChar(100)
   name           String          @db.VarChar(200)
-  start_time     DateTime        @db.Timestamp(6)
+  start_time     DateTime        @default(now()) @db.Timestamp(6)
+  starting_hole  Int             @default(1)
   is_private     Boolean         @default(false)
   skins_enabled  Boolean         @default(false)
   skins_value    Decimal?        @db.Decimal(10,2)
-  status         String          @default("upcoming") @db.VarChar(20)
+  status         String          @default("in_progress") @db.VarChar(20)
   created_at     DateTime?       @default(now()) @db.Timestamp(6)
   updated_at     DateTime?       @default(now()) @db.Timestamp(6)
   users          users           @relation("RoundCreators", fields: [created_by_id], references: [id], onDelete: Cascade)
@@ -250,6 +259,7 @@ model rounds {
   @@index([course_id], map: "idx_rounds_course_id")
   @@index([start_time], map: "idx_rounds_start_time")
   @@index([status], map: "idx_rounds_status")
+  @@index([starting_hole], map: "idx_rounds_starting_hole")
 }
 
 model round_players {
@@ -367,8 +377,8 @@ model users {
 - ✅ `GET /api/courses/:id` - Get course details
 - ✅ **🌍 PIVOT: International Course Support** - Add migration V18 for country/state_province fields
 - ✅ `POST /api/courses` - Submit user course (authenticated) - **Updated for international support**
-- [ ] `GET /api/courses/pending` - Admin: List pending courses
-- [ ] `PUT /api/courses/:id/approve` - Admin: Approve/reject course
+- ✅ `GET /api/courses/pending` - Admin: List pending courses
+- ✅ `PUT /api/courses/:id/approve` - Admin: Approve/reject course
 
 #### Step 1.3: Course Services & Controllers ✅ **COMPLETED**
 - ✅ `courses.search.service.js` - Course search with filters and pagination (default 50, max 500)
@@ -462,29 +472,76 @@ model users {
 - **Data:** 7,008 US disc golf courses imported from CSV + user-submitted courses
 - **International Support:** Full country/state_province/postal_code schema with migration V18
 
-### Phase 2: Round Management Core
+#### Current Round API Status ✅
+**Endpoints:**
+1. **`POST /api/rounds`** (authenticated) - Create new round
+   - **Request Fields:** courseId (required), name (required), startingHole (optional, default 1), isPrivate (optional), skinsEnabled (optional), skinsValue (optional)
+   - **Validation:** Course existence, starting hole bounds (1 to course hole count), required field validation
+   - **Response:** 201 Created with round object including UUID, creator info, course reference, start time (immediate), status ("in_progress")
+   - **Business Rules:** Immediate start (no future scheduling), course validation, starting hole validation, skins game support
+   - **Security:** Authentication required, user becomes round creator, course access validation
+   - **Error Handling:** 400 for validation errors, 401 for missing auth, proper error format `{ success: false, message: "..." }`
+   - **Documentation:** `/docs/api/rounds/POST_rounds.md`
+
+- **Database:** V21 migration completed with rounds table (UUID primary keys, foreign key constraints, proper indexing)
+- **Testing:** Full TDD coverage (unit tests for service/controller/routes, integration tests with real database)
+- **Architecture:** Service → Controller → Routes → Server integration pattern established
+
+### Phase 2: Round Management Core ✅ **PHASE 2.1 COMPLETED**
 **Target: Week 3-4**
 
-#### Step 2.1: Round Creation & Management
-- [ ] Create round-related migration files (V21-V25) **Updated migration numbers due to course review tracking**
-- [ ] `POST /api/rounds` - Create round with course and players
+#### Step 2.1: Round Creation & Management ✅ **COMPLETED**
+- ✅ Create round-related migration files (V21__create_rounds_table.sql) **V21 migration completed**
+- ✅ `POST /api/rounds` - Create round with course validation and starting hole selection
+  - ✅ `rounds.create.service.js` - Full TDD with validation (course lookup, starting hole validation, required fields)
+  - ✅ `rounds.create.controller.js` - TDD with success/error handling
+  - ✅ `rounds.routes.js` - Authentication middleware integration
+  - ✅ Server integration in `server.js`
+  - ✅ Comprehensive unit tests (service, controller, routes)
+  - ✅ Integration tests with real database operations
+  - ✅ **API Documentation:** `/docs/api/rounds/POST_rounds.md`
 - [ ] `GET /api/rounds` - List user's rounds (upcoming/in-progress/completed)
 - [ ] `GET /api/rounds/:id` - Get round details with players
 - [ ] `PUT /api/rounds/:id` - Update round details
 - [ ] `DELETE /api/rounds/:id` - Cancel/delete round
 
 #### Step 2.2: Player Management
-- [ ] `POST /api/rounds/:id/players` - Add friend/guest to round
+- [ ] `POST /api/rounds/:id/players` - Add friend/guest to round (auto-join, no invitations)
 - [ ] `DELETE /api/rounds/:id/players/:playerId` - Remove player
 - [ ] `GET /api/rounds/:id/players` - List round players
-- [ ] Guest player validation and management
-- [ ] Friend invitation system integration
+- [ ] Guest player validation and management (name-only, no app access)
+- [ ] Friend auto-join system (no invitation acceptance required)
 
 #### Step 2.3: Round Privacy & Security
 - [ ] Private round access controls
-- [ ] Friend-only round visibility
+- [ ] Friend-only round visibility (no public round discovery)
 - [ ] Player authorization middleware
 - [ ] Round ownership validation
+
+#### Step 2.4: Round Rules & Requirements
+**Player Management:**
+- **No Player Limits**: Rounds can have unlimited players (let users feel the pain if they want)
+- **Auto-Join Friends**: Friends automatically join rounds when added (no invitation acceptance)
+- **Guest Players**: Name-only entries for non-app users, no round visibility or access
+- **Friend/Invite Only**: No public round discovery, only friend-based or direct invites
+
+**Round Timing:**
+- **Immediate Start**: Rounds start at creation time (start_time = NOW()), no future scheduling
+- **Starting Hole**: Choose which hole to start on (1-N), editable after creation
+- **Any Player Can Edit**: All round participants can modify round details
+
+**Skins Game Rules:**
+- **Per-Hole Value**: Dollar amount set per hole (e.g., $5/hole)
+- **Carry-Over Ties**: If hole ties, skins carry forward to next hole
+- **Final Hole Tiebreaker**: If final hole ties with skins on the line, prompt users for tiebreaker method
+- **Multiple Skins**: 1 or many skins can be riding on a single hole
+
+**Course Management:**
+- **Course Deletion**: If course gets deleted/modified, preserve original data for historical rounds
+- **Course Changes**: Show both previous and current course info if course details change
+
+**Future Features:**
+- **Push Notifications**: WebApp push notifications for round invites/updates (requires device token storage)
 
 ### Phase 3: Scoring System
 **Target: Week 5-6**
@@ -514,11 +571,13 @@ model users {
 **Target: Week 7-8**
 
 #### Step 4.1: Skins Game
-- [ ] Skins calculation engine
-- [ ] Hole winner determination
-- [ ] Carry-over logic for ties
-- [ ] Final payout calculation
-- [ ] Skins leaderboard display
+- [ ] Skins calculation engine (per-hole dollar value)
+- [ ] Hole winner determination (lowest score wins)
+- [ ] Carry-over logic for ties (skins roll to next hole)
+- [ ] Final hole tiebreaker system (prompt users for method if tied on last hole)
+- [ ] Multiple skins accumulation (1+ skins can be on a single hole)
+- [ ] Final payout calculation and distribution
+- [ ] Skins leaderboard display with carry-over tracking
 
 #### Step 4.2: Side Bets
 - [ ] Create side bets migrations (V24-V25)
@@ -593,10 +652,15 @@ model users {
 - ✅ `PUT /api/courses/:id` - Edit course (user/friend/admin permissions)
 
 ### Round Management
-- `POST /api/rounds` - Create round
-- `GET /api/rounds` - List user rounds
+- ✅ `POST /api/rounds` - Create round (with starting_hole selection, course validation, skins support)
+  - **Request:** Course ID, round name, optional starting hole, privacy, skins settings
+  - **Validation:** Course exists, starting hole within course bounds, required fields
+  - **Response:** 201 Created with round object (immediate start time, in_progress status)
+  - **Security:** Requires authentication, validates course access
+  - **Documentation:** `/docs/api/rounds/POST_rounds.md`
+- `GET /api/rounds` - List user rounds (friend-based visibility only)
 - `GET /api/rounds/:id` - Get round details
-- `PUT /api/rounds/:id` - Update round
+- `PUT /api/rounds/:id` - Update round (any player can edit)
 - `DELETE /api/rounds/:id` - Cancel round
 
 ### Player Management

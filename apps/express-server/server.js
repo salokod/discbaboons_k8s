@@ -8,6 +8,7 @@ import friendsRouter from './routes/friends.routes.js';
 import discsRouter from './routes/discs.routes.js';
 import bagsRouter from './routes/bags.routes.js';
 import coursesRouter from './routes/courses.routes.js';
+import roundsRouter from './routes/rounds.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -62,6 +63,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/discs', discsRouter);
 app.use('/api/bags', bagsRouter);
 app.use('/api/courses', coursesRouter);
+app.use('/api/rounds', roundsRouter);
 
 // 404 handler for unknown routes (must be AFTER all other routes but BEFORE error handler)
 app.use((req, res) => {
