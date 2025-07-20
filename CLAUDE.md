@@ -21,6 +21,7 @@
 - Always clean up test data in `beforeEach` and `afterEach` hooks
 - Use unique test identifiers (like `testbc` for bag create tests) to avoid conflicts
 - **IMPORTANT: Error response format is `{ success: false, message: "..." }` NOT `{ error: "..." }`**
+- **IMPORTANT: Pagination must always include metadata: `{ items: [...], total: N, limit: N, offset: N, hasMore: boolean }`**
 
 ## Code Standards
 - Use ES6 imports/exports

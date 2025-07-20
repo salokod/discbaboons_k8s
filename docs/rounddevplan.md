@@ -483,6 +483,15 @@ model users {
    - **Error Handling:** 400 for validation errors, 401 for missing auth, proper error format `{ success: false, message: "..." }`
    - **Documentation:** `/docs/api/rounds/POST_rounds.md`
 
+2. **`GET /api/rounds`** (authenticated) - List user's rounds with filtering and pagination
+   - **Query Params:** status, isPrivate, skinsEnabled, name (partial match), limit (default 50, max 500), offset
+   - **Filtering:** Status (in_progress/completed/cancelled), privacy, skins enabled, name search
+   - **Response:** Paginated results with metadata `{ rounds: [...], total: N, limit: N, offset: N, hasMore: boolean }`
+   - **Business Rules:** User isolation (only own rounds), ordered by created_at DESC, case-insensitive name search
+   - **Security:** Authentication required, results isolated to authenticated user
+   - **Error Handling:** 401 for missing auth, proper pagination metadata always included
+   - **Documentation:** `/docs/api/rounds/GET_rounds.md`
+
 - **Database:** V21 migration completed with rounds table (UUID primary keys, foreign key constraints, proper indexing)
 - **Testing:** Full TDD coverage (unit tests for service/controller/routes, integration tests with real database)
 - **Architecture:** Service → Controller → Routes → Server integration pattern established
@@ -500,7 +509,13 @@ model users {
   - ✅ Comprehensive unit tests (service, controller, routes)
   - ✅ Integration tests with real database operations
   - ✅ **API Documentation:** `/docs/api/rounds/POST_rounds.md`
-- [ ] `GET /api/rounds` - List user's rounds (upcoming/in-progress/completed)
+- ✅ `GET /api/rounds` - List user's rounds (with filtering and pagination)
+  - ✅ `rounds.list.service.js` - Service with filtering (status, isPrivate, skinsEnabled, name), pagination, and user isolation
+  - ✅ `rounds.list.controller.js` - Controller with query parameter parsing and validation
+  - ✅ Integration with existing `rounds.routes.js` and authentication
+  - ✅ Comprehensive unit tests (service, controller, routes)
+  - ✅ Integration tests with real database operations
+  - ✅ **API Documentation:** `/docs/api/rounds/GET_rounds.md`
 - [ ] `GET /api/rounds/:id` - Get round details with players
 - [ ] `PUT /api/rounds/:id` - Update round details
 - [ ] `DELETE /api/rounds/:id` - Cancel/delete round
@@ -658,7 +673,12 @@ model users {
   - **Response:** 201 Created with round object (immediate start time, in_progress status)
   - **Security:** Requires authentication, validates course access
   - **Documentation:** `/docs/api/rounds/POST_rounds.md`
-- `GET /api/rounds` - List user rounds (friend-based visibility only)
+- ✅ `GET /api/rounds` - List user rounds (with filtering and pagination)
+  - **Filters:** status, isPrivate, skinsEnabled, name search
+  - **Pagination:** limit/offset with metadata (total, hasMore)
+  - **Response:** User's own rounds ordered by created_at DESC
+  - **Security:** Requires authentication, user isolation
+  - **Documentation:** `/docs/api/rounds/GET_rounds.md`
 - `GET /api/rounds/:id` - Get round details
 - `PUT /api/rounds/:id` - Update round (any player can edit)
 - `DELETE /api/rounds/:id` - Cancel round
