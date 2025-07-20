@@ -96,7 +96,7 @@ CREATE TABLE rounds (
   is_private BOOLEAN DEFAULT false,
   skins_enabled BOOLEAN DEFAULT false,
   skins_value DECIMAL(10,2), -- Per hole skins value, carries over on ties
-  status VARCHAR(20) DEFAULT 'upcoming', -- upcoming, in_progress, completed, cancelled
+  status VARCHAR(20) DEFAULT 'in_progress', -- in_progress, completed, cancelled
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -246,7 +246,7 @@ model rounds {
   is_private     Boolean         @default(false)
   skins_enabled  Boolean         @default(false)
   skins_value    Decimal?        @db.Decimal(10,2)
-  status         String          @default("upcoming") @db.VarChar(20)
+  status         String          @default("in_progress") @db.VarChar(20)
   created_at     DateTime?       @default(now()) @db.Timestamp(6)
   updated_at     DateTime?       @default(now()) @db.Timestamp(6)
   users          users           @relation("RoundCreators", fields: [created_by_id], references: [id], onDelete: Cascade)
