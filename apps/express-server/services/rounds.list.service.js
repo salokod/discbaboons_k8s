@@ -42,8 +42,8 @@ const roundsListService = async (userId, filters = {}) => {
   const total = parseInt(countResult.count, 10);
 
   // Add pagination
-  const limit = filters.limit || 50;  // Default limit like courses
-  const offset = filters.offset || 0;  // Default offset
+  const limit = filters.limit || 50; // Default limit like courses
+  const offset = filters.offset || 0; // Default offset
 
   params.push(limit);
   params.push(offset);

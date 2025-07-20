@@ -169,7 +169,9 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         skins_enabled: skinsEnabled,
-        skins_value: skinsEnabled ? chance.floating({ min: 1, max: 50, fixed: 2 }).toString() : null,
+        skins_value: skinsEnabled
+          ? chance.floating({ min: 1, max: 50, fixed: 2 }).toString()
+          : null,
       },
     ];
 
@@ -225,7 +227,7 @@ describe('roundsListService', () => {
     const userId = chance.integer({ min: 1 });
     const limit = chance.integer({ min: 1, max: 100 });
     const offset = chance.integer({ min: 0, max: 50 });
-    const totalCount = offset + limit + chance.integer({ min: 1, max: 50 }); // Ensure hasMore = true
+    const totalCount = offset + limit + chance.integer({ min: 1, max: 50 });
     const mockRounds = Array.from({ length: limit }, () => ({
       id: chance.guid({ version: 4 }),
       name: chance.sentence({ words: 3 }),
@@ -281,8 +283,8 @@ describe('roundsListService', () => {
     const userId = chance.integer({ min: 1 });
     const limit = chance.integer({ min: 1, max: 20 });
     const offset = chance.integer({ min: 0, max: 10 });
-    const totalCount = offset + limit + chance.integer({ min: 1, max: 50 }); // Ensure hasMore = true
-    
+    const totalCount = offset + limit + chance.integer({ min: 1, max: 50 });
+
     const mockRounds = Array.from({ length: limit }, () => ({
       id: chance.guid({ version: 4 }),
       name: chance.sentence({ words: 3 }),
