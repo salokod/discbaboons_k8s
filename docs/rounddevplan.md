@@ -472,12 +472,34 @@ model users {
 - **Data:** 7,008 US disc golf courses imported from CSV + user-submitted courses
 - **International Support:** Full country/state_province/postal_code schema with migration V18
 
-### Phase 2: Round Management Core
+#### Current Round API Status ✅
+**Endpoints:**
+1. **`POST /api/rounds`** (authenticated) - Create new round
+   - **Request Fields:** courseId (required), name (required), startingHole (optional, default 1), isPrivate (optional), skinsEnabled (optional), skinsValue (optional)
+   - **Validation:** Course existence, starting hole bounds (1 to course hole count), required field validation
+   - **Response:** 201 Created with round object including UUID, creator info, course reference, start time (immediate), status ("in_progress")
+   - **Business Rules:** Immediate start (no future scheduling), course validation, starting hole validation, skins game support
+   - **Security:** Authentication required, user becomes round creator, course access validation
+   - **Error Handling:** 400 for validation errors, 401 for missing auth, proper error format `{ success: false, message: "..." }`
+   - **Documentation:** `/docs/api/rounds/POST_rounds.md`
+
+- **Database:** V21 migration completed with rounds table (UUID primary keys, foreign key constraints, proper indexing)
+- **Testing:** Full TDD coverage (unit tests for service/controller/routes, integration tests with real database)
+- **Architecture:** Service → Controller → Routes → Server integration pattern established
+
+### Phase 2: Round Management Core ✅ **PHASE 2.1 COMPLETED**
 **Target: Week 3-4**
 
-#### Step 2.1: Round Creation & Management
-- [ ] Create round-related migration files (V21-V25) **Updated migration numbers due to course review tracking**
-- [ ] `POST /api/rounds` - Create round with course and players
+#### Step 2.1: Round Creation & Management ✅ **COMPLETED**
+- ✅ Create round-related migration files (V21__create_rounds_table.sql) **V21 migration completed**
+- ✅ `POST /api/rounds` - Create round with course validation and starting hole selection
+  - ✅ `rounds.create.service.js` - Full TDD with validation (course lookup, starting hole validation, required fields)
+  - ✅ `rounds.create.controller.js` - TDD with success/error handling
+  - ✅ `rounds.routes.js` - Authentication middleware integration
+  - ✅ Server integration in `server.js`
+  - ✅ Comprehensive unit tests (service, controller, routes)
+  - ✅ Integration tests with real database operations
+  - ✅ **API Documentation:** `/docs/api/rounds/POST_rounds.md`
 - [ ] `GET /api/rounds` - List user's rounds (upcoming/in-progress/completed)
 - [ ] `GET /api/rounds/:id` - Get round details with players
 - [ ] `PUT /api/rounds/:id` - Update round details
@@ -630,7 +652,12 @@ model users {
 - ✅ `PUT /api/courses/:id` - Edit course (user/friend/admin permissions)
 
 ### Round Management
-- `POST /api/rounds` - Create round (with starting_hole selection)
+- ✅ `POST /api/rounds` - Create round (with starting_hole selection, course validation, skins support)
+  - **Request:** Course ID, round name, optional starting hole, privacy, skins settings
+  - **Validation:** Course exists, starting hole within course bounds, required fields
+  - **Response:** 201 Created with round object (immediate start time, in_progress status)
+  - **Security:** Requires authentication, validates course access
+  - **Documentation:** `/docs/api/rounds/POST_rounds.md`
 - `GET /api/rounds` - List user rounds (friend-based visibility only)
 - `GET /api/rounds/:id` - Get round details
 - `PUT /api/rounds/:id` - Update round (any player can edit)
