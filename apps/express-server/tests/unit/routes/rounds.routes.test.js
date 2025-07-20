@@ -46,7 +46,9 @@ beforeAll(async () => {
   }));
 
   vi.doMock('../../../services/rounds.list.service.js', () => ({
-    default: vi.fn().mockResolvedValue({ rounds: [], total: 0, limit: 50, offset: 0, hasMore: false }),
+    default: vi.fn().mockResolvedValue({
+      rounds: [], total: 0, limit: 50, offset: 0, hasMore: false,
+    }),
   }));
 
   // Import the router after mocking

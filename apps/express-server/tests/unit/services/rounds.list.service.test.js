@@ -313,4 +313,185 @@ describe('roundsListService', () => {
       hasMore: true,
     });
   });
+
+  test('should throw ValidationError for invalid status filter', async () => {
+    const userId = chance.integer({ min: 1 });
+
+    await expect(roundsListService(userId, { status: 'invalid_status' }))
+      .rejects
+      .toThrow('Status must be one of: in_progress, completed, cancelled');
+  });
+
+  test('should throw ValidationError for invalid is_private filter', async () => {
+    const userId = chance.integer({ min: 1 });
+
+    await expect(roundsListService(userId, { is_private: 'invalid_boolean' }))
+      .rejects
+      .toThrow('is_private must be a boolean value (true or false)');
+  });
+
+  test('should throw ValidationError for invalid skins_enabled filter', async () => {
+    const userId = chance.integer({ min: 1 });
+
+    await expect(roundsListService(userId, { skins_enabled: '7000' }))
+      .rejects
+      .toThrow('skins_enabled must be a boolean value (true or false)');
+  });
+
+  test('should convert string "true" to boolean true for is_private', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        is_private: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { is_private: 'true' });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
+      [userId, true, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
+
+  test('should convert string "false" to boolean false for is_private', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        is_private: false,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { is_private: 'false' });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
+      [userId, false, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
+
+  test('should convert string "true" to boolean true for skins_enabled', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        skins_enabled: true,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { skins_enabled: 'true' });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
+      [userId, true, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
+
+  test('should convert string "false" to boolean false for skins_enabled', async () => {
+    const userId = chance.integer({ min: 1 });
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        skins_enabled: false,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { skins_enabled: 'false' });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
+      [userId, false, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
+
+  test('should accept valid status value: in_progress', async () => {
+    const userId = chance.integer({ min: 1 });
+    const status = 'in_progress';
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        status,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { status });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      [userId, status, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
+
+  test('should accept valid status value: completed', async () => {
+    const userId = chance.integer({ min: 1 });
+    const status = 'completed';
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        status,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { status });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      [userId, status, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
+
+  test('should accept valid status value: cancelled', async () => {
+    const userId = chance.integer({ min: 1 });
+    const status = 'cancelled';
+    const mockRounds = [
+      {
+        id: chance.guid({ version: 4 }),
+        name: chance.sentence({ words: 3 }),
+        status,
+      },
+    ];
+
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '1' });
+    mockDatabase.queryRows.mockResolvedValueOnce(mockRounds);
+
+    const result = await roundsListService(userId, { status });
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      [userId, status, 50, 0],
+    );
+    expect(result.rounds).toEqual(mockRounds);
+  });
 });
