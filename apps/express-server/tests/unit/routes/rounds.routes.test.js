@@ -11,6 +11,7 @@ let roundsRouter;
 let roundsCreateController;
 let roundsListController;
 let addPlayerController;
+let listPlayersController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -25,6 +26,10 @@ beforeAll(async () => {
 
   addPlayerController = vi.fn((req, res) => {
     res.status(201).json({ message: 'add player controller called' });
+  });
+
+  listPlayersController = vi.fn((req, res) => {
+    res.json({ message: 'list players controller called' });
   });
 
   // Mock the auth middleware
@@ -43,6 +48,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.addPlayer.controller.js', () => ({
     default: addPlayerController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.listPlayers.controller.js', () => ({
+    default: listPlayersController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -64,6 +73,10 @@ beforeAll(async () => {
     addPlayerToRound: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/rounds.listPlayers.service.js', () => ({
+    default: vi.fn().mockResolvedValue([]),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -74,6 +87,7 @@ describe('rounds routes', () => {
     roundsCreateController.mockClear();
     roundsListController.mockClear();
     addPlayerController.mockClear();
+    listPlayersController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -256,5 +270,21 @@ describe('rounds routes', () => {
       addPlayerController.mock.calls.length - 1
     ];
     expect(lastCall[0].body).toEqual(guestPlayerData);
+  });
+
+  test('GET /api/rounds/:id/players should require authentication and call list players controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .get(`/api/rounds/${roundId}/players`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'list players controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(listPlayersController).toHaveBeenCalled();
   });
 });
