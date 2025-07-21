@@ -518,8 +518,8 @@ model users {
   - ✅ Integration tests with real database operations
   - ✅ **API Documentation:** `/docs/api/rounds/GET_rounds.md`
 
-#### Step 2.2: Player Management Infrastructure **🎯 IN PROGRESS**
-- [ ] **Create round_players migration** (V22__create_round_players_table.sql) - Must be done first!
+#### Step 2.2: Player Management Infrastructure ✅ **COMPLETED**
+- ✅ **Create round_players migration** (V22__create_round_players_table.sql) - Migration completed and tested
 - ✅ `POST /api/rounds/:id/players` - **BATCH ADD** friends/guests to round (auto-join, no invitations)
   - ✅ **NEW: Batch API Design** - Accept array of players in single request
   - ✅ Request format: `{ players: [{ userId: 123 }, { guestName: "John" }] }`
@@ -529,9 +529,12 @@ model users {
   - ✅ Implement friend auto-join (no acceptance required)
   - ✅ Prevent duplicate players in same round and within batch
   - ✅ Return array of all created players with full details
-- [ ] `GET /api/rounds/:id/players` - List round players
-  - [ ] Return both registered users and guest players
-  - [ ] Include player details (username for users, guest_name for guests)
+- ✅ `GET /api/rounds/:id/players` - List round players
+  - ✅ Return both registered users and guest players
+  - ✅ Include player details (username for users, guest_name for guests)
+  - ✅ Permission validation (round creator or existing player can view)
+  - ✅ JOIN with users table to get usernames
+  - ✅ Order by joined_at timestamp
 - [ ] `DELETE /api/rounds/:id/players/:playerId` - Remove player
   - [ ] Only round creator can remove players
   - [ ] Players can remove themselves
@@ -702,9 +705,9 @@ model users {
 - `DELETE /api/rounds/:id` - Cancel round
 
 ### Player Management
-- `POST /api/rounds/:id/players` - Add player
+- ✅ `POST /api/rounds/:id/players` - Add players (batch API)
+- ✅ `GET /api/rounds/:id/players` - List round players
 - `DELETE /api/rounds/:id/players/:playerId` - Remove player
-- `GET /api/rounds/:id/players` - List players
 
 ### Scoring
 - `POST /api/rounds/:id/scores` - Submit scores

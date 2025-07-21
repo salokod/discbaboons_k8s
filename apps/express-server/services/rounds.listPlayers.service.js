@@ -1,9 +1,19 @@
 import { queryRows, queryOne } from '../lib/database.js';
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const listPlayersService = async (roundId, userId) => {
   // Validate required roundId
   if (!roundId) {
     const error = new Error('Round ID is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate roundId format
+  if (!UUID_REGEX.test(roundId)) {
+    const error = new Error('Round ID must be a valid UUID');
     error.name = 'ValidationError';
     throw error;
   }
