@@ -499,7 +499,7 @@ model users {
 ### Phase 2: Round Management Core ✅ **PHASE 2.1 COMPLETED**
 **Target: Week 3-4**
 
-#### Step 2.1: Round Creation & Management ✅ **COMPLETED**
+#### Step 2.1: Round Creation & Basic Management ✅ **COMPLETED**
 - ✅ Create round-related migration files (V21__create_rounds_table.sql) **V21 migration completed**
 - ✅ `POST /api/rounds` - Create round with course validation and starting hole selection
   - ✅ `rounds.create.service.js` - Full TDD with validation (course lookup, starting hole validation, required fields)
@@ -516,22 +516,35 @@ model users {
   - ✅ Comprehensive unit tests (service, controller, routes)
   - ✅ Integration tests with real database operations
   - ✅ **API Documentation:** `/docs/api/rounds/GET_rounds.md`
-- [ ] `GET /api/rounds/:id` - Get round details with players
-- [ ] `PUT /api/rounds/:id` - Update round details
-- [ ] `DELETE /api/rounds/:id` - Cancel/delete round
 
-#### Step 2.2: Player Management
+#### Step 2.2: Player Management Infrastructure **🎯 NEXT UP**
+- [ ] **Create round_players migration** (V22__create_round_players_table.sql) - Must be done first!
 - [ ] `POST /api/rounds/:id/players` - Add friend/guest to round (auto-join, no invitations)
-- [ ] `DELETE /api/rounds/:id/players/:playerId` - Remove player
+  - [ ] Validate round exists and user has permission (creator or existing player)
+  - [ ] Support adding registered users (by userId) and guests (by name)
+  - [ ] Implement friend auto-join (no acceptance required)
+  - [ ] Prevent duplicate players in same round
 - [ ] `GET /api/rounds/:id/players` - List round players
-- [ ] Guest player validation and management (name-only, no app access)
-- [ ] Friend auto-join system (no invitation acceptance required)
+  - [ ] Return both registered users and guest players
+  - [ ] Include player details (username for users, guest_name for guests)
+- [ ] `DELETE /api/rounds/:id/players/:playerId` - Remove player
+  - [ ] Only round creator can remove players
+  - [ ] Players can remove themselves
+  - [ ] Cannot remove round creator
 
-#### Step 2.3: Round Privacy & Security
-- [ ] Private round access controls
-- [ ] Friend-only round visibility (no public round discovery)
-- [ ] Player authorization middleware
-- [ ] Round ownership validation
+#### Step 2.3: Round Details & Advanced Management **DEPENDS ON 2.2**
+- [ ] `GET /api/rounds/:id` - Get round details WITH players
+  - [ ] Include full round details
+  - [ ] Include array of players (from round_players join)
+  - [ ] Only accessible to round participants
+- [ ] `PUT /api/rounds/:id` - Update round details
+  - [ ] Any player can edit (not just creator)
+  - [ ] Update name, status, starting_hole, privacy, skins settings
+  - [ ] Validate status transitions (can't go from completed back to in_progress)
+- [ ] `DELETE /api/rounds/:id` - Cancel/delete round
+  - [ ] Only round creator can delete
+  - [ ] Soft delete or hard delete decision
+  - [ ] Handle cascading deletes (players, future scores, etc.)
 
 #### Step 2.4: Round Rules & Requirements
 **Player Management:**
