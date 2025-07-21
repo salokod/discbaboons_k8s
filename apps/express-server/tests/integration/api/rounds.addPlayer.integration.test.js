@@ -13,22 +13,26 @@ describe('POST /api/rounds/:id/players - Integration', () => {
   let user;
   let token;
   let testId;
+  let timestamp;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
+    // Generate GLOBALLY unique test identifier for this test run
+    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
+    const fullTimestamp = Date.now();
+    timestamp = fullTimestamp.toString().slice(-6);
     const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    const pid = process.pid.toString().slice(-3);
+    testId = `trap${timestamp}${pid}${random}`;
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
     // Register test user
     const userData = {
-      username: `trap${testId}`, // trap = "test round add player"
+      username: `tp${timestamp}${pid}`, // tp = "test player" - keep under 20 chars
       email: `trap${testId}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
@@ -43,24 +47,30 @@ describe('POST /api/rounds/:id/players - Integration', () => {
 
     // Create a test course to use in rounds
     const courseData = {
-      name: `Test Course ${testId}`,
+      name: `TRAP Course ${testId}${Date.now()}`, // TRAP = Test Round Add Player
       city: chance.city(),
       stateProvince: chance.state({ abbreviated: true }),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
-    const courseRes = await request(app)
+    const courseCreateRes = await request(app)
       .post('/api/courses')
       .set('Authorization', `Bearer ${token}`)
       .send(courseData)
       .expect(201);
-    createdCourseIds.push(courseRes.body.id);
+    createdCourseIds.push(courseCreateRes.body.id);
+
+    // Get the course to know its hole count for valid starting hole
+    const courseGetRes = await request(app)
+      .get(`/api/courses/${createdCourseIds[0]}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
 
     // Create a test round to add players to
     const roundData = {
       courseId: createdCourseIds[0],
-      name: `Test Round ${testId}`,
-      startingHole: chance.integer({ min: 1, max: 18 }),
+      name: `Test Round ${testId}${Date.now()}`,
+      startingHole: chance.integer({ min: 1, max: courseGetRes.body.hole_count }),
     };
     const roundRes = await request(app)
       .post('/api/rounds')
@@ -98,8 +108,8 @@ describe('POST /api/rounds/:id/players - Integration', () => {
   test('should add a user player to a round successfully', async () => {
     // Create another user to add as a player
     const playerUserData = {
-      username: `player${testId}`,
-      email: `player${testId}@ex.co`,
+      username: `pl${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `player${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     const playerRegisterResponse = await request(app)
@@ -189,9 +199,10 @@ describe('POST /api/rounds/:id/players - Integration', () => {
 
   test('should return 409 when user is already a player in the round', async () => {
     // Create another user
+    const uniqueTimestamp = Date.now().toString();
     const playerUserData = {
-      username: `duplicate${testId}`,
-      email: `duplicate${testId}@ex.co`,
+      username: `tr${uniqueTimestamp.slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `trapplayer${testId}${uniqueTimestamp}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     const playerRegisterResponse = await request(app)
@@ -223,8 +234,8 @@ describe('POST /api/rounds/:id/players - Integration', () => {
   test('should return 403 when user is not creator or existing player', async () => {
     // Create another user who is not creator or player
     const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
+      username: `ot${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `other${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     const otherRegisterResponse = await request(app)
@@ -306,8 +317,8 @@ describe('POST /api/rounds/:id/players - Integration', () => {
   test('should successfully add single user player', async () => {
     // Create another user
     const playerUserData = {
-      username: `single${testId}`,
-      email: `single${testId}@ex.co`,
+      username: `sg${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `single${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     const playerRegisterResponse = await request(app)
@@ -351,13 +362,13 @@ describe('POST /api/rounds/:id/players - Integration', () => {
   test('should successfully add multiple players (users and guests)', async () => {
     // Create two users
     const user1Data = {
-      username: `multi1${testId}`,
-      email: `multi1${testId}@ex.co`,
+      username: `m1${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `multi1${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     const user2Data = {
-      username: `multi2${testId}`,
-      email: `multi2${testId}@ex.co`,
+      username: `m2${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `multi2${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
 

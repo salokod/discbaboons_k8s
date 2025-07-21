@@ -13,22 +13,26 @@ describe('GET /api/rounds - Integration', () => {
   let user;
   let token;
   let testId;
+  let timestamp;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
+    // Generate GLOBALLY unique test identifier for this test run
+    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
+    const fullTimestamp = Date.now();
+    timestamp = fullTimestamp.toString().slice(-6);
     const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    const pid = process.pid.toString().slice(-3);
+    testId = `trlr${timestamp}${pid}${random}`;
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
     // Register test user
     const userData = {
-      username: `trlr${testId}`, // trlr = "test round list"
+      username: `tl${timestamp}${pid}`, // tl = "test list" - keep under 20 chars
       email: `trlr${testId}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
@@ -43,7 +47,7 @@ describe('GET /api/rounds - Integration', () => {
 
     // Create a test course to use in rounds
     const courseData = {
-      name: `Test Course ${testId}`,
+      name: `TRLR Course ${testId}${Date.now()}`, // TRLR = Test Round List Rounds
       city: chance.city(),
       stateProvince: chance.state({ abbreviated: true }),
       country: 'US',
@@ -99,14 +103,14 @@ describe('GET /api/rounds - Integration', () => {
     // Create some test rounds
     const roundData1 = {
       courseId: createdCourseIds[0],
-      name: `Test Round 1 ${testId}`,
+      name: `Test Round 1 ${testId}${Date.now()}`,
       isPrivate: false,
       skinsEnabled: true,
       skinsValue: chance.floating({ min: 1, max: 10, fixed: 2 }),
     };
     const roundData2 = {
       courseId: createdCourseIds[0],
-      name: `Test Round 2 ${testId}`,
+      name: `Test Round 2 ${testId}${Date.now()}`,
       isPrivate: true,
       skinsEnabled: false,
     };
@@ -155,8 +159,8 @@ describe('GET /api/rounds - Integration', () => {
   test('should only return rounds created by the authenticated user', async () => {
     // Create another user and their round
     const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
+      username: `ot${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `other${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     await request(app).post('/api/auth/register').send(otherUserData).expect(201);
@@ -171,7 +175,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create round for other user
     const otherRoundData = {
       courseId: createdCourseIds[0],
-      name: `Other User Round ${testId}`,
+      name: `Other User Round ${testId}${Date.now()}`,
     };
     const otherRound = await request(app)
       .post('/api/rounds')
@@ -183,7 +187,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create round for main user
     const myRoundData = {
       courseId: createdCourseIds[0],
-      name: `My Round ${testId}`,
+      name: `My Round ${testId}${Date.now()}`,
     };
     const myRound = await request(app)
       .post('/api/rounds')
@@ -212,7 +216,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create rounds with different statuses
     const inProgressRound = {
       courseId: createdCourseIds[0],
-      name: `In Progress Round ${testId}`,
+      name: `In Progress Round ${testId}${Date.now()}`,
     };
     const round1 = await request(app)
       .post('/api/rounds')
@@ -229,7 +233,7 @@ describe('GET /api/rounds - Integration', () => {
 
     const anotherRound = {
       courseId: createdCourseIds[0],
-      name: `Another Round ${testId}`,
+      name: `Another Round ${testId}${Date.now()}`,
     };
     const round2 = await request(app)
       .post('/api/rounds')
@@ -269,12 +273,12 @@ describe('GET /api/rounds - Integration', () => {
     // Create public and private rounds
     const publicRound = {
       courseId: createdCourseIds[0],
-      name: `Public Round ${testId}`,
+      name: `Public Round ${testId}${Date.now()}`,
       isPrivate: false,
     };
     const privateRound = {
       courseId: createdCourseIds[0],
-      name: `Private Round ${testId}`,
+      name: `Private Round ${testId}${Date.now()}`,
       isPrivate: true,
     };
 
@@ -326,7 +330,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Morning Round ${testId}`,
+        name: `Morning Round ${testId}${Date.now()}`,
       })
       .expect(201);
     createdRoundIds.push(round1.body.id);
@@ -362,7 +366,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Round ${i + 1} ${testId}`,
+        name: `Round ${i + 1} ${testId}${Date.now()}`,
       })
       .expect(201));
 
@@ -444,7 +448,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create a round to test with
     const roundData = {
       courseId: createdCourseIds[0],
-      name: `Test Round ${testId}`,
+      name: `Test Round ${testId}${Date.now()}`,
       isPrivate: true,
       skinsEnabled: false,
     };
@@ -489,7 +493,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Round 1 ${testId}`,
+        name: `Round 1 ${testId}${Date.now()}`,
       })
       .expect(201);
     createdRoundIds.push(round1.body.id);
@@ -499,7 +503,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Round 2 ${testId}`,
+        name: `Round 2 ${testId}${Date.now()}`,
       })
       .expect(201);
     createdRoundIds.push(round2.body.id);

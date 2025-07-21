@@ -59,7 +59,7 @@ jobs:
           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.8.1/flyway-commandline-10.8.1-linux-x64.tar.gz | tar -xvz
           sudo ln -s $(pwd)/flyway-10.8.1/flyway /usr/local/bin
           
-          # Run ALL migrations (V2-V17)
+          # Run ALL migrations (V2-V22)
           flyway -url=jdbc:postgresql://localhost:5432/discbaboons_test -user=testuser -password=testpassword -locations=filesystem:../../migrations migrate
         
       - name: Run tests
