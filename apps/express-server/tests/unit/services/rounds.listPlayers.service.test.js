@@ -43,7 +43,7 @@ describe('rounds.listPlayers.service', () => {
   test('should throw ValidationError when roundId is not a valid UUID', async () => {
     const invalidRoundId = 'invalid-uuid';
     const userId = chance.guid();
-    
+
     await expect(listPlayersService(invalidRoundId, userId))
       .rejects.toThrow('Round ID must be a valid UUID');
   });
