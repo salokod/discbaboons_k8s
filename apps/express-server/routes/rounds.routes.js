@@ -1,6 +1,7 @@
 import express from 'express';
 import roundsCreateController from '../controllers/rounds.create.controller.js';
 import roundsListController from '../controllers/rounds.list.controller.js';
+import addPlayerController from '../controllers/rounds.addPlayer.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -10,5 +11,8 @@ router.get('/', authenticateToken, roundsListController);
 
 // POST /api/rounds - Create new round (requires authentication)
 router.post('/', authenticateToken, roundsCreateController);
+
+// POST /api/rounds/:id/players - Add player to round (requires authentication)
+router.post('/:id/players', authenticateToken, addPlayerController);
 
 export default router;
