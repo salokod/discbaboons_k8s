@@ -15,12 +15,7 @@ export default defineConfig({
       ],
     },
     testTimeout: 10000,
-    globals: true,
-    poolOptions: {
-      threads: {
-        singleThread: true
-      }
-    }
+    globals: true
   },
   define: {
     'process.env.NODE_ENV': '"test"',

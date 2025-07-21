@@ -6,6 +6,7 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import { createUniqueCourseData } from '../test-helpers.js';
 
 const chance = new Chance();
 
@@ -45,14 +46,8 @@ describe('POST /api/rounds/:id/players - Integration', () => {
     user = login.body.user;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds
-    const courseData = {
-      name: `TRAP Course ${testId}${Date.now()}`, // TRAP = Test Round Add Player
-      city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
-      country: 'US',
-      holeCount: chance.integer({ min: 9, max: 27 }),
-    };
+    // Create a test course to use in rounds with globally unique identifiers
+    const courseData = createUniqueCourseData('trap'); // TRAP = Test Round Add Player
     const courseCreateRes = await request(app)
       .post('/api/courses')
       .set('Authorization', `Bearer ${token}`)

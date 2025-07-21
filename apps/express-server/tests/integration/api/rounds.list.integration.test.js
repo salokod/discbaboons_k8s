@@ -6,6 +6,9 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createUniqueUserData, createUniqueCourseData,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
@@ -13,29 +16,19 @@ describe('GET /api/rounds - Integration', () => {
   let user;
   let token;
   let testId;
-  let timestamp;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `trlr${timestamp}${pid}${random}`;
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tl${timestamp}${pid}`, // tl = "test list" - keep under 20 chars
-      email: `trlr${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
+    // Register test user with globally unique identifiers
+    const userData = createUniqueUserData('tl'); // tl = "test list"
+    testId = userData.ids.fullId;
+
     await request(app).post('/api/auth/register').send(userData).expect(201);
     const login = await request(app).post('/api/auth/login').send({
       username: userData.username,
@@ -45,14 +38,8 @@ describe('GET /api/rounds - Integration', () => {
     user = login.body.user;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds
-    const courseData = {
-      name: `TRLR Course ${testId}${Date.now()}`, // TRLR = Test Round List Rounds
-      city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
-      country: 'US',
-      holeCount: chance.integer({ min: 9, max: 27 }),
-    };
+    // Create a test course with globally unique identifiers
+    const courseData = createUniqueCourseData('trlr'); // TRLR = Test Round List Rounds
     const courseRes = await request(app)
       .post('/api/courses')
       .set('Authorization', `Bearer ${token}`)

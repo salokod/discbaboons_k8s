@@ -6,30 +6,31 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import { createUniqueUserData } from '../test-helpers.js';
+
+// Valid US states for tests that need to pass validation
+const VALID_US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+];
 
 const chance = new Chance();
 
 describe('POST /api/courses - Integration', () => {
   let user;
   let token;
-  let testId;
   let createdUserIds = [];
   let createdCourseIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
     createdUserIds = [];
     createdCourseIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tcsub${testId}`, // tcsub = "test course submit"
-      email: `tcsub${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
+    // Register test user with globally unique identifiers
+    const userData = createUniqueUserData('tcsub'); // tcsub = "test course submit"
     await request(app).post('/api/auth/register').send(userData).expect(201);
     const login = await request(app).post('/api/auth/login').send({
       username: userData.username,
@@ -56,7 +57,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
     };
 
@@ -74,7 +75,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
@@ -136,7 +137,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       postalCode: chance.zip(),
       holeCount: chance.integer({ min: 9, max: 27 }),
@@ -195,7 +196,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: chance.string({ length: 3, alpha: true }), // Invalid 3-character country
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
@@ -216,7 +217,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       // Missing holeCount
     };
@@ -236,7 +237,7 @@ describe('POST /api/courses - Integration', () => {
   test('should create course with generated ID based on location', async () => {
     const courseName = chance.string();
     const courseCity = chance.city();
-    const courseState = chance.state({ abbreviated: true });
+    const courseState = chance.pickone(VALID_US_STATES);
     const courseData = {
       name: courseName,
       city: courseCity,
@@ -268,7 +269,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
@@ -297,7 +298,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       latitude,
@@ -319,7 +320,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       latitude: 91, // Invalid latitude
@@ -341,7 +342,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       longitude: 181, // Invalid longitude
@@ -363,7 +364,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.string(),
       city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       latitude: chance.latitude(),
