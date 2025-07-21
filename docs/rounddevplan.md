@@ -487,6 +487,7 @@ model users {
    - **Query Params:** status, isPrivate, skinsEnabled, name (partial match), limit (default 50, max 500), offset
    - **Filtering:** Status (in_progress/completed/cancelled), privacy, skins enabled, name search
    - **Response:** Paginated results with metadata `{ rounds: [...], total: N, limit: N, offset: N, hasMore: boolean }`
+   - **Round Data:** Each round includes `player_count` field showing number of players in the round (minimum 1 since creator is auto-added)
    - **Business Rules:** User isolation (only own rounds), ordered by created_at DESC, case-insensitive name search
    - **Security:** Authentication required, results isolated to authenticated user
    - **Error Handling:** 401 for missing auth, proper pagination metadata always included

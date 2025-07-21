@@ -204,6 +204,7 @@ describe('GET /api/rounds - Integration', () => {
       id: myRound.body.id,
       name: myRoundData.name,
       created_by_id: user.id,
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -247,6 +248,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(completedRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       status: 'completed',
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Filter by in_progress status
@@ -259,6 +261,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(inProgressRes.body.rounds[0]).toMatchObject({
       id: round2.body.id,
       status: 'in_progress',
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -299,6 +302,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(privateRes.body.rounds[0]).toMatchObject({
       id: round2.body.id,
       is_private: true,
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Filter by public rounds
@@ -311,6 +315,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(publicRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       is_private: false,
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -346,6 +351,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(searchRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       name: expect.stringContaining('Morning'),
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -459,6 +465,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(privateTrueRes.body.rounds[0]).toMatchObject({
       id: round.body.id,
       is_private: true,
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Test string "false" for skins_enabled
@@ -471,6 +478,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(skinsFalseRes.body.rounds[0]).toMatchObject({
       id: round.body.id,
       skins_enabled: false,
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -511,6 +519,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(completedRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       status: 'completed',
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Test in_progress status
@@ -525,6 +534,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(inProgressRes.body.rounds[0]).toMatchObject({
       id: round2.body.id,
       status: 'in_progress',
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Test cancelled status
