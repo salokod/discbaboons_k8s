@@ -517,13 +517,17 @@ model users {
   - ✅ Integration tests with real database operations
   - ✅ **API Documentation:** `/docs/api/rounds/GET_rounds.md`
 
-#### Step 2.2: Player Management Infrastructure **🎯 NEXT UP**
+#### Step 2.2: Player Management Infrastructure **🎯 IN PROGRESS**
 - [ ] **Create round_players migration** (V22__create_round_players_table.sql) - Must be done first!
-- [ ] `POST /api/rounds/:id/players` - Add friend/guest to round (auto-join, no invitations)
-  - [ ] Validate round exists and user has permission (creator or existing player)
-  - [ ] Support adding registered users (by userId) and guests (by name)
-  - [ ] Implement friend auto-join (no acceptance required)
-  - [ ] Prevent duplicate players in same round
+- ✅ `POST /api/rounds/:id/players` - **BATCH ADD** friends/guests to round (auto-join, no invitations)
+  - ✅ **NEW: Batch API Design** - Accept array of players in single request
+  - ✅ Request format: `{ players: [{ userId: 123 }, { guestName: "John" }] }`
+  - ✅ Atomic transaction - all players added or none (single database transaction)
+  - ✅ Validate round exists and user has permission (creator or existing player)
+  - ✅ Support adding registered users (by userId) and guests (by name) in same batch
+  - ✅ Implement friend auto-join (no acceptance required)
+  - ✅ Prevent duplicate players in same round and within batch
+  - ✅ Return array of all created players with full details
 - [ ] `GET /api/rounds/:id/players` - List round players
   - [ ] Return both registered users and guest players
   - [ ] Include player details (username for users, guest_name for guests)

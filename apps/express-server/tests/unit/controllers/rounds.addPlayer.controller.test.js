@@ -39,7 +39,7 @@ describe('rounds.addPlayer.controller', () => {
   test('should return 400 if roundId is missing', async () => {
     mockReq = {
       params: {}, // No roundId
-      body: { userId: chance.integer({ min: 1, max: 1000 }) },
+      body: { players: [{ userId: chance.integer({ min: 1, max: 1000 }) }] },
       user: { userId: chance.integer({ min: 1, max: 1000 }) },
     };
 
@@ -49,6 +49,23 @@ describe('rounds.addPlayer.controller', () => {
     expect(mockRes.json).toHaveBeenCalledWith({
       success: false,
       message: 'Round ID is required',
+    });
+    expect(mockNext).not.toHaveBeenCalled();
+  });
+
+  test('should return 400 if players array is missing', async () => {
+    mockReq = {
+      params: { id: chance.guid() },
+      body: {}, // No players array
+      user: { userId: chance.integer({ min: 1, max: 1000 }) },
+    };
+
+    await addPlayerController(mockReq, mockRes, mockNext);
+
+    expect(mockRes.status).toHaveBeenCalledWith(400);
+    expect(mockRes.json).toHaveBeenCalledWith({
+      success: false,
+      message: 'Players array is required and must contain at least one player',
     });
     expect(mockNext).not.toHaveBeenCalled();
   });
@@ -65,11 +82,11 @@ describe('rounds.addPlayer.controller', () => {
       joined_at: new Date(),
     };
 
-    addPlayerToRound.mockResolvedValue(insertedPlayer);
+    addPlayerToRound.mockResolvedValue([insertedPlayer]);
 
     mockReq = {
       params: { id: roundId },
-      body: { userId },
+      body: { players: [{ userId }] },
       user: { userId: requestingUserId },
     };
 
@@ -77,11 +94,11 @@ describe('rounds.addPlayer.controller', () => {
 
     expect(addPlayerToRound).toHaveBeenCalledWith(
       roundId,
-      { userId },
+      [{ userId }],
       requestingUserId,
     );
     expect(mockRes.status).toHaveBeenCalledWith(201);
-    expect(mockRes.json).toHaveBeenCalledWith(insertedPlayer);
+    expect(mockRes.json).toHaveBeenCalledWith([insertedPlayer]);
     expect(mockNext).not.toHaveBeenCalled();
   });
 
@@ -98,11 +115,11 @@ describe('rounds.addPlayer.controller', () => {
       joined_at: new Date(),
     };
 
-    addPlayerToRound.mockResolvedValue(insertedPlayer);
+    addPlayerToRound.mockResolvedValue([insertedPlayer]);
 
     mockReq = {
       params: { id: roundId },
-      body: { guestName },
+      body: { players: [{ guestName }] },
       user: { userId: requestingUserId },
     };
 
@@ -110,11 +127,11 @@ describe('rounds.addPlayer.controller', () => {
 
     expect(addPlayerToRound).toHaveBeenCalledWith(
       roundId,
-      { guestName },
+      [{ guestName }],
       requestingUserId,
     );
     expect(mockRes.status).toHaveBeenCalledWith(201);
-    expect(mockRes.json).toHaveBeenCalledWith(insertedPlayer);
+    expect(mockRes.json).toHaveBeenCalledWith([insertedPlayer]);
     expect(mockNext).not.toHaveBeenCalled();
   });
 
@@ -128,7 +145,7 @@ describe('rounds.addPlayer.controller', () => {
 
     mockReq = {
       params: { id: roundId },
-      body: { userId },
+      body: { players: [{ userId }] },
       user: { userId: requestingUserId },
     };
 
@@ -136,7 +153,7 @@ describe('rounds.addPlayer.controller', () => {
 
     expect(addPlayerToRound).toHaveBeenCalledWith(
       roundId,
-      { userId },
+      [{ userId }],
       requestingUserId,
     );
     expect(mockRes.status).not.toHaveBeenCalled();

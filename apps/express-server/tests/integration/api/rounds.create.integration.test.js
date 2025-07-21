@@ -123,6 +123,40 @@ describe('POST /api/rounds - Integration', () => {
     createdRoundIds.push(res.body.id);
   });
 
+  test('should automatically add creator as player when round is created', async () => {
+    const courseId = createdCourseIds[0];
+    const roundData = {
+      courseId,
+      name: chance.sentence({ words: 3 }),
+      startingHole: chance.integer({ min: 1, max: 9 }),
+      isPrivate: false,
+      skinsEnabled: false,
+    };
+
+    const res = await request(app)
+      .post('/api/rounds')
+      .set('Authorization', `Bearer ${token}`)
+      .send(roundData)
+      .expect(201);
+
+    const roundId = res.body.id;
+    createdRoundIds.push(roundId);
+
+    // Verify the creator was automatically added as a player
+    const playerCheckResult = await query(
+      'SELECT * FROM round_players WHERE round_id = $1 AND user_id = $2',
+      [roundId, user.id],
+    );
+
+    expect(playerCheckResult.rows).toHaveLength(1);
+    const player = playerCheckResult.rows[0];
+    expect(player.round_id).toBe(roundId);
+    expect(player.user_id).toBe(user.id);
+    expect(player.is_guest).toBe(false);
+    expect(player.guest_name).toBeNull();
+    expect(player.joined_at).toBeDefined();
+  });
+
   test('should return 400 when courseId is missing', async () => {
     const roundData = {
       // courseId missing

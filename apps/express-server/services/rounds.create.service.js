@@ -1,4 +1,4 @@
-import { queryOne } from '../lib/database.js';
+import pool, { queryOne } from '../lib/database.js';
 
 const roundsCreateService = async (roundData, userId) => {
   const {
@@ -44,23 +44,45 @@ const roundsCreateService = async (roundData, userId) => {
     throw error;
   }
 
-  // Insert round into database
-  const result = await queryOne(
-    `INSERT INTO rounds (created_by_id, course_id, name, starting_hole, is_private, skins_enabled, skins_value, status) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-    [
-      userId,
-      courseId,
-      name,
-      startingHole,
-      isPrivate,
-      skinsEnabled,
-      skinsValue,
-      'in_progress',
-    ],
-  );
+  // Use transaction to create round and add creator as player
+  const client = await pool.connect();
 
-  return result;
+  try {
+    await client.query('BEGIN');
+
+    // Insert round into database
+    const roundResult = await client.query(
+      `INSERT INTO rounds (created_by_id, course_id, name, starting_hole, is_private, skins_enabled, skins_value, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        userId,
+        courseId,
+        name,
+        startingHole,
+        isPrivate,
+        skinsEnabled,
+        skinsValue,
+        'in_progress',
+      ],
+    );
+
+    const round = roundResult.rows[0];
+
+    // Automatically add the creator as a player in the round
+    await client.query(
+      `INSERT INTO round_players (round_id, user_id, is_guest)
+       VALUES ($1, $2, false)`,
+      [round.id, userId],
+    );
+
+    await client.query('COMMIT');
+    return round;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 export default roundsCreateService;

@@ -1,254 +1,285 @@
 import {
-  describe, it, expect, vi,
+  describe, test, expect, beforeEach, vi,
 } from 'vitest';
 import Chance from 'chance';
 import { addPlayerToRound } from '../../../services/rounds.addPlayer.service.js';
 
+// Mock the pool module
+const mockClient = {
+  query: vi.fn(),
+  release: vi.fn(),
+};
+
+vi.mock('../../../lib/database.js', () => ({
+  default: {
+    connect: vi.fn(() => Promise.resolve(mockClient)),
+  },
+}));
+
 const chance = new Chance();
 
-describe('rounds.addPlayer.service', () => {
-  describe('addPlayerToRound', () => {
-    it('should export a function', () => {
-      expect(typeof addPlayerToRound).toBe('function');
-    });
+describe('addPlayerToRound', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    it('should accept roundId, playerData, requestingUserId, and db parameters', async () => {
-      const roundId = chance.guid();
-      const creatorId = chance.integer({ min: 1, max: 1000 });
-      const newPlayerId = chance.integer({ min: 1001, max: 2000 });
-      const playerData = { userId: newPlayerId };
-      const requestingUserId = creatorId; // User is the creator
-      const insertedId = chance.guid();
+  test('should export a function', () => {
+    expect(typeof addPlayerToRound).toBe('function');
+  });
 
-      const db = {
-        query: vi.fn()
-          .mockResolvedValueOnce({
-            rows: [{ id: roundId, created_by_id: creatorId }],
-          }) // Round exists, user is creator
-          .mockResolvedValueOnce({ rows: [] }) // Player is not a duplicate
-          .mockResolvedValueOnce({
-            rows: [{
-              id: insertedId,
-              round_id: roundId,
-              user_id: newPlayerId,
-              is_guest: false,
-            }],
-          }), // INSERT result
-      };
+  test('should throw ValidationError when roundId is missing', async () => {
+    const players = [{ userId: chance.integer({ min: 1 }) }];
+    const requestingUserId = chance.integer({ min: 1 });
 
-      const result = await addPlayerToRound(roundId, playerData, requestingUserId, db);
-      expect(result).toBeDefined();
-      expect(result.id).toBe(insertedId);
-    });
+    await expect(addPlayerToRound(null, players, requestingUserId))
+      .rejects
+      .toThrow('Round ID is required');
+  });
 
-    it('should throw ValidationError if roundId is missing', async () => {
-      const playerData = { userId: chance.integer({ min: 1, max: 1000 }) };
-      const requestingUserId = chance.integer({ min: 1, max: 1000 });
-      const db = { query: vi.fn() };
+  test('should throw ValidationError when players array is missing', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const requestingUserId = chance.integer({ min: 1 });
 
-      await expect(addPlayerToRound(null, playerData, requestingUserId, db))
-        .rejects.toThrow('Round ID is required');
-    });
+    await expect(addPlayerToRound(roundId, null, requestingUserId))
+      .rejects
+      .toThrow('Players array is required and must contain at least one player');
+  });
 
-    it('should throw ValidationError if playerData is missing', async () => {
-      const roundId = chance.guid();
-      const requestingUserId = chance.integer({ min: 1, max: 1000 });
-      const db = { query: vi.fn() };
+  test('should throw ValidationError when players array is empty', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const requestingUserId = chance.integer({ min: 1 });
 
-      await expect(addPlayerToRound(roundId, null, requestingUserId, db))
-        .rejects.toThrow('Player data is required');
-    });
+    await expect(addPlayerToRound(roundId, [], requestingUserId))
+      .rejects
+      .toThrow('Players array is required and must contain at least one player');
+  });
 
-    it('should throw ValidationError if requestingUserId is missing', async () => {
-      const roundId = chance.guid();
-      const playerData = { userId: chance.integer({ min: 1, max: 1000 }) };
-      const db = { query: vi.fn() };
+  test('should throw ValidationError when requestingUserId is missing', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const players = [{ userId: chance.integer({ min: 1 }) }];
 
-      await expect(addPlayerToRound(roundId, playerData, null, db))
-        .rejects.toThrow('Requesting user ID is required');
-    });
+    await expect(addPlayerToRound(roundId, players, null))
+      .rejects
+      .toThrow('Requesting user ID is required');
+  });
 
-    it('should throw ValidationError if playerData has neither userId nor guestName', async () => {
-      const roundId = chance.guid();
-      const playerData = {};
-      const requestingUserId = chance.integer({ min: 1, max: 1000 });
-      const db = { query: vi.fn() };
+  test('should throw ValidationError when player has neither userId nor guestName', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const players = [{}]; // Empty player object
+    const requestingUserId = chance.integer({ min: 1 });
 
-      await expect(addPlayerToRound(roundId, playerData, requestingUserId, db))
-        .rejects.toThrow('Player data must include either userId or guestName');
-    });
+    await expect(addPlayerToRound(roundId, players, requestingUserId))
+      .rejects
+      .toThrow('Player at index 0 must include either userId or guestName');
+  });
 
-    it('should throw ValidationError if playerData has both userId and guestName', async () => {
-      const roundId = chance.guid();
-      const playerData = {
-        userId: chance.integer({ min: 1, max: 1000 }),
-        guestName: chance.name(),
-      };
-      const requestingUserId = chance.integer({ min: 1, max: 1000 });
-      const db = { query: vi.fn() };
+  test('should throw ValidationError when player has both userId and guestName', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const players = [{
+      userId: chance.integer({ min: 1 }),
+      guestName: chance.name(),
+    }];
+    const requestingUserId = chance.integer({ min: 1 });
 
-      await expect(addPlayerToRound(roundId, playerData, requestingUserId, db))
-        .rejects.toThrow('Player data cannot have both userId and guestName');
-    });
+    await expect(addPlayerToRound(roundId, players, requestingUserId))
+      .rejects
+      .toThrow('Player at index 0 cannot have both userId and guestName');
+  });
 
-    it('should throw NotFoundError if round does not exist', async () => {
-      const roundId = chance.guid();
-      const playerData = { userId: chance.integer({ min: 1, max: 1000 }) };
-      const requestingUserId = chance.integer({ min: 1, max: 1000 });
-      const db = {
-        query: vi.fn().mockResolvedValue({ rows: [] }),
-      };
+  test('should throw NotFoundError when round does not exist', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const players = [{ userId: chance.integer({ min: 1 }) }];
+    const requestingUserId = chance.integer({ min: 1 });
 
-      await expect(addPlayerToRound(roundId, playerData, requestingUserId, db))
-        .rejects.toThrow('Round not found');
-    });
+    // Mock transaction and round lookup returning empty result
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }); // Round lookup - empty result
 
-    it('should throw AuthorizationError if user is not creator or player', async () => {
-      const roundId = chance.guid();
-      const creatorId = chance.integer({ min: 1, max: 1000 });
-      const requestingUserId = chance.integer({ min: 1001, max: 2000 }); // Different from creator
-      const playerData = { userId: chance.integer({ min: 2001, max: 3000 }) };
+    await expect(addPlayerToRound(roundId, players, requestingUserId))
+      .rejects
+      .toThrow('Round not found');
 
-      const db = {
-        query: vi.fn()
-          // eslint-disable-next-line max-len
-          .mockResolvedValueOnce({ rows: [{ id: roundId, created_by_id: creatorId }] }) // Round exists
-          .mockResolvedValueOnce({ rows: [] }), // User is not a player
-      };
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
 
-      await expect(addPlayerToRound(roundId, playerData, requestingUserId, db))
-        .rejects.toThrow('You must be the round creator or a player to add new players');
-    });
+  test('should throw AuthorizationError when user is not creator or existing player', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const roundCreatorId = chance.integer({ min: 1 });
+    const requestingUserId = chance.integer({ min: 1 });
+    const players = [{ userId: chance.integer({ min: 1 }) }];
 
-    it('should pass permission check if user is the round creator', async () => {
-      const roundId = chance.guid();
-      const creatorId = chance.integer({ min: 1, max: 1000 });
-      const requestingUserId = creatorId; // Same as creator
-      const newPlayerId = chance.integer({ min: 2001, max: 3000 });
-      const playerData = { userId: newPlayerId };
-      const insertedId = chance.guid();
+    // Mock transaction and queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: roundId, created_by_id: roundCreatorId }],
+      }) // Round lookup
+      .mockResolvedValueOnce({ rows: [] }); // Player check - user not found
 
-      const db = {
-        query: vi.fn()
-          .mockResolvedValueOnce({
-            rows: [{ id: roundId, created_by_id: creatorId }],
-          }) // Round exists
-          .mockResolvedValueOnce({ rows: [] }) // Player is not a duplicate
-          .mockResolvedValueOnce({
-            rows: [{
-              id: insertedId,
-              round_id: roundId,
-              user_id: newPlayerId,
-              is_guest: false,
-            }],
-          }), // INSERT result
-      };
+    await expect(addPlayerToRound(roundId, players, requestingUserId))
+      .rejects
+      .toThrow('You must be the round creator or a player to add new players');
 
-      const result = await addPlayerToRound(roundId, playerData, requestingUserId, db);
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
 
-      // Verify it returns the inserted player
-      expect(result).toHaveProperty('id');
-      expect(result.round_id).toBe(roundId);
-      expect(result.user_id).toBe(newPlayerId);
-    });
+  test('should throw ConflictError when user is already in the round', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const requestingUserId = chance.integer({ min: 1 });
+    const existingUserId = chance.integer({ min: 1 });
+    const players = [{ userId: existingUserId }];
 
-    it('should throw ConflictError if trying to add a user who is already a player', async () => {
-      const roundId = chance.guid();
-      const creatorId = chance.integer({ min: 1, max: 1000 });
-      const requestingUserId = creatorId;
-      const existingPlayerId = chance.integer({ min: 2001, max: 3000 });
-      const playerData = { userId: existingPlayerId };
+    // Mock transaction and queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: roundId, created_by_id: requestingUserId }],
+      }) // Round lookup - user is creator
+      .mockResolvedValueOnce({ rows: [{ user_id: existingUserId }] }); // Existing players
 
-      const db = {
-        query: vi.fn()
-          .mockResolvedValueOnce({
-            rows: [{ id: roundId, created_by_id: creatorId }],
-          }) // Round exists
-          .mockResolvedValueOnce({
-            rows: [{ id: chance.guid() }], // Player already exists
-          }),
-      };
+    await expect(addPlayerToRound(roundId, players, requestingUserId))
+      .rejects
+      .toThrow(`User ${existingUserId} is already a player in this round`);
 
-      await expect(addPlayerToRound(roundId, playerData, requestingUserId, db))
-        .rejects.toThrow('User is already a player in this round');
-    });
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
 
-    it('should successfully add a user player to the round', async () => {
-      const roundId = chance.guid();
-      const creatorId = chance.integer({ min: 1, max: 1000 });
-      const requestingUserId = creatorId;
-      const newPlayerId = chance.integer({ min: 2001, max: 3000 });
-      const playerData = { userId: newPlayerId };
-      const insertedId = chance.guid();
+  test('should throw ValidationError when duplicate userId in batch', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const requestingUserId = chance.integer({ min: 1 });
+    const duplicateUserId = chance.integer({ min: 1 });
+    const players = [
+      { userId: duplicateUserId },
+      { userId: duplicateUserId },
+    ];
 
-      const db = {
-        query: vi.fn()
-          .mockResolvedValueOnce({
-            rows: [{ id: roundId, created_by_id: creatorId }],
-          }) // Round exists
-          .mockResolvedValueOnce({ rows: [] }) // Player is not a duplicate
-          .mockResolvedValueOnce({
-            rows: [{
-              id: insertedId,
-              round_id: roundId,
-              user_id: newPlayerId,
-              is_guest: false,
-            }],
-          }), // INSERT result
-      };
+    // Mock transaction and queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: roundId, created_by_id: requestingUserId }],
+      }) // Round lookup
+      .mockResolvedValueOnce({ rows: [] }); // Existing players
 
-      const result = await addPlayerToRound(roundId, playerData, requestingUserId, db);
+    await expect(addPlayerToRound(roundId, players, requestingUserId))
+      .rejects
+      .toThrow(`Duplicate userId ${duplicateUserId} found in players array`);
 
-      expect(result).toEqual({
-        id: insertedId,
-        round_id: roundId,
-        user_id: newPlayerId,
-        is_guest: false,
-      });
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
 
-      // Verify the INSERT query was called with correct params
-      expect(db.query).toHaveBeenCalledTimes(3);
-      expect(db.query.mock.calls[2][0]).toContain('INSERT INTO round_players');
-    });
+  test('should successfully add multiple players (users and guests)', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const requestingUserId = chance.integer({ min: 1 });
+    const userId1 = chance.integer({ min: 1 });
+    const userId2 = chance.integer({ min: 1 });
+    const guestName1 = chance.name();
+    const guestName2 = chance.name();
 
-    it('should successfully add a guest player to the round', async () => {
-      const roundId = chance.guid();
-      const creatorId = chance.integer({ min: 1, max: 1000 });
-      const requestingUserId = creatorId;
-      const guestName = chance.name();
-      const playerData = { guestName };
-      const insertedId = chance.guid();
+    const players = [
+      { userId: userId1 },
+      { guestName: guestName1 },
+      { userId: userId2 },
+      { guestName: guestName2 },
+    ];
 
-      const db = {
-        query: vi.fn()
-          .mockResolvedValueOnce({
-            rows: [{ id: roundId, created_by_id: creatorId }],
-          }) // Round exists
-          .mockResolvedValueOnce({
-            rows: [{
-              id: insertedId,
-              round_id: roundId,
-              user_id: null,
-              guest_name: guestName,
-              is_guest: true,
-            }],
-          }), // INSERT result (no duplicate check for guests)
-      };
+    const expectedPlayers = [
+      {
+        id: chance.guid(), round_id: roundId, user_id: userId1, guest_name: null, is_guest: false,
+      },
+      {
+        id: chance.guid(), round_id: roundId, user_id: null, guest_name: guestName1, is_guest: true,
+      },
+      {
+        id: chance.guid(), round_id: roundId, user_id: userId2, guest_name: null, is_guest: false,
+      },
+      {
+        id: chance.guid(), round_id: roundId, user_id: null, guest_name: guestName2, is_guest: true,
+      },
+    ];
 
-      const result = await addPlayerToRound(roundId, playerData, requestingUserId, db);
+    // Mock transaction and all queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: roundId, created_by_id: requestingUserId }],
+      }) // Round lookup
+      .mockResolvedValueOnce({ rows: [] }) // Existing players
+      .mockResolvedValueOnce({ rows: [expectedPlayers[0]] }) // Insert user 1
+      .mockResolvedValueOnce({ rows: [expectedPlayers[1]] }) // Insert guest 1
+      .mockResolvedValueOnce({ rows: [expectedPlayers[2]] }) // Insert user 2
+      .mockResolvedValueOnce({ rows: [expectedPlayers[3]] }) // Insert guest 2
+      .mockResolvedValueOnce(undefined); // COMMIT
 
-      expect(result).toEqual({
-        id: insertedId,
-        round_id: roundId,
-        user_id: null,
-        guest_name: guestName,
-        is_guest: true,
-      });
+    const result = await addPlayerToRound(roundId, players, requestingUserId);
 
-      // Verify only 2 queries for guest (no duplicate check)
-      expect(db.query).toHaveBeenCalledTimes(2);
-      expect(db.query.mock.calls[1][0]).toContain('INSERT INTO round_players');
-      expect(db.query.mock.calls[1][0]).toContain('guest_name');
-    });
+    expect(result).toEqual(expectedPlayers);
+    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+    expect(mockClient.query).toHaveBeenCalledTimes(8);
+    // BEGIN + round lookup + existing players + 4 inserts + COMMIT
+  });
+
+  test('should allow existing player to add new players', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const roundCreatorId = chance.integer({ min: 1 });
+    const requestingUserId = chance.integer({ min: 1 });
+    const newUserId = chance.integer({ min: 1 });
+    const players = [{ userId: newUserId }];
+
+    const expectedPlayer = {
+      id: chance.guid(),
+      round_id: roundId,
+      user_id: newUserId,
+      guest_name: null,
+      is_guest: false,
+    };
+
+    // Mock transaction and queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: roundId, created_by_id: roundCreatorId }],
+      }) // Round lookup - different creator
+      .mockResolvedValueOnce({ rows: [{ id: 'player1' }] }) // Player check
+      .mockResolvedValueOnce({ rows: [] }) // Existing players
+      .mockResolvedValueOnce({ rows: [expectedPlayer] }) // Insert new user
+      .mockResolvedValueOnce(undefined); // COMMIT
+
+    const result = await addPlayerToRound(roundId, players, requestingUserId);
+
+    expect(result).toEqual([expectedPlayer]);
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  test('should add single player when only one is provided', async () => {
+    const roundId = chance.guid({ version: 4 });
+    const requestingUserId = chance.integer({ min: 1 });
+    const newUserId = chance.integer({ min: 1 });
+    const players = [{ userId: newUserId }];
+
+    const expectedPlayer = {
+      id: chance.guid(),
+      round_id: roundId,
+      user_id: newUserId,
+      guest_name: null,
+      is_guest: false,
+    };
+
+    // Mock transaction and queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: roundId, created_by_id: requestingUserId }],
+      }) // Round lookup - user is creator
+      .mockResolvedValueOnce({ rows: [] }) // Existing players
+      .mockResolvedValueOnce({ rows: [expectedPlayer] }) // Insert user
+      .mockResolvedValueOnce(undefined); // COMMIT
+
+    const result = await addPlayerToRound(roundId, players, requestingUserId);
+
+    expect(result).toEqual([expectedPlayer]);
+    expect(result).toHaveLength(1);
   });
 });

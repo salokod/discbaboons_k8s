@@ -2,7 +2,7 @@ import { addPlayerToRound } from '../services/rounds.addPlayer.service.js';
 
 const addPlayerController = async (req, res, next) => {
   const { id: roundId } = req.params;
-  const { userId, guestName } = req.body;
+  const { players } = req.body;
   const requestingUserId = req.user.userId;
 
   if (!roundId) {
@@ -12,9 +12,15 @@ const addPlayerController = async (req, res, next) => {
     });
   }
 
+  if (!players || !Array.isArray(players) || players.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Players array is required and must contain at least one player',
+    });
+  }
+
   try {
-    const playerData = userId ? { userId } : { guestName };
-    const result = await addPlayerToRound(roundId, playerData, requestingUserId);
+    const result = await addPlayerToRound(roundId, players, requestingUserId);
 
     return res.status(201).json(result);
   } catch (error) {

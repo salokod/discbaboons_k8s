@@ -224,7 +224,7 @@ describe('rounds routes', () => {
     app.use('/api/rounds', roundsRouter);
 
     const roundId = chance.guid();
-    
+
     // Test with userId
     const userPlayerData = {
       userId: chance.integer({ min: 1, max: 1000 }),

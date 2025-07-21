@@ -1,16 +1,30 @@
 import {
-  describe, test, expect, beforeEach,
+  describe, test, expect, beforeEach, vi,
 } from 'vitest';
 import Chance from 'chance';
-import mockDatabase from '../setup.js';
 import roundsCreateService from '../../../services/rounds.create.service.js';
+
+// Import the mocked queryOne
+import { queryOne } from '../../../lib/database.js';
+
+// Mock the pool module
+const mockClient = {
+  query: vi.fn(),
+  release: vi.fn(),
+};
+
+vi.mock('../../../lib/database.js', () => ({
+  default: {
+    connect: vi.fn(() => Promise.resolve(mockClient)),
+  },
+  queryOne: vi.fn(),
+}));
 
 const chance = new Chance();
 
 describe('roundsCreateService', () => {
   beforeEach(() => {
-    mockDatabase.queryOne.mockClear();
-    mockDatabase.queryRows.mockClear();
+    vi.clearAllMocks();
   });
 
   test('should export a function', () => {
@@ -27,17 +41,27 @@ describe('roundsCreateService', () => {
       skinsEnabled: chance.bool(),
     };
     const userId = chance.integer({ min: 1 });
+    const roundId = chance.guid({ version: 4 });
 
-    // Mock course lookup to return a valid course
-    mockDatabase.queryOne.mockResolvedValueOnce({ hole_count: courseHoleCount });
+    // Mock course lookup
+    queryOne.mockResolvedValue({ hole_count: courseHoleCount });
 
-    // Should not throw when called with correct parameters
-    await expect(roundsCreateService(roundData, userId)).resolves.toBeUndefined();
+    // Mock transaction and queries
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: roundId, created_by_id: userId }] }) // Round insert
+      .mockResolvedValueOnce(undefined) // Player insert
+      .mockResolvedValueOnce(undefined); // COMMIT
 
-    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+    const result = await roundsCreateService(roundData, userId);
+
+    expect(result).toEqual({ id: roundId, created_by_id: userId });
+    expect(queryOne).toHaveBeenCalledWith(
       'SELECT hole_count FROM courses WHERE id = $1',
       [roundData.courseId],
     );
+    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
   test('should throw ValidationError when starting hole exceeds course hole count', async () => {
@@ -55,7 +79,7 @@ describe('roundsCreateService', () => {
     const userId = chance.integer({ min: 1 });
 
     // Mock course lookup to return a course with limited holes
-    mockDatabase.queryOne.mockResolvedValueOnce({ hole_count: courseHoleCount });
+    queryOne.mockResolvedValue({ hole_count: courseHoleCount });
 
     await expect(roundsCreateService(roundData, userId))
       .rejects
@@ -73,7 +97,7 @@ describe('roundsCreateService', () => {
     const userId = chance.integer({ min: 1 });
 
     // Mock course lookup to return null (course not found)
-    mockDatabase.queryOne.mockResolvedValueOnce(null);
+    queryOne.mockResolvedValue(null);
 
     await expect(roundsCreateService(roundData, userId))
       .rejects
@@ -149,24 +173,70 @@ describe('roundsCreateService', () => {
       status: 'in_progress',
     };
 
-    // Mock course lookup to return a valid course
-    mockDatabase.queryOne.mockResolvedValueOnce({ hole_count: courseHoleCount });
-    // Mock round creation to return the created round
-    mockDatabase.queryOne.mockResolvedValueOnce(expectedRound);
+    // Mock course lookup
+    queryOne.mockResolvedValue({ hole_count: courseHoleCount });
+
+    // Mock transaction and database operations
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [expectedRound] }) // Round insert
+      .mockResolvedValueOnce(undefined) // Player insert
+      .mockResolvedValueOnce(undefined); // COMMIT
 
     const result = await roundsCreateService(roundData, userId);
 
     expect(result).toEqual(expectedRound);
-    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
-    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
-      1,
+    expect(queryOne).toHaveBeenCalledWith(
       'SELECT hole_count FROM courses WHERE id = $1',
       [roundData.courseId],
     );
-    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
-      2,
+    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockClient.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO rounds'),
       expect.arrayContaining([userId, roundData.courseId, roundData.name]),
+    );
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  test('should automatically add creator as player in the round', async () => {
+    const courseHoleCount = chance.integer({ min: 9, max: 27 });
+    const roundData = {
+      courseId: chance.word(),
+      name: chance.sentence({ words: 3 }),
+      startingHole: chance.integer({ min: 1, max: courseHoleCount }),
+      isPrivate: chance.bool(),
+      skinsEnabled: chance.bool(),
+    };
+    const userId = chance.integer({ min: 1 });
+    const roundId = chance.guid({ version: 4 });
+
+    const expectedRound = {
+      id: roundId,
+      created_by_id: userId,
+      course_id: roundData.courseId,
+      name: roundData.name,
+      starting_hole: roundData.startingHole,
+      is_private: roundData.isPrivate,
+      skins_enabled: roundData.skinsEnabled,
+      status: 'in_progress',
+    };
+
+    // Mock course lookup using queryOne (happens before transaction)
+    queryOne.mockResolvedValue({ hole_count: courseHoleCount });
+
+    // Mock transaction and database operations
+    mockClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [expectedRound] }) // Round insert
+      .mockResolvedValueOnce(undefined) // Player insert
+      .mockResolvedValueOnce(undefined); // COMMIT
+
+    await roundsCreateService(roundData, userId);
+
+    // Verify the creator was added as a player
+    expect(mockClient.query).toHaveBeenCalledWith(
+      'INSERT INTO round_players (round_id, user_id, is_guest)\n       VALUES ($1, $2, false)',
+      [roundId, userId],
     );
   });
 });
