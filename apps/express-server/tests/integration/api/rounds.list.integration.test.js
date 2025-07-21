@@ -6,6 +6,9 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createUniqueUserData, createUniqueCourseData,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
@@ -18,20 +21,14 @@ describe('GET /api/rounds - Integration', () => {
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `trlr${testId}`, // trlr = "test round list"
-      email: `trlr${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
+    // Register test user with globally unique identifiers
+    const userData = createUniqueUserData('tl'); // tl = "test list"
+    testId = userData.ids.fullId;
+
     await request(app).post('/api/auth/register').send(userData).expect(201);
     const login = await request(app).post('/api/auth/login').send({
       username: userData.username,
@@ -41,14 +38,8 @@ describe('GET /api/rounds - Integration', () => {
     user = login.body.user;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds
-    const courseData = {
-      name: `Test Course ${testId}`,
-      city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
-      country: 'US',
-      holeCount: chance.integer({ min: 9, max: 27 }),
-    };
+    // Create a test course with globally unique identifiers
+    const courseData = createUniqueCourseData('trlr'); // TRLR = Test Round List Rounds
     const courseRes = await request(app)
       .post('/api/courses')
       .set('Authorization', `Bearer ${token}`)
@@ -99,14 +90,14 @@ describe('GET /api/rounds - Integration', () => {
     // Create some test rounds
     const roundData1 = {
       courseId: createdCourseIds[0],
-      name: `Test Round 1 ${testId}`,
+      name: `Test Round 1 ${testId}${Date.now()}`,
       isPrivate: false,
       skinsEnabled: true,
       skinsValue: chance.floating({ min: 1, max: 10, fixed: 2 }),
     };
     const roundData2 = {
       courseId: createdCourseIds[0],
-      name: `Test Round 2 ${testId}`,
+      name: `Test Round 2 ${testId}${Date.now()}`,
       isPrivate: true,
       skinsEnabled: false,
     };
@@ -155,8 +146,8 @@ describe('GET /api/rounds - Integration', () => {
   test('should only return rounds created by the authenticated user', async () => {
     // Create another user and their round
     const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
+      username: `ot${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
+      email: `other${testId}${Date.now()}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     await request(app).post('/api/auth/register').send(otherUserData).expect(201);
@@ -171,7 +162,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create round for other user
     const otherRoundData = {
       courseId: createdCourseIds[0],
-      name: `Other User Round ${testId}`,
+      name: `Other User Round ${testId}${Date.now()}`,
     };
     const otherRound = await request(app)
       .post('/api/rounds')
@@ -183,7 +174,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create round for main user
     const myRoundData = {
       courseId: createdCourseIds[0],
-      name: `My Round ${testId}`,
+      name: `My Round ${testId}${Date.now()}`,
     };
     const myRound = await request(app)
       .post('/api/rounds')
@@ -204,6 +195,7 @@ describe('GET /api/rounds - Integration', () => {
       id: myRound.body.id,
       name: myRoundData.name,
       created_by_id: user.id,
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -211,7 +203,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create rounds with different statuses
     const inProgressRound = {
       courseId: createdCourseIds[0],
-      name: `In Progress Round ${testId}`,
+      name: `In Progress Round ${testId}${Date.now()}`,
     };
     const round1 = await request(app)
       .post('/api/rounds')
@@ -228,7 +220,7 @@ describe('GET /api/rounds - Integration', () => {
 
     const anotherRound = {
       courseId: createdCourseIds[0],
-      name: `Another Round ${testId}`,
+      name: `Another Round ${testId}${Date.now()}`,
     };
     const round2 = await request(app)
       .post('/api/rounds')
@@ -247,6 +239,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(completedRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       status: 'completed',
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Filter by in_progress status
@@ -259,6 +252,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(inProgressRes.body.rounds[0]).toMatchObject({
       id: round2.body.id,
       status: 'in_progress',
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -266,12 +260,12 @@ describe('GET /api/rounds - Integration', () => {
     // Create public and private rounds
     const publicRound = {
       courseId: createdCourseIds[0],
-      name: `Public Round ${testId}`,
+      name: `Public Round ${testId}${Date.now()}`,
       isPrivate: false,
     };
     const privateRound = {
       courseId: createdCourseIds[0],
-      name: `Private Round ${testId}`,
+      name: `Private Round ${testId}${Date.now()}`,
       isPrivate: true,
     };
 
@@ -299,6 +293,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(privateRes.body.rounds[0]).toMatchObject({
       id: round2.body.id,
       is_private: true,
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Filter by public rounds
@@ -311,6 +306,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(publicRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       is_private: false,
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -321,7 +317,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Morning Round ${testId}`,
+        name: `Morning Round ${testId}${Date.now()}`,
       })
       .expect(201);
     createdRoundIds.push(round1.body.id);
@@ -346,6 +342,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(searchRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       name: expect.stringContaining('Morning'),
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -356,7 +353,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Round ${i + 1} ${testId}`,
+        name: `Round ${i + 1} ${testId}${Date.now()}`,
       })
       .expect(201));
 
@@ -438,7 +435,7 @@ describe('GET /api/rounds - Integration', () => {
     // Create a round to test with
     const roundData = {
       courseId: createdCourseIds[0],
-      name: `Test Round ${testId}`,
+      name: `Test Round ${testId}${Date.now()}`,
       isPrivate: true,
       skinsEnabled: false,
     };
@@ -459,6 +456,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(privateTrueRes.body.rounds[0]).toMatchObject({
       id: round.body.id,
       is_private: true,
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Test string "false" for skins_enabled
@@ -471,6 +469,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(skinsFalseRes.body.rounds[0]).toMatchObject({
       id: round.body.id,
       skins_enabled: false,
+      player_count: 1, // Creator is auto-added as player
     });
   });
 
@@ -481,7 +480,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Round 1 ${testId}`,
+        name: `Round 1 ${testId}${Date.now()}`,
       })
       .expect(201);
     createdRoundIds.push(round1.body.id);
@@ -491,7 +490,7 @@ describe('GET /api/rounds - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         courseId: createdCourseIds[0],
-        name: `Round 2 ${testId}`,
+        name: `Round 2 ${testId}${Date.now()}`,
       })
       .expect(201);
     createdRoundIds.push(round2.body.id);
@@ -511,6 +510,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(completedRes.body.rounds[0]).toMatchObject({
       id: round1.body.id,
       status: 'completed',
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Test in_progress status
@@ -525,6 +525,7 @@ describe('GET /api/rounds - Integration', () => {
     expect(inProgressRes.body.rounds[0]).toMatchObject({
       id: round2.body.id,
       status: 'in_progress',
+      player_count: 1, // Creator is auto-added as player
     });
 
     // Test cancelled status

@@ -26,6 +26,7 @@ describe('roundsListService', () => {
         course_id: chance.word(),
         status: 'in_progress',
         created_at: new Date().toISOString(),
+        player_count: '2', // Database returns strings
       },
       {
         id: chance.guid({ version: 4 }),
@@ -33,6 +34,7 @@ describe('roundsListService', () => {
         course_id: chance.word(),
         status: 'completed',
         created_at: new Date().toISOString(),
+        player_count: '1', // Database returns strings
       },
     ];
 
@@ -50,7 +52,24 @@ describe('roundsListService', () => {
       [userId, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: [
+        {
+          id: mockRounds[0].id,
+          name: mockRounds[0].name,
+          course_id: mockRounds[0].course_id,
+          status: mockRounds[0].status,
+          created_at: mockRounds[0].created_at,
+          player_count: 2, // Should be converted to integer
+        },
+        {
+          id: mockRounds[1].id,
+          name: mockRounds[1].name,
+          course_id: mockRounds[1].course_id,
+          status: mockRounds[1].status,
+          created_at: mockRounds[1].created_at,
+          player_count: 1, // Should be converted to integer
+        },
+      ],
       total: 2,
       limit: 50,
       offset: 0,
@@ -80,6 +99,7 @@ describe('roundsListService', () => {
         course_id: chance.word(),
         status: 'in_progress',
         created_at: new Date().toISOString(),
+        player_count: '1',
       },
     ];
 
@@ -93,7 +113,10 @@ describe('roundsListService', () => {
       [userId, status, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: 1,
       limit: 50,
       offset: 0,
@@ -110,6 +133,7 @@ describe('roundsListService', () => {
         course_id: chance.word(),
         status: 'completed',
         created_at: new Date().toISOString(),
+        player_count: '1',
       },
     ];
 
@@ -119,11 +143,14 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, {});
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 ORDER BY'),
+      expect.stringContaining('WHERE created_by_id = $1'),
       [userId, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: 1,
       limit: 50,
       offset: 0,
@@ -140,6 +167,7 @@ describe('roundsListService', () => {
         name: chance.sentence({ words: 3 }),
         is_private: isPrivate,
         status: chance.pickone(['in_progress', 'completed', 'cancelled']),
+        player_count: '1',
       },
     ];
 
@@ -153,7 +181,10 @@ describe('roundsListService', () => {
       [userId, isPrivate, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: 1,
       limit: 50,
       offset: 0,
@@ -172,6 +203,7 @@ describe('roundsListService', () => {
         skins_value: skinsEnabled
           ? chance.floating({ min: 1, max: 50, fixed: 2 }).toString()
           : null,
+        player_count: '1',
       },
     ];
 
@@ -185,7 +217,9 @@ describe('roundsListService', () => {
       [userId, skinsEnabled, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => (
+        { ...round, player_count: parseInt(round.player_count, 10) }
+      )),
       total: 1,
       limit: 50,
       offset: 0,
@@ -202,6 +236,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: fullRoundName,
         status: chance.pickone(['in_progress', 'completed', 'cancelled']),
+        player_count: '1',
       },
     ];
 
@@ -215,7 +250,10 @@ describe('roundsListService', () => {
       [userId, `%${nameSearch}%`, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: 1,
       limit: 50,
       offset: 0,
@@ -233,6 +271,7 @@ describe('roundsListService', () => {
       name: chance.sentence({ words: 3 }),
       status: chance.pickone(['in_progress', 'completed', 'cancelled']),
       created_at: chance.date().toISOString(),
+      player_count: '1',
     }));
 
     mockDatabase.queryOne.mockResolvedValueOnce({ count: totalCount.toString() });
@@ -245,7 +284,10 @@ describe('roundsListService', () => {
       [userId, limit, offset],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: totalCount,
       limit,
       offset,
@@ -271,7 +313,10 @@ describe('roundsListService', () => {
       [userId, 50, 0],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: 50,
       limit: 50,
       offset: 0,
@@ -306,7 +351,10 @@ describe('roundsListService', () => {
       [userId, limit, offset],
     );
     expect(result).toEqual({
-      rounds: mockRounds,
+      rounds: mockRounds.map((round) => ({
+        ...round,
+        player_count: parseInt(round.player_count, 10),
+      })),
       total: totalCount,
       limit,
       offset,
@@ -345,6 +393,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         is_private: true,
+        player_count: '1',
       },
     ];
 
@@ -357,7 +406,9 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
       [userId, true, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 
   test('should convert string "false" to boolean false for is_private', async () => {
@@ -367,6 +418,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         is_private: false,
+        player_count: '1',
       },
     ];
 
@@ -379,7 +431,9 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
       [userId, false, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 
   test('should convert string "true" to boolean true for skins_enabled', async () => {
@@ -389,6 +443,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         skins_enabled: true,
+        player_count: '1',
       },
     ];
 
@@ -401,7 +456,9 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
       [userId, true, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 
   test('should convert string "false" to boolean false for skins_enabled', async () => {
@@ -411,6 +468,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         skins_enabled: false,
+        player_count: '1',
       },
     ];
 
@@ -423,7 +481,9 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
       [userId, false, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 
   test('should accept valid status value: in_progress', async () => {
@@ -434,6 +494,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         status,
+        player_count: '1',
       },
     ];
 
@@ -446,7 +507,9 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
       [userId, status, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 
   test('should accept valid status value: completed', async () => {
@@ -457,6 +520,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         status,
+        player_count: '1',
       },
     ];
 
@@ -469,7 +533,9 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
       [userId, status, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 
   test('should accept valid status value: cancelled', async () => {
@@ -480,6 +546,7 @@ describe('roundsListService', () => {
         id: chance.guid({ version: 4 }),
         name: chance.sentence({ words: 3 }),
         status,
+        player_count: '1',
       },
     ];
 
@@ -492,6 +559,8 @@ describe('roundsListService', () => {
       expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
       [userId, status, 50, 0],
     );
-    expect(result.rounds).toEqual(mockRounds);
+    expect(result.rounds).toEqual(
+      mockRounds.map((round) => ({ ...round, player_count: parseInt(round.player_count, 10) })),
+    );
   });
 });

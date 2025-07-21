@@ -10,6 +10,7 @@ const chance = new Chance();
 let roundsRouter;
 let roundsCreateController;
 let roundsListController;
+let addPlayerController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -20,6 +21,10 @@ beforeAll(async () => {
 
   roundsListController = vi.fn((req, res) => {
     res.json({ message: 'list controller called' });
+  });
+
+  addPlayerController = vi.fn((req, res) => {
+    res.status(201).json({ message: 'add player controller called' });
   });
 
   // Mock the auth middleware
@@ -34,6 +39,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.list.controller.js', () => ({
     default: roundsListController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.addPlayer.controller.js', () => ({
+    default: addPlayerController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -51,6 +60,10 @@ beforeAll(async () => {
     }),
   }));
 
+  vi.doMock('../../../services/rounds.addPlayer.service.js', () => ({
+    addPlayerToRound: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -60,6 +73,7 @@ describe('rounds routes', () => {
     // Clear all mock calls before each test
     roundsCreateController.mockClear();
     roundsListController.mockClear();
+    addPlayerController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -157,5 +171,90 @@ describe('rounds routes', () => {
     const req = lastCall[0];
     expect(req.query).toEqual(queryParams);
     expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('POST /api/rounds/:id/players should require authentication and call add player controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const playerData = {
+      userId: chance.integer({ min: 1, max: 1000 }),
+    };
+
+    const response = await request(app)
+      .post(`/api/rounds/${roundId}/players`)
+      .send(playerData)
+      .expect(201);
+
+    expect(response.body).toEqual({ message: 'add player controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(addPlayerController).toHaveBeenCalled();
+  });
+
+  test('POST /api/rounds/:id/players should pass roundId in params and player data in body', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const playerData = {
+      guestName: chance.name(),
+    };
+
+    await request(app)
+      .post(`/api/rounds/${roundId}/players`)
+      .send(playerData)
+      .expect(201);
+
+    expect(addPlayerController).toHaveBeenCalled();
+    const lastCall = addPlayerController.mock.calls[
+      addPlayerController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.body).toEqual(playerData);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('POST /api/rounds/:id/players should work with both userId and guestName', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    // Test with userId
+    const userPlayerData = {
+      userId: chance.integer({ min: 1, max: 1000 }),
+    };
+
+    await request(app)
+      .post(`/api/rounds/${roundId}/players`)
+      .send(userPlayerData)
+      .expect(201);
+
+    expect(addPlayerController).toHaveBeenCalled();
+    let lastCall = addPlayerController.mock.calls[
+      addPlayerController.mock.calls.length - 1
+    ];
+    expect(lastCall[0].body).toEqual(userPlayerData);
+
+    // Test with guestName
+    const guestPlayerData = {
+      guestName: chance.name(),
+    };
+
+    await request(app)
+      .post(`/api/rounds/${roundId}/players`)
+      .send(guestPlayerData)
+      .expect(201);
+
+    expect(addPlayerController).toHaveBeenCalledTimes(2);
+    lastCall = addPlayerController.mock.calls[
+      addPlayerController.mock.calls.length - 1
+    ];
+    expect(lastCall[0].body).toEqual(guestPlayerData);
   });
 });

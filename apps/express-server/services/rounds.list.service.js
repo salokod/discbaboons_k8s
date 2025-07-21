@@ -83,15 +83,31 @@ const roundsListService = async (userId, filters = {}) => {
   params.push(limit);
   params.push(offset);
 
-  const query = `SELECT * FROM rounds WHERE ${whereConditions.join(' AND ')} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+  const query = `
+    SELECT 
+      r.*,
+      COUNT(rp.id) AS player_count
+    FROM rounds r
+    LEFT JOIN round_players rp ON r.id = rp.round_id
+    WHERE ${whereConditions.join(' AND ')}
+    GROUP BY r.id
+    ORDER BY r.created_at DESC 
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+  `;
 
   const rounds = await queryRows(query, params);
+
+  // Convert player_count from string to integer
+  const roundsWithPlayerCount = rounds.map((round) => ({
+    ...round,
+    player_count: parseInt(round.player_count, 10),
+  }));
 
   // Calculate hasMore
   const hasMore = (offset + limit) < total;
 
   return {
-    rounds,
+    rounds: roundsWithPlayerCount,
     total,
     limit,
     offset,

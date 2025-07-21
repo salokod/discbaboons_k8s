@@ -13,22 +13,26 @@ describe('POST /api/rounds - Integration', () => {
   let user;
   let token;
   let testId;
+  let timestamp;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
+    // Generate GLOBALLY unique test identifier for this test run
+    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
+    const fullTimestamp = Date.now();
+    timestamp = fullTimestamp.toString().slice(-6);
     const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    const pid = process.pid.toString().slice(-3);
+    testId = `trcr${timestamp}${pid}${random}`;
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
     // Register test user
     const userData = {
-      username: `trcr${testId}`, // trcr = "test round create"
+      username: `tc${timestamp}${pid}`, // tc = "test create" - keep under 20 chars
       email: `trcr${testId}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
@@ -43,7 +47,7 @@ describe('POST /api/rounds - Integration', () => {
 
     // Create a test course to use in rounds
     const courseData = {
-      name: `Test Course ${testId}`,
+      name: `TRCR Course ${testId}${Date.now()}`, // TRCR = Test Round CReate
       city: chance.city(),
       stateProvince: chance.state({ abbreviated: true }),
       country: 'US',
@@ -121,6 +125,40 @@ describe('POST /api/rounds - Integration', () => {
 
     // Track for cleanup
     createdRoundIds.push(res.body.id);
+  });
+
+  test('should automatically add creator as player when round is created', async () => {
+    const courseId = createdCourseIds[0];
+    const roundData = {
+      courseId,
+      name: chance.sentence({ words: 3 }),
+      startingHole: chance.integer({ min: 1, max: 9 }),
+      isPrivate: false,
+      skinsEnabled: false,
+    };
+
+    const res = await request(app)
+      .post('/api/rounds')
+      .set('Authorization', `Bearer ${token}`)
+      .send(roundData)
+      .expect(201);
+
+    const roundId = res.body.id;
+    createdRoundIds.push(roundId);
+
+    // Verify the creator was automatically added as a player
+    const playerCheckResult = await query(
+      'SELECT * FROM round_players WHERE round_id = $1 AND user_id = $2',
+      [roundId, user.id],
+    );
+
+    expect(playerCheckResult.rows).toHaveLength(1);
+    const player = playerCheckResult.rows[0];
+    expect(player.round_id).toBe(roundId);
+    expect(player.user_id).toBe(user.id);
+    expect(player.is_guest).toBe(false);
+    expect(player.guest_name).toBeNull();
+    expect(player.joined_at).toBeDefined();
   });
 
   test('should return 400 when courseId is missing', async () => {
