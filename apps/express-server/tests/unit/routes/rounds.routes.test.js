@@ -10,6 +10,7 @@ const chance = new Chance();
 let roundsRouter;
 let roundsCreateController;
 let roundsListController;
+let getRoundController;
 let addPlayerController;
 let listPlayersController;
 let removePlayerController;
@@ -23,6 +24,10 @@ beforeAll(async () => {
 
   roundsListController = vi.fn((req, res) => {
     res.json({ message: 'list controller called' });
+  });
+
+  getRoundController = vi.fn((req, res) => {
+    res.json({ message: 'get round controller called' });
   });
 
   addPlayerController = vi.fn((req, res) => {
@@ -49,6 +54,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.list.controller.js', () => ({
     default: roundsListController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.get.controller.js', () => ({
+    default: getRoundController,
   }));
 
   vi.doMock('../../../controllers/rounds.addPlayer.controller.js', () => ({
@@ -86,6 +95,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue([]),
   }));
 
+  vi.doMock('../../../services/rounds.get.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   vi.doMock('../../../services/rounds.removePlayer.service.js', () => ({
     default: vi.fn().mockResolvedValue({ success: true }),
   }));
@@ -99,6 +112,7 @@ describe('rounds routes', () => {
     // Clear all mock calls before each test
     roundsCreateController.mockClear();
     roundsListController.mockClear();
+    getRoundController.mockClear();
     addPlayerController.mockClear();
     listPlayersController.mockClear();
     removePlayerController.mockClear();
@@ -338,6 +352,42 @@ describe('rounds routes', () => {
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
     expect(req.params.playerId).toBe(playerId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('GET /api/rounds/:id should require authentication and call get round controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .get(`/api/rounds/${roundId}`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'get round controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(getRoundController).toHaveBeenCalled();
+  });
+
+  test('GET /api/rounds/:id should pass roundId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .get(`/api/rounds/${roundId}`)
+      .expect(200);
+
+    expect(getRoundController).toHaveBeenCalled();
+    const lastCall = getRoundController.mock.calls[
+      getRoundController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
     expect(req.user).toEqual({ userId: 1 });
   });
 });
