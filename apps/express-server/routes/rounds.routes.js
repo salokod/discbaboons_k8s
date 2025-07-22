@@ -5,6 +5,7 @@ import getRoundController from '../controllers/rounds.get.controller.js';
 import addPlayerController from '../controllers/rounds.addPlayer.controller.js';
 import listPlayersController from '../controllers/rounds.listPlayers.controller.js';
 import removePlayerController from '../controllers/rounds.removePlayer.controller.js';
+import updateRoundController from '../controllers/rounds.update.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.get('/:id/players', authenticateToken, listPlayersController);
 
 // DELETE /api/rounds/:id/players/:playerId - Remove player from round (requires authentication)
 router.delete('/:id/players/:playerId', authenticateToken, removePlayerController);
+
+// PUT /api/rounds/:id - Update round details (requires authentication)
+router.put('/:id', authenticateToken, updateRoundController);
 
 // GET /api/rounds/:id - Get round details (requires authentication)
 router.get('/:id', authenticateToken, getRoundController);
