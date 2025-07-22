@@ -535,10 +535,12 @@ model users {
   - ✅ Permission validation (round creator or existing player can view)
   - ✅ JOIN with users table to get usernames
   - ✅ Order by joined_at timestamp
-- [ ] `DELETE /api/rounds/:id/players/:playerId` - Remove player
-  - [ ] Only round creator can remove players
-  - [ ] Players can remove themselves
-  - [ ] Cannot remove round creator
+- ✅ `DELETE /api/rounds/:id/players/:playerId` - Remove player
+  - ✅ Round creator can remove any player
+  - ✅ Players can remove themselves
+  - ✅ UUID validation for roundId and playerId parameters
+  - ✅ Complete TDD implementation with service, controller, route
+  - ✅ Comprehensive unit and integration tests
 
 #### Step 2.3: Round Details & Advanced Management **DEPENDS ON 2.2**
 - [ ] `GET /api/rounds/:id` - Get round details WITH players
@@ -707,7 +709,7 @@ model users {
 ### Player Management
 - ✅ `POST /api/rounds/:id/players` - Add players (batch API)
 - ✅ `GET /api/rounds/:id/players` - List round players
-- `DELETE /api/rounds/:id/players/:playerId` - Remove player
+- ✅ `DELETE /api/rounds/:id/players/:playerId` - Remove player
 
 ### Scoring
 - `POST /api/rounds/:id/scores` - Submit scores
