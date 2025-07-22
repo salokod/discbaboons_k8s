@@ -3,6 +3,7 @@ import roundsCreateController from '../controllers/rounds.create.controller.js';
 import roundsListController from '../controllers/rounds.list.controller.js';
 import addPlayerController from '../controllers/rounds.addPlayer.controller.js';
 import listPlayersController from '../controllers/rounds.listPlayers.controller.js';
+import removePlayerController from '../controllers/rounds.removePlayer.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -18,5 +19,8 @@ router.post('/:id/players', authenticateToken, addPlayerController);
 
 // GET /api/rounds/:id/players - List round players (requires authentication)
 router.get('/:id/players', authenticateToken, listPlayersController);
+
+// DELETE /api/rounds/:id/players/:playerId - Remove player from round (requires authentication)
+router.delete('/:id/players/:playerId', authenticateToken, removePlayerController);
 
 export default router;
