@@ -557,10 +557,13 @@ model users {
   - ✅ Permission validation (only round participants can update)
   - ✅ Complete TDD implementation with service, controller, route
   - ✅ Comprehensive unit and integration tests
-- [ ] `DELETE /api/rounds/:id` - Cancel/delete round
-  - [ ] Only round creator can delete
-  - [ ] Soft delete or hard delete decision
-  - [ ] Handle cascading deletes (players, future scores, etc.)
+- ✅ `DELETE /api/rounds/:id` - Cancel/delete round
+  - ✅ Only round creator can delete (stricter permission than update)
+  - ✅ Hard delete implementation with CASCADE cleanup
+  - ✅ Handles cascading deletes (round_players, future scores automatically)
+  - ✅ Complete parameter validation (UUID format, required fields)
+  - ✅ Complete TDD implementation with service, controller, route
+  - ✅ Comprehensive unit and integration tests
 
 #### Step 2.4: Round Rules & Requirements
 **Player Management:**
@@ -720,7 +723,13 @@ model users {
   - **Response:** 200 OK with updated round object
   - **Security:** Requires authentication, participant-only access
   - **Documentation:** `/docs/api/rounds/PUT_rounds_id.md`
-- `DELETE /api/rounds/:id` - Cancel round
+- ✅ `DELETE /api/rounds/:id` - Delete round (only creator can delete)
+  - **Request:** No body required, roundId in URL parameter
+  - **Validation:** UUID format, round existence, creator permission
+  - **Response:** 200 OK with success confirmation
+  - **Security:** Requires authentication, creator-only access
+  - **Database:** Hard delete with CASCADE cleanup of related data
+  - **Documentation:** `/docs/api/rounds/DELETE_rounds_id.md`
 
 ### Player Management
 - ✅ `POST /api/rounds/:id/players` - Add players (batch API)
