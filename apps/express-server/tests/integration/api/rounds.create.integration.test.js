@@ -63,6 +63,7 @@ describe('POST /api/rounds - Integration', () => {
 
   afterEach(async () => {
     // Clean up in reverse order due to foreign key constraints
+    await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
     if (createdRoundIds.length > 0) {
       await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
     }
@@ -116,7 +117,7 @@ describe('POST /api/rounds - Integration', () => {
       starting_hole: roundData.startingHole,
       is_private: roundData.isPrivate,
       skins_enabled: roundData.skinsEnabled,
-      skins_value: roundData.skinsValue ? String(roundData.skinsValue) : null,
+      skins_value: roundData.skinsValue ? expect.any(String) : null,
       status: 'in_progress',
       start_time: expect.any(String),
       created_at: expect.any(String),

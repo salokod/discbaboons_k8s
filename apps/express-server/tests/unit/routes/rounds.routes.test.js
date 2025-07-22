@@ -14,6 +14,7 @@ let getRoundController;
 let addPlayerController;
 let listPlayersController;
 let removePlayerController;
+let updateRoundController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -40,6 +41,10 @@ beforeAll(async () => {
 
   removePlayerController = vi.fn((req, res) => {
     res.json({ message: 'remove player controller called' });
+  });
+
+  updateRoundController = vi.fn((req, res) => {
+    res.json({ message: 'update round controller called' });
   });
 
   // Mock the auth middleware
@@ -70,6 +75,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.removePlayer.controller.js', () => ({
     default: removePlayerController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.update.controller.js', () => ({
+    default: updateRoundController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -103,6 +112,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({ success: true }),
   }));
 
+  vi.doMock('../../../services/rounds.update.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -116,6 +129,7 @@ describe('rounds routes', () => {
     addPlayerController.mockClear();
     listPlayersController.mockClear();
     removePlayerController.mockClear();
+    updateRoundController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -388,6 +402,58 @@ describe('rounds routes', () => {
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('PUT /api/rounds/:id should require authentication and call update controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const updateData = {
+      name: chance.sentence({ words: 3 }),
+      status: 'completed',
+      starting_hole: chance.integer({ min: 1, max: 18 }),
+      is_private: chance.bool(),
+      skins_enabled: chance.bool(),
+      skins_value: chance.floating({ min: 1, max: 100, fixed: 2 }).toString(),
+    };
+
+    const response = await request(app)
+      .put(`/api/rounds/${roundId}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'update round controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(updateRoundController).toHaveBeenCalled();
+  });
+
+  test('PUT /api/rounds/:id should pass roundId in params and update data in body', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const updateData = {
+      name: chance.sentence({ words: 3 }),
+      status: 'in_progress',
+      starting_hole: chance.integer({ min: 1, max: 18 }),
+    };
+
+    await request(app)
+      .put(`/api/rounds/${roundId}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(updateRoundController).toHaveBeenCalled();
+    const lastCall = updateRoundController.mock.calls[
+      updateRoundController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.body).toEqual(updateData);
     expect(req.user).toEqual({ userId: 1 });
   });
 });

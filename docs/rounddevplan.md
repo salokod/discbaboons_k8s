@@ -550,10 +550,13 @@ model users {
   - ✅ UUID validation for roundId parameter
   - ✅ Complete TDD implementation with service, controller, route
   - ✅ Comprehensive unit and integration tests
-- [ ] `PUT /api/rounds/:id` - Update round details
-  - [ ] Any player can edit (not just creator)
-  - [ ] Update name, status, starting_hole, privacy, skins settings
-  - [ ] Validate status transitions (can't go from completed back to in_progress)
+- ✅ `PUT /api/rounds/:id` - Update round details
+  - ✅ Any participant can edit (not just creator)
+  - ✅ Update name, status, starting_hole, is_private, skins_enabled, skins_value
+  - ✅ Comprehensive field validation (UUID, types, allowed values)
+  - ✅ Permission validation (only round participants can update)
+  - ✅ Complete TDD implementation with service, controller, route
+  - ✅ Comprehensive unit and integration tests
 - [ ] `DELETE /api/rounds/:id` - Cancel/delete round
   - [ ] Only round creator can delete
   - [ ] Soft delete or hard delete decision
@@ -711,7 +714,12 @@ model users {
   - **Validation:** UUID format validation for roundId
   - **Security:** Requires authentication, participant-only access
   - **Documentation:** `/docs/api/rounds/GET_rounds_id.md`
-- `PUT /api/rounds/:id` - Update round (any player can edit)
+- ✅ `PUT /api/rounds/:id` - Update round details (any participant can edit)
+  - **Request:** Partial update data (name, status, starting_hole, is_private, skins_enabled, skins_value)
+  - **Validation:** UUID format, field types, allowed values, participant permission
+  - **Response:** 200 OK with updated round object
+  - **Security:** Requires authentication, participant-only access
+  - **Documentation:** `/docs/api/rounds/PUT_rounds_id.md`
 - `DELETE /api/rounds/:id` - Cancel round
 
 ### Player Management
