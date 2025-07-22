@@ -35,7 +35,7 @@ const deleteRoundService = async (roundId, userId) => {
   // Check if round exists and get the created_by_id for permission check
   const round = await queryOne(
     'SELECT id, created_by_id FROM rounds WHERE id = $1',
-    [roundId]
+    [roundId],
   );
 
   if (!round) {

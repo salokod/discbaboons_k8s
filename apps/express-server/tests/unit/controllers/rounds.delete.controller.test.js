@@ -56,7 +56,7 @@ describe('rounds.delete.controller', () => {
 
     expect(deleteRoundService).toHaveBeenCalledWith(
       req.params.id,
-      req.user.userId
+      req.user.userId,
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({

@@ -100,7 +100,7 @@ describe('rounds.delete.service', () => {
     expect(result).toEqual({ success: true });
     expect(query).toHaveBeenCalledWith(
       'DELETE FROM rounds WHERE id = $1',
-      [roundId]
+      [roundId],
     );
   });
 });
