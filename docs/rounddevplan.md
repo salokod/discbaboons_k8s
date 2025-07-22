@@ -543,10 +543,13 @@ model users {
   - ✅ Comprehensive unit and integration tests
 
 #### Step 2.3: Round Details & Advanced Management **DEPENDS ON 2.2**
-- [ ] `GET /api/rounds/:id` - Get round details WITH players
-  - [ ] Include full round details
-  - [ ] Include array of players (from round_players join)
-  - [ ] Only accessible to round participants
+- ✅ `GET /api/rounds/:id` - Get round details WITH players
+  - ✅ Include full round details (all round fields)
+  - ✅ Include array of players (from round_players LEFT JOIN users)
+  - ✅ Only accessible to round participants (creator or existing player)
+  - ✅ UUID validation for roundId parameter
+  - ✅ Complete TDD implementation with service, controller, route
+  - ✅ Comprehensive unit and integration tests
 - [ ] `PUT /api/rounds/:id` - Update round details
   - [ ] Any player can edit (not just creator)
   - [ ] Update name, status, starting_hole, privacy, skins settings
@@ -702,7 +705,12 @@ model users {
   - **Response:** User's own rounds ordered by created_at DESC
   - **Security:** Requires authentication, user isolation
   - **Documentation:** `/docs/api/rounds/GET_rounds.md`
-- `GET /api/rounds/:id` - Get round details
+- ✅ `GET /api/rounds/:id` - Get round details WITH players
+  - **Response:** Full round object with embedded players array
+  - **Permissions:** Only round participants (creator or existing player)
+  - **Validation:** UUID format validation for roundId
+  - **Security:** Requires authentication, participant-only access
+  - **Documentation:** `/docs/api/rounds/GET_rounds_id.md`
 - `PUT /api/rounds/:id` - Update round (any player can edit)
 - `DELETE /api/rounds/:id` - Cancel round
 
