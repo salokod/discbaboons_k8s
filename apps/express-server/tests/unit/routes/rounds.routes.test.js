@@ -15,6 +15,7 @@ let addPlayerController;
 let listPlayersController;
 let removePlayerController;
 let updateRoundController;
+let deleteRoundController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -45,6 +46,10 @@ beforeAll(async () => {
 
   updateRoundController = vi.fn((req, res) => {
     res.json({ message: 'update round controller called' });
+  });
+
+  deleteRoundController = vi.fn((req, res) => {
+    res.json({ message: 'delete round controller called' });
   });
 
   // Mock the auth middleware
@@ -79,6 +84,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.update.controller.js', () => ({
     default: updateRoundController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.delete.controller.js', () => ({
+    default: deleteRoundController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -116,6 +125,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/rounds.delete.service.js', () => ({
+    default: vi.fn().mockResolvedValue({ success: true }),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -130,6 +143,7 @@ describe('rounds routes', () => {
     listPlayersController.mockClear();
     removePlayerController.mockClear();
     updateRoundController.mockClear();
+    deleteRoundController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -454,6 +468,42 @@ describe('rounds routes', () => {
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
     expect(req.body).toEqual(updateData);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('DELETE /api/rounds/:id should require authentication and call delete controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .delete(`/api/rounds/${roundId}`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'delete round controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(deleteRoundController).toHaveBeenCalled();
+  });
+
+  test('DELETE /api/rounds/:id should pass roundId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .delete(`/api/rounds/${roundId}`)
+      .expect(200);
+
+    expect(deleteRoundController).toHaveBeenCalled();
+    const lastCall = deleteRoundController.mock.calls[
+      deleteRoundController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
     expect(req.user).toEqual({ userId: 1 });
   });
 });
