@@ -138,28 +138,51 @@ CREATE INDEX idx_round_players_user_id ON round_players(user_id);
 CREATE UNIQUE INDEX idx_round_players_unique_user ON round_players(round_id, user_id) WHERE user_id IS NOT NULL;
 ```
 
-**`V23__create_scores_table.sql`**
+**`V23__create_scores_and_pars_tables.sql`**
 ```sql
+-- Round hole pars table (separate from scores)
+CREATE TABLE round_hole_pars (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  round_id UUID NOT NULL,
+  hole_number INTEGER NOT NULL,
+  par INTEGER NOT NULL DEFAULT 3, -- Default par 3 for disc golf
+  set_by_player_id UUID NOT NULL, -- Who set/changed the par
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE,
+  FOREIGN KEY (set_by_player_id) REFERENCES round_players(id) ON DELETE CASCADE,
+  CONSTRAINT check_par CHECK (par > 0 AND par <= 10),
+  CONSTRAINT check_hole_number CHECK (hole_number > 0 AND hole_number <= 50)
+);
+
+CREATE UNIQUE INDEX idx_round_hole_pars_unique ON round_hole_pars(round_id, hole_number);
+CREATE INDEX idx_round_hole_pars_round_id ON round_hole_pars(round_id);
+
+-- Scores table (par removed - looked up from round_hole_pars)
 CREATE TABLE scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   round_id UUID NOT NULL,
   player_id UUID NOT NULL, -- References round_players.id
   hole_number INTEGER NOT NULL,
   strokes INTEGER NOT NULL,
-  par INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE,
   FOREIGN KEY (player_id) REFERENCES round_players(id) ON DELETE CASCADE,
   CONSTRAINT check_hole_number CHECK (hole_number > 0 AND hole_number <= 50),
-  CONSTRAINT check_strokes CHECK (strokes > 0 AND strokes <= 20),
-  CONSTRAINT check_par CHECK (par > 0 AND par <= 10)
+  CONSTRAINT check_strokes CHECK (strokes > 0 AND strokes <= 20)
 );
 
 CREATE INDEX idx_scores_round_id ON scores(round_id);
 CREATE INDEX idx_scores_player_id ON scores(player_id);
 CREATE INDEX idx_scores_hole_number ON scores(hole_number);
 CREATE UNIQUE INDEX idx_scores_unique ON scores(round_id, player_id, hole_number);
+
+-- Comments for clarity
+COMMENT ON TABLE round_hole_pars IS 'Par values for each hole in a round, editable by any player';
+COMMENT ON COLUMN round_hole_pars.par IS 'Par value for this hole (default 3, editable during round)';
+COMMENT ON COLUMN round_hole_pars.set_by_player_id IS 'Player who last set/changed the par value';
+COMMENT ON TABLE scores IS 'Player scores per hole (par looked up from round_hole_pars table)';
 ```
 
 **`V24__create_side_bets_table.sql`**
@@ -593,22 +616,59 @@ model users {
 ### Phase 3: Scoring System
 **Target: Week 5-6**
 
-#### Step 3.1: Score Entry & Management
-- [ ] Create scores migration (V23)
+#### Step 3.1: Par Management System
+- [x] Create scores and pars migrations (V23)
+- [x] `PUT /api/rounds/:id/holes/:holeNumber/par` - Set/update hole par
+  - [x] **Default Par 3**: All holes start with par 3 (disc golf standard)
+  - [x] **Any Player Can Edit**: Any round participant can change par for any hole
+  - [x] Validate par range (1-10) and hole number
+  - [x] Track who set/changed the par (audit trail)
+  - [x] **Trigger Score Recalculation**: Update all relative scores when par changes
+  - [x] **Trigger Skins Recalculation**: Recalculate skins from affected hole forward
+- [ ] `GET /api/rounds/:id/pars` - Get all round pars
+  - [ ] Return object with hole numbers as keys: `{ "1": 3, "2": 4, "3": 3 }`
+  - [ ] Default to par 3 for holes without explicit par set
+  - [ ] Include who set each par and when (for audit)
+
+#### Step 3.2: Score Entry & Management
 - [ ] `POST /api/rounds/:id/scores` - Submit/update scores
+  - [ ] **Batch API Design**: Accept array of scores for multiple players/holes
+  - [ ] **Simplified Format**: `{ scores: [{ playerId, holeNumber, strokes }] }` (no par field)
+  - [ ] **Par Lookup**: Get par from round_hole_pars table, default to 3 if not set
+  - [ ] Support both new scores and updates (upsert logic)
+  - [ ] Validate hole numbers against course hole count
+  - [ ] Validate strokes (1-20) ranges
+  - [ ] **Retroactive Score Changes**: Allow editing previous holes' scores
+  - [ ] **Skins Recalculation Trigger**: Mark round for skins recalculation on any score change
 - [ ] `GET /api/rounds/:id/scores` - Get all round scores
+  - [ ] Return matrix organized by player and hole
+  - [ ] **Dynamic Par Calculation**: Join with round_hole_pars table for current par values
+  - [ ] Include calculated totals and relative scores
+  - [ ] Format: `{ playerUuid: { username/guestName, holes: { 1: { strokes, par, relative } }, total, totalPar, relativeScore } }`
 - [ ] `GET /api/rounds/:id/leaderboard` - Real-time leaderboard
+  - [ ] Sort players by total strokes (ascending)
+  - [ ] Include position, holes completed, current hole
+  - [ ] **Skins Integration**: Include skinsWon count and skinsValue per player
+  - [ ] Show current skins carry-over amount
 - [ ] Hole-by-hole score validation
 - [ ] Score calculation utilities (par, total, relative)
 
-#### Step 3.2: Real-time Score Updates
+#### Step 3.3: Real-time Score Updates & Skins Recalculation
+- [ ] **Skins Recalculation Engine**
+  - [ ] Triggered automatically on any score change (including retroactive edits)
+  - [ ] **Triggered on par changes**: Recalculate when hole par is updated
+  - [ ] Recalculate from the edited hole forward to end of round
+  - [ ] Store skins history/audit trail for transparency
+  - [ ] Handle cascading effects of score/par changes on carry-overs
+  - [ ] Notify all players when skins winners change
 - [ ] WebSocket integration for live scoring
 - [ ] Score change notifications
+- [ ] **Skins Change Notifications**: Alert players when skins winners change due to score/par edits
 - [ ] Offline score caching strategy
 - [ ] Sync conflict resolution
 - [ ] Mobile-optimized score entry
 
-#### Step 3.3: Scoring Analytics
+#### Step 3.4: Scoring Analytics
 - [ ] Round statistics calculation
 - [ ] Player performance metrics
 - [ ] Course difficulty analysis
@@ -618,13 +678,28 @@ model users {
 **Target: Week 7-8**
 
 #### Step 4.1: Skins Game
-- [ ] Skins calculation engine (per-hole dollar value)
-- [ ] Hole winner determination (lowest score wins)
-- [ ] Carry-over logic for ties (skins roll to next hole)
+- [ ] **Skins Calculation Engine** (per-hole dollar value)
+  - [ ] Calculate winner per hole (lowest score wins)
+  - [ ] Handle ties with carry-over to next hole
+  - [ ] Support multiple skins on a single hole (accumulation from ties)
+  - [ ] **Retroactive Recalculation**: Full recalc when any score changes
+  - [ ] Track skins history for audit trail
+- [ ] **Skins State Management**
+  - [ ] Create `skins_results` table to store calculated results
+  - [ ] Store hole-by-hole winners and carry-over amounts
+  - [ ] Cache results but invalidate on score changes
+  - [ ] Include timestamp of last calculation
+- [ ] **Score Change Impact**
+  - [ ] Detect which holes are affected by score edit
+  - [ ] Recalculate skins from earliest affected hole
+  - [ ] Update all downstream carry-overs
+  - [ ] Generate change notification for affected players
 - [ ] Final hole tiebreaker system (prompt users for method if tied on last hole)
-- [ ] Multiple skins accumulation (1+ skins can be on a single hole)
 - [ ] Final payout calculation and distribution
 - [ ] Skins leaderboard display with carry-over tracking
+- [ ] **Skins API Endpoints**
+  - [ ] `GET /api/rounds/:id/skins` - Current skins results with history
+  - [ ] `GET /api/rounds/:id/skins/history` - Audit trail of changes
 
 #### Step 4.2: Side Bets
 - [ ] Create side bets migrations (V24-V25)
@@ -736,16 +811,21 @@ model users {
 - ✅ `GET /api/rounds/:id/players` - List round players
 - ✅ `DELETE /api/rounds/:id/players/:playerId` - Remove player
 
-### Scoring
-- `POST /api/rounds/:id/scores` - Submit scores
-- `GET /api/rounds/:id/scores` - Get scores
-- `GET /api/rounds/:id/leaderboard` - Real-time leaderboard
+### Par Management
+- ✅ `PUT /api/rounds/:id/holes/:holeNumber/par` - Set/update hole par (any player, triggers recalculation)
+- `GET /api/rounds/:id/pars` - Get all round pars (defaults to par 3)
+
+### Scoring  
+- `POST /api/rounds/:id/scores` - Submit/update scores (batch API, no par field, supports retroactive edits)
+- `GET /api/rounds/:id/scores` - Get all scores in matrix format (dynamic par lookup)
+- `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with skins integration
 
 ### Betting
+- `GET /api/rounds/:id/skins` - Get current skins results with carry-over tracking
+- `GET /api/rounds/:id/skins/history` - Audit trail of skins changes (score edits)
 - `POST /api/rounds/:id/side-bets` - Create side bet
 - `POST /api/rounds/:id/side-bets/:betId/join` - Join bet
 - `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner
-- `GET /api/rounds/:id/skins` - Get skins results
 
 ---
 
@@ -755,6 +835,14 @@ model users {
 - WebSocket integration for live scoring
 - Server-Sent Events for leaderboard updates
 - Optimistic UI updates with rollback capability
+- **Skins Recalculation Notifications**: Real-time alerts when score edits change skins winners
+
+### Skins Calculation Intelligence
+- **Retroactive Score Change Handling**: Automatically detect and recalculate affected holes
+- **Par Change Handling**: Recalculate skins when hole par values are updated
+- **Cascade Effect Management**: Score/par changes trigger skins recalc from edited hole forward
+- **Audit Trail**: Track all skins changes with timestamps and reason (initial calc vs score edit vs par change)
+- **Performance Optimization**: Only recalculate affected holes, not entire round
 
 ### Offline Support
 - IndexedDB for offline score storage
