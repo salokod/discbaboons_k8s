@@ -16,6 +16,7 @@ let listPlayersController;
 let removePlayerController;
 let updateRoundController;
 let deleteRoundController;
+let setParController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -50,6 +51,10 @@ beforeAll(async () => {
 
   deleteRoundController = vi.fn((req, res) => {
     res.json({ message: 'delete round controller called' });
+  });
+
+  setParController = vi.fn((req, res) => {
+    res.json({ message: 'set par controller called' });
   });
 
   // Mock the auth middleware
@@ -88,6 +93,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.delete.controller.js', () => ({
     default: deleteRoundController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.setPar.controller.js', () => ({
+    default: setParController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -129,6 +138,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({ success: true }),
   }));
 
+  vi.doMock('../../../services/rounds.setPar.service.js', () => ({
+    default: vi.fn().mockResolvedValue({ success: true }),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -144,6 +157,7 @@ describe('rounds routes', () => {
     removePlayerController.mockClear();
     updateRoundController.mockClear();
     deleteRoundController.mockClear();
+    setParController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -504,6 +518,50 @@ describe('rounds routes', () => {
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('PUT /api/rounds/:id/holes/:holeNumber/par should require authentication and call setPar controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const holeNumber = chance.integer({ min: 1, max: 18 });
+    const par = chance.integer({ min: 3, max: 5 });
+
+    const response = await request(app)
+      .put(`/api/rounds/${roundId}/holes/${holeNumber}/par`)
+      .send({ par })
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'set par controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(setParController).toHaveBeenCalled();
+  });
+
+  test('PUT /api/rounds/:id/holes/:holeNumber/par should pass roundId, holeNumber in params and par in body', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const holeNumber = chance.integer({ min: 1, max: 18 });
+    const par = chance.integer({ min: 3, max: 5 });
+
+    await request(app)
+      .put(`/api/rounds/${roundId}/holes/${holeNumber}/par`)
+      .send({ par })
+      .expect(200);
+
+    expect(setParController).toHaveBeenCalled();
+    const lastCall = setParController.mock.calls[
+      setParController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.params.holeNumber).toBe(holeNumber.toString());
+    expect(req.body).toEqual({ par });
     expect(req.user).toEqual({ userId: 1 });
   });
 });

@@ -3,7 +3,7 @@
 --
 
 -- Dumped from database version 17.5
--- Dumped by pg_dump version 17.4 (Homebrew)
+-- Dumped by pg_dump version 17.5
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -22,7 +22,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: bag_contents; Type: TABLE; Schema: public; Owner: app_user
+-- Name: bag_contents; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.bag_contents (
@@ -55,66 +55,64 @@ CREATE TABLE public.bag_contents (
 );
 
 
-ALTER TABLE public.bag_contents OWNER TO app_user;
-
 --
--- Name: COLUMN bag_contents.speed; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.speed; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.speed IS 'User-specific speed override. NULL means use disc_master.speed';
 
 
 --
--- Name: COLUMN bag_contents.glide; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.glide; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.glide IS 'User-specific glide override. NULL means use disc_master.glide';
 
 
 --
--- Name: COLUMN bag_contents.turn; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.turn; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.turn IS 'User-specific turn override. NULL means use disc_master.turn';
 
 
 --
--- Name: COLUMN bag_contents.fade; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.fade; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.fade IS 'User-specific fade override. NULL means use disc_master.fade';
 
 
 --
--- Name: COLUMN bag_contents.brand; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.brand; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.brand IS 'Custom brand name override for this specific disc instance (falls back to disc_master.brand if null)';
 
 
 --
--- Name: COLUMN bag_contents.model; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.model; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.model IS 'Custom model name override for this specific disc instance (falls back to disc_master.model if null)';
 
 
 --
--- Name: COLUMN bag_contents.lost_notes; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.lost_notes; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.lost_notes IS 'Notes about where/how the disc was lost (e.g., "prospect park hole 12")';
 
 
 --
--- Name: COLUMN bag_contents.lost_at; Type: COMMENT; Schema: public; Owner: app_user
+-- Name: COLUMN bag_contents.lost_at; Type: COMMENT; Schema: public; Owner: -
 --
 
 COMMENT ON COLUMN public.bag_contents.lost_at IS 'Timestamp when the disc was marked as lost';
 
 
 --
--- Name: bags; Type: TABLE; Schema: public; Owner: app_user
+-- Name: bags; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.bags (
@@ -129,20 +127,17 @@ CREATE TABLE public.bags (
 );
 
 
-ALTER TABLE public.bags OWNER TO app_user;
-
 --
--- Name: courses; Type: TABLE; Schema: public; Owner: app_user
+-- Name: courses; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.courses (
     id character varying(100) NOT NULL,
     name character varying(200) NOT NULL,
     city character varying(100) NOT NULL,
-    state character varying(50) NOT NULL,
-    zip character varying(10),
+    state_province character varying(50) NOT NULL,
+    postal_code character varying(10),
     hole_count integer NOT NULL,
-    rating numeric(3,1),
     latitude numeric(10,8),
     longitude numeric(11,8),
     is_user_submitted boolean DEFAULT false,
@@ -150,14 +145,57 @@ CREATE TABLE public.courses (
     submitted_by_id integer,
     admin_notes text,
     created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
+    updated_at timestamp without time zone DEFAULT now(),
+    country character varying(2) DEFAULT 'US'::character varying NOT NULL,
+    reviewed_at timestamp without time zone,
+    reviewed_by_id integer
 );
 
 
-ALTER TABLE public.courses OWNER TO app_user;
+--
+-- Name: TABLE courses; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.courses IS 'Course information without user ratings - ratings removed as they were deemed unnecessary for core functionality';
+
 
 --
--- Name: disc_master; Type: TABLE; Schema: public; Owner: app_user
+-- Name: COLUMN courses.state_province; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.courses.state_province IS 'State, province, or region within country';
+
+
+--
+-- Name: COLUMN courses.postal_code; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.courses.postal_code IS 'ZIP code, postal code, or equivalent for the country';
+
+
+--
+-- Name: COLUMN courses.country; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.courses.country IS 'Two-letter ISO country code (e.g., US, CA, AU, GB)';
+
+
+--
+-- Name: COLUMN courses.reviewed_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.courses.reviewed_at IS 'Timestamp when admin reviewed the course (approved or denied)';
+
+
+--
+-- Name: COLUMN courses.reviewed_by_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.courses.reviewed_by_id IS 'Admin user ID who reviewed the course';
+
+
+--
+-- Name: disc_master; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.disc_master (
@@ -175,10 +213,8 @@ CREATE TABLE public.disc_master (
 );
 
 
-ALTER TABLE public.disc_master OWNER TO app_user;
-
 --
--- Name: flyway_schema_history; Type: TABLE; Schema: public; Owner: app_user
+-- Name: flyway_schema_history; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.flyway_schema_history (
@@ -195,10 +231,8 @@ CREATE TABLE public.flyway_schema_history (
 );
 
 
-ALTER TABLE public.flyway_schema_history OWNER TO app_user;
-
 --
--- Name: friendship_requests; Type: TABLE; Schema: public; Owner: app_user
+-- Name: friendship_requests; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.friendship_requests (
@@ -211,10 +245,8 @@ CREATE TABLE public.friendship_requests (
 );
 
 
-ALTER TABLE public.friendship_requests OWNER TO app_user;
-
 --
--- Name: friendship_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: app_user
+-- Name: friendship_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.friendship_requests_id_seq
@@ -226,17 +258,72 @@ CREATE SEQUENCE public.friendship_requests_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.friendship_requests_id_seq OWNER TO app_user;
-
 --
--- Name: friendship_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: app_user
+-- Name: friendship_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.friendship_requests_id_seq OWNED BY public.friendship_requests.id;
 
 
 --
--- Name: user_profiles; Type: TABLE; Schema: public; Owner: app_user
+-- Name: round_players; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.round_players (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    round_id uuid NOT NULL,
+    user_id integer,
+    guest_name character varying(100),
+    is_guest boolean DEFAULT false,
+    joined_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT check_player_type CHECK ((((is_guest = true) AND (guest_name IS NOT NULL) AND (user_id IS NULL)) OR ((is_guest = false) AND (user_id IS NOT NULL) AND (guest_name IS NULL))))
+);
+
+
+--
+-- Name: rounds; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rounds (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    created_by_id integer NOT NULL,
+    course_id character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    start_time timestamp without time zone DEFAULT now() NOT NULL,
+    starting_hole integer DEFAULT 1 NOT NULL,
+    is_private boolean DEFAULT false,
+    skins_enabled boolean DEFAULT false,
+    skins_value numeric(10,2),
+    status character varying(20) DEFAULT 'in_progress'::character varying,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT check_starting_hole CHECK (((starting_hole > 0) AND (starting_hole <= 50)))
+);
+
+
+--
+-- Name: COLUMN rounds.start_time; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rounds.start_time IS 'Round start time - always set to creation time, no future scheduling';
+
+
+--
+-- Name: COLUMN rounds.starting_hole; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rounds.starting_hole IS 'Which hole number to start the round on (default 1)';
+
+
+--
+-- Name: COLUMN rounds.skins_value; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rounds.skins_value IS 'Dollar amount per hole for skins game, carries over on ties';
+
+
+--
+-- Name: user_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.user_profiles (
@@ -255,10 +342,8 @@ CREATE TABLE public.user_profiles (
 );
 
 
-ALTER TABLE public.user_profiles OWNER TO app_user;
-
 --
--- Name: user_profiles_id_seq; Type: SEQUENCE; Schema: public; Owner: app_user
+-- Name: user_profiles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.user_profiles_id_seq
@@ -270,17 +355,15 @@ CREATE SEQUENCE public.user_profiles_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.user_profiles_id_seq OWNER TO app_user;
-
 --
--- Name: user_profiles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: app_user
+-- Name: user_profiles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.user_profiles_id_seq OWNED BY public.user_profiles.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: app_user
+-- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.users (
@@ -294,10 +377,8 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO app_user;
-
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: app_user
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -309,38 +390,36 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO app_user;
-
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: app_user
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: friendship_requests id; Type: DEFAULT; Schema: public; Owner: app_user
+-- Name: friendship_requests id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.friendship_requests ALTER COLUMN id SET DEFAULT nextval('public.friendship_requests_id_seq'::regclass);
 
 
 --
--- Name: user_profiles id; Type: DEFAULT; Schema: public; Owner: app_user
+-- Name: user_profiles id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_profiles ALTER COLUMN id SET DEFAULT nextval('public.user_profiles_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: app_user
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Name: bag_contents bag_contents_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: bag_contents bag_contents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bag_contents
@@ -348,7 +427,7 @@ ALTER TABLE ONLY public.bag_contents
 
 
 --
--- Name: bags bags_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: bags bags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bags
@@ -356,7 +435,7 @@ ALTER TABLE ONLY public.bags
 
 
 --
--- Name: courses courses_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: courses courses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.courses
@@ -364,7 +443,7 @@ ALTER TABLE ONLY public.courses
 
 
 --
--- Name: disc_master disc_master_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: disc_master disc_master_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.disc_master
@@ -372,7 +451,7 @@ ALTER TABLE ONLY public.disc_master
 
 
 --
--- Name: flyway_schema_history flyway_schema_history_pk; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: flyway_schema_history flyway_schema_history_pk; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.flyway_schema_history
@@ -380,7 +459,7 @@ ALTER TABLE ONLY public.flyway_schema_history
 
 
 --
--- Name: friendship_requests friendship_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: friendship_requests friendship_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.friendship_requests
@@ -388,7 +467,23 @@ ALTER TABLE ONLY public.friendship_requests
 
 
 --
--- Name: friendship_requests unique_friendship; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: round_players round_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.round_players
+    ADD CONSTRAINT round_players_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rounds rounds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rounds
+    ADD CONSTRAINT rounds_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: friendship_requests unique_friendship; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.friendship_requests
@@ -396,7 +491,7 @@ ALTER TABLE ONLY public.friendship_requests
 
 
 --
--- Name: user_profiles user_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: user_profiles user_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_profiles
@@ -404,7 +499,7 @@ ALTER TABLE ONLY public.user_profiles
 
 
 --
--- Name: users users_email_unique; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: users users_email_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -412,7 +507,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -420,7 +515,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: app_user
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -428,175 +523,259 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: flyway_schema_history_s_idx; Type: INDEX; Schema: public; Owner: app_user
+-- Name: flyway_schema_history_s_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX flyway_schema_history_s_idx ON public.flyway_schema_history USING btree (success);
 
 
 --
--- Name: idx_bag_contents_bag_id; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_bag_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_bag_id ON public.bag_contents USING btree (bag_id);
 
 
 --
--- Name: idx_bag_contents_brand; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_brand; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_brand ON public.bag_contents USING btree (brand) WHERE (brand IS NOT NULL);
 
 
 --
--- Name: idx_bag_contents_disc_id; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_disc_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_disc_id ON public.bag_contents USING btree (disc_id);
 
 
 --
--- Name: idx_bag_contents_is_lost; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_is_lost; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_is_lost ON public.bag_contents USING btree (is_lost);
 
 
 --
--- Name: idx_bag_contents_lost_at; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_lost_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_lost_at ON public.bag_contents USING btree (lost_at);
 
 
 --
--- Name: idx_bag_contents_model; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_model; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_model ON public.bag_contents USING btree (model) WHERE (model IS NOT NULL);
 
 
 --
--- Name: idx_bag_contents_user_id; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bag_contents_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bag_contents_user_id ON public.bag_contents USING btree (user_id);
 
 
 --
--- Name: idx_bags_is_friends_visible; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bags_is_friends_visible; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bags_is_friends_visible ON public.bags USING btree (is_friends_visible);
 
 
 --
--- Name: idx_bags_is_public; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bags_is_public; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bags_is_public ON public.bags USING btree (is_public);
 
 
 --
--- Name: idx_bags_user_id; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_bags_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bags_user_id ON public.bags USING btree (user_id);
 
 
 --
--- Name: idx_courses_approved; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_courses_approved; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_courses_approved ON public.courses USING btree (approved);
 
 
 --
--- Name: idx_courses_city; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_courses_city; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_courses_city ON public.courses USING btree (city);
 
 
 --
--- Name: idx_courses_is_user_submitted; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_courses_country; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_courses_country ON public.courses USING btree (country);
+
+
+--
+-- Name: idx_courses_country_city; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_courses_country_city ON public.courses USING btree (country, city);
+
+
+--
+-- Name: idx_courses_country_state_province; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_courses_country_state_province ON public.courses USING btree (country, state_province);
+
+
+--
+-- Name: idx_courses_is_user_submitted; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_courses_is_user_submitted ON public.courses USING btree (is_user_submitted);
 
 
 --
--- Name: idx_courses_location; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_courses_location; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_courses_location ON public.courses USING btree (latitude, longitude);
 
 
 --
--- Name: idx_courses_state; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_courses_pending; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_courses_state ON public.courses USING btree (state);
+CREATE INDEX idx_courses_pending ON public.courses USING btree (is_user_submitted, reviewed_at) WHERE ((is_user_submitted = true) AND (reviewed_at IS NULL));
 
 
 --
--- Name: idx_disc_master_approved; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_courses_state_province; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_courses_state_province ON public.courses USING btree (state_province);
+
+
+--
+-- Name: idx_disc_master_approved; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_disc_master_approved ON public.disc_master USING btree (approved);
 
 
 --
--- Name: idx_disc_master_brand_model; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_disc_master_brand_model; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_disc_master_brand_model ON public.disc_master USING btree (brand, model);
 
 
 --
--- Name: idx_friendship_requests_recipient_id; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_friendship_requests_recipient_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_friendship_requests_recipient_id ON public.friendship_requests USING btree (recipient_id);
 
 
 --
--- Name: idx_user_profiles_country; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_round_players_round_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_round_players_round_id ON public.round_players USING btree (round_id);
+
+
+--
+-- Name: idx_round_players_unique_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_round_players_unique_user ON public.round_players USING btree (round_id, user_id) WHERE (user_id IS NOT NULL);
+
+
+--
+-- Name: idx_round_players_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_round_players_user_id ON public.round_players USING btree (user_id);
+
+
+--
+-- Name: idx_rounds_course_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rounds_course_id ON public.rounds USING btree (course_id);
+
+
+--
+-- Name: idx_rounds_created_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rounds_created_by ON public.rounds USING btree (created_by_id);
+
+
+--
+-- Name: idx_rounds_start_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rounds_start_time ON public.rounds USING btree (start_time);
+
+
+--
+-- Name: idx_rounds_starting_hole; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rounds_starting_hole ON public.rounds USING btree (starting_hole);
+
+
+--
+-- Name: idx_rounds_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rounds_status ON public.rounds USING btree (status);
+
+
+--
+-- Name: idx_user_profiles_country; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_user_profiles_country ON public.user_profiles USING btree (country);
 
 
 --
--- Name: idx_user_profiles_created_at; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_user_profiles_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_user_profiles_created_at ON public.user_profiles USING btree (created_at);
 
 
 --
--- Name: idx_user_profiles_state_province; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_user_profiles_state_province; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_user_profiles_state_province ON public.user_profiles USING btree (state_province);
 
 
 --
--- Name: idx_user_profiles_user_id; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_user_profiles_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_user_profiles_user_id ON public.user_profiles USING btree (user_id);
 
 
 --
--- Name: idx_users_last_password_change; Type: INDEX; Schema: public; Owner: app_user
+-- Name: idx_users_last_password_change; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_users_last_password_change ON public.users USING btree (last_password_change);
 
 
 --
--- Name: bag_contents bag_contents_bag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: bag_contents bag_contents_bag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bag_contents
@@ -604,7 +783,7 @@ ALTER TABLE ONLY public.bag_contents
 
 
 --
--- Name: bag_contents bag_contents_disc_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: bag_contents bag_contents_disc_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bag_contents
@@ -612,7 +791,7 @@ ALTER TABLE ONLY public.bag_contents
 
 
 --
--- Name: bag_contents bag_contents_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: bag_contents bag_contents_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bag_contents
@@ -620,7 +799,7 @@ ALTER TABLE ONLY public.bag_contents
 
 
 --
--- Name: bags bags_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: bags bags_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bags
@@ -628,7 +807,7 @@ ALTER TABLE ONLY public.bags
 
 
 --
--- Name: courses courses_submitted_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: courses courses_submitted_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.courses
@@ -636,7 +815,7 @@ ALTER TABLE ONLY public.courses
 
 
 --
--- Name: disc_master disc_master_added_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: disc_master disc_master_added_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.disc_master
@@ -644,7 +823,15 @@ ALTER TABLE ONLY public.disc_master
 
 
 --
--- Name: friendship_requests friendship_requests_recipient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: courses fk_courses_reviewed_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.courses
+    ADD CONSTRAINT fk_courses_reviewed_by FOREIGN KEY (reviewed_by_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: friendship_requests friendship_requests_recipient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.friendship_requests
@@ -652,7 +839,7 @@ ALTER TABLE ONLY public.friendship_requests
 
 
 --
--- Name: friendship_requests friendship_requests_requester_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: friendship_requests friendship_requests_requester_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.friendship_requests
@@ -660,7 +847,39 @@ ALTER TABLE ONLY public.friendship_requests
 
 
 --
--- Name: user_profiles user_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: app_user
+-- Name: round_players round_players_round_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.round_players
+    ADD CONSTRAINT round_players_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id) ON DELETE CASCADE;
+
+
+--
+-- Name: round_players round_players_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.round_players
+    ADD CONSTRAINT round_players_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: rounds rounds_course_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rounds
+    ADD CONSTRAINT rounds_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: rounds rounds_created_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rounds
+    ADD CONSTRAINT rounds_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_profiles user_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_profiles
