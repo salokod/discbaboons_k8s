@@ -629,10 +629,11 @@ model users {
   - [x] Track who set/changed the par (audit trail)
   - [x] **Trigger Score Recalculation**: Update all relative scores when par changes
   - [x] **Trigger Skins Recalculation**: Recalculate skins from affected hole forward
-- [ ] `GET /api/rounds/:id/pars` - Get all round pars
-  - [ ] Return object with hole numbers as keys: `{ "1": 3, "2": 4, "3": 3 }`
-  - [ ] Default to par 3 for holes without explicit par set
-  - [ ] Include who set each par and when (for audit)
+- [x] `GET /api/rounds/:id/pars` - Get all round pars
+  - [x] Return object with hole numbers as keys: `{ "1": 3, "2": 4, "3": 3 }`
+  - [x] Default to par 3 for holes without explicit par set (not included in response)
+  - [ ] Include who set each par and when (for audit) - **Future enhancement**
+  - [x] **AFTER THIS**: Go back to Step 2.3 and add pars data to GET /api/rounds/:id endpoint
 
 #### Step 3.2: Score Entry & Management
 - [ ] `POST /api/rounds/:id/scores` - Submit/update scores

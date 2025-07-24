@@ -5,12 +5,12 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { query, queryOne } from '../setup.js';
+import { query } from '../setup.js';
 import { createUniqueCourseData } from '../test-helpers.js';
 
 const chance = new Chance();
 
-describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
+describe('GET /api/rounds/:id/pars - Integration', () => {
   let user;
   let token;
   let testId;
@@ -28,15 +28,15 @@ describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
     timestamp = fullTimestamp.toString().slice(-6);
     const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
     const pid = process.pid.toString().slice(-3);
-    testId = `trsp${timestamp}${pid}${random}`; // TRSP = Test Round Set Par
+    testId = `trgp${timestamp}${pid}${random}`; // TRGP = Test Round Get Pars
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
     // Register test user
     const userData = {
-      username: `sp${timestamp}${pid}`, // sp = "set par" - keep under 20 chars
-      email: `trsp${testId}@ex.co`,
+      username: `gp${timestamp}${pid}`, // gp = "get pars" - keep under 20 chars
+      email: `trgp${testId}@ex.co`,
       password: `Test1!${chance.word({ length: 2 })}`,
     };
     await request(app).post('/api/auth/register').send(userData).expect(201);
@@ -49,7 +49,7 @@ describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
     createdUserIds.push(user.id);
 
     // Create a test course to use in rounds with globally unique identifiers
-    const courseData = createUniqueCourseData('trsp'); // TRSP = Test Round Set Par
+    const courseData = createUniqueCourseData('trgp'); // TRGP = Test Round Get Pars
     const courseResponse = await request(app)
       .post('/api/courses')
       .set('Authorization', `Bearer ${token}`)
@@ -88,134 +88,60 @@ describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
     }
   });
 
-  test('should set par for a hole successfully', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const par = chance.integer({ min: 3, max: 5 });
-
+  test('should return empty object when no pars have been set', async () => {
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .get(`/api/rounds/${testRound.id}/pars`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ par })
       .expect(200);
 
-    expect(response.body).toEqual({ success: true });
-
-    // Verify par was set in database
-    const savedPar = await queryOne(
-      'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
-      [testRound.id, holeNumber],
-    );
-
-    expect(savedPar).toBeTruthy();
-    expect(savedPar.par).toBe(par);
-    expect(savedPar.round_id).toBe(testRound.id);
-    expect(savedPar.hole_number).toBe(holeNumber);
+    expect(response.body).toEqual({});
   });
 
-  test('should update existing par for a hole', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const originalPar = 3;
-    const newPar = 4;
-
-    // Set initial par
+  test('should return pars that have been set', async () => {
+    // Set pars for some holes
     await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .put(`/api/rounds/${testRound.id}/holes/1/par`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ par: originalPar })
+      .send({ par: 3 })
       .expect(200);
 
-    // Update par
+    await request(app)
+      .put(`/api/rounds/${testRound.id}/holes/3/par`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ par: 4 })
+      .expect(200);
+
+    await request(app)
+      .put(`/api/rounds/${testRound.id}/holes/7/par`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ par: 5 })
+      .expect(200);
+
+    // Get all pars
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .get(`/api/rounds/${testRound.id}/pars`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ par: newPar })
       .expect(200);
 
-    expect(response.body).toEqual({ success: true });
-
-    // Verify par was updated in database
-    const savedPar = await queryOne(
-      'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
-      [testRound.id, holeNumber],
-    );
-
-    expect(savedPar.par).toBe(newPar);
-
-    // Should only have one record for this hole
-    const allPars = await query(
-      'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
-      [testRound.id, holeNumber],
-    );
-    expect(allPars.rows).toHaveLength(1);
+    expect(response.body).toEqual({
+      1: 3,
+      3: 4,
+      7: 5,
+    });
   });
 
   test('should return 401 when not authenticated', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const par = chance.integer({ min: 3, max: 5 });
-
     await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .send({ par })
+      .get(`/api/rounds/${testRound.id}/pars`)
       .expect(401);
-  });
-
-  test('should return 400 when par is missing', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-
-    const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({})
-      .expect(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: 'Par is required',
-    });
-  });
-
-  test('should return 400 when par is out of range', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const invalidPar = chance.integer({ min: 11, max: 20 });
-
-    const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ par: invalidPar })
-      .expect(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: 'Par must be between 1 and 10',
-    });
-  });
-
-  test('should return 400 when hole number exceeds course hole count', async () => {
-    // testCourse has a known hole count, try to set par for hole beyond that
-    const invalidHoleNumber = testCourse.hole_count + 1;
-    const par = chance.integer({ min: 3, max: 5 });
-
-    const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${invalidHoleNumber}/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ par })
-      .expect(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: `Hole number cannot exceed course hole count (${testCourse.hole_count})`,
-    });
   });
 
   test('should return 404 when round not found', async () => {
     const nonExistentRoundId = chance.guid();
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const par = chance.integer({ min: 3, max: 5 });
 
     const response = await request(app)
-      .put(`/api/rounds/${nonExistentRoundId}/holes/${holeNumber}/par`)
+      .get(`/api/rounds/${nonExistentRoundId}/pars`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ par })
       .expect(404);
 
     expect(response.body).toEqual({
@@ -248,13 +174,9 @@ describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
     const otherAuthToken = otherLoginResponse.body.tokens.accessToken;
     createdUserIds.push(otherLoginResponse.body.user.id); // Track for cleanup
 
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const par = chance.integer({ min: 3, max: 5 });
-
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .get(`/api/rounds/${testRound.id}/pars`)
       .set('Authorization', `Bearer ${otherAuthToken}`)
-      .send({ par })
       .expect(403);
 
     expect(response.body).toEqual({

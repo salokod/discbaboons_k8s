@@ -17,6 +17,7 @@ let removePlayerController;
 let updateRoundController;
 let deleteRoundController;
 let setParController;
+let getParsController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -55,6 +56,10 @@ beforeAll(async () => {
 
   setParController = vi.fn((req, res) => {
     res.json({ message: 'set par controller called' });
+  });
+
+  getParsController = vi.fn((req, res) => {
+    res.json({ message: 'get pars controller called' });
   });
 
   // Mock the auth middleware
@@ -99,6 +104,10 @@ beforeAll(async () => {
     default: setParController,
   }));
 
+  vi.doMock('../../../controllers/rounds.getPars.controller.js', () => ({
+    default: getParsController,
+  }));
+
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
     default: authenticateToken,
   }));
@@ -140,6 +149,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../services/rounds.setPar.service.js', () => ({
     default: vi.fn().mockResolvedValue({ success: true }),
+  }));
+
+  vi.doMock('../../../services/rounds.getPars.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
   }));
 
   // Import the router after mocking
@@ -562,6 +575,42 @@ describe('rounds routes', () => {
     expect(req.params.id).toBe(roundId);
     expect(req.params.holeNumber).toBe(holeNumber.toString());
     expect(req.body).toEqual({ par });
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('GET /api/rounds/:id/pars should require authentication and call getPars controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .get(`/api/rounds/${roundId}/pars`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'get pars controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(getParsController).toHaveBeenCalled();
+  });
+
+  test('GET /api/rounds/:id/pars should pass roundId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .get(`/api/rounds/${roundId}/pars`)
+      .expect(200);
+
+    expect(getParsController).toHaveBeenCalled();
+    const lastCall = getParsController.mock.calls[
+      getParsController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
     expect(req.user).toEqual({ userId: 1 });
   });
 });
