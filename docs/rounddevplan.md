@@ -634,15 +634,18 @@ model users {
   - [x] **AFTER THIS**: Go back to Step 2.3 and add pars data to GET /api/rounds/:id endpoint
 
 #### Step 3.2: Score Entry & Management
-- [ ] `POST /api/rounds/:id/scores` - Submit/update scores
-  - [ ] **Batch API Design**: Accept array of scores for multiple players/holes
-  - [ ] **Simplified Format**: `{ scores: [{ playerId, holeNumber, strokes }] }` (no par field)
-  - [ ] **Par Lookup**: Get par from round_hole_pars table, default to 3 if not set
-  - [ ] Support both new scores and updates (upsert logic)
-  - [ ] Validate hole numbers against course hole count
-  - [ ] Validate strokes (1-20) ranges
-  - [ ] **Retroactive Score Changes**: Allow editing previous holes' scores
-  - [ ] **Skins Recalculation Trigger**: Mark round for skins recalculation on any score change
+- [x] `POST /api/rounds/:id/scores` - Submit/update scores ✅ **COMPLETED**
+  - [x] **Batch API Design**: Accept array of scores for multiple players/holes
+  - [x] **Simplified Format**: `{ scores: [{ playerId, holeNumber, strokes }] }` (no par field)
+  - [x] **Par Lookup**: Get par from round_hole_pars table, default to 3 if not set
+  - [x] Support both new scores and updates (upsert logic)
+  - [x] Validate hole numbers against course hole count
+  - [x] Validate strokes (1-20) ranges
+  - [x] **Retroactive Score Changes**: Allow editing previous holes' scores
+  - [x] Complete TDD implementation with service, controller, route
+  - [x] Comprehensive unit and integration tests
+  - [x] API documentation: `/docs/api/rounds/POST_rounds_id_scores.md`
+  - [ ] **Skins Recalculation Trigger**: Mark round for skins recalculation on any score change - **Future enhancement**
 - [ ] `GET /api/rounds/:id/scores` - Get all round scores
   - [ ] Return matrix organized by player and hole
   - [ ] **Dynamic Par Calculation**: Join with round_hole_pars table for current par values
