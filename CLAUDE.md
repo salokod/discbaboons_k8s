@@ -48,6 +48,7 @@ apps/express-server/
 - go step by step, and explain / give me opportunities to learn
 - DO NOT run tests or lint commands - human will run these to save tokens
 - DO NOT fix lint issues - human will fix these to save tokens
+- **NEVER start work without confirming with the human first - always ask permission before beginning any task**
 
 ## Database
 - Use raw PostgreSQL queries for all database operations

@@ -98,4 +98,16 @@ describe('GET /api/rounds/:id - Integration', () => {
 
     expect(res.body).toHaveProperty('error');
   });
+
+  test('should return round details including pars data', async () => {
+    const res = await request(app)
+      .get(`/api/rounds/${createdRoundIds[0]}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body).toHaveProperty('id', createdRoundIds[0]);
+    expect(res.body).toHaveProperty('players');
+    expect(res.body).toHaveProperty('pars');
+    expect(typeof res.body.pars).toBe('object');
+  });
 });

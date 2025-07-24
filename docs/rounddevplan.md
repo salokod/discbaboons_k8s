@@ -565,18 +565,16 @@ model users {
   - ✅ Complete TDD implementation with service, controller, route
   - ✅ Comprehensive unit and integration tests
 
-#### Step 2.3: Round Details & Advanced Management **DEPENDS ON 2.2**
-- ✅ `GET /api/rounds/:id` - Get round details WITH players
+#### Step 2.3: Round Details & Advanced Management **DEPENDS ON 2.2** ✅ **COMPLETED**
+- ✅ `GET /api/rounds/:id` - Get round details WITH players and pars
   - ✅ Include full round details (all round fields)
   - ✅ Include array of players (from round_players LEFT JOIN users)
+  - ✅ Include pars object with hole numbers as keys: `{ pars: { "1": 3, "2": 4, "3": 3 } }`
   - ✅ Only accessible to round participants (creator or existing player)
   - ✅ UUID validation for roundId parameter
   - ✅ Complete TDD implementation with service, controller, route
   - ✅ Comprehensive unit and integration tests
-  - [ ] **TODO: Add pars data** - Include round pars object with hole numbers as keys
-    - [ ] Format: `{ pars: { "1": 3, "2": 4, "3": 3 } }` for holes with explicit par set
-    - [ ] Include audit info: who set each par and when
-    - [ ] Default to par 3 for holes without explicit par (don't include in response)
+  - ✅ Updated API documentation with pars data structure
 - ✅ `PUT /api/rounds/:id` - Update round details
   - ✅ Any participant can edit (not just creator)
   - ✅ Update name, status, starting_hole, is_private, skins_enabled, skins_value
@@ -791,8 +789,9 @@ model users {
   - **Response:** User's own rounds ordered by created_at DESC
   - **Security:** Requires authentication, user isolation
   - **Documentation:** `/docs/api/rounds/GET_rounds.md`
-- ✅ `GET /api/rounds/:id` - Get round details WITH players
-  - **Response:** Full round object with embedded players array
+- ✅ `GET /api/rounds/:id` - Get round details WITH players and pars
+  - **Response:** Full round object with embedded players array and pars object
+  - **Pars Format:** `{ pars: { "1": 3, "2": 4, "18": 5 } }` for holes with explicit par set
   - **Permissions:** Only round participants (creator or existing player)
   - **Validation:** UUID format validation for roundId
   - **Security:** Requires authentication, participant-only access
