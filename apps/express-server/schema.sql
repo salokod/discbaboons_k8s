@@ -266,6 +266,44 @@ ALTER SEQUENCE public.friendship_requests_id_seq OWNED BY public.friendship_requ
 
 
 --
+-- Name: round_hole_pars; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.round_hole_pars (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    round_id uuid NOT NULL,
+    hole_number integer NOT NULL,
+    par integer DEFAULT 3 NOT NULL,
+    set_by_player_id uuid NOT NULL,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT check_hole_number CHECK (((hole_number > 0) AND (hole_number <= 50))),
+    CONSTRAINT check_par CHECK (((par > 0) AND (par <= 10)))
+);
+
+
+--
+-- Name: TABLE round_hole_pars; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.round_hole_pars IS 'Par values for each hole in a round, editable by any player';
+
+
+--
+-- Name: COLUMN round_hole_pars.par; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.round_hole_pars.par IS 'Par value for this hole (default 3, editable during round)';
+
+
+--
+-- Name: COLUMN round_hole_pars.set_by_player_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.round_hole_pars.set_by_player_id IS 'Player who last set/changed the par value';
+
+
+--
 -- Name: round_players; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -320,6 +358,30 @@ COMMENT ON COLUMN public.rounds.starting_hole IS 'Which hole number to start the
 --
 
 COMMENT ON COLUMN public.rounds.skins_value IS 'Dollar amount per hole for skins game, carries over on ties';
+
+
+--
+-- Name: scores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.scores (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    round_id uuid NOT NULL,
+    player_id uuid NOT NULL,
+    hole_number integer NOT NULL,
+    strokes integer NOT NULL,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT check_hole_number CHECK (((hole_number > 0) AND (hole_number <= 50))),
+    CONSTRAINT check_strokes CHECK (((strokes > 0) AND (strokes <= 20)))
+);
+
+
+--
+-- Name: TABLE scores; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.scores IS 'Player scores per hole (par looked up from round_hole_pars table)';
 
 
 --
@@ -467,6 +529,14 @@ ALTER TABLE ONLY public.friendship_requests
 
 
 --
+-- Name: round_hole_pars round_hole_pars_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.round_hole_pars
+    ADD CONSTRAINT round_hole_pars_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: round_players round_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -480,6 +550,14 @@ ALTER TABLE ONLY public.round_players
 
 ALTER TABLE ONLY public.rounds
     ADD CONSTRAINT rounds_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scores scores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scores
+    ADD CONSTRAINT scores_pkey PRIMARY KEY (id);
 
 
 --
@@ -684,6 +762,20 @@ CREATE INDEX idx_friendship_requests_recipient_id ON public.friendship_requests 
 
 
 --
+-- Name: idx_round_hole_pars_round_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_round_hole_pars_round_id ON public.round_hole_pars USING btree (round_id);
+
+
+--
+-- Name: idx_round_hole_pars_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_round_hole_pars_unique ON public.round_hole_pars USING btree (round_id, hole_number);
+
+
+--
 -- Name: idx_round_players_round_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -737,6 +829,34 @@ CREATE INDEX idx_rounds_starting_hole ON public.rounds USING btree (starting_hol
 --
 
 CREATE INDEX idx_rounds_status ON public.rounds USING btree (status);
+
+
+--
+-- Name: idx_scores_hole_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_scores_hole_number ON public.scores USING btree (hole_number);
+
+
+--
+-- Name: idx_scores_player_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_scores_player_id ON public.scores USING btree (player_id);
+
+
+--
+-- Name: idx_scores_round_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_scores_round_id ON public.scores USING btree (round_id);
+
+
+--
+-- Name: idx_scores_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_scores_unique ON public.scores USING btree (round_id, player_id, hole_number);
 
 
 --
@@ -847,6 +967,22 @@ ALTER TABLE ONLY public.friendship_requests
 
 
 --
+-- Name: round_hole_pars round_hole_pars_round_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.round_hole_pars
+    ADD CONSTRAINT round_hole_pars_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id) ON DELETE CASCADE;
+
+
+--
+-- Name: round_hole_pars round_hole_pars_set_by_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.round_hole_pars
+    ADD CONSTRAINT round_hole_pars_set_by_player_id_fkey FOREIGN KEY (set_by_player_id) REFERENCES public.round_players(id) ON DELETE CASCADE;
+
+
+--
 -- Name: round_players round_players_round_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -876,6 +1012,22 @@ ALTER TABLE ONLY public.rounds
 
 ALTER TABLE ONLY public.rounds
     ADD CONSTRAINT rounds_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: scores scores_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scores
+    ADD CONSTRAINT scores_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.round_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: scores scores_round_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scores
+    ADD CONSTRAINT scores_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id) ON DELETE CASCADE;
 
 
 --
