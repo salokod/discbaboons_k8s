@@ -70,9 +70,25 @@ const getRoundService = async (roundId, userId) => {
   `;
   const players = await queryRows(playersQuery, [roundId]);
 
+  // Get pars for the round
+  const parsQuery = `
+    SELECT hole_number, par, set_by_player_id, created_at 
+    FROM round_hole_pars 
+    WHERE round_id = $1 
+    ORDER BY hole_number
+  `;
+  const parsResult = await queryRows(parsQuery, [roundId]);
+
+  // Convert pars array to object with hole numbers as keys
+  const pars = {};
+  parsResult.forEach((row) => {
+    pars[row.hole_number] = row.par;
+  });
+
   return {
     ...round,
     players,
+    pars,
   };
 };
 

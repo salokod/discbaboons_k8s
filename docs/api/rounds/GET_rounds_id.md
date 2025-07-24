@@ -1,6 +1,6 @@
 # GET /api/rounds/:id
 
-Get detailed information about a specific round, including all players.
+Get detailed information about a specific round, including all players and pars data.
 
 ## Authentication
 Requires authentication via Bearer token in Authorization header.
@@ -27,7 +27,7 @@ None required.
 ## Response
 
 ### Success Response (200 OK)
-Returns the complete round object with embedded players array.
+Returns the complete round object with embedded players array and pars data.
 
 ```json
 {
@@ -62,7 +62,13 @@ Returns the complete round object with embedded players array.
       "joined_at": "2024-01-15T09:35:00.000Z",
       "username": null
     }
-  ]
+  ],
+  "pars": {
+    "1": 3,
+    "2": 4,
+    "3": 3,
+    "18": 5
+  }
 }
 ```
 
@@ -145,6 +151,12 @@ curl -X GET "https://api.example.com/api/rounds/123e4567-e89b-12d3-a456-42661417
 - `joined_at`: When player joined the round
 - `username`: Username for registered users (null for guests)
 
+### Pars Fields (in pars object)
+- Object with hole numbers as keys and par values as values
+- Only includes holes where par has been explicitly set
+- Empty object `{}` if no pars have been set for any holes
+- Example: `{"1": 3, "2": 4, "18": 5}` means hole 1 is par 3, hole 2 is par 4, hole 18 is par 5
+
 ## Business Rules
 
 ### Access Control
@@ -157,6 +169,8 @@ curl -X GET "https://api.example.com/api/rounds/123e4567-e89b-12d3-a456-42661417
 - Includes ALL players with both registered users and guests
 - Players are ordered by `joined_at` timestamp (earliest first)
 - Username is populated via LEFT JOIN with users table
+- Includes ALL pars that have been set for the round
+- Pars are ordered by hole number
 
 ### Validation Rules
 - Round ID must be a valid UUID format
@@ -177,3 +191,5 @@ curl -X GET "https://api.example.com/api/rounds/123e4567-e89b-12d3-a456-42661417
 - [GET /api/rounds/:id/players](./GET_rounds_id_players.md) - List round players only
 - [POST /api/rounds/:id/players](./POST_rounds_id_players.md) - Add players to round
 - [DELETE /api/rounds/:id/players/:playerId](./DELETE_rounds_id_players_playerId.md) - Remove player from round
+- [GET /api/rounds/:id/pars](./GET_rounds_id_pars.md) - Get pars data only
+- [PUT /api/rounds/:id/holes/:holeNumber/par](./PUT_rounds_id_holes_holeNumber_par.md) - Set hole par

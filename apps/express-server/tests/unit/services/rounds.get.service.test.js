@@ -28,7 +28,7 @@ describe('rounds.get.service', () => {
     const userId = chance.integer({ min: 1, max: 1000 });
 
     queryOne.mockResolvedValue({ id: roundId, created_by_id: userId });
-    queryRows.mockResolvedValue([]);
+    queryRows.mockResolvedValue([]); // players query only for now
 
     const result = await getRoundService(roundId, userId);
 
@@ -121,13 +121,51 @@ describe('rounds.get.service', () => {
     ];
 
     queryOne.mockResolvedValue(mockRound);
-    queryRows.mockResolvedValue(mockPlayers);
+    queryRows
+      .mockResolvedValueOnce(mockPlayers) // players query
+      .mockResolvedValueOnce([]); // pars query
 
     const result = await getRoundService(roundId, userId);
 
     expect(result).toEqual({
       ...mockRound,
       players: mockPlayers,
+      pars: {},
     });
+  });
+
+  test('should include pars data in round response', async () => {
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const mockRound = {
+      id: roundId,
+      created_by_id: userId,
+      course_id: chance.word(),
+      name: chance.sentence({ words: 3 }),
+      start_time: new Date(),
+      starting_hole: 1,
+      is_private: false,
+      skins_enabled: false,
+      skins_value: null,
+      status: 'in_progress',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    const mockParsRows = [
+      { hole_number: 1, par: 3 },
+      { hole_number: 2, par: 4 },
+      { hole_number: 18, par: 5 },
+    ];
+
+    queryOne.mockResolvedValue(mockRound);
+    queryRows
+      .mockResolvedValueOnce([]) // players query
+      .mockResolvedValueOnce(mockParsRows); // pars query
+
+    const result = await getRoundService(roundId, userId);
+
+    expect(result).toHaveProperty('pars');
+    expect(result.pars).toEqual({ 1: 3, 2: 4, 18: 5 });
   });
 });
