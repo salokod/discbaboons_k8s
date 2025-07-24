@@ -573,6 +573,10 @@ model users {
   - ✅ UUID validation for roundId parameter
   - ✅ Complete TDD implementation with service, controller, route
   - ✅ Comprehensive unit and integration tests
+  - [ ] **TODO: Add pars data** - Include round pars object with hole numbers as keys
+    - [ ] Format: `{ pars: { "1": 3, "2": 4, "3": 3 } }` for holes with explicit par set
+    - [ ] Include audit info: who set each par and when
+    - [ ] Default to par 3 for holes without explicit par (don't include in response)
 - ✅ `PUT /api/rounds/:id` - Update round details
   - ✅ Any participant can edit (not just creator)
   - ✅ Update name, status, starting_hole, is_private, skins_enabled, skins_value

@@ -6,7 +6,7 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query, queryOne } from '../setup.js';
-import { createUniqueCourseData, createSimpleRoundData } from '../test-helpers.js';
+import { createUniqueCourseData } from '../test-helpers.js';
 
 const chance = new Chance();
 
@@ -59,7 +59,11 @@ describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
     createdCourseIds.push(testCourse.id);
 
     // Create test round
-    const roundData = createSimpleRoundData(testCourse.id, 'trsp');
+    const roundData = {
+      courseId: testCourse.id,
+      name: `Test Round ${testId}${Date.now()}`,
+      startingHole: chance.integer({ min: 1, max: testCourse.hole_count }),
+    };
     const roundResponse = await request(app)
       .post('/api/rounds')
       .set('Authorization', `Bearer ${token}`)
