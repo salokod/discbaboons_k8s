@@ -646,11 +646,14 @@ model users {
   - [x] Comprehensive unit and integration tests
   - [x] API documentation: `/docs/api/rounds/POST_rounds_id_scores.md`
   - [ ] **Skins Recalculation Trigger**: Mark round for skins recalculation on any score change - **Future enhancement**
-- [ ] `GET /api/rounds/:id/scores` - Get all round scores
-  - [ ] Return matrix organized by player and hole
-  - [ ] **Dynamic Par Calculation**: Join with round_hole_pars table for current par values
-  - [ ] Include calculated totals and relative scores
-  - [ ] Format: `{ playerUuid: { username/guestName, holes: { 1: { strokes, par, relative } }, total, totalPar, relativeScore } }`
+- [x] `GET /api/rounds/:id/scores` - Get all round scores ✅ **COMPLETED**
+  - [x] Return matrix organized by player and hole
+  - [x] **Dynamic Par Calculation**: Join with round_hole_pars table for current par values
+  - [x] Include calculated totals and relative scores
+  - [x] Format: `{ playerUuid: { username/guestName, holes: { 1: { strokes, par, relative } }, total, totalPar, relativeScore } }`
+  - [x] Complete TDD implementation with service, controller, routes
+  - [x] Comprehensive unit and integration tests
+  - [x] API documentation: `/docs/api/rounds/GET_rounds_id_scores.md`
 - [ ] `GET /api/rounds/:id/leaderboard` - Real-time leaderboard
   - [ ] Sort players by total strokes (ascending)
   - [ ] Include position, holes completed, current hole

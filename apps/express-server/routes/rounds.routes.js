@@ -10,6 +10,7 @@ import deleteRoundController from '../controllers/rounds.delete.controller.js';
 import setParController from '../controllers/rounds.setPar.controller.js';
 import getParsController from '../controllers/rounds.getPars.controller.js';
 import submitScoresController from '../controllers/rounds.submitScores.controller.js';
+import getScoresController from '../controllers/rounds.getScores.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -37,6 +38,9 @@ router.get('/:id/pars', authenticateToken, getParsController);
 
 // POST /api/rounds/:id/scores - Submit scores for round (requires authentication)
 router.post('/:id/scores', authenticateToken, submitScoresController);
+
+// GET /api/rounds/:id/scores - Get all scores for round (requires authentication)
+router.get('/:id/scores', authenticateToken, getScoresController);
 
 // PUT /api/rounds/:id - Update round details (requires authentication)
 router.put('/:id', authenticateToken, updateRoundController);
