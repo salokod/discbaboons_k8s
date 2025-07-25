@@ -18,6 +18,8 @@ let updateRoundController;
 let deleteRoundController;
 let setParController;
 let getParsController;
+let submitScoresController;
+let getScoresController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -60,6 +62,14 @@ beforeAll(async () => {
 
   getParsController = vi.fn((req, res) => {
     res.json({ message: 'get pars controller called' });
+  });
+
+  submitScoresController = vi.fn((req, res) => {
+    res.json({ message: 'submit scores controller called' });
+  });
+
+  getScoresController = vi.fn((req, res) => {
+    res.json({ message: 'get scores controller called' });
   });
 
   // Mock the auth middleware
@@ -106,6 +116,14 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.getPars.controller.js', () => ({
     default: getParsController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.submitScores.controller.js', () => ({
+    default: submitScoresController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.getScores.controller.js', () => ({
+    default: getScoresController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -155,6 +173,14 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/rounds.submitScores.service.js', () => ({
+    default: vi.fn().mockResolvedValue({ success: true, scoresSubmitted: 1 }),
+  }));
+
+  vi.doMock('../../../services/rounds.getScores.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -171,6 +197,9 @@ describe('rounds routes', () => {
     updateRoundController.mockClear();
     deleteRoundController.mockClear();
     setParController.mockClear();
+    getParsController.mockClear();
+    submitScoresController.mockClear();
+    getScoresController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -608,6 +637,64 @@ describe('rounds routes', () => {
     expect(getParsController).toHaveBeenCalled();
     const lastCall = getParsController.mock.calls[
       getParsController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('POST /api/rounds/:id/scores should require authentication and call submitScores controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const scoresData = {
+      scores: [
+        { playerId: chance.guid(), holeNumber: 1, strokes: 4 },
+      ],
+    };
+
+    const response = await request(app)
+      .post(`/api/rounds/${roundId}/scores`)
+      .send(scoresData)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'submit scores controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(submitScoresController).toHaveBeenCalled();
+  });
+
+  test('GET /api/rounds/:id/scores should require authentication and call getScores controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .get(`/api/rounds/${roundId}/scores`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'get scores controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(getScoresController).toHaveBeenCalled();
+  });
+
+  test('GET /api/rounds/:id/scores should pass roundId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .get(`/api/rounds/${roundId}/scores`)
+      .expect(200);
+
+    expect(getScoresController).toHaveBeenCalled();
+    const lastCall = getScoresController.mock.calls[
+      getScoresController.mock.calls.length - 1
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
