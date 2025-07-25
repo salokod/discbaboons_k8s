@@ -20,6 +20,7 @@ let setParController;
 let getParsController;
 let submitScoresController;
 let getScoresController;
+let getLeaderboardController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -70,6 +71,10 @@ beforeAll(async () => {
 
   getScoresController = vi.fn((req, res) => {
     res.json({ message: 'get scores controller called' });
+  });
+
+  getLeaderboardController = vi.fn((req, res) => {
+    res.json({ message: 'get leaderboard controller called' });
   });
 
   // Mock the auth middleware
@@ -124,6 +129,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/rounds.getScores.controller.js', () => ({
     default: getScoresController,
+  }));
+
+  vi.doMock('../../../controllers/rounds.getLeaderboard.controller.js', () => ({
+    default: getLeaderboardController,
   }));
 
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
@@ -695,6 +704,42 @@ describe('rounds routes', () => {
     expect(getScoresController).toHaveBeenCalled();
     const lastCall = getScoresController.mock.calls[
       getScoresController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('GET /api/rounds/:id/leaderboard should require authentication and call getLeaderboard controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .get(`/api/rounds/${roundId}/leaderboard`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'get leaderboard controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(getLeaderboardController).toHaveBeenCalled();
+  });
+
+  test('GET /api/rounds/:id/leaderboard should pass roundId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .get(`/api/rounds/${roundId}/leaderboard`)
+      .expect(200);
+
+    expect(getLeaderboardController).toHaveBeenCalled();
+    const lastCall = getLeaderboardController.mock.calls[
+      getLeaderboardController.mock.calls.length - 1
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);

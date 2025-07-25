@@ -654,11 +654,20 @@ model users {
   - [x] Complete TDD implementation with service, controller, routes
   - [x] Comprehensive unit and integration tests
   - [x] API documentation: `/docs/api/rounds/GET_rounds_id_scores.md`
-- [ ] `GET /api/rounds/:id/leaderboard` - Real-time leaderboard
-  - [ ] Sort players by total strokes (ascending)
-  - [ ] Include position, holes completed, current hole
-  - [ ] **Skins Integration**: Include skinsWon count and skinsValue per player
-  - [ ] Show current skins carry-over amount
+- [x] `GET /api/rounds/:id/leaderboard` - Real-time leaderboard (**INCREMENTAL APPROACH**) ✅ **COMPLETED**
+  - [x] **Phase 1 (Now)**: Basic leaderboard functionality ✅ **COMPLETED**
+    - [x] Sort players by total strokes (ascending)  
+    - [x] Include position, holes completed, current hole
+    - [x] Show round skins settings (skins_enabled, skins_value from rounds table)
+    - [x] **Placeholder skins data**: skinsWon: 0, carry-over: 0 (until Phase 4)
+    - [x] Complete TDD implementation with service, controller, route
+    - [x] API documentation with clear "skins coming soon" notes: `/docs/api/rounds/GET_rounds_id_leaderboard.md`
+  - [ ] **Phase 2 (Phase 4.1)**: Full skins integration (requires skins_results table)
+    - [ ] **DEPENDS ON**: Skins Calculation Engine (Step 4.1)
+    - [ ] **DEPENDS ON**: skins_results table creation
+    - [ ] Replace placeholder data with real skinsWon count per player
+    - [ ] Show current skins carry-over amount from ongoing holes
+    - [ ] Update API documentation to remove "coming soon" notes
 - [ ] Hole-by-hole score validation
 - [ ] Score calculation utilities (par, total, relative)
 
@@ -687,6 +696,8 @@ model users {
 **Target: Week 7-8**
 
 #### Step 4.1: Skins Game
+**⚠️ IMPORTANT**: Update GET /api/rounds/:id/leaderboard endpoint when complete (remove placeholder skins data)
+
 - [ ] **Skins Calculation Engine** (per-hole dollar value)
   - [ ] Calculate winner per hole (lowest score wins)
   - [ ] Handle ties with carry-over to next hole

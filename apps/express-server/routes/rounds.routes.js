@@ -11,6 +11,7 @@ import setParController from '../controllers/rounds.setPar.controller.js';
 import getParsController from '../controllers/rounds.getPars.controller.js';
 import submitScoresController from '../controllers/rounds.submitScores.controller.js';
 import getScoresController from '../controllers/rounds.getScores.controller.js';
+import getLeaderboardController from '../controllers/rounds.getLeaderboard.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -41,6 +42,9 @@ router.post('/:id/scores', authenticateToken, submitScoresController);
 
 // GET /api/rounds/:id/scores - Get all scores for round (requires authentication)
 router.get('/:id/scores', authenticateToken, getScoresController);
+
+// GET /api/rounds/:id/leaderboard - Get round leaderboard (requires authentication)
+router.get('/:id/leaderboard', authenticateToken, getLeaderboardController);
 
 // PUT /api/rounds/:id - Update round details (requires authentication)
 router.put('/:id', authenticateToken, updateRoundController);
