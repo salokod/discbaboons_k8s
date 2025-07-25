@@ -695,31 +695,65 @@ model users {
 ### Phase 4: Betting System
 **Target: Week 7-8**
 
-#### Step 4.1: Skins Game
+#### Step 4.1: Skins Game ✅ **CORE IMPLEMENTATION COMPLETED**
 **⚠️ IMPORTANT**: Update GET /api/rounds/:id/leaderboard endpoint when complete (remove placeholder skins data)
 
-- [ ] **Skins Calculation Engine** (per-hole dollar value)
-  - [ ] Calculate winner per hole (lowest score wins)
-  - [ ] Handle ties with carry-over to next hole
-  - [ ] Support multiple skins on a single hole (accumulation from ties)
-  - [ ] **Retroactive Recalculation**: Full recalc when any score changes
-  - [ ] Track skins history for audit trail
-- [ ] **Skins State Management**
+- ✅ **Skins Calculation Engine** (per-hole dollar value) ✅ **COMPLETED**
+  - ✅ Calculate winner per hole (lowest score wins)
+  - ✅ Handle ties with carry-over to next hole
+  - ✅ Support multiple skins on a single hole (accumulation from ties)
+  - [ ] **Retroactive Recalculation**: Full recalc when any score changes - **Future enhancement**
+  - [ ] Track skins history for audit trail - **Future enhancement**
+- [ ] **Skins Money Tracking** - **Planned Enhancement**
+  - [ ] Calculate net gain/loss per player across all participants
+  - [ ] **Formula**: `netGain = totalValueWon - (totalSkinsInRound * skinsValuePerHole)`
+  - [ ] **Example**: Win all 9 skins at $1/hole with 2 opponents = +$18 (you get $9 from each)
+  - [ ] **Example**: Lose all skins in 3-player game = -$9 (pay $1/hole to winner)
+  - [ ] Add `netGain` field to playerSummary in skins API response
+  - [ ] Include total pot contribution and winnings breakdown
+  - [ ] Update API documentation with money tracking examples
+- [ ] **Skins State Management** - **Future enhancement (caching optimization)**
   - [ ] Create `skins_results` table to store calculated results
   - [ ] Store hole-by-hole winners and carry-over amounts
   - [ ] Cache results but invalidate on score changes
   - [ ] Include timestamp of last calculation
-- [ ] **Score Change Impact**
+- [ ] **Score Change Impact** - **Future enhancement**
   - [ ] Detect which holes are affected by score edit
   - [ ] Recalculate skins from earliest affected hole
   - [ ] Update all downstream carry-overs
   - [ ] Generate change notification for affected players
-- [ ] Final hole tiebreaker system (prompt users for method if tied on last hole)
-- [ ] Final payout calculation and distribution
-- [ ] Skins leaderboard display with carry-over tracking
-- [ ] **Skins API Endpoints**
-  - [ ] `GET /api/rounds/:id/skins` - Current skins results with history
-  - [ ] `GET /api/rounds/:id/skins/history` - Audit trail of changes
+- [ ] Final hole tiebreaker system (prompt users for method if tied on last hole) - **Future enhancement**
+- [ ] Final payout calculation and distribution - **Future enhancement**
+- [ ] Skins leaderboard display with carry-over tracking - **Future enhancement**
+- ✅ **Skins API Endpoints** ✅ **COMPLETED**
+  - ✅ `GET /api/rounds/:id/skins` - Current skins results with carry-over tracking
+  - [ ] `GET /api/rounds/:id/skins/history` - Audit trail of changes - **Future enhancement**
+
+#### Current Skins Implementation Status ✅
+- **Service**: `skins.calculate.service.js` - Full TDD implementation with comprehensive unit tests
+- **Controller**: `skins.calculate.controller.js` - Thin controller following established patterns  
+- **Routes**: Added to `rounds.routes.js` with authentication middleware
+- **API Endpoint**: `GET /api/rounds/:id/skins` - Production ready with full integration tests
+- **Authentication**: Only round participants can view skins results
+- **Business Logic**: Real-time calculation with proper carry-over logic and player summaries
+- **Documentation**: Complete API documentation at `/docs/api/rounds/GET_rounds_id_skins.md`
+
+**What's Working Now:**
+- Winner detection (lowest score wins each hole)
+- Tie handling with carry-over accumulation to next hole
+- Player summary with total skins won and dollar values
+- Sequential hole processing for proper carry-over logic
+- Full permission validation (creator + players only)
+- Comprehensive error handling and validation
+- Real-time calculation (no caching needed for MVP)
+
+**Planned Money Tracking Enhancement:**
+- **Net Gain/Loss Calculation**: Track how much each player is up/down
+- **Multi-Player Math**: Winner gets skins value × number of other players
+- **Example Scenarios**:
+  - 2 players, $1/hole: Winner gets $1, loser pays $1 (net: +$1/-$1)
+  - 3 players, $1/hole: Winner gets $2, losers each pay $1 (net: +$2/-$1/-$1)
+  - 4 players, $5/hole: Winner gets $15, losers each pay $5 (net: +$15/-$5/-$5/-$5)
 
 #### Step 4.2: Side Bets
 - [ ] Create side bets migrations (V24-V25)
@@ -842,11 +876,16 @@ model users {
 - `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with skins integration
 
 ### Betting
-- `GET /api/rounds/:id/skins` - Get current skins results with carry-over tracking
-- `GET /api/rounds/:id/skins/history` - Audit trail of skins changes (score edits)
-- `POST /api/rounds/:id/side-bets` - Create side bet
-- `POST /api/rounds/:id/side-bets/:betId/join` - Join bet
-- `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner
+- ✅ `GET /api/rounds/:id/skins` - Get current skins results with carry-over tracking ✅ **COMPLETED**
+  - **Response:** Complete skins calculation with hole-by-hole results and player summaries
+  - **Business Logic:** Real-time winner detection, tie carry-over, sequential processing
+  - **Security:** Requires authentication, participant-only access
+  - **Data:** Dynamic calculation based on current scores and pars
+  - **Documentation:** `/docs/api/rounds/GET_rounds_id_skins.md`
+- `GET /api/rounds/:id/skins/history` - Audit trail of skins changes (score edits) - **Future enhancement**
+- `POST /api/rounds/:id/side-bets` - Create side bet - **Not implemented**
+- `POST /api/rounds/:id/side-bets/:betId/join` - Join bet - **Not implemented**
+- `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner - **Not implemented**
 
 ---
 

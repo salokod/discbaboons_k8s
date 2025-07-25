@@ -1,4 +1,4 @@
-import { queryOne, query } from '../lib/database.js';
+import { queryOne, query, queryRows } from '../lib/database.js';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -73,6 +73,13 @@ const submitScoresService = async (roundId, scores, requestingUserId) => {
     throw error;
   }
 
+  // Get all valid player IDs for this round
+  const validPlayers = await queryRows(
+    'SELECT id FROM round_players WHERE round_id = $1',
+    [roundId],
+  );
+  const validPlayerIds = new Set(validPlayers.map((player) => player.id));
+
   // Validate each score in the array
   for (let i = 0; i < scores.length; i += 1) {
     const score = scores[i];
@@ -86,6 +93,13 @@ const submitScoresService = async (roundId, scores, requestingUserId) => {
 
     if (!UUID_REGEX.test(score.playerId)) {
       const error = new Error('Player ID must be a valid UUID');
+      error.name = 'ValidationError';
+      throw error;
+    }
+
+    // Validate that player is in this round
+    if (!validPlayerIds.has(score.playerId)) {
+      const error = new Error(`Player ID ${score.playerId} is not a participant in this round`);
       error.name = 'ValidationError';
       throw error;
     }

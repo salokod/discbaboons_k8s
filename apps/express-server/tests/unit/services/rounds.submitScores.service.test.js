@@ -11,6 +11,7 @@ const chance = new Chance();
 vi.mock('../../../lib/database.js', () => ({
   queryOne: vi.fn(),
   query: vi.fn(),
+  queryRows: vi.fn(),
 }));
 
 describe('rounds.submitScores.service', () => {
@@ -23,16 +24,18 @@ describe('rounds.submitScores.service', () => {
   });
 
   test('should accept roundId, scores array, and requestingUserId parameters', async () => {
-    const { queryOne, query } = await import('../../../lib/database.js');
+    const { queryOne, query, queryRows } = await import('../../../lib/database.js');
     const roundId = chance.guid();
-    const scores = [{ playerId: chance.guid(), holeNumber: 1, strokes: 4 }];
+    const playerId = chance.guid();
+    const scores = [{ playerId, holeNumber: 1, strokes: 4 }];
     const requestingUserId = chance.integer({ min: 1, max: 1000 });
 
     queryOne
       .mockResolvedValueOnce({ id: roundId, hole_count: 18 }) // Round exists
       .mockResolvedValueOnce({ id: 'player-id' }); // User is participant
 
-    query.mockResolvedValue({ rows: [] }); // Scores query
+    queryRows.mockResolvedValueOnce([{ id: playerId }]); // Valid players
+    query.mockResolvedValue({}); // Score upsert
 
     const result = await submitScoresService(roundId, scores, requestingUserId);
 
@@ -116,53 +119,84 @@ describe('rounds.submitScores.service', () => {
   });
 
   test('should throw ValidationError when score has invalid playerId', async () => {
-    const { queryOne } = await import('../../../lib/database.js');
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
     const roundId = chance.guid();
-    const scores = [{ playerId: chance.word(), holeNumber: 1, strokes: 4 }]; // Invalid UUID
+    const scores = [{
+      playerId: chance.word(),
+      holeNumber: chance.integer({ min: 1, max: 18 }),
+      strokes: chance.integer({ min: 1, max: 7 }),
+    }];
     const requestingUserId = chance.integer({ min: 1, max: 1000 });
 
+    const holeCount = chance.integer({ min: 9, max: 27 });
+    const participantId = chance.guid();
+
     queryOne
-      .mockResolvedValueOnce({ id: roundId, hole_count: 18 }) // Round exists
-      .mockResolvedValueOnce({ id: 'player-id' }); // User is participant
+      .mockResolvedValueOnce({ id: roundId, hole_count: holeCount }) // Round exists
+      .mockResolvedValueOnce({ id: participantId }); // User is participant
+
+    queryRows.mockResolvedValueOnce([{ id: chance.guid() }]); // Valid players
 
     await expect(submitScoresService(roundId, scores, requestingUserId))
       .rejects.toThrow('Player ID must be a valid UUID');
   });
 
   test('should throw ValidationError when score has invalid hole number', async () => {
-    const { queryOne } = await import('../../../lib/database.js');
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
     const roundId = chance.guid();
-    const scores = [{ playerId: chance.guid(), holeNumber: 0, strokes: 4 }]; // Invalid hole number
+    const playerId = chance.guid();
+    const scores = [{
+      playerId,
+      holeNumber: chance.integer({ min: -5, max: 0 }),
+      strokes: chance.integer({ min: 1, max: 7 }),
+    }];
     const requestingUserId = chance.integer({ min: 1, max: 1000 });
 
+    const holeCount = chance.integer({ min: 9, max: 27 });
+    const participantId = chance.guid();
+
     queryOne
-      .mockResolvedValueOnce({ id: roundId, hole_count: 18 }) // Round exists
-      .mockResolvedValueOnce({ id: 'player-id' }); // User is participant
+      .mockResolvedValueOnce({ id: roundId, hole_count: holeCount }) // Round exists
+      .mockResolvedValueOnce({ id: participantId }); // User is participant
+
+    queryRows.mockResolvedValueOnce([{ id: playerId }]); // Valid players
 
     await expect(submitScoresService(roundId, scores, requestingUserId))
       .rejects.toThrow('Hole number must be between 1 and 50');
   });
 
   test('should throw ValidationError when score has invalid strokes', async () => {
-    const { queryOne } = await import('../../../lib/database.js');
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
     const roundId = chance.guid();
-    const scores = [{ playerId: chance.guid(), holeNumber: 1, strokes: 0 }]; // Invalid strokes
+    const playerId = chance.guid();
+    const holeCount = chance.integer({ min: 9, max: 27 });
+    const validHoleNumber = chance.integer({ min: 1, max: holeCount });
+    const scores = [{
+      playerId,
+      holeNumber: validHoleNumber,
+      strokes: chance.integer({ min: -3, max: 0 }),
+    }];
     const requestingUserId = chance.integer({ min: 1, max: 1000 });
 
+    const participantId = chance.guid();
+
     queryOne
-      .mockResolvedValueOnce({ id: roundId, hole_count: 18 }) // Round exists
-      .mockResolvedValueOnce({ id: 'player-id' }); // User is participant
+      .mockResolvedValueOnce({ id: roundId, hole_count: holeCount }) // Round exists
+      .mockResolvedValueOnce({ id: participantId }); // User is participant
+
+    queryRows.mockResolvedValueOnce([{ id: playerId }]); // Valid players
 
     await expect(submitScoresService(roundId, scores, requestingUserId))
       .rejects.toThrow('Strokes must be between 1 and 20');
   });
 
-  test('should submit scores successfully', async () => {
-    const { queryOne, query } = await import('../../../lib/database.js');
+  test('should throw ValidationError when playerId is not in round', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
     const roundId = chance.guid();
+    const validPlayerId = chance.guid();
+    const invalidPlayerId = chance.guid();
     const scores = [
-      { playerId: chance.guid(), holeNumber: 1, strokes: 3 },
-      { playerId: chance.guid(), holeNumber: 2, strokes: 4 },
+      { playerId: invalidPlayerId, holeNumber: 1, strokes: 3 },
     ];
     const requestingUserId = chance.integer({ min: 1, max: 1000 });
 
@@ -170,11 +204,35 @@ describe('rounds.submitScores.service', () => {
       .mockResolvedValueOnce({ id: roundId, hole_count: 18 }) // Round exists
       .mockResolvedValueOnce({ id: 'player-id' }); // User is participant
 
-    query.mockResolvedValue({}); // Score upsert
+    // Mock valid players - only includes validPlayerId, not invalidPlayerId
+    queryRows.mockResolvedValueOnce([{ id: validPlayerId }]);
+
+    await expect(submitScoresService(roundId, scores, requestingUserId))
+      .rejects.toThrow(`Player ID ${invalidPlayerId} is not a participant in this round`);
+  });
+
+  test('should submit scores successfully', async () => {
+    const { queryOne, query, queryRows } = await import('../../../lib/database.js');
+    const roundId = chance.guid();
+    const playerId1 = chance.guid();
+    const playerId2 = chance.guid();
+    const scores = [
+      { playerId: playerId1, holeNumber: 1, strokes: 3 },
+      { playerId: playerId2, holeNumber: 2, strokes: 4 },
+    ];
+    const requestingUserId = chance.integer({ min: 1, max: 1000 });
+
+    queryOne
+      .mockResolvedValueOnce({ id: roundId, hole_count: 18 }) // Round exists
+      .mockResolvedValueOnce({ id: 'player-id' }); // User is participant
+
+    // Mock valid players - includes both player IDs
+    queryRows.mockResolvedValueOnce([{ id: playerId1 }, { id: playerId2 }]); // Valid players
+    query.mockResolvedValue({}); // Score upserts
 
     const result = await submitScoresService(roundId, scores, requestingUserId);
 
     expect(result).toEqual({ success: true, scoresSubmitted: 2 });
-    expect(query).toHaveBeenCalledTimes(2); // One call per score
+    expect(query).toHaveBeenCalledTimes(2); // Two for scores (players uses queryRows)
   });
 });
