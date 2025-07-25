@@ -73,12 +73,12 @@ Each player object contains:
 - `relativeScore` (number): Total strokes relative to par (negative = under par)
 - `holesCompleted` (number): Number of holes with scores recorded
 - `currentHole` (number): Next hole number to play (highest completed + 1)
-- `skinsWon` (number): **Placeholder** - Number of skins won (always 0 until Phase 4)
+- `skinsWon` (number): Number of skins won (real-time calculation when skins are enabled)
 
 #### Round Settings
 - `skinsEnabled` (boolean): Whether skins game is enabled for this round
 - `skinsValue` (string): Dollar amount per hole for skins game
-- `currentCarryOver` (number): **Placeholder** - Current skins carry-over amount (always 0 until Phase 4)
+- `currentCarryOver` (number): Current skins carry-over amount waiting to be won
 
 ## Sorting Logic
 Players are sorted by:
@@ -168,7 +168,7 @@ curl -X GET \
       "relativeScore": -3,
       "holesCompleted": 5,
       "currentHole": 6,
-      "skinsWon": 0
+      "skinsWon": 3
     },
     {
       "playerId": "550e8400-e29b-41d4-a716-446655440000",
@@ -194,17 +194,19 @@ curl -X GET \
 
 ## Notes
 
-### Incremental Implementation
-This endpoint follows an **incremental approach** for skins functionality:
+### Skins Integration
+This endpoint now includes **real-time skins calculation** when skins are enabled:
 
-- **Phase 1 (Current)**: Basic leaderboard with placeholder skins data
-  - `skinsWon` always returns 0
-  - `currentCarryOver` always returns 0
-  - Round skins settings are displayed from the rounds table
+- **Real-time Calculation**: Skins are calculated dynamically based on current scores
+  - `skinsWon` shows actual skins won by each player
+  - `currentCarryOver` displays any skins waiting to be won due to ties
+  - Calculations respect the round's starting hole order
+  - Carry-over logic automatically accumulates skins from tied holes
 
-- **Phase 2 (Future)**: Full skins integration when skins calculation engine is implemented
-  - Real skins winners and counts will replace placeholder data
-  - Live carry-over amounts will be calculated and displayed
+- **Graceful Degradation**: If skins calculation encounters issues:
+  - Leaderboard continues to function with score data
+  - Skins fields default to 0 to prevent disruption
+  - No error is thrown to the user
 
 ### Real-time Usage
 This endpoint is designed for real-time leaderboard updates during rounds:

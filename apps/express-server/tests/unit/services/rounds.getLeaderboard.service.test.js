@@ -11,6 +11,11 @@ vi.mock('../../../lib/database.js', () => ({
   queryRows: vi.fn(),
 }));
 
+// Mock the skins calculate service
+vi.mock('../../../services/skins.calculate.service.js', () => ({
+  default: vi.fn(),
+}));
+
 describe('rounds.getLeaderboard.service.js', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -168,6 +173,214 @@ describe('rounds.getLeaderboard.service.js', () => {
         currentCarryOver: 0, // Placeholder
       },
     });
+  });
+
+  test('should integrate skins data into player objects when skins are enabled', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId1 = chance.guid();
+    const playerId2 = chance.guid();
+    const skinsValue = chance.floating({ min: 1, max: 10, fixed: 2 }).toString();
+    const player1SkinsWon = chance.integer({ min: 1, max: 5 });
+    const player2SkinsWon = chance.integer({ min: 1, max: 5 });
+    const carryOver = chance.integer({ min: 0, max: 3 });
+
+    // Mock skins calculation response
+    const mockSkinsResult = {
+      roundId,
+      skinsEnabled: true,
+      skinsValue,
+      playerSummary: {
+        [playerId1]: {
+          skinsWon: player1SkinsWon,
+          totalValue: (parseFloat(skinsValue) * player1SkinsWon).toFixed(2),
+        },
+        [playerId2]: {
+          skinsWon: player2SkinsWon,
+          totalValue: (parseFloat(skinsValue) * player2SkinsWon).toFixed(2),
+        },
+      },
+      totalCarryOver: carryOver,
+    };
+
+    skinsCalculateService.mockResolvedValueOnce(mockSkinsResult);
+
+    // Mock round with skins enabled
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: skinsValue,
+      hole_count: 9,
+    });
+
+    // Mock players
+    const player1Username = chance.word();
+    const player2GuestName = `${chance.first()} ${chance.last()}`;
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId1, username: player1Username, guest_name: null, is_guest: false,
+      },
+      {
+        id: playerId2, username: null, guest_name: player2GuestName, is_guest: true,
+      },
+    ]);
+
+    // Mock scores - simple one hole each
+    queryRows.mockResolvedValueOnce([
+      { player_id: playerId1, hole_number: 1, strokes: 3 },
+      { player_id: playerId2, hole_number: 1, strokes: 4 },
+    ]);
+
+    // Mock pars
+    queryRows.mockResolvedValueOnce([
+      { hole_number: 1, par: 3 },
+    ]);
+
+    const result = await getLeaderboardService(roundId, userId);
+
+    // Verify skins data is integrated into player objects
+    expect(result.players[0].skinsWon).toBe(player1SkinsWon);
+    expect(result.players[1].skinsWon).toBe(player2SkinsWon);
+
+    // Verify round settings include real carry-over
+    expect(result.roundSettings.currentCarryOver).toBe(carryOver);
+  });
+
+  test('should call skins calculation service when skins are enabled', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId1 = chance.guid();
+    const playerId2 = chance.guid();
+    const skinsValue = chance.floating({ min: 1, max: 10, fixed: 2 }).toString();
+
+    // Mock skins calculation response
+    const mockSkinsResult = {
+      roundId,
+      skinsEnabled: true,
+      skinsValue,
+      playerSummary: {
+        [playerId1]: { skinsWon: 2, totalValue: (parseFloat(skinsValue) * 2).toFixed(2) },
+        [playerId2]: { skinsWon: 1, totalValue: skinsValue },
+      },
+      totalCarryOver: 0,
+    };
+
+    skinsCalculateService.mockResolvedValueOnce(mockSkinsResult);
+
+    // Mock round with skins enabled
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: skinsValue,
+      hole_count: 9,
+    });
+
+    // Mock players
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId1, username: chance.word(), guest_name: null, is_guest: false,
+      },
+      {
+        id: playerId2, username: chance.word(), guest_name: null, is_guest: false,
+      },
+    ]);
+
+    // Mock empty scores and pars
+    queryRows.mockResolvedValueOnce([]);
+    queryRows.mockResolvedValueOnce([]);
+
+    await getLeaderboardService(roundId, userId);
+
+    // Verify skins service was called with correct parameters
+    expect(skinsCalculateService).toHaveBeenCalledWith(roundId, userId);
+  });
+
+  test('should not call skins service when skins are disabled', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+
+    // Mock round with skins DISABLED
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: false,
+      skins_value: null,
+      hole_count: 9,
+    });
+
+    // Mock player
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId, username: chance.word(), guest_name: null, is_guest: false,
+      },
+    ]);
+
+    // Mock empty scores and pars
+    queryRows.mockResolvedValueOnce([]);
+    queryRows.mockResolvedValueOnce([]);
+
+    const result = await getLeaderboardService(roundId, userId);
+
+    // Verify skins service was NOT called
+    expect(skinsCalculateService).not.toHaveBeenCalled();
+
+    // Verify default values are used
+    expect(result.players[0].skinsWon).toBe(0);
+    expect(result.roundSettings.currentCarryOver).toBe(0);
+  });
+
+  test('should handle skins calculation failure gracefully', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+
+    // Mock skins calculation to throw error
+    skinsCalculateService.mockRejectedValueOnce(new Error('Skins calculation failed'));
+
+    // Mock round with skins enabled
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: '5.00',
+      hole_count: 9,
+    });
+
+    // Mock player
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId, username: chance.word(), guest_name: null, is_guest: false,
+      },
+    ]);
+
+    // Mock empty scores and pars
+    queryRows.mockResolvedValueOnce([]);
+    queryRows.mockResolvedValueOnce([]);
+
+    const result = await getLeaderboardService(roundId, userId);
+
+    // Should not throw, but use default values
+    expect(result.players[0].skinsWon).toBe(0);
+    expect(result.roundSettings.currentCarryOver).toBe(0);
   });
 
   test('should cap currentHole at course hole count when round is complete', async () => {
