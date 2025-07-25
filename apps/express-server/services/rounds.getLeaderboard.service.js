@@ -32,8 +32,13 @@ const getLeaderboardService = async (roundId, userId) => {
     throw error;
   }
 
-  // Check if round exists and get round info including skins settings
-  const roundQuery = 'SELECT id, created_by_id, skins_enabled, skins_value FROM rounds WHERE id = $1';
+  // Check if round exists and get round info including skins settings and course hole count
+  const roundQuery = `
+    SELECT r.id, r.created_by_id, r.skins_enabled, r.skins_value, c.hole_count
+    FROM rounds r
+    JOIN courses c ON r.course_id = c.id
+    WHERE r.id = $1
+  `;
   const round = await queryOne(roundQuery, [roundId]);
 
   if (!round) {
@@ -117,9 +122,12 @@ const getLeaderboardService = async (roundId, userId) => {
       playerStats[score.player_id].relativeScore += relative;
       playerStats[score.player_id].holesCompleted += 1;
 
-      // Current hole is the highest hole number played + 1
+      // Current hole is the highest hole number played + 1, but not beyond course hole count
       if (score.hole_number >= playerStats[score.player_id].currentHole) {
-        playerStats[score.player_id].currentHole = score.hole_number + 1;
+        const nextHole = score.hole_number + 1;
+        playerStats[score.player_id].currentHole = nextHole <= round.hole_count
+          ? nextHole
+          : round.hole_count;
       }
     }
   });

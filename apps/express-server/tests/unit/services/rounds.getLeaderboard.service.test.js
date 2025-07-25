@@ -83,7 +83,7 @@ describe('rounds.getLeaderboard.service.js', () => {
     const creatorId = chance.integer({ min: 1001, max: 2000 });
 
     queryOne
-      .mockResolvedValueOnce({ id: roundId, created_by_id: creatorId })
+      .mockResolvedValueOnce({ id: roundId, created_by_id: creatorId, hole_count: 18 })
       .mockResolvedValueOnce(null); // User not a player
 
     await expect(getLeaderboardService(roundId, userId))
@@ -105,6 +105,7 @@ describe('rounds.getLeaderboard.service.js', () => {
       created_by_id: userId,
       skins_enabled: true,
       skins_value: '5.00',
+      hole_count: 18,
     });
 
     // Mock players
@@ -166,6 +167,70 @@ describe('rounds.getLeaderboard.service.js', () => {
         skinsValue: '5.00',
         currentCarryOver: 0, // Placeholder
       },
+    });
+  });
+
+  test('should cap currentHole at course hole count when round is complete', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+    const holeCount = chance.integer({ min: 6, max: 12 });
+    const username = chance.word();
+    const skinsValue = chance.floating({ min: 1, max: 10, fixed: 2 }).toString();
+
+    // Mock course with random hole count
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: chance.bool(),
+      skins_value: skinsValue,
+      hole_count: holeCount,
+    });
+
+    // Mock player
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId, username, guest_name: null, is_guest: false,
+      },
+    ]);
+
+    // Mock scores - player completed all holes
+    const scores = [];
+    let totalStrokes = 0;
+    for (let hole = 1; hole <= holeCount; hole += 1) {
+      const strokes = chance.integer({ min: 1, max: 7 });
+      scores.push({ player_id: playerId, hole_number: hole, strokes });
+      totalStrokes += strokes;
+    }
+    queryRows.mockResolvedValueOnce(scores);
+
+    // Mock pars for all holes
+    const pars = [];
+    let totalPar = 0;
+    for (let hole = 1; hole <= holeCount; hole += 1) {
+      const par = chance.integer({ min: 3, max: 5 });
+      pars.push({ hole_number: hole, par });
+      totalPar += par;
+    }
+    queryRows.mockResolvedValueOnce(pars);
+
+    const result = await getLeaderboardService(roundId, userId);
+
+    expect(result.players[0]).toEqual({
+      playerId,
+      username,
+      guestName: null,
+      isGuest: false,
+      position: 1,
+      totalStrokes,
+      totalPar,
+      relativeScore: totalStrokes - totalPar,
+      holesCompleted: holeCount,
+      currentHole: holeCount, // Should cap at holeCount, not exceed it
+      skinsWon: 0,
     });
   });
 });
