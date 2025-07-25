@@ -702,6 +702,16 @@ model users {
   - ✅ Calculate winner per hole (lowest score wins)
   - ✅ Handle ties with carry-over to next hole
   - ✅ Support multiple skins on a single hole (accumulation from ties)
+  - ✅ **Fixed Carry-Over Display Bug**: `carriedOver` field now correctly shows skins carried INTO each hole
+    - ✅ **Issue**: Previously showed `carriedOver: 1` for all tied holes regardless of actual carry-in amount
+    - ✅ **Fix**: Updated logic to track `currentCarryOver` before incrementing for tied holes
+    - ✅ **Result**: Proper accumulation display (hole 1: 0, hole 2: 1, hole 3: 2, winner gets all 3)
+    - ✅ **Testing**: Comprehensive unit tests updated to expect correct carry-over values
+    - ✅ **Integration**: Full integration test coverage for non-hole-1 starting rounds
+  - ✅ **Non-Hole-1 Starting Support**: Proper skins calculation for rounds starting on any hole
+    - ✅ **Play Order**: Correctly processes holes in starting_hole sequence (e.g., 5→6→7→8→9→1→2→3)
+    - ✅ **Carry-Over Flow**: Skins properly carry forward across hole boundary (hole 9 → hole 1)
+    - ✅ **Testing**: Added comprehensive integration test for hole-5 start scenario
   - [ ] **Retroactive Recalculation**: Full recalc when any score changes - **Future enhancement**
   - [ ] Track skins history for audit trail - **Future enhancement**
 - [ ] **Skins Money Tracking** - **Planned Enhancement**

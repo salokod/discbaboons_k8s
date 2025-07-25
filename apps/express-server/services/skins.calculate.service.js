@@ -143,15 +143,19 @@ const skinsCalculateService = async (roundId, userId) => {
     if (winners.length === 1) {
       // Clear winner - award skins (including any carried over)
       const winner = winners[0];
+
+      // Store carry-over amount BEFORE resetting
+      const carryOverForThisHole = currentCarryOver;
+
       holes[holeNumber] = {
         winner: winner.player_id,
         winnerScore: lowestScore,
         skinsValue: totalSkinsValue.toFixed(2),
-        carriedOver: currentCarryOver,
+        carriedOver: carryOverForThisHole, // Show how many were carried INTO this hole
       };
 
       // Update player summary - include carried over skins in count
-      const totalSkinsWon = 1 + currentCarryOver;
+      const totalSkinsWon = 1 + carryOverForThisHole;
       playerSummary[winner.player_id].skinsWon += totalSkinsWon;
       playerSummary[winner.player_id].totalValue = (
         parseFloat(playerSummary[winner.player_id].totalValue) + totalSkinsValue
@@ -161,15 +165,17 @@ const skinsCalculateService = async (roundId, userId) => {
       currentCarryOver = 0;
     } else {
       // Tie - skins carry over to next hole
+      const carryOverIntoThisHole = currentCarryOver;
+
       holes[holeNumber] = {
         winner: null,
         tied: true,
         tiedScore: lowestScore,
         skinsValue: baseSkinsValue.toFixed(2),
-        carriedOver: currentCarryOver + 1, // Show total skins that will carry over
+        carriedOver: carryOverIntoThisHole, // Show how many were carried INTO this hole
       };
 
-      // Increment carry-over for next hole
+      // Increment carry-over for next hole (this hole's skin + any previous carry-over)
       currentCarryOver += 1;
     }
   });

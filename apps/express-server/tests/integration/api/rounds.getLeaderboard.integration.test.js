@@ -6,13 +6,15 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query, queryOne } from '../setup.js';
-import { createUniqueCourseData, createUniqueUserData } from '../test-helpers.js';
+import { createUniqueCourseData } from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('GET /api/rounds/:id/leaderboard - Integration', () => {
   let user;
   let token;
+  let testId;
+  let timestamp;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
@@ -22,12 +24,22 @@ describe('GET /api/rounds/:id/leaderboard - Integration', () => {
   let testPlayer2;
 
   beforeEach(async () => {
+    // Generate GLOBALLY unique test identifier for this test run
+    const fullTimestamp = Date.now();
+    timestamp = fullTimestamp.toString().slice(-6);
+    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
+    const pid = process.pid.toString().slice(-3);
+    testId = `tlbd${timestamp}${pid}${random}`; // TLBD = Test Leaderboard
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user using helper function
-    const userData = createUniqueUserData('lbrd'); // LBRD = Leaderboard
+    // Register test user
+    const userData = {
+      username: `lb${timestamp}${pid}`, // lb = "leaderboard" - keep under 20 chars
+      email: `tlbd${testId}@ex.co`,
+      password: `Test1!${chance.word({ length: 2 })}`,
+    };
     await request(app).post('/api/auth/register').send(userData).expect(201);
     const login = await request(app).post('/api/auth/login').send({
       username: userData.username,
@@ -38,7 +50,7 @@ describe('GET /api/rounds/:id/leaderboard - Integration', () => {
     createdUserIds.push(user.id);
 
     // Create a test course to use in rounds
-    const courseData = createUniqueCourseData('lbrd'); // LBRD = Leaderboard
+    const courseData = createUniqueCourseData('tlbd'); // TLBD = Test Leaderboard
     const courseResponse = await request(app)
       .post('/api/courses')
       .set('Authorization', `Bearer ${token}`)
@@ -50,7 +62,7 @@ describe('GET /api/rounds/:id/leaderboard - Integration', () => {
     // Create test round with skins enabled
     const roundData = {
       courseId: testCourse.id,
-      name: `Leaderboard Test Round ${userData.ids.suffix}`,
+      name: `Test Round ${testId}${Date.now()}`,
       startingHole: 1,
       skinsEnabled: true,
       skinsValue: 5.00,
@@ -212,7 +224,7 @@ describe('GET /api/rounds/:id/leaderboard - Integration', () => {
       relativeScore: -1,
       holesCompleted: 1,
       currentHole: 2,
-      skinsWon: 0, // Placeholder
+      skinsWon: 1, // Player 2 wins hole 1
     });
 
     // Player 1 (creator) should be second with higher total strokes
@@ -227,7 +239,7 @@ describe('GET /api/rounds/:id/leaderboard - Integration', () => {
       relativeScore: 2,
       holesCompleted: 2,
       currentHole: 3,
-      skinsWon: 0, // Placeholder
+      skinsWon: 1, // Wins hole 2
     });
 
     // Round settings should include skins info
@@ -238,9 +250,81 @@ describe('GET /api/rounds/:id/leaderboard - Integration', () => {
     });
   });
 
+  test('should include real skins data when skins are enabled', async () => {
+    // Submit scores where player2 wins hole 1, player1 wins hole 2
+    const scoresData = {
+      scores: [
+        { playerId: testPlayer1.id, holeNumber: 1, strokes: 4 },
+        { playerId: testPlayer1.id, holeNumber: 2, strokes: 3 },
+        { playerId: testPlayer2.id, holeNumber: 1, strokes: 3 }, // Wins hole 1
+        { playerId: testPlayer2.id, holeNumber: 2, strokes: 5 },
+      ],
+    };
+
+    await request(app)
+      .post(`/api/rounds/${testRound.id}/scores`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(scoresData)
+      .expect(200);
+
+    // Get leaderboard
+    const response = await request(app)
+      .get(`/api/rounds/${testRound.id}/leaderboard`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Verify real skins data is integrated
+    expect(response.body.players[0].skinsWon).toBe(1); // Player 2 won hole 1
+    expect(response.body.players[1].skinsWon).toBe(1); // Player 1 won hole 2
+
+    // Verify no carry over
+    expect(response.body.roundSettings.currentCarryOver).toBe(0);
+  });
+
+  test('should show skins carry over when holes tie', async () => {
+    // Submit scores where holes 1 and 2 tie, player1 wins hole 3
+    const scoresData = {
+      scores: [
+        { playerId: testPlayer1.id, holeNumber: 1, strokes: 3 }, // Tie
+        { playerId: testPlayer1.id, holeNumber: 2, strokes: 4 }, // Tie
+        { playerId: testPlayer1.id, holeNumber: 3, strokes: 2 }, // Wins with carry
+        { playerId: testPlayer2.id, holeNumber: 1, strokes: 3 }, // Tie
+        { playerId: testPlayer2.id, holeNumber: 2, strokes: 4 }, // Tie
+        { playerId: testPlayer2.id, holeNumber: 3, strokes: 5 },
+      ],
+    };
+
+    await request(app)
+      .post(`/api/rounds/${testRound.id}/scores`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(scoresData)
+      .expect(200);
+
+    // Get leaderboard
+    const response = await request(app)
+      .get(`/api/rounds/${testRound.id}/leaderboard`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Player 1 should have won 3 skins (2 carry over + 1)
+    const player1 = response.body.players.find((p) => p.playerId === testPlayer1.id);
+    expect(player1.skinsWon).toBe(3);
+
+    // Player 2 should have 0 skins
+    const player2 = response.body.players.find((p) => p.playerId === testPlayer2.id);
+    expect(player2.skinsWon).toBe(0);
+
+    // No remaining carry over since hole 3 was won
+    expect(response.body.roundSettings.currentCarryOver).toBe(0);
+  });
+
   test('should return 403 when user is not participant', async () => {
-    // Create another user using helper function
-    const otherUserData = createUniqueUserData('lbrdother');
+    // Create another user with unique identifier
+    const otherUserData = {
+      username: `lbother${timestamp}${chance.string({ length: 3, pool: 'abcdefghijklmnopqrstuvwxyz' })}`,
+      email: `lbother${testId}${Date.now()}@ex.co`,
+      password: `Test1!${chance.word({ length: 2 })}`,
+    };
 
     await request(app).post('/api/auth/register').send(otherUserData).expect(201);
     const otherLogin = await request(app).post('/api/auth/login').send({

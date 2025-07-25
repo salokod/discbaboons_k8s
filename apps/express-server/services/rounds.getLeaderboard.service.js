@@ -1,4 +1,5 @@
 import { queryOne, queryRows } from '../lib/database.js';
+import skinsCalculateService from './skins.calculate.service.js';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -142,18 +143,40 @@ const getLeaderboardService = async (roundId, userId) => {
     return b.holesCompleted - a.holesCompleted;
   });
 
-  // Add position numbers
-  const playersWithPositions = leaderboard.map((player, index) => ({
-    ...player,
-    position: index + 1,
-  }));
+  // Get real skins data if skins are enabled
+  let skinsData = null;
+  if (round.skins_enabled) {
+    try {
+      skinsData = await skinsCalculateService(roundId, userId);
+    } catch (error) {
+      // If skins calculation fails, continue with placeholder data
+      // This ensures leaderboard still works even if skins have issues
+      skinsData = null;
+    }
+  }
+
+  // Add position numbers and integrate skins data
+  const playersWithPositions = leaderboard.map((player, index) => {
+    const position = index + 1;
+
+    // Get skins data for this player
+    const playerSkinsData = skinsData && skinsData.playerSummary[player.playerId]
+      ? skinsData.playerSummary[player.playerId]
+      : { skinsWon: 0, totalValue: '0.00' };
+
+    return {
+      ...player,
+      position,
+      skinsWon: playerSkinsData.skinsWon,
+    };
+  });
 
   return {
     players: playersWithPositions,
     roundSettings: {
       skinsEnabled: round.skins_enabled,
       skinsValue: round.skins_value,
-      currentCarryOver: 0, // Placeholder until Phase 4
+      currentCarryOver: skinsData ? skinsData.totalCarryOver : 0,
     },
   };
 };
