@@ -772,24 +772,31 @@ model users {
   - 3 players, $1/hole: Winner gets $2, losers each pay $1 (net: +$2/-$1/-$1)
   - 4 players, $5/hole: Winner gets $15, losers each pay $5 (net: +$15/-$5/-$5/-$5)
 
-#### Step 4.2: Side Bets **🎯 IN PROGRESS**
-- [ ] Create side bets migrations (V24-V25)
-  - [ ] Run V24__create_side_bets_table.sql migration
-  - [ ] Run V25__create_side_bet_participants_table.sql migration
+#### Step 4.2: Side Bets **🎯 CREATE ENDPOINT COMPLETED**
+- ✅ Create side bets migrations (V24-V25)
+  - ✅ Run V24__create_side_bets_table.sql migration
+  - ✅ Run V25__create_side_bet_participants_table.sql migration
+  - ✅ Verified schema.sql export with proper tables, indexes, and foreign keys
   - [ ] Update Prisma schema with side_bets and side_bet_participants models
 
-- [ ] **Core Side Bet Features**
-  - [ ] `POST /api/rounds/:id/side-bets` - Create side bet
-    - [ ] **Permissions**: Any round participant can create
-    - [ ] **Auto-join**: Creator automatically joins the bet
-    - [ ] **Bet Types**: User-defined string field (no predefined types)
-    - [ ] **Multiple Bets**: Allow multiple bets of same type on same/different holes
-    - [ ] **Request Format**: `{ name, description?, amount, betType, holeNumber? }`
-    - [ ] **Validation**: Round exists, user is participant, amount > 0
-    - [ ] Service: `sideBets.create.service.js`
-    - [ ] Controller: `sideBets.create.controller.js`
-    - [ ] Full TDD implementation with unit and integration tests
-    - [ ] API documentation: `/docs/api/rounds/POST_rounds_id_side-bets.md`
+- ✅ **CREATE Side Bet Feature** ✅ **COMPLETED**
+  - ✅ `POST /api/rounds/:id/side-bets` - Create side bet
+    - ✅ **Permissions**: Any round participant can create
+    - ✅ **Auto-join**: Creator automatically joins the bet
+    - ✅ **Bet Types**: Restricted to "hole" (requires holeNumber) or "round" (no holeNumber)
+    - ✅ **Multiple Bets**: Allow multiple bets of same type on same/different holes
+    - ✅ **Request Format**: `{ name, description?, amount, betType, holeNumber? }`
+    - ✅ **Validation**: Round exists, user is participant, amount > 0, betType "hole"|"round", holeNumber validation
+    - ✅ **Database**: Transaction-based creation with auto-join of creator as participant
+    - ✅ **Cancellation Support**: Added cancelled_at and cancelled_by_id fields for future cancellation
+    - ✅ **Winner Tracking**: Added won_at and declared_by_id fields to participants table
+    - ✅ Service: `sideBets.create.service.js` - Full TDD implementation
+    - ✅ Controller: `sideBets.create.controller.js` - Full TDD implementation
+    - ✅ Routes: Added to `rounds.routes.js` with authentication middleware
+    - ✅ Unit tests: Service, controller, and route testing complete
+    - ✅ Integration tests: Full request/response testing with database operations
+    - ✅ API documentation: `/docs/api/rounds/POST_rounds_id_side-bets.md`
+    - ✅ **Ready for local testing**
 
   - [ ] `GET /api/rounds/:id/side-bets` - List all side bets for round
     - [ ] **Response**: Array of bets with participant count, winner info, financial summary
@@ -834,8 +841,8 @@ model users {
   - [ ] **Immutability**: Players removed from round keep their bets
   - [ ] **Cancellation**: Any participant can cancel a bet (all get refunded)
   - [ ] **Winner Changes**: Support re-declaration for mistakes
-  - [ ] **Bet Types**: Free-form string field (user defines: "Closest to Pin", "Longest Drive", etc.)
-  - [ ] **Hole Specificity**: Optional hole_number for hole-specific bets
+  - [ ] **Bet Types**: "hole" bets resolved during/after specific hole, "round" bets resolved at end
+  - [ ] **Frontend Resolution**: Frontend can automatically prompt for winners based on betType timing
 
 - [ ] **Integration Updates**
   - [ ] Update `GET /api/rounds/:id/leaderboard` to include side bet wins summary
@@ -964,7 +971,12 @@ model users {
   - **Data:** Dynamic calculation based on current scores and pars
   - **Documentation:** `/docs/api/rounds/GET_rounds_id_skins.md`
 - `GET /api/rounds/:id/skins/history` - Audit trail of skins changes (score edits) - **Future enhancement**
-- `POST /api/rounds/:id/side-bets` - Create side bet - **Not implemented**
+- ✅ `POST /api/rounds/:id/side-bets` - Create side bet ✅ **COMPLETED**
+  - **Response:** Created side bet object with ID, round reference, bet details, timestamps
+  - **Business Logic:** Transaction-based creation with auto-join of creator as participant
+  - **Security:** Requires authentication, participant-only access, full validation
+  - **Data:** Supports optional description and hole-specific bets
+  - **Documentation:** `/docs/api/rounds/POST_rounds_id_side-bets.md`
 - `POST /api/rounds/:id/side-bets/:betId/join` - Join bet - **Not implemented**
 - `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner - **Not implemented**
 

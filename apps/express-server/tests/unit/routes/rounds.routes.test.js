@@ -21,6 +21,7 @@ let getParsController;
 let submitScoresController;
 let getScoresController;
 let getLeaderboardController;
+let sideBetsCreateController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -75,6 +76,10 @@ beforeAll(async () => {
 
   getLeaderboardController = vi.fn((req, res) => {
     res.json({ message: 'get leaderboard controller called' });
+  });
+
+  sideBetsCreateController = vi.fn((req, res) => {
+    res.status(201).json({ message: 'side bet create controller called' });
   });
 
   // Mock the auth middleware
@@ -135,6 +140,10 @@ beforeAll(async () => {
     default: getLeaderboardController,
   }));
 
+  vi.doMock('../../../controllers/sideBets.create.controller.js', () => ({
+    default: sideBetsCreateController,
+  }));
+
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
     default: authenticateToken,
   }));
@@ -190,6 +199,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/sideBets.create.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -209,6 +222,8 @@ describe('rounds routes', () => {
     getParsController.mockClear();
     submitScoresController.mockClear();
     getScoresController.mockClear();
+    getLeaderboardController.mockClear();
+    sideBetsCreateController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -743,6 +758,60 @@ describe('rounds routes', () => {
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('POST /api/rounds/:id/side-bets should require authentication and call sideBetsCreate controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betType = chance.pickone(['hole', 'round']);
+    const betData = {
+      name: chance.word(),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType,
+      ...(betType === 'hole' && { holeNumber: chance.integer({ min: 1, max: 18 }) }),
+    };
+
+    const response = await request(app)
+      .post(`/api/rounds/${roundId}/side-bets`)
+      .send(betData)
+      .expect(201);
+
+    expect(response.body).toEqual({ message: 'side bet create controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(sideBetsCreateController).toHaveBeenCalled();
+  });
+
+  test('POST /api/rounds/:id/side-bets should pass roundId in params and bet data in body', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betType = chance.pickone(['hole', 'round']);
+    const betData = {
+      name: chance.sentence({ words: 3 }),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType,
+      description: chance.sentence(),
+      ...(betType === 'hole' && { holeNumber: chance.integer({ min: 1, max: 18 }) }),
+    };
+
+    await request(app)
+      .post(`/api/rounds/${roundId}/side-bets`)
+      .send(betData)
+      .expect(201);
+
+    expect(sideBetsCreateController).toHaveBeenCalled();
+    const lastCall = sideBetsCreateController.mock.calls[
+      sideBetsCreateController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.body).toEqual(betData);
     expect(req.user).toEqual({ userId: 1 });
   });
 });
