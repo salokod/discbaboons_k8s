@@ -6,122 +6,149 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('GET /api/courses/:id - Integration', () => {
   let user;
   let token;
-  let testId;
-  let testCourse;
+  let friendUser;
+  let approvedCourseId;
+  let unapprovedCourseId;
+  let friendCourseId;
   let createdUserIds = [];
   let createdCourseIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tcg${testId}`, // tcg = "test course get"
-      email: `tcg${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Create user directly in DB
+    const testUser = await createTestUser({ prefix: 'coursesget' });
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create test course for integration tests
-    testCourse = {
-      id: `test-course-${testId}`,
-      name: 'Test Park Disc Golf Course',
-      city: 'Test City',
-      state_province: 'CA',
-      country: 'US',
-      postal_code: '12345',
-      hole_count: 18,
-      latitude: chance.latitude({ fixed: 8 }), // Random coordinates with high precision
-      longitude: chance.longitude({ fixed: 8 }),
-      is_user_submitted: false,
-      approved: true,
-    };
+    // Create friend user directly in DB
+    const testFriend = await createTestUser({ prefix: 'coursesgetfriend' });
+    friendUser = testFriend.user;
+    createdUserIds.push(friendUser.id);
 
+    // Create friendship between users directly in DB
     await query(
-      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved)
+      `INSERT INTO friendship_requests (requester_id, recipient_id, status)
+       VALUES ($1, $2, 'accepted')`,
+      [user.id, friendUser.id],
+    );
+
+    // Create approved course directly in DB
+    approvedCourseId = chance.guid();
+    await query(
+      `INSERT INTO courses (id, name, city, state_province, country, postal_code, 
+       hole_count, latitude, longitude, is_user_submitted, approved)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
-        testCourse.id,
-        testCourse.name,
-        testCourse.city,
-        testCourse.state_province,
-        testCourse.country,
-        testCourse.postal_code,
-        testCourse.hole_count,
-        testCourse.latitude,
-        testCourse.longitude,
-        testCourse.is_user_submitted,
-        testCourse.approved,
+        approvedCourseId,
+        chance.company(),
+        chance.city(),
+        'CA',
+        'US',
+        chance.zip(),
+        chance.integer({ min: 9, max: 27 }),
+        chance.latitude({ fixed: 5 }),
+        chance.longitude({ fixed: 5 }),
+        false,
+        true,
       ],
     );
-    createdCourseIds.push(testCourse.id);
+    createdCourseIds.push(approvedCourseId);
+
+    // Create unapproved course owned by user directly in DB
+    unapprovedCourseId = chance.guid();
+    await query(
+      `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
+       is_user_submitted, approved, submitted_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        unapprovedCourseId,
+        chance.company(),
+        chance.city(),
+        'TX',
+        'US',
+        chance.integer({ min: 9, max: 27 }),
+        true,
+        false,
+        user.id,
+      ],
+    );
+    createdCourseIds.push(unapprovedCourseId);
+
+    // Create unapproved course owned by friend directly in DB
+    friendCourseId = chance.guid();
+    await query(
+      `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
+       is_user_submitted, approved, submitted_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        friendCourseId,
+        chance.company(),
+        chance.city(),
+        'FL',
+        'US',
+        chance.integer({ min: 9, max: 27 }),
+        true,
+        false,
+        friendUser.id,
+      ],
+    );
+    createdCourseIds.push(friendCourseId);
   });
 
   afterEach(async () => {
-    // Clean up courses
-    await Promise.all(
-      createdCourseIds.map((courseId) => query('DELETE FROM courses WHERE id = $1', [courseId])),
-    );
-
-    // Clean up users
-    await Promise.all(
-      createdUserIds.map((userId) => query('DELETE FROM users WHERE id = $1', [userId])),
-    );
+    // Clean up in FK order
+    if (createdCourseIds.length > 0) {
+      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
+    }
+    if (createdUserIds.length > 0) {
+      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)', [createdUserIds]);
+    }
+    await cleanupUsers(createdUserIds);
   });
 
-  test('should return course details for existing course', async () => {
-    const courseId = `test-course-${testId}`;
+  // GOOD: Integration concern - middleware authentication
+  test('should require authentication', async () => {
+    await request(app)
+      .get(`/api/courses/${approvedCourseId}`)
+      .expect(401, {
+        error: 'Access token required',
+      });
+  });
 
+  // GOOD: Integration concern - approved course retrieval from database
+  test('should return approved course details from database', async () => {
     const response = await request(app)
-      .get(`/api/courses/${courseId}`)
+      .get(`/api/courses/${approvedCourseId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    // Calculate expected truncated coordinates (5 decimal places)
-    const expectedLat = Math.round(testCourse.latitude * 100000) / 100000;
-    const expectedLng = Math.round(testCourse.longitude * 100000) / 100000;
-
-    expect(response.body).toEqual({
-      id: courseId,
-      name: 'Test Park Disc Golf Course',
-      city: 'Test City',
-      state_province: 'CA',
-      country: 'US',
-      postal_code: '12345',
-      hole_count: 18,
-      latitude: expectedLat, // Truncated to 5 decimal places
-      longitude: expectedLng, // Truncated to 5 decimal places
-      is_user_submitted: false,
+    expect(response.body).toMatchObject({
+      id: approvedCourseId,
       approved: true,
+      is_user_submitted: false,
       submitted_by_id: null,
-      admin_notes: null,
-      reviewed_at: null,
-      reviewed_by_id: null,
       created_at: expect.any(String),
       updated_at: expect.any(String),
     });
   });
 
+  // GOOD: Integration concern - non-existent course handling
   test('should return null for non-existent course', async () => {
-    const nonExistentId = `non-existent-${testId}`;
+    const nonExistentId = chance.guid();
 
     const response = await request(app)
       .get(`/api/courses/${nonExistentId}`)
@@ -131,174 +158,72 @@ describe('GET /api/courses/:id - Integration', () => {
     expect(response.body).toBe(null);
   });
 
-  test('should require authentication', async () => {
-    const courseId = `test-course-${testId}`;
-
-    await request(app)
-      .get(`/api/courses/${courseId}`)
-      .expect(401);
-  });
-
+  // GOOD: Integration concern - owner access to own unapproved course
   test('should return user own unapproved course', async () => {
-    // Create an unapproved course submitted by the user
-    const unapprovedCourse = {
-      id: `unapproved-course-${testId}`,
-      name: 'My Unapproved Course',
-      city: 'My City',
-      state_province: 'TX',
-      country: 'US',
-      hole_count: 9,
-      is_user_submitted: true,
-      approved: false,
-      submitted_by_id: user.id,
-    };
-
-    await query(
-      `INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved, submitted_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        unapprovedCourse.id,
-        unapprovedCourse.name,
-        unapprovedCourse.city,
-        unapprovedCourse.state_province,
-        unapprovedCourse.country,
-        unapprovedCourse.hole_count,
-        unapprovedCourse.is_user_submitted,
-        unapprovedCourse.approved,
-        unapprovedCourse.submitted_by_id,
-      ],
-    );
-    createdCourseIds.push(unapprovedCourse.id);
-
     const response = await request(app)
-      .get(`/api/courses/${unapprovedCourse.id}`)
+      .get(`/api/courses/${unapprovedCourseId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(response.body).toMatchObject({
-      id: unapprovedCourse.id,
-      name: unapprovedCourse.name,
+      id: unapprovedCourseId,
       approved: false,
       submitted_by_id: user.id,
     });
   });
 
-  test('should return friend unapproved course when friendship exists', async () => {
-    // Create a friend user
-    const friendData = {
-      username: `friend${testId}`,
-      email: `friend${testId}@ex.co`,
-      password: `Friend1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(friendData).expect(201);
-    const friendLogin = await request(app).post('/api/auth/login').send({
-      username: friendData.username,
-      password: friendData.password,
-    }).expect(200);
-    const friend = friendLogin.body.user;
-    createdUserIds.push(friend.id);
-
-    // Create friendship between users
-    await query(
-      `INSERT INTO friendship_requests (requester_id, recipient_id, status)
-       VALUES ($1, $2, 'accepted')`,
-      [user.id, friend.id],
-    );
-
-    // Create an unapproved course submitted by the friend
-    const friendCourse = {
-      id: `friend-course-${testId}`,
-      name: 'Friend Unapproved Course',
-      city: 'Friend City',
-      state_province: 'FL',
-      country: 'US',
-      hole_count: 12,
-      is_user_submitted: true,
-      approved: false,
-      submitted_by_id: friend.id,
-    };
-
-    await query(
-      `INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved, submitted_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        friendCourse.id,
-        friendCourse.name,
-        friendCourse.city,
-        friendCourse.state_province,
-        friendCourse.country,
-        friendCourse.hole_count,
-        friendCourse.is_user_submitted,
-        friendCourse.approved,
-        friendCourse.submitted_by_id,
-      ],
-    );
-    createdCourseIds.push(friendCourse.id);
-
+  // GOOD: Integration concern - friend access via friendship table JOIN
+  test('should return friend unapproved course via friendship relationship', async () => {
     const response = await request(app)
-      .get(`/api/courses/${friendCourse.id}`)
+      .get(`/api/courses/${friendCourseId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(response.body).toMatchObject({
-      id: friendCourse.id,
-      name: friendCourse.name,
+      id: friendCourseId,
       approved: false,
-      submitted_by_id: friend.id,
+      submitted_by_id: friendUser.id,
     });
   });
 
+  // GOOD: Integration concern - access denial for non-friends' unapproved courses
   test('should not return other user unapproved course when no friendship', async () => {
-    // Create another user (not a friend)
-    const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
-      password: `Other1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
-    const otherLogin = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherUser = otherLogin.body.user;
+    // Create another user (not a friend) directly in DB
+    const testOther = await createTestUser({ prefix: 'coursesgetother' });
+    const otherUser = testOther.user;
     createdUserIds.push(otherUser.id);
 
     // Create an unapproved course submitted by the other user
-    const otherCourse = {
-      id: `other-course-${testId}`,
-      name: 'Other User Course',
-      city: 'Other City',
-      state_province: 'WA',
-      country: 'US',
-      hole_count: 15,
-      is_user_submitted: true,
-      approved: false,
-      submitted_by_id: otherUser.id,
-    };
-
+    const otherCourseId = chance.guid();
     await query(
-      `INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved, submitted_by_id)
+      `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
+       is_user_submitted, approved, submitted_by_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
-        otherCourse.id,
-        otherCourse.name,
-        otherCourse.city,
-        otherCourse.state_province,
-        otherCourse.country,
-        otherCourse.hole_count,
-        otherCourse.is_user_submitted,
-        otherCourse.approved,
-        otherCourse.submitted_by_id,
+        otherCourseId,
+        chance.company(),
+        chance.city(),
+        'WA',
+        'US',
+        chance.integer({ min: 9, max: 27 }),
+        true,
+        false,
+        otherUser.id,
       ],
     );
-    createdCourseIds.push(otherCourse.id);
+    createdCourseIds.push(otherCourseId);
 
-    // Should not be able to access other user's unapproved course
+    // Integration: Should not be able to access other user's unapproved course
     const response = await request(app)
-      .get(`/api/courses/${otherCourse.id}`)
+      .get(`/api/courses/${otherCourseId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(response.body).toBe(null);
   });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Coordinate truncation logic (unit test concern)
+  // - Response field formatting (unit test concern)
+  // These are all tested at the service unit test level
 });

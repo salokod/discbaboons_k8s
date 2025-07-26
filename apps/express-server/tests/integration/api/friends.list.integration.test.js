@@ -6,142 +6,150 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  createFriendship,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('GET /api/friends - Integration', () => {
-  let userA; let userB; let userC; let tokenA; let tokenB; let tokenC; let
-    requestId;
-  const userAPrefix = `tfa-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
-  const userBPrefix = `tfb-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
-  const userCPrefix = `tfc-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
+  let userA; let userB; let
+    userC;
+  let tokenA; let tokenB; let
+    tokenC;
+  let createdUserIds = [];
 
   beforeEach(async () => {
-    // Register User A
-    const userAData = {
-      username: `${userAPrefix}`,
-      email: `${userAPrefix}@example.com`,
-      password: `Abcdef1!${chance.word({ length: 5 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userAData).expect(201);
-    const loginA = await request(app).post('/api/auth/login').send({
-      username: userAData.username,
-      password: userAData.password,
-    }).expect(200);
-    tokenA = loginA.body.tokens.accessToken;
-    userA = loginA.body.user;
+    // Reset arrays for parallel test safety
+    createdUserIds = [];
 
-    // Register User B
-    const userBData = {
-      username: userBPrefix,
-      email: `${userBPrefix}@example.com`,
-      password: `Abcdef1!${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' })}`,
-    };
-    await request(app).post('/api/auth/register').send(userBData).expect(201);
-    const loginB = await request(app).post('/api/auth/login').send({
-      username: userBData.username,
-      password: userBData.password,
-    }).expect(200);
-    tokenB = loginB.body.tokens.accessToken;
-    userB = loginB.body.user;
+    // Create users directly in DB for speed
+    const testUserA = await createTestUser({ prefix: 'friendslistA' });
+    userA = testUserA.user;
+    tokenA = testUserA.token;
+    createdUserIds.push(userA.id);
 
-    // Register User C (no friends)
-    const userCData = {
-      username: userCPrefix,
-      email: `${userCPrefix}@example.com`,
-      password: `Abcdef1!${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' })}`,
-    };
-    await request(app).post('/api/auth/register').send(userCData).expect(201);
-    const loginC = await request(app).post('/api/auth/login').send({
-      username: userCData.username,
-      password: userCData.password,
-    }).expect(200);
-    tokenC = loginC.body.tokens.accessToken;
-    userC = loginC.body.user;
+    const testUserB = await createTestUser({ prefix: 'friendslistB' });
+    userB = testUserB.user;
+    tokenB = testUserB.token;
+    createdUserIds.push(userB.id);
 
-    // User A sends friend request to User B
-    const reqRes = await request(app)
-      .post('/api/friends/request')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ recipientId: userB.id })
-      .expect(200);
-    requestId = reqRes.body.id;
+    const testUserC = await createTestUser({ prefix: 'friendslistC' });
+    userC = testUserC.user;
+    tokenC = testUserC.token;
+    createdUserIds.push(userC.id);
 
-    // User B accepts friend request from User A
-    await request(app)
-      .post('/api/friends/respond')
-      .set('Authorization', `Bearer ${tokenB}`)
-      .send({ requestId, action: 'accept' })
-      .expect(200);
+    // Create friendship between A and B directly in DB
+    await createFriendship(userA.id, userB.id);
   });
 
   afterEach(async () => {
-    // Clean up all friendship_requests and users with the test prefix
-    const userIds = [userA?.id, userB?.id, userC?.id].filter(Boolean);
-    if (userIds.length > 0) {
-      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($2)', [userIds, userIds]);
+    // Clean up friendship requests first (FK constraint)
+    if (createdUserIds.length > 0) {
+      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)', [createdUserIds]);
     }
-    await query('DELETE FROM users WHERE username LIKE $1 OR username LIKE $2 OR username LIKE $3', [`%${userAPrefix}%`, `%${userBPrefix}%`, `%${userCPrefix}%`]);
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
-    const res = await request(app)
-      .get('/api/friends');
-    expect(res.status).toBe(401);
+    await request(app)
+      .get('/api/friends')
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should return accepted friends for both users', async () => {
-    // User A's friends
-    const resA = await request(app)
+  // GOOD: Integration concern - complex friends query with JOINs and aggregations
+  test('should return accepted friends with bag statistics from database', async () => {
+    const response = await request(app)
       .get('/api/friends')
-      .set('Authorization', `Bearer ${tokenA}`);
-    expect(resA.status).toBe(200);
-    expect(Array.isArray(resA.body.friends)).toBe(true);
-    expect(
-      resA.body.friends.some(
-        (f) => f.id === userB.id && f.friendship.status === 'accepted',
-      ),
-    ).toBe(true);
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
 
-    // Verify enhanced data structure for User A's friend (User B)
-    const userBFriend = resA.body.friends.find((f) => f.id === userB.id);
-    expect(userBFriend).toHaveProperty('username');
-    expect(userBFriend).toHaveProperty('email');
-    expect(userBFriend).toHaveProperty('friendship');
-    expect(userBFriend).toHaveProperty('bag_stats');
-    expect(userBFriend.bag_stats).toHaveProperty('total_bags');
-    expect(userBFriend.bag_stats).toHaveProperty('visible_bags');
-    expect(userBFriend.bag_stats).toHaveProperty('public_bags');
+    // Integration: Verify complex friend data structure with JOINs
+    expect(response.body).toHaveProperty('friends');
+    expect(Array.isArray(response.body.friends)).toBe(true);
+    expect(response.body.friends).toHaveLength(1);
 
-    // User B's friends
-    const resB = await request(app)
-      .get('/api/friends')
-      .set('Authorization', `Bearer ${tokenB}`);
-    expect(resB.status).toBe(200);
-    expect(Array.isArray(resB.body.friends)).toBe(true);
-    expect(
-      resB.body.friends.some(
-        (f) => f.id === userA.id && f.friendship.status === 'accepted',
-      ),
-    ).toBe(true);
-
-    // Verify enhanced data structure for User B's friend (User A)
-    const userAFriend = resB.body.friends.find((f) => f.id === userA.id);
-    expect(userAFriend).toHaveProperty('username');
-    expect(userAFriend).toHaveProperty('email');
-    expect(userAFriend).toHaveProperty('friendship');
-    expect(userAFriend).toHaveProperty('bag_stats');
-    expect(userAFriend.bag_stats).toHaveProperty('total_bags');
-    expect(userAFriend.bag_stats).toHaveProperty('visible_bags');
-    expect(userAFriend.bag_stats).toHaveProperty('public_bags');
+    const friend = response.body.friends[0];
+    expect(friend).toMatchObject({
+      id: userB.id,
+      username: userB.username,
+      email: userB.email,
+      friendship: {
+        status: 'accepted',
+        created_at: expect.any(String),
+      },
+      bag_stats: {
+        total_bags: expect.any(Number),
+        visible_bags: expect.any(Number),
+        public_bags: expect.any(Number),
+      },
+    });
   });
 
-  test('should return empty array if user has no accepted friends', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - bilateral friendship verification
+  test('should show friendship from both perspectives', async () => {
+    // User A should see User B as friend
+    const responseA = await request(app)
       .get('/api/friends')
-      .set('Authorization', `Bearer ${tokenC}`);
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.friends)).toBe(true);
-    expect(res.body.friends.length).toBe(0);
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(responseA.body.friends).toHaveLength(1);
+    expect(responseA.body.friends[0].id).toBe(userB.id);
+
+    // User B should see User A as friend
+    const responseB = await request(app)
+      .get('/api/friends')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(200);
+
+    expect(responseB.body.friends).toHaveLength(1);
+    expect(responseB.body.friends[0].id).toBe(userA.id);
   });
+
+  // GOOD: Integration concern - empty friends list
+  test('should return empty array when user has no accepted friends', async () => {
+    const response = await request(app)
+      .get('/api/friends')
+      .set('Authorization', `Bearer ${tokenC}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      friends: [],
+    });
+  });
+
+  // GOOD: Integration concern - bag statistics aggregation
+  test('should include accurate bag statistics aggregation from database', async () => {
+    // Create a bag for userB to test aggregation
+    const bagResult = await query(
+      `INSERT INTO bags (user_id, name, description, is_public, is_friends_visible)
+       VALUES ($1, $2, 'Test bag', true, true) RETURNING id`,
+      [userB.id, chance.word()],
+    );
+
+    const response = await request(app)
+      .get('/api/friends')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    // Integration: Verify bag stats reflect actual DB data
+    const friend = response.body.friends[0];
+    expect(friend.bag_stats.total_bags).toBeGreaterThanOrEqual(1);
+    expect(friend.bag_stats.public_bags).toBeGreaterThanOrEqual(1);
+
+    // Cleanup the bag we created
+    await query('DELETE FROM bag_contents WHERE bag_id = $1', [bagResult.rows[0].id]);
+    await query('DELETE FROM bags WHERE id = $1', [bagResult.rows[0].id]);
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Invalid user ID format (unit test concern)
+  // - Missing authentication token format (unit test concern)
+  // These are tested at the service unit test level
 });

@@ -6,144 +6,74 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
-import { createUniqueCourseData } from '../test-helpers.js';
+import {
+  createTestUser,
+  createTestCourse,
+  createTestRound,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('DELETE /api/rounds/:id - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
+  let round;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `trdr${timestamp}${pid}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `td${timestamp}${pid}`, // td = "test delete" - keep under 20 chars
-      email: `trdr${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Direct DB setup using test helpers
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds with globally unique identifiers
-    const courseData = createUniqueCourseData('trdr'); // TRDR = Test Round Delete Round
-    const courseCreateRes = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    createdCourseIds.push(courseCreateRes.body.id);
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
 
-    // Get the course to know its hole count for valid starting hole
-    const courseGetRes = await request(app)
-      .get(`/api/courses/${createdCourseIds[0]}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
+    // Small delay to ensure FK references are fully committed
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
 
-    // Create a test round to delete
-    const roundData = {
-      courseId: createdCourseIds[0],
-      name: `Test Round ${testId}${Date.now()}`,
-      startingHole: chance.integer({ min: 1, max: courseGetRes.body.hole_count }),
-      isPrivate: false,
-      skinsEnabled: false,
-    };
-    const roundRes = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(201);
-    createdRoundIds.push(roundRes.body.id);
+    // Create test round with user as creator
+    const roundData = await createTestRound(user.id, course.id);
+    round = roundData.round;
+    createdRoundIds.push(round.id);
   });
 
   afterEach(async () => {
-    // Clean up in reverse order due to foreign key constraints
-    await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    // Clean up in reverse order for foreign key constraints
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware
   test('should require authentication', async () => {
-    const roundId = chance.guid();
-
-    const res = await request(app)
-      .delete(`/api/rounds/${roundId}`)
-      .expect(401);
-
-    expect(res.body).toHaveProperty('error');
+    await request(app)
+      .delete(`/api/rounds/${round.id}`)
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should delete round successfully', async () => {
-    const roundId = createdRoundIds[0];
+  // GOOD: Integration concern - round validation against DB
+  test('should return 404 when round does not exist in database', async () => {
+    const fakeRoundId = chance.guid();
 
     const res = await request(app)
-      .delete(`/api/rounds/${roundId}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    expect(res.body).toEqual({
-      success: true,
-    });
-
-    // Verify the round is deleted from the database
-    const dbResult = await query('SELECT * FROM rounds WHERE id = $1', [roundId]);
-    expect(dbResult.rows).toHaveLength(0);
-
-    // Verify related round_players are also deleted (CASCADE)
-    const playersResult = await query('SELECT * FROM round_players WHERE round_id = $1', [roundId]);
-    expect(playersResult.rows).toHaveLength(0);
-
-    // Remove from tracking array since it's already deleted
-    createdRoundIds = [];
-  });
-
-  test('should return 400 when roundId is not a valid UUID', async () => {
-    const invalidRoundId = 'invalid-uuid';
-
-    const res = await request(app)
-      .delete(`/api/rounds/${invalidRoundId}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Round ID must be a valid UUID',
-    });
-  });
-
-  test('should return 404 when round does not exist', async () => {
-    const nonExistentRoundId = chance.guid();
-
-    const res = await request(app)
-      .delete(`/api/rounds/${nonExistentRoundId}`)
+      .delete(`/api/rounds/${fakeRoundId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
 
@@ -153,26 +83,15 @@ describe('DELETE /api/rounds/:id - Integration', () => {
     });
   });
 
+  // GOOD: Integration concern - permission validation (only creator can delete)
   test('should return 403 when user is not the round creator', async () => {
-    // Create another user who is not the creator of the round
-    const otherUserData = {
-      username: `other${timestamp}${process.pid}`,
-      email: `other${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
-    const otherLogin = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherToken = otherLogin.body.tokens.accessToken;
-    createdUserIds.push(otherLogin.body.user.id);
-
-    const roundId = createdRoundIds[0];
+    // Create user who is NOT the creator of the round
+    const otherUser = await createTestUser({ prefix: 'outsider' });
+    createdUserIds.push(otherUser.user.id);
 
     const res = await request(app)
-      .delete(`/api/rounds/${roundId}`)
-      .set('Authorization', `Bearer ${otherToken}`)
+      .delete(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${otherUser.token}`)
       .expect(403);
 
     expect(res.body).toMatchObject({
@@ -180,4 +99,155 @@ describe('DELETE /api/rounds/:id - Integration', () => {
       message: 'Permission denied: Only the round creator can delete the round',
     });
   });
+
+  // GOOD: Integration concern - basic DB deletion
+  test('should delete round successfully from database', async () => {
+    const response = await request(app)
+      .delete(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+    });
+
+    // Verify round is deleted from DB (integration concern)
+    const deletedRound = await query('SELECT * FROM rounds WHERE id = $1', [round.id]);
+    expect(deletedRound.rows).toHaveLength(0);
+
+    // Remove from cleanup tracking since it's deleted
+    createdRoundIds = [];
+  });
+
+  // GOOD: Integration concern - CASCADE deletion of related data
+  test('should cascade delete all related data when round is deleted', async () => {
+    // Set up related data in multiple tables
+    const playerId = await query(
+      'SELECT id FROM round_players WHERE round_id = $1 LIMIT 1',
+      [round.id],
+    );
+    const playerIdValue = playerId.rows[0].id;
+
+    // Add scores
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, playerIdValue, 1, 4],
+    );
+
+    // Add custom pars
+    await query(
+      'INSERT INTO round_hole_pars (round_id, hole_number, par, set_by_player_id) VALUES ($1, $2, $3, $4)',
+      [round.id, 1, 4, playerIdValue],
+    );
+
+    // Add side bet (if table exists)
+    let sideBetId = null;
+    try {
+      const sideBetResult = await query(
+        'INSERT INTO side_bets (round_id, name, amount, bet_type, created_by_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [round.id, 'Test Bet', 5.00, 'round', user.id],
+      );
+      sideBetId = sideBetResult.rows[0].id;
+    } catch (error) {
+      // Side bets table might not exist yet, skip this test part
+    }
+
+    // Verify all related data exists before deletion
+    const beforeScores = await query('SELECT * FROM scores WHERE round_id = $1', [round.id]);
+    const beforePars = await query('SELECT * FROM round_hole_pars WHERE round_id = $1', [round.id]);
+    const beforePlayers = await query('SELECT * FROM round_players WHERE round_id = $1', [round.id]);
+
+    expect(beforeScores.rows.length).toBeGreaterThan(0);
+    expect(beforePars.rows.length).toBeGreaterThan(0);
+    expect(beforePlayers.rows.length).toBeGreaterThan(0);
+
+    // Delete the round
+    await request(app)
+      .delete(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Verify CASCADE deletion worked (critical integration concern)
+    const afterScores = await query('SELECT * FROM scores WHERE round_id = $1', [round.id]);
+    const afterPars = await query('SELECT * FROM round_hole_pars WHERE round_id = $1', [round.id]);
+    const afterPlayers = await query('SELECT * FROM round_players WHERE round_id = $1', [round.id]);
+
+    expect(afterScores.rows).toHaveLength(0);
+    expect(afterPars.rows).toHaveLength(0);
+    expect(afterPlayers.rows).toHaveLength(0);
+
+    // Check side bet CASCADE if we created one
+    if (sideBetId) {
+      const afterSideBets = await query('SELECT * FROM side_bets WHERE round_id = $1', [round.id]);
+      expect(afterSideBets.rows).toHaveLength(0);
+    }
+
+    // Remove from cleanup tracking since it's deleted
+    createdRoundIds = [];
+  });
+
+  // GOOD: Integration concern - foreign key constraint protection
+  test('should handle deletion when round has complex related data structure', async () => {
+    // Create a more complex data structure to test FK constraints
+    const player2 = await createTestUser({ prefix: 'player2' });
+    createdUserIds.push(player2.user.id);
+
+    // Add second player to round
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, player2.user.id],
+    );
+
+    // Get both player IDs
+    const players = await query(
+      'SELECT id FROM round_players WHERE round_id = $1 ORDER BY joined_at',
+      [round.id],
+    );
+    const player1Id = players.rows[0].id;
+    const player2Id = players.rows[1].id;
+
+    // Create cross-referencing data (scores from multiple players, pars set by different players)
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, player1Id, 1, 4],
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, player2Id, 1, 3],
+    );
+    await query(
+      'INSERT INTO round_hole_pars (round_id, hole_number, par, set_by_player_id) VALUES ($1, $2, $3, $4)',
+      [round.id, 1, 4, player1Id],
+    );
+
+    // Verify complex structure exists
+    const beforeCheck = await query(
+      'SELECT COUNT(*) as total FROM scores WHERE round_id = $1',
+      [round.id],
+    );
+    expect(parseInt(beforeCheck.rows[0].total, 10)).toBe(2);
+
+    // Delete should handle all FK constraints properly
+    const response = await request(app)
+      .delete(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+
+    // Verify everything was properly cascaded
+    const afterCheck = await query(
+      'SELECT COUNT(*) as total FROM scores WHERE round_id = $1',
+      [round.id],
+    );
+    expect(parseInt(afterCheck.rows[0].total, 10)).toBe(0);
+
+    // Remove from cleanup tracking since it's deleted
+    createdRoundIds = [];
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing roundId (unit test concern)
+  // - Invalid UUID format (unit test concern)
+  // These are all tested at the service unit test level
 });

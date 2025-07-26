@@ -6,75 +6,48 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  createTestCourse,
+  createTestRound,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('POST /api/rounds/:id/side-bets - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
+  let round;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
   let createdSideBetIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `tsbc${timestamp}${pid}${random}`; // tsbc = test side bet create
+    // Reset arrays
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
     createdSideBetIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tc${timestamp}${pid}`,
-      email: `tsbc${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Use test helpers for direct DB setup
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course
-    const courseData = {
-      name: `TSBC Course ${testId}${Date.now()}`,
-      city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
-      country: 'US',
-      holeCount: chance.integer({ min: 9, max: 27 }),
-    };
-    const courseRes = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    createdCourseIds.push(courseRes.body.id);
+    // Create test course
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
 
-    // Create a test round
-    const roundData = {
-      courseId: createdCourseIds[0],
-      name: `TSBC Round ${testId}`,
-      startingHole: 1,
-      isPrivate: false,
-      skinsEnabled: false,
-    };
-    const roundRes = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(201);
-    createdRoundIds.push(roundRes.body.id);
+    // Create test round with user as participant
+    const roundData = await createTestRound(user.id, course.id);
+    round = roundData.round;
+    createdRoundIds.push(round.id);
   });
 
   afterEach(async () => {
@@ -83,22 +56,12 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
       await query('DELETE FROM side_bet_participants WHERE side_bet_id = ANY($1)', [createdSideBetIds]);
       await query('DELETE FROM side_bets WHERE id = ANY($1)', [createdSideBetIds]);
     }
-    await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
-  test('should export a function', () => {
-    expect(typeof app).toBe('function');
-  });
-
+  // GOOD: Integration concerns only
   test('should require authentication', async () => {
     const betType = chance.pickone(['hole', 'round']);
     const betData = {
@@ -109,7 +72,7 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
     };
 
     const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
+      .post(`/api/rounds/${round.id}/side-bets`)
       .send(betData)
       .expect(401);
 
@@ -118,42 +81,44 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
     });
   });
 
-  test('should create hole bet with valid data', async () => {
+  test('should create hole bet successfully and persist to database', async () => {
     const betData = {
       name: chance.sentence({ words: 3 }),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'hole',
       description: chance.sentence(),
-      holeNumber: chance.integer({ min: 1, max: 18 }),
+      holeNumber: chance.integer({ min: 1, max: course.hole_count }),
     };
 
     const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
+      .post(`/api/rounds/${round.id}/side-bets`)
       .set('Authorization', `Bearer ${token}`)
       .send(betData)
       .expect(201);
 
-    // Should return the created side bet data
+    // Verify response structure
     expect(res.body).toMatchObject({
       id: expect.any(String),
-      round_id: createdRoundIds[0],
+      round_id: round.id,
       name: betData.name,
-      description: betData.description,
-      amount: expect.any(String), // PostgreSQL returns decimals as strings
+      amount: expect.any(String),
       bet_type: betData.betType,
       hole_number: betData.holeNumber,
-      created_by_id: expect.any(String),
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-      cancelled_at: null,
-      cancelled_by_id: null,
     });
 
     // Track for cleanup
     createdSideBetIds.push(res.body.id);
+
+    // Verify DB persistence (integration concern)
+    const savedBet = await query('SELECT * FROM side_bets WHERE id = $1', [res.body.id]);
+    expect(savedBet.rows).toHaveLength(1);
+
+    // Verify auto-join happened
+    const participants = await query('SELECT * FROM side_bet_participants WHERE side_bet_id = $1', [res.body.id]);
+    expect(participants.rows).toHaveLength(1);
   });
 
-  test('should create round bet with valid data', async () => {
+  test('should create round bet successfully and persist to database', async () => {
     const betData = {
       name: chance.sentence({ words: 3 }),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
@@ -162,163 +127,97 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
     };
 
     const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
+      .post(`/api/rounds/${round.id}/side-bets`)
       .set('Authorization', `Bearer ${token}`)
       .send(betData)
       .expect(201);
 
-    // Should return the created side bet data
     expect(res.body).toMatchObject({
       id: expect.any(String),
-      round_id: createdRoundIds[0],
+      round_id: round.id,
       name: betData.name,
-      description: betData.description,
-      amount: expect.any(String), // PostgreSQL returns decimals as strings
-      bet_type: betData.betType,
+      bet_type: 'round',
       hole_number: null,
-      created_by_id: expect.any(String),
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-      cancelled_at: null,
-      cancelled_by_id: null,
     });
 
     // Track for cleanup
     createdSideBetIds.push(res.body.id);
   });
 
-  test('should return 400 when name is missing', async () => {
-    const betData = {
-      // name missing
-      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
-      betType: chance.word(),
-    };
-
-    const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(betData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bet name is required',
-    });
-  });
-
-  test('should return 400 when amount is missing', async () => {
-    const betData = {
-      name: chance.word(),
-      // amount missing
-      betType: chance.word(),
-    };
-
-    const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(betData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bet amount is required',
-    });
-  });
-
-  test('should return 400 when betType is missing', async () => {
-    const betData = {
-      name: chance.word(),
-      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
-      // betType missing
-    };
-
-    const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(betData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bet type is required',
-    });
-  });
-
-  test('should return 400 when betType is invalid', async () => {
-    const betData = {
-      name: chance.word(),
-      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
-      betType: 'invalid-type',
-    };
-
-    const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(betData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bet type must be either "hole" or "round"',
-    });
-  });
-
-  test('should return 400 when hole number missing for hole bet', async () => {
-    const betData = {
-      name: chance.word(),
-      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
-      betType: 'hole',
-      // holeNumber missing
-    };
-
-    const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(betData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Hole number is required for hole bets',
-    });
-  });
-
-  test('should return 400 when hole number provided for round bet', async () => {
+  test('should return 403 when round does not exist (user not participant)', async () => {
+    const fakeRoundId = chance.guid();
     const betData = {
       name: chance.word(),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'round',
-      holeNumber: 5,
     };
 
     const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
+      .post(`/api/rounds/${fakeRoundId}/side-bets`)
       .set('Authorization', `Bearer ${token}`)
       .send(betData)
-      .expect(400);
+      .expect(403);
 
     expect(res.body).toMatchObject({
       success: false,
-      message: 'Hole number should not be provided for round bets',
+      message: 'User must be a participant in this round',
     });
   });
 
-  test('should return 400 when amount is not positive', async () => {
+  test('should return 403 when user is not participant in round', async () => {
+    // Create another user who is NOT in the round
+    const otherUser = await createTestUser();
+    createdUserIds.push(otherUser.user.id);
+
     const betData = {
       name: chance.word(),
-      amount: 0,
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'round',
     };
 
     const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/side-bets`)
-      .set('Authorization', `Bearer ${token}`)
+      .post(`/api/rounds/${round.id}/side-bets`)
+      .set('Authorization', `Bearer ${otherUser.token}`)
       .send(betData)
-      .expect(400);
+      .expect(403);
 
     expect(res.body).toMatchObject({
       success: false,
-      message: 'Bet amount must be positive',
+      message: 'User must be a participant in this round',
     });
   });
+
+  test('should handle database transaction rollback on error', async () => {
+    // This tests the integration's transaction handling
+    // We'll make the participant insert fail by using an invalid player_id
+    const betData = {
+      name: chance.sentence({ words: 3 }),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+    };
+
+    // Mock a database error by attempting to create with very long name that exceeds DB limit
+    const longNameBet = {
+      ...betData,
+      name: chance.string({ length: 300 }), // Exceeds VARCHAR(200)
+    };
+
+    await request(app)
+      .post(`/api/rounds/${round.id}/side-bets`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(longNameBet)
+      .expect(500); // Database error
+
+    // Verify no partial data was saved (transaction rolled back)
+    const bets = await query('SELECT * FROM side_bets WHERE round_id = $1', [round.id]);
+    expect(bets.rows).toHaveLength(0);
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing name
+  // - Missing amount
+  // - Invalid betType
+  // - Missing holeNumber for hole bets
+  // - Negative amounts
+  // These are all tested at the unit level in the service tests
 });

@@ -5,301 +5,215 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { query, queryOne } from '../setup.js';
+import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
-describe('Course Editing - Integration', () => {
+describe('PUT /api/courses/:id - Integration', () => {
   let adminUser;
-  let ownerUser;
-  let friendUser;
-  let otherUser;
   let adminToken;
+  let ownerUser;
   let ownerToken;
+  let friendUser;
   let friendToken;
+  let otherUser;
   let otherToken;
-  let testId;
+  let testCourseId;
   let createdUserIds = [];
   let createdCourseIds = [];
 
   beforeEach(async () => {
-    // Generate unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
 
-    // Register admin user
-    const adminData = {
-      username: `admin${testId}`,
-      email: `admin${testId}@ex.co`,
-      password: `Admin1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(adminData).expect(201);
-    await query('UPDATE users SET is_admin = true WHERE username = $1', [adminData.username]);
-    const adminLogin = await request(app).post('/api/auth/login').send({
-      username: adminData.username,
-      password: adminData.password,
-    }).expect(200);
-    adminToken = adminLogin.body.tokens.accessToken;
-    adminUser = adminLogin.body.user;
+    // Create admin user directly in DB
+    const testAdmin = await createTestUser({ prefix: 'courseseditadmin' });
+    adminUser = testAdmin.user;
+    adminToken = testAdmin.token;
     createdUserIds.push(adminUser.id);
 
-    // Register course owner
-    const ownerData = {
-      username: `owner${testId}`,
-      email: `owner${testId}@ex.co`,
-      password: `Owner1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(ownerData).expect(201);
-    const ownerLogin = await request(app).post('/api/auth/login').send({
-      username: ownerData.username,
-      password: ownerData.password,
-    }).expect(200);
-    ownerToken = ownerLogin.body.tokens.accessToken;
-    ownerUser = ownerLogin.body.user;
+    // Make user admin
+    await query('UPDATE users SET is_admin = true WHERE id = $1', [adminUser.id]);
+
+    // Create course owner directly in DB
+    const testOwner = await createTestUser({ prefix: 'courseseditowner' });
+    ownerUser = testOwner.user;
+    ownerToken = testOwner.token;
     createdUserIds.push(ownerUser.id);
 
-    // Register friend user
-    const friendData = {
-      username: `friend${testId}`,
-      email: `friend${testId}@ex.co`,
-      password: `Friend1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(friendData).expect(201);
-    const friendLogin = await request(app).post('/api/auth/login').send({
-      username: friendData.username,
-      password: friendData.password,
-    }).expect(200);
-    friendToken = friendLogin.body.tokens.accessToken;
-    friendUser = friendLogin.body.user;
+    // Create friend user directly in DB
+    const testFriend = await createTestUser({ prefix: 'courseseditfriend' });
+    friendUser = testFriend.user;
+    friendToken = testFriend.token;
     createdUserIds.push(friendUser.id);
 
-    // Register other user (no relationship)
-    const otherData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
-      password: `Other1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(otherData).expect(201);
-    const otherLogin = await request(app).post('/api/auth/login').send({
-      username: otherData.username,
-      password: otherData.password,
-    }).expect(200);
-    otherToken = otherLogin.body.tokens.accessToken;
-    otherUser = otherLogin.body.user;
+    // Create other user directly in DB
+    const testOther = await createTestUser({ prefix: 'courseseditother' });
+    otherUser = testOther.user;
+    otherToken = testOther.token;
     createdUserIds.push(otherUser.id);
 
-    // Create friendship between owner and friend
+    // Create friendship between owner and friend directly in DB
     await query(
       `INSERT INTO friendship_requests (requester_id, recipient_id, status)
        VALUES ($1, $2, 'accepted')`,
       [ownerUser.id, friendUser.id],
     );
 
-    // Create test course owned by owner
-    const testCourse = {
-      id: `edit-test-course-${testId}`,
-      name: 'Original Course Name',
-      city: 'Original City',
-      state_province: 'CA',
-      country: 'US',
-      hole_count: 18,
-      is_user_submitted: true,
-      approved: false,
-      submitted_by_id: ownerUser.id,
-    };
-
-    await queryOne(
-      'INSERT INTO courses (id, name, city, state_province, country, hole_count, is_user_submitted, approved, submitted_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+    // Create test course directly in DB
+    testCourseId = chance.guid();
+    await query(
+      `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
+       is_user_submitted, approved, submitted_by_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
-        testCourse.id,
-        testCourse.name,
-        testCourse.city,
-        testCourse.state_province,
-        testCourse.country,
-        testCourse.hole_count,
-        testCourse.is_user_submitted,
-        testCourse.approved,
-        testCourse.submitted_by_id,
+        testCourseId,
+        chance.company(),
+        chance.city(),
+        'CA',
+        'US',
+        chance.integer({ min: 9, max: 27 }),
+        true,
+        false,
+        ownerUser.id,
       ],
     );
-    createdCourseIds.push(testCourse.id);
+    createdCourseIds.push(testCourseId);
   });
 
   afterEach(async () => {
-    // Clean up test courses first
+    // Clean up in FK order
     if (createdCourseIds.length > 0) {
       await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
     }
-
-    // Clean up friendships
     if (createdUserIds.length > 0) {
       await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)', [createdUserIds]);
     }
-
-    // Clean up test users
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    await cleanupUsers(createdUserIds);
   });
 
-  describe('PUT /api/courses/:id', () => {
-    test('should require authentication', async () => {
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .send({ name: 'Updated Name' })
-        .expect(401);
-
-      expect(res.body).toMatchObject({
+  // GOOD: Integration concern - middleware authentication
+  test('should require authentication', async () => {
+    await request(app)
+      .put(`/api/courses/${testCourseId}`)
+      .send({ name: chance.company() })
+      .expect(401, {
         error: 'Access token required',
       });
+  });
+
+  // GOOD: Integration concern - admin authorization and database persistence
+  test('should allow admin to edit any course and persist to database', async () => {
+    const updateData = {
+      name: chance.company(),
+      city: chance.city(),
+      holeCount: chance.integer({ min: 9, max: 27 }),
+    };
+
+    const response = await request(app)
+      .put(`/api/courses/${testCourseId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: testCourseId,
+      name: updateData.name,
+      city: updateData.city,
+      hole_count: updateData.holeCount,
     });
 
-    test('should allow admin to edit any course', async () => {
-      const updateData = {
-        name: 'Admin Updated Course',
-        city: 'Admin Updated City',
-        holeCount: 27,
-      };
-
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(updateData)
-        .expect(200);
-
-      expect(res.body).toMatchObject({
-        id: `edit-test-course-${testId}`,
-        name: updateData.name,
-        city: updateData.city,
-        hole_count: updateData.holeCount,
-      });
-    });
-
-    test('should allow owner to edit their own course', async () => {
-      const updateData = {
-        name: 'Owner Updated Course',
-        stateProvince: 'TX',
-      };
-
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${ownerToken}`)
-        .send(updateData)
-        .expect(200);
-
-      expect(res.body).toMatchObject({
-        id: `edit-test-course-${testId}`,
-        name: updateData.name,
-        state_province: updateData.stateProvince,
-      });
-    });
-
-    test('should allow friend to edit owner course', async () => {
-      const updateData = {
-        name: 'Friend Updated Course',
-        city: 'Friend Updated City',
-      };
-
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${friendToken}`)
-        .send(updateData)
-        .expect(200);
-
-      expect(res.body).toMatchObject({
-        id: `edit-test-course-${testId}`,
-        name: updateData.name,
-        city: updateData.city,
-      });
-    });
-
-    test('should reject edit from non-friend user', async () => {
-      const updateData = {
-        name: 'Unauthorized Update',
-      };
-
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${otherToken}`)
-        .send(updateData)
-        .expect(400);
-
-      expect(res.body).toMatchObject({
-        error: 'You do not have permission to edit this course',
-      });
-    });
-
-    test('should return 404 for non-existent course', async () => {
-      const res = await request(app)
-        .put('/api/courses/non-existent-course')
-        .set('Authorization', `Bearer ${ownerToken}`)
-        .send({ name: 'Updated Name' })
-        .expect(404);
-
-      expect(res.body).toMatchObject({
-        error: 'Course not found',
-      });
-    });
-
-    test('should validate that at least one field is provided', async () => {
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${ownerToken}`)
-        .send({}) // Empty update
-        .expect(400);
-
-      expect(res.body).toMatchObject({
-        error: 'No valid fields to update',
-      });
-    });
-
-    test('should handle coordinate updates', async () => {
-      const updateData = {
-        latitude: chance.latitude({ fixed: 8 }), // Generate random lat with 8 decimals
-        longitude: chance.longitude({ fixed: 8 }), // Generate random lng with 8 decimals
-        name: 'Updated with Coordinates',
-      };
-
-      // Calculate expected truncated values (5 decimal places)
-      const expectedLat = Math.round(updateData.latitude * 100000) / 100000;
-      const expectedLng = Math.round(updateData.longitude * 100000) / 100000;
-
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${ownerToken}`)
-        .send(updateData)
-        .expect(200);
-
-      expect(res.body).toMatchObject({
-        id: `edit-test-course-${testId}`,
-        name: updateData.name,
-        latitude: expectedLat, // Truncated to 5 decimal places
-        longitude: expectedLng, // Truncated to 5 decimal places
-      });
-    });
-
-    test('should support both camelCase and snake_case field names', async () => {
-      const updateData = {
-        stateProvince: 'NY', // camelCase
-        postal_code: '10001', // snake_case
-        holeCount: 9, // camelCase
-      };
-
-      const res = await request(app)
-        .put(`/api/courses/edit-test-course-${testId}`)
-        .set('Authorization', `Bearer ${ownerToken}`)
-        .send(updateData)
-        .expect(200);
-
-      expect(res.body).toMatchObject({
-        id: `edit-test-course-${testId}`,
-        state_province: updateData.stateProvince,
-        postal_code: updateData.postal_code,
-        hole_count: updateData.holeCount,
-      });
+    // Integration: Verify persistence to database
+    const courseInDb = await query('SELECT * FROM courses WHERE id = $1', [testCourseId]);
+    expect(courseInDb.rows[0]).toMatchObject({
+      name: updateData.name,
+      city: updateData.city,
+      hole_count: updateData.holeCount,
     });
   });
+
+  // GOOD: Integration concern - owner authorization and database persistence
+  test('should allow owner to edit their own course and persist to database', async () => {
+    const updateData = {
+      name: chance.company(),
+      stateProvince: 'TX',
+    };
+
+    const response = await request(app)
+      .put(`/api/courses/${testCourseId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: testCourseId,
+      name: updateData.name,
+      state_province: updateData.stateProvince,
+    });
+
+    // Integration: Verify persistence to database
+    const courseInDb = await query('SELECT * FROM courses WHERE id = $1', [testCourseId]);
+    expect(courseInDb.rows[0]).toMatchObject({
+      name: updateData.name,
+      state_province: updateData.stateProvince,
+    });
+  });
+
+  // GOOD: Integration concern - friend authorization via friendship table JOIN
+  test('should allow friend to edit course via friendship relationship', async () => {
+    const updateData = {
+      name: chance.company(),
+      city: chance.city(),
+    };
+
+    const response = await request(app)
+      .put(`/api/courses/${testCourseId}`)
+      .set('Authorization', `Bearer ${friendToken}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: testCourseId,
+      name: updateData.name,
+      city: updateData.city,
+    });
+  });
+
+  // GOOD: Integration concern - authorization denial for non-friends
+  test('should reject edit from non-friend user', async () => {
+    const response = await request(app)
+      .put(`/api/courses/${testCourseId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ name: chance.company() })
+      .expect(400);
+
+    expect(response.body).toHaveProperty('error');
+  });
+
+  // GOOD: Integration concern - non-existent course handling
+  test('should return 404 for non-existent course', async () => {
+    const nonExistentId = chance.guid();
+
+    const response = await request(app)
+      .put(`/api/courses/${nonExistentId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: chance.company() })
+      .expect(404);
+
+    expect(response.body).toMatchObject({
+      error: expect.stringMatching(/not found/i),
+    });
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Empty update validation (unit test concern)
+  // - Field format validation (unit test concern)
+  // - Coordinate truncation logic (unit test concern)
+  // - camelCase vs snake_case conversion (unit test concern)
+  // These are all tested at the service unit test level
 });

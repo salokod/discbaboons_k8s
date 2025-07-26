@@ -6,228 +6,148 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('DELETE /api/bags/:id - Integration', () => {
-  let user;
-  let token;
-  let testId;
+  let user; let
+    token;
   let createdUserIds = [];
-  let createdBag;
+  let createdBagIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run (short for username limits)
-    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`; // 10 chars total
+    // Reset arrays for parallel test safety
     createdUserIds = [];
+    createdBagIds = [];
 
-    // Register user with unique identifier (under 20 char limit)
-    const password = `Test1!${chance.word({ length: 2 })}`; // Meets complexity requirements
-    const userData = {
-      username: `bd${testId}`, // bd + 10 chars = 12 chars total (under 20 limit)
-      email: `bd${testId}@ex.co`,
-      password,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-
-    // Login
-    const loginRes = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = loginRes.body.tokens.accessToken;
-    user = loginRes.body.user;
+    // Create user directly in DB for speed
+    const testUser = await createTestUser({ prefix: 'bagsdelete' });
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
   });
 
   afterEach(async () => {
-    // Clean up only data created in this specific test
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
+    // Clean up in FK order
+    if (createdBagIds.length > 0) {
+      await query('DELETE FROM bag_contents WHERE bag_id = ANY($1)', [createdBagIds]);
+      await query('DELETE FROM bags WHERE id = ANY($1)', [createdBagIds]);
     }
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
     const bagId = chance.guid();
-    const res = await request(app)
-      .delete(`/api/bags/${bagId}`);
-    expect(res.status).toBe(401);
+
+    await request(app)
+      .delete(`/api/bags/${bagId}`)
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
+  // GOOD: Integration concern - bag existence validation
   test('should return 404 for non-existent bag', async () => {
     const nonExistentBagId = chance.guid();
 
-    const res = await request(app)
+    const response = await request(app)
       .delete(`/api/bags/${nonExistentBagId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found',
+      message: expect.stringMatching(/not found/i),
     });
   });
 
-  test('should return 404 for invalid UUID format', async () => {
-    const invalidBagId = 'invalidUUID';
+  // GOOD: Integration concern - bag deletion and database persistence
+  test('should delete bag and remove from database', async () => {
+    // Create bag directly in DB
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [user.id, chance.word(), chance.sentence(), chance.bool(), chance.bool()],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
 
-    const res = await request(app)
-      .delete(`/api/bags/${invalidBagId}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(404);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bag not found',
-    });
-  });
-
-  test('should successfully delete bag when user owns it', async () => {
-    // Create a bag first
-    const bagData = {
-      name: `TestBag-${testId}-delete`,
-      description: 'Test bag for deletion',
-      is_public: false,
-      is_friends_visible: true,
-    };
-
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    createdBag = createRes.body.bag;
-
-    // Delete the bag
-    const res = await request(app)
-      .delete(`/api/bags/${createdBag.id}`)
+    const response = await request(app)
+      .delete(`/api/bags/${bag.id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    // Should return success response
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: true,
-      message: 'Bag deleted successfully',
+      message: expect.stringMatching(/deleted/i),
     });
 
-    // Verify bag is actually deleted by trying to get it
-    const getRes = await request(app)
-      .get(`/api/bags/${createdBag.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(404);
-
-    expect(getRes.body).toMatchObject({
-      success: false,
-      message: 'Bag not found',
-    });
+    // Integration: Verify deletion from database
+    const deletedBag = await query('SELECT * FROM bags WHERE id = $1', [bag.id]);
+    expect(deletedBag.rows).toHaveLength(0);
   });
 
-  test('should return 404 when user tries to delete another users bag', async () => {
-    // Create bag with first user
-    const bagData = {
-      name: `TestBag-${testId}-security`,
-      description: 'Security test bag',
-    };
+  // GOOD: Integration concern - ownership validation
+  test('should prevent deleting bag owned by different user', async () => {
+    // Create bag owned by different user
+    const otherUser = await createTestUser({ prefix: 'otherbag' });
+    createdUserIds.push(otherUser.user.id);
 
-    const createRes = await request(app)
-      .post('/api/bags')
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [otherUser.user.id, chance.word(), chance.sentence(), false, false],
+    );
+    createdBagIds.push(bagResult.rows[0].id);
+
+    const response = await request(app)
+      .delete(`/api/bags/${bagResult.rows[0].id}`)
       .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    const bagId = createRes.body.bag.id;
-
-    // Create second user
-    const password2 = `Test1!${chance.word({ length: 2 })}`;
-    const userData2 = {
-      username: `bd${testId}2`, // bd + 10 chars + 1 = 13 chars total (under 20 limit)
-      email: `bd${testId}2@ex.co`,
-      password: password2,
-    };
-    await request(app).post('/api/auth/register').send(userData2).expect(201);
-
-    const loginRes2 = await request(app).post('/api/auth/login').send({
-      username: userData2.username,
-      password: userData2.password,
-    }).expect(200);
-    const token2 = loginRes2.body.tokens.accessToken;
-    createdUserIds.push(loginRes2.body.user.id);
-
-    // Second user should NOT be able to delete first user's bag
-    const res = await request(app)
-      .delete(`/api/bags/${bagId}`)
-      .set('Authorization', `Bearer ${token2}`)
       .expect(404);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found',
+      message: expect.stringMatching(/not found/i),
     });
 
-    // Verify original bag still exists
-    const originalBagRes = await request(app)
-      .get(`/api/bags/${bagId}`)
+    // Integration: Verify bag still exists in database
+    const stillExists = await query('SELECT * FROM bags WHERE id = $1', [bagResult.rows[0].id]);
+    expect(stillExists.rows).toHaveLength(1);
+  });
+
+  // GOOD: Integration concern - idempotent deletion behavior
+  test('should handle duplicate deletion attempts gracefully', async () => {
+    // Create bag directly in DB
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [user.id, chance.word(), chance.sentence(), chance.bool(), chance.bool()],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
+
+    // First deletion should succeed
+    await request(app)
+      .delete(`/api/bags/${bag.id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(originalBagRes.body.bag.name).toBe(bagData.name); // Should be unchanged
-  });
-
-  test('should handle ValidationError gracefully', async () => {
-    // This would happen if service validation fails
-    // For delete, this primarily tests the UUID validation path
-    const invalidBagId = 'not-a-uuid';
-
-    const res = await request(app)
-      .delete(`/api/bags/${invalidBagId}`)
+    // Second deletion attempt should return 404
+    const response = await request(app)
+      .delete(`/api/bags/${bag.id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found',
+      message: expect.stringMatching(/not found/i),
     });
   });
 
-  test('should not delete the same bag twice', async () => {
-    // Create a bag first
-    const bagData = {
-      name: `TestBag-${testId}-double-delete`,
-      description: 'Test bag for double deletion',
-    };
-
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    createdBag = createRes.body.bag;
-
-    // Delete the bag first time - should succeed
-    const deleteRes = await request(app)
-      .delete(`/api/bags/${createdBag.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    expect(deleteRes.body).toMatchObject({
-      success: true,
-      message: 'Bag deleted successfully',
-    });
-
-    // Try to delete the same bag again - should return 404
-    const res = await request(app)
-      .delete(`/api/bags/${createdBag.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(404);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bag not found',
-    });
-  });
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Invalid bag ID format (unit test concern)
+  // - Malformed UUID (unit test concern)
+  // These are all tested at the service unit test level
 });

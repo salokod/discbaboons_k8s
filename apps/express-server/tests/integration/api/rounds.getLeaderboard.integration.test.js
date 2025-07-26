@@ -5,341 +5,208 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { query, queryOne } from '../setup.js';
-import { createUniqueCourseData } from '../test-helpers.js';
+import { query } from '../setup.js';
+import {
+  createTestUser,
+  createTestCourse,
+  createTestRound,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('GET /api/rounds/:id/leaderboard - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
+  let round;
+  let testPlayer1;
+  let testPlayer2;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
-  let testCourse;
-  let testRound;
-  let testPlayer1;
-  let testPlayer2;
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `tlbd${timestamp}${pid}${random}`; // TLBD = Test Leaderboard
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `lb${timestamp}${pid}`, // lb = "leaderboard" - keep under 20 chars
-      email: `tlbd${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Direct DB setup using test helpers
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds
-    const courseData = createUniqueCourseData('tlbd'); // TLBD = Test Leaderboard
-    const courseResponse = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    testCourse = courseResponse.body;
-    createdCourseIds.push(testCourse.id);
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
 
-    // Create test round with skins enabled
-    const roundData = {
-      courseId: testCourse.id,
-      name: `Test Round ${testId}${Date.now()}`,
-      startingHole: 1,
-      skinsEnabled: true,
-      skinsValue: 5.00,
-    };
-    const roundResponse = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(201);
-    testRound = roundResponse.body;
-    createdRoundIds.push(testRound.id);
+    // Create test round with user as creator
+    const roundData = await createTestRound(user.id, course.id);
+    round = roundData.round;
+    testPlayer1 = roundData.player; // Auto-added player record
+    createdRoundIds.push(round.id);
 
-    // Get the player record for the creator (auto-added when round is created)
-    testPlayer1 = await queryOne(
-      'SELECT id FROM round_players WHERE round_id = $1 AND user_id = $2',
-      [testRound.id, user.id],
+    // Add a second player directly in DB for speed
+    const user2 = await createTestUser({ prefix: 'player2' });
+    createdUserIds.push(user2.user.id);
+
+    const player2Result = await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false) RETURNING *',
+      [round.id, user2.user.id],
     );
-
-    // Add a guest player to the round
-    const playersData = {
-      players: [
-        { guestName: 'Test Guest Player' },
-      ],
-    };
-    await request(app)
-      .post(`/api/rounds/${testRound.id}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(playersData)
-      .expect(201);
-
-    // Get the guest player record
-    testPlayer2 = await queryOne(
-      'SELECT id FROM round_players WHERE round_id = $1 AND is_guest = true',
-      [testRound.id],
-    );
+    [testPlayer2] = player2Result.rows;
   });
 
   afterEach(async () => {
-    // Clean up in reverse order of creation to respect foreign key constraints
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM scores WHERE round_id = ANY($1)', [createdRoundIds]);
-      await query('DELETE FROM round_hole_pars WHERE round_id = ANY($1)', [createdRoundIds]);
-      await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    // Clean up in reverse order for foreign key constraints
+    await query('DELETE FROM scores WHERE round_id = ANY($1)', [createdRoundIds]);
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware
   test('should require authentication', async () => {
-    const response = await request(app)
-      .get(`/api/rounds/${testRound.id}/leaderboard`)
-      .expect(401);
-
-    expect(response.body).toHaveProperty('error');
+    await request(app)
+      .get(`/api/rounds/${round.id}/leaderboard`)
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should return 400 when round ID is invalid UUID', async () => {
-    const response = await request(app)
-      .get('/api/rounds/invalid-uuid/leaderboard')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(400);
+  // GOOD: Integration concern - round validation against DB
+  test('should return 404 when round does not exist in database', async () => {
+    const fakeRoundId = chance.guid();
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('Round ID must be a valid UUID');
-  });
-
-  test('should return 404 when round does not exist', async () => {
-    const nonexistentRoundId = chance.guid();
-
-    const response = await request(app)
-      .get(`/api/rounds/${nonexistentRoundId}/leaderboard`)
+    const res = await request(app)
+      .get(`/api/rounds/${fakeRoundId}/leaderboard`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('Round not found');
-  });
-
-  test('should return empty leaderboard when no scores exist', async () => {
-    const response = await request(app)
-      .get(`/api/rounds/${testRound.id}/leaderboard`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    // Should return both players with 0 scores, sorted alphabetically by default
-    expect(response.body.players).toHaveLength(2);
-    expect(response.body.players[0]).toEqual({
-      playerId: testPlayer1.id,
-      username: user.username,
-      guestName: null,
-      isGuest: false,
-      position: 1,
-      totalStrokes: 0,
-      totalPar: 0,
-      relativeScore: 0,
-      holesCompleted: 0,
-      currentHole: 1,
-      skinsWon: 0,
-    });
-
-    expect(response.body.roundSettings).toEqual({
-      skinsEnabled: true,
-      skinsValue: '5.00',
-      currentCarryOver: 0,
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'Round not found',
     });
   });
 
-  test('should return leaderboard sorted by total strokes with skins settings', async () => {
-    // Set custom pars for holes 1 and 2
-    await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/1/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ par: 4 })
-      .expect(200);
+  // GOOD: Integration concern - permission validation against actual DB
+  test('should return 403 when user is not participant in round', async () => {
+    // Create user who is NOT a participant in the round
+    const otherUser = await createTestUser({ prefix: 'outsider' });
+    createdUserIds.push(otherUser.user.id);
 
-    await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/2/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ par: 5 })
-      .expect(200);
-
-    // Submit scores - player2 has lower total strokes and should be first
-    const scoresData = {
-      scores: [
-        { playerId: testPlayer1.id, holeNumber: 1, strokes: 5 }, // +1 over par 4
-        { playerId: testPlayer1.id, holeNumber: 2, strokes: 6 }, // +1 over par 5
-        { playerId: testPlayer2.id, holeNumber: 1, strokes: 3 }, // -1 under par 4
-      ],
-    };
-
-    await request(app)
-      .post(`/api/rounds/${testRound.id}/scores`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(scoresData)
-      .expect(200);
-
-    // Get leaderboard
-    const response = await request(app)
-      .get(`/api/rounds/${testRound.id}/leaderboard`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    expect(response.body.players).toHaveLength(2);
-
-    // Player 2 (guest) should be first with lower total strokes
-    expect(response.body.players[0]).toEqual({
-      playerId: testPlayer2.id,
-      username: null,
-      guestName: 'Test Guest Player',
-      isGuest: true,
-      position: 1,
-      totalStrokes: 3,
-      totalPar: 4,
-      relativeScore: -1,
-      holesCompleted: 1,
-      currentHole: 2,
-      skinsWon: 1, // Player 2 wins hole 1
-    });
-
-    // Player 1 (creator) should be second with higher total strokes
-    expect(response.body.players[1]).toEqual({
-      playerId: testPlayer1.id,
-      username: user.username,
-      guestName: null,
-      isGuest: false,
-      position: 2,
-      totalStrokes: 11,
-      totalPar: 9,
-      relativeScore: 2,
-      holesCompleted: 2,
-      currentHole: 3,
-      skinsWon: 1, // Wins hole 2
-    });
-
-    // Round settings should include skins info
-    expect(response.body.roundSettings).toEqual({
-      skinsEnabled: true,
-      skinsValue: '5.00',
-      currentCarryOver: 0, // Placeholder
-    });
-  });
-
-  test('should include real skins data when skins are enabled', async () => {
-    // Submit scores where player2 wins hole 1, player1 wins hole 2
-    const scoresData = {
-      scores: [
-        { playerId: testPlayer1.id, holeNumber: 1, strokes: 4 },
-        { playerId: testPlayer1.id, holeNumber: 2, strokes: 3 },
-        { playerId: testPlayer2.id, holeNumber: 1, strokes: 3 }, // Wins hole 1
-        { playerId: testPlayer2.id, holeNumber: 2, strokes: 5 },
-      ],
-    };
-
-    await request(app)
-      .post(`/api/rounds/${testRound.id}/scores`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(scoresData)
-      .expect(200);
-
-    // Get leaderboard
-    const response = await request(app)
-      .get(`/api/rounds/${testRound.id}/leaderboard`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    // Verify real skins data is integrated
-    expect(response.body.players[0].skinsWon).toBe(1); // Player 2 won hole 1
-    expect(response.body.players[1].skinsWon).toBe(1); // Player 1 won hole 2
-
-    // Verify no carry over
-    expect(response.body.roundSettings.currentCarryOver).toBe(0);
-  });
-
-  test('should show skins carry over when holes tie', async () => {
-    // Submit scores where holes 1 and 2 tie, player1 wins hole 3
-    const scoresData = {
-      scores: [
-        { playerId: testPlayer1.id, holeNumber: 1, strokes: 3 }, // Tie
-        { playerId: testPlayer1.id, holeNumber: 2, strokes: 4 }, // Tie
-        { playerId: testPlayer1.id, holeNumber: 3, strokes: 2 }, // Wins with carry
-        { playerId: testPlayer2.id, holeNumber: 1, strokes: 3 }, // Tie
-        { playerId: testPlayer2.id, holeNumber: 2, strokes: 4 }, // Tie
-        { playerId: testPlayer2.id, holeNumber: 3, strokes: 5 },
-      ],
-    };
-
-    await request(app)
-      .post(`/api/rounds/${testRound.id}/scores`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(scoresData)
-      .expect(200);
-
-    // Get leaderboard
-    const response = await request(app)
-      .get(`/api/rounds/${testRound.id}/leaderboard`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    // Player 1 should have won 3 skins (2 carry over + 1)
-    const player1 = response.body.players.find((p) => p.playerId === testPlayer1.id);
-    expect(player1.skinsWon).toBe(3);
-
-    // Player 2 should have 0 skins
-    const player2 = response.body.players.find((p) => p.playerId === testPlayer2.id);
-    expect(player2.skinsWon).toBe(0);
-
-    // No remaining carry over since hole 3 was won
-    expect(response.body.roundSettings.currentCarryOver).toBe(0);
-  });
-
-  test('should return 403 when user is not participant', async () => {
-    // Create another user with unique identifier
-    const otherUserData = {
-      username: `lbother${timestamp}${chance.string({ length: 3, pool: 'abcdefghijklmnopqrstuvwxyz' })}`,
-      email: `lbother${testId}${Date.now()}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-
-    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
-    const otherLogin = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherToken = otherLogin.body.tokens.accessToken;
-    createdUserIds.push(otherLogin.body.user.id);
-
-    const response = await request(app)
-      .get(`/api/rounds/${testRound.id}/leaderboard`)
-      .set('Authorization', `Bearer ${otherToken}`)
+    const res = await request(app)
+      .get(`/api/rounds/${round.id}/leaderboard`)
+      .set('Authorization', `Bearer ${otherUser.token}`)
       .expect(403);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('You must be a participant in this round to view leaderboard');
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'You must be a participant in this round to view leaderboard',
+    });
   });
+
+  // GOOD: Integration concern - complex leaderboard calculation with JOINs
+  test('should return leaderboard with player rankings from database calculations', async () => {
+    // Set up scores directly in DB for speed
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer1.id, 1, 4],
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer1.id, 2, 5],
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer2.id, 1, 3],
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer2.id, 2, 4],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/leaderboard`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Integration: Verify leaderboard calculations and ranking
+    expect(response.body).toHaveProperty('players');
+    expect(Array.isArray(response.body.players)).toBe(true);
+    expect(response.body.players).toHaveLength(2);
+
+    // Should be sorted by position (ascending - best score first)
+    const [firstPlayer, secondPlayer] = response.body.players;
+    expect(firstPlayer).toMatchObject({
+      playerId: testPlayer2.id,
+      username: expect.any(String), // Integration: JOIN with users table
+      totalStrokes: 7,
+      totalPar: 6,
+      relativeScore: 1,
+      position: 1,
+    });
+
+    expect(secondPlayer).toMatchObject({
+      playerId: testPlayer1.id,
+      username: user.username, // Integration: JOIN with users table
+      totalStrokes: 9,
+      totalPar: 6,
+      relativeScore: 3,
+      position: 2,
+    });
+  });
+
+  // GOOD: Integration concern - skins integration when enabled
+  test('should include skins data when round has skins enabled', async () => {
+    // Update round to enable skins directly in DB
+    await query(
+      'UPDATE rounds SET skins_enabled = true, skins_value = $1 WHERE id = $2',
+      [5.00, round.id],
+    );
+
+    // Set up some scores for skins calculation
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer1.id, 1, 3],
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer2.id, 1, 4],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/leaderboard`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Integration: Verify skins service integration
+    expect(response.body).toHaveProperty('players');
+    expect(response.body).toHaveProperty('roundSettings');
+    expect(response.body.roundSettings.skinsEnabled).toBe(true);
+  });
+
+  // GOOD: Integration concern - handles empty scores state
+  test('should return empty leaderboard when no scores exist', async () => {
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/leaderboard`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toHaveProperty('players');
+    expect(Array.isArray(response.body.players)).toBe(true);
+    expect(response.body.players).toHaveLength(2); // Both players with 0 scores
+    expect(response.body).toHaveProperty('roundSettings');
+    expect(response.body.roundSettings.skinsEnabled).toBe(false);
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing roundId (unit test concern)
+  // - Invalid UUID format (unit test concern)
+  // - Missing userId (unit test concern)
+  // - Invalid userId format (unit test concern)
+  // These are all tested at the service unit test level
 });

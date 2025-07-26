@@ -5,155 +5,144 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { query, queryOne } from '../setup.js';
+import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
-
-// Generate unique identifier for this test file
-const timestamp = Date.now().toString().slice(-6);
-const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-const testId = `dc${timestamp}${random}`;
 
 describe('POST /api/discs/master - Integration', () => {
   let user;
   let token;
-  let createdDisc;
   let createdUserIds = [];
-  const testBrand = `Brand-${testId}`;
-  const testModel = `Model-${testId}`;
+  let createdDiscIds = [];
 
   beforeEach(async () => {
+    // Reset arrays for parallel test safety
     createdUserIds = [];
-    // Clean up any leftover test data
-    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
-    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
+    createdDiscIds = [];
 
-    // Register user
-    const password = `Abcdef1!${chance.word({ length: 5 })}`;
-    const userSuffix = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const userData = {
-      username: `u${timestamp}${userSuffix}`,
-      email: `${testId}-${userSuffix}@example.com`,
-      password,
-    };
-    const registerRes = await request(app).post('/api/auth/register').send(userData).expect(201);
-    createdUserIds.push(registerRes.body.user.id);
-
-    // Login
-    const loginRes = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = loginRes.body.tokens.accessToken;
-    user = loginRes.body.user;
+    // Create user directly in DB for speed
+    const testUser = await createTestUser({ prefix: 'discscreate' });
+    user = testUser.user;
+    token = testUser.token;
+    createdUserIds.push(user.id);
   });
 
   afterEach(async () => {
-    // Clean up in proper order to avoid foreign key violations
-    if (createdDisc) {
-      await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
+    // Clean up in FK order
+    if (createdDiscIds.length > 0) {
+      await query('DELETE FROM disc_master WHERE id = ANY($1)', [createdDiscIds]);
     }
-    await query('DELETE FROM disc_master WHERE brand = $1', [testBrand]);
-
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
-    // Fallback cleanup by email pattern
-    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
-    createdUserIds = [];
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
     const discData = {
-      brand: testBrand,
-      model: testModel,
+      brand: chance.company(),
+      model: chance.word(),
       speed: chance.integer({ min: 1, max: 14 }),
       glide: chance.integer({ min: 1, max: 7 }),
       turn: chance.integer({ min: -5, max: 2 }),
       fade: chance.integer({ min: 0, max: 5 }),
     };
-    const res = await request(app)
+
+    await request(app)
       .post('/api/discs/master')
-      .send(discData);
-    expect(res.status).toBe(401);
+      .send(discData)
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should create a disc with pending approval and return the created disc', async () => {
+  // GOOD: Integration concern - disc creation and database persistence
+  test('should create disc with pending approval and persist to database', async () => {
     const discData = {
-      brand: testBrand,
-      model: testModel,
+      brand: chance.company(),
+      model: chance.word(),
       speed: chance.integer({ min: 1, max: 14 }),
       glide: chance.integer({ min: 1, max: 7 }),
       turn: chance.integer({ min: -5, max: 2 }),
       fade: chance.integer({ min: 0, max: 5 }),
     };
 
-    const res = await request(app)
+    const response = await request(app)
       .post('/api/discs/master')
       .set('Authorization', `Bearer ${token}`)
       .send(discData)
       .expect(201);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       brand: discData.brand,
       model: discData.model,
       speed: discData.speed,
       glide: discData.glide,
       turn: discData.turn,
       fade: discData.fade,
-      approved: false,
+      approved: false, // New discs are unapproved by default
       added_by_id: user.id,
     });
 
-    // Confirm in DB
-    createdDisc = await queryOne('SELECT * FROM disc_master WHERE id = $1', [res.body.id]);
-    expect(createdDisc).not.toBeNull();
-    expect(createdDisc.brand).toBe(discData.brand);
-    expect(createdDisc.model).toBe(discData.model);
-    expect(createdDisc.approved).toBe(false);
-    expect(createdDisc.added_by_id).toBe(user.id);
+    createdDiscIds.push(response.body.id);
+
+    // Integration: Verify persistence to database
+    const savedDisc = await query('SELECT * FROM disc_master WHERE id = $1', [response.body.id]);
+    expect(savedDisc.rows).toHaveLength(1);
+    expect(savedDisc.rows[0]).toMatchObject({
+      brand: discData.brand,
+      model: discData.model,
+      approved: false,
+      added_by_id: user.id,
+    });
   });
 
-  test('should fail with 400 if required fields are missing', async () => {
-    const res = await request(app)
-      .post('/api/discs/master')
-      .set('Authorization', `Bearer ${token}`)
-      .send({}) // missing all fields
-      .expect(400);
+  // GOOD: Integration concern - duplicate disc prevention (case-insensitive)
+  test('should prevent duplicate disc creation in database', async () => {
+    const brand = chance.company();
+    const model = chance.word();
 
-    expect(res.body).toHaveProperty('message');
-    expect(res.body.message).toMatch(/required/i);
-  });
+    // Create first disc directly in DB
+    const firstDisc = await query(
+      `INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        brand,
+        model,
+        chance.integer({ min: 1, max: 14 }),
+        chance.integer({ min: 1, max: 7 }),
+        chance.integer({ min: -5, max: 2 }),
+        chance.integer({ min: 0, max: 5 }),
+        true,
+        user.id,
+      ],
+    );
+    createdDiscIds.push(firstDisc.rows[0].id);
 
-  test('should not allow duplicate disc (same brand and model, case-insensitive)', async () => {
-    const discData = {
-      brand: testBrand,
-      model: testModel,
-      speed: chance.integer({ min: 1, max: 14 }),
-      glide: chance.integer({ min: 1, max: 7 }),
-      turn: chance.integer({ min: -5, max: 2 }),
-      fade: chance.integer({ min: 0, max: 5 }),
-    };
-
-    // First creation should succeed
-    await request(app)
-      .post('/api/discs/master')
-      .set('Authorization', `Bearer ${token}`)
-      .send(discData)
-      .expect(201);
-
-    // Second creation with same brand/model (different case) should fail
-    const res = await request(app)
+    // Try to create duplicate with different case
+    const response = await request(app)
       .post('/api/discs/master')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        ...discData,
-        brand: discData.brand.toUpperCase(),
-        model: discData.model.toLowerCase(),
+        brand: brand.toUpperCase(),
+        model: model.toLowerCase(),
+        speed: chance.integer({ min: 1, max: 14 }),
+        glide: chance.integer({ min: 1, max: 7 }),
+        turn: chance.integer({ min: -5, max: 2 }),
+        fade: chance.integer({ min: 0, max: 5 }),
       })
       .expect(400);
 
-    expect(res.body).toHaveProperty('message');
-    expect(res.body.message).toMatch(/already exists/i);
+    expect(response.body).toMatchObject({
+      message: expect.stringMatching(/already exists/i),
+    });
   });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing required fields (unit test concern)
+  // - Invalid field values (unit test concern)
+  // - Field type validation (unit test concern)
+  // These are all tested at the service unit test level
 });

@@ -6,108 +6,241 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
-import { createUniqueCourseData } from '../test-helpers.js';
+import {
+  createTestUser,
+  createTestCourse,
+  createTestRound,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('GET /api/rounds/:id - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
+  let round;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `trgr${timestamp}${pid}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tg${timestamp}${pid}`, // tg = "test get" - keep under 20 chars
-      email: `trgr${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Direct DB setup using test helpers
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds with globally unique identifiers
-    const courseData = createUniqueCourseData('trgr'); // TRGR = Test Round Get Round
-    const courseCreateRes = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    createdCourseIds.push(courseCreateRes.body.id);
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
 
-    // Get the course to know its hole count for valid starting hole
-    const courseGetRes = await request(app)
-      .get(`/api/courses/${createdCourseIds[0]}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
+    // Small delay to ensure FK references are fully committed
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
 
-    // Create a test round to get details for
-    const roundData = {
-      courseId: createdCourseIds[0],
-      name: `Test Round ${testId}${Date.now()}`,
-      startingHole: chance.integer({ min: 1, max: courseGetRes.body.hole_count }),
-    };
-    const roundRes = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(201);
-    createdRoundIds.push(roundRes.body.id);
+    // Create test round with user as creator
+    const roundData = await createTestRound(user.id, course.id);
+    round = roundData.round;
+    createdRoundIds.push(round.id);
   });
 
   afterEach(async () => {
-    // Clean up in reverse order due to foreign key constraints
-    await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    // Clean up in reverse order for foreign key constraints
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware
   test('should require authentication', async () => {
-    const roundId = chance.guid();
-
-    const res = await request(app)
-      .get(`/api/rounds/${roundId}`)
-      .expect(401);
-
-    expect(res.body).toHaveProperty('error');
+    await request(app)
+      .get(`/api/rounds/${round.id}`)
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should return round details including pars data', async () => {
+  // GOOD: Integration concern - round validation against DB
+  test('should return 404 when round does not exist in database', async () => {
+    const fakeRoundId = chance.guid();
+
     const res = await request(app)
-      .get(`/api/rounds/${createdRoundIds[0]}`)
+      .get(`/api/rounds/${fakeRoundId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'Round not found',
+    });
+  });
+
+  // GOOD: Integration concern - permission validation (only participants can view)
+  test('should return 403 when user is not participant in round', async () => {
+    // Create a round by another user where current user is NOT a participant
+    const otherUser = await createTestUser({ prefix: 'other' });
+    createdUserIds.push(otherUser.user.id);
+
+    const otherRound = await createTestRound(otherUser.user.id, course.id);
+    createdRoundIds.push(otherRound.round.id);
+
+    const res = await request(app)
+      .get(`/api/rounds/${otherRound.round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'You must be a participant in this round to view details',
+    });
+  });
+
+  // GOOD: Integration concern - basic round data from database
+  test('should return round details with player data from database', async () => {
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.body).toHaveProperty('id', createdRoundIds[0]);
-    expect(res.body).toHaveProperty('players');
-    expect(res.body).toHaveProperty('pars');
-    expect(typeof res.body.pars).toBe('object');
+    // Integration: Verify basic round data structure
+    expect(response.body).toMatchObject({
+      id: round.id,
+      name: round.name,
+      status: round.status,
+      starting_hole: round.starting_hole,
+      is_private: round.is_private,
+      skins_enabled: round.skins_enabled,
+      created_at: expect.any(String),
+      updated_at: expect.any(String),
+
+      // Complex business logic aggregation
+      players: expect.any(Array),
+      pars: expect.any(Object),
+    });
+
+    // Verify players array includes JOINed user data
+    expect(response.body.players).toHaveLength(1);
+    expect(response.body.players[0]).toMatchObject({
+      id: expect.any(String),
+      user_id: user.id,
+      username: user.username, // JOIN with users table
+      is_guest: false,
+      joined_at: expect.any(String),
+    });
   });
+
+  // GOOD: Integration concern - custom pars from database
+  test('should return custom pars from database when set', async () => {
+    // Set up custom par for hole 1
+    const playerId = await query(
+      'SELECT id FROM round_players WHERE round_id = $1 LIMIT 1',
+      [round.id],
+    );
+    const playerIdValue = playerId.rows[0].id;
+
+    await query(
+      'INSERT INTO round_hole_pars (round_id, hole_number, par, set_by_player_id) VALUES ($1, $2, $3, $4)',
+      [round.id, 1, 5, playerIdValue],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Integration: Verify custom pars are returned from DB
+    expect(response.body.pars).toHaveProperty('1', 5);
+    expect(typeof response.body.pars).toBe('object');
+  });
+
+  // GOOD: Integration concern - participant access validation
+  test('should allow access when user is added as participant', async () => {
+    // Create another user and add them as participant
+    const participant = await createTestUser({ prefix: 'participant' });
+    createdUserIds.push(participant.user.id);
+
+    // Add user as participant to the round
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, participant.user.id],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${participant.token}`)
+      .expect(200);
+
+    // Integration: Verify participant access works
+    expect(response.body).toMatchObject({
+      id: round.id,
+      players: expect.any(Array),
+      pars: expect.any(Object),
+    });
+
+    // Should see both participants
+    expect(response.body.players).toHaveLength(2);
+  });
+
+  // GOOD: Integration concern - guest player data handling
+  test('should properly handle guest players in JOINed player data', async () => {
+    // Add a guest player directly in DB
+    const guestName = chance.name();
+    await query(
+      'INSERT INTO round_players (round_id, guest_name, is_guest) VALUES ($1, $2, true)',
+      [round.id, guestName],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Integration: Verify guest player data structure
+    expect(response.body.players).toHaveLength(2);
+
+    const guestPlayer = response.body.players.find((p) => p.is_guest === true);
+    expect(guestPlayer).toMatchObject({
+      id: expect.any(String),
+      user_id: null, // NULL for guests
+      username: null, // NULL for guests
+      guest_name: guestName,
+      is_guest: true,
+      joined_at: expect.any(String),
+    });
+  });
+
+  // GOOD: Integration concern - round status impact on data
+  test('should return consistent data regardless of round status', async () => {
+    // Update round status directly in DB
+    await query(
+      'UPDATE rounds SET status = $1 WHERE id = $2',
+      ['completed', round.id],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Integration: Verify completed round still returns full data
+    expect(response.body).toMatchObject({
+      id: round.id,
+      status: 'completed',
+      players: expect.any(Array),
+      pars: expect.any(Object),
+    });
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing roundId (unit test concern)
+  // - Invalid UUID format (unit test concern)
+  // These are all tested at the service unit test level
 });
