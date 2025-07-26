@@ -385,6 +385,106 @@ COMMENT ON TABLE public.scores IS 'Player scores per hole (par looked up from ro
 
 
 --
+-- Name: side_bet_participants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.side_bet_participants (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    side_bet_id uuid NOT NULL,
+    player_id uuid NOT NULL,
+    is_winner boolean DEFAULT false,
+    won_at timestamp without time zone,
+    declared_by_id uuid,
+    joined_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE side_bet_participants; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.side_bet_participants IS 'Players participating in each side bet';
+
+
+--
+-- Name: COLUMN side_bet_participants.is_winner; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bet_participants.is_winner IS 'Whether this participant won the bet';
+
+
+--
+-- Name: COLUMN side_bet_participants.won_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bet_participants.won_at IS 'Timestamp when participant was declared winner';
+
+
+--
+-- Name: COLUMN side_bet_participants.declared_by_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bet_participants.declared_by_id IS 'Player who declared this participant as winner';
+
+
+--
+-- Name: side_bets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.side_bets (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    round_id uuid NOT NULL,
+    name character varying(200) NOT NULL,
+    description text,
+    amount numeric(10,2) NOT NULL,
+    bet_type character varying(200) NOT NULL,
+    hole_number integer,
+    created_by_id uuid NOT NULL,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    cancelled_at timestamp without time zone,
+    cancelled_by_id uuid,
+    CONSTRAINT check_amount_positive CHECK ((amount > (0)::numeric)),
+    CONSTRAINT check_hole_number CHECK (((hole_number IS NULL) OR ((hole_number > 0) AND (hole_number <= 50))))
+);
+
+
+--
+-- Name: TABLE side_bets; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.side_bets IS 'Side bets created by players during a round (e.g., closest to pin, longest drive)';
+
+
+--
+-- Name: COLUMN side_bets.bet_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bets.bet_type IS 'User-defined bet type as free-form text';
+
+
+--
+-- Name: COLUMN side_bets.hole_number; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bets.hole_number IS 'Specific hole number for hole-based bets, NULL for round-long bets';
+
+
+--
+-- Name: COLUMN side_bets.cancelled_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bets.cancelled_at IS 'Timestamp when bet was cancelled, NULL if active';
+
+
+--
+-- Name: COLUMN side_bets.cancelled_by_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bets.cancelled_by_id IS 'Player who cancelled the bet';
+
+
+--
 -- Name: user_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -558,6 +658,22 @@ ALTER TABLE ONLY public.rounds
 
 ALTER TABLE ONLY public.scores
     ADD CONSTRAINT scores_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: side_bet_participants side_bet_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bet_participants
+    ADD CONSTRAINT side_bet_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: side_bets side_bets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bets
+    ADD CONSTRAINT side_bets_pkey PRIMARY KEY (id);
 
 
 --
@@ -860,6 +976,48 @@ CREATE UNIQUE INDEX idx_scores_unique ON public.scores USING btree (round_id, pl
 
 
 --
+-- Name: idx_side_bet_participants_player_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_side_bet_participants_player_id ON public.side_bet_participants USING btree (player_id);
+
+
+--
+-- Name: idx_side_bet_participants_side_bet_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_side_bet_participants_side_bet_id ON public.side_bet_participants USING btree (side_bet_id);
+
+
+--
+-- Name: idx_side_bet_participants_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_side_bet_participants_unique ON public.side_bet_participants USING btree (side_bet_id, player_id);
+
+
+--
+-- Name: idx_side_bets_created_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_side_bets_created_by_id ON public.side_bets USING btree (created_by_id);
+
+
+--
+-- Name: idx_side_bets_hole_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_side_bets_hole_number ON public.side_bets USING btree (hole_number);
+
+
+--
+-- Name: idx_side_bets_round_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_side_bets_round_id ON public.side_bets USING btree (round_id);
+
+
+--
 -- Name: idx_user_profiles_country; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1028,6 +1186,54 @@ ALTER TABLE ONLY public.scores
 
 ALTER TABLE ONLY public.scores
     ADD CONSTRAINT scores_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id) ON DELETE CASCADE;
+
+
+--
+-- Name: side_bet_participants side_bet_participants_declared_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bet_participants
+    ADD CONSTRAINT side_bet_participants_declared_by_id_fkey FOREIGN KEY (declared_by_id) REFERENCES public.round_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: side_bet_participants side_bet_participants_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bet_participants
+    ADD CONSTRAINT side_bet_participants_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.round_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: side_bet_participants side_bet_participants_side_bet_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bet_participants
+    ADD CONSTRAINT side_bet_participants_side_bet_id_fkey FOREIGN KEY (side_bet_id) REFERENCES public.side_bets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: side_bets side_bets_cancelled_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bets
+    ADD CONSTRAINT side_bets_cancelled_by_id_fkey FOREIGN KEY (cancelled_by_id) REFERENCES public.round_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: side_bets side_bets_created_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bets
+    ADD CONSTRAINT side_bets_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES public.round_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: side_bets side_bets_round_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.side_bets
+    ADD CONSTRAINT side_bets_round_id_fkey FOREIGN KEY (round_id) REFERENCES public.rounds(id) ON DELETE CASCADE;
 
 
 --

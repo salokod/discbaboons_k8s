@@ -738,6 +738,13 @@ model users {
 - ✅ **Skins API Endpoints** ✅ **COMPLETED**
   - ✅ `GET /api/rounds/:id/skins` - Current skins results with carry-over tracking
   - [ ] `GET /api/rounds/:id/skins/history` - Audit trail of changes - **Future enhancement**
+- ✅ **Leaderboard Skins Integration** ✅ **COMPLETED**
+  - ✅ `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with live skins data integration
+  - ✅ **Real-time Calculation**: Calls `skinsCalculateService` when skins are enabled
+  - ✅ **Player Skins Count**: Shows actual `skinsWon` per player from live calculation
+  - ✅ **Current Carry-Over**: Displays real `currentCarryOver` amount from skins engine
+  - ✅ **Graceful Error Handling**: Falls back to placeholder values if skins calculation fails
+  - ✅ **Automatic Accuracy**: Benefits from carry-over fix automatically since it uses same service
 
 #### Current Skins Implementation Status ✅
 - **Service**: `skins.calculate.service.js` - Full TDD implementation with comprehensive unit tests
@@ -765,13 +772,84 @@ model users {
   - 3 players, $1/hole: Winner gets $2, losers each pay $1 (net: +$2/-$1/-$1)
   - 4 players, $5/hole: Winner gets $15, losers each pay $5 (net: +$15/-$5/-$5/-$5)
 
-#### Step 4.2: Side Bets
-- [ ] Create side bets migrations (V24-V25)
-- [ ] `POST /api/rounds/:id/side-bets` - Create side bet
-- [ ] `POST /api/rounds/:id/side-bets/:betId/join` - Join side bet
-- [ ] `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner
-- [ ] Side bet types: closest to pin, longest drive, lowest score
-- [ ] Custom side bet creation
+#### Step 4.2: Side Bets **🎯 CREATE ENDPOINT COMPLETED**
+- ✅ Create side bets migrations (V24-V25)
+  - ✅ Run V24__create_side_bets_table.sql migration
+  - ✅ Run V25__create_side_bet_participants_table.sql migration
+  - ✅ Verified schema.sql export with proper tables, indexes, and foreign keys
+  - [ ] Update Prisma schema with side_bets and side_bet_participants models
+
+- ✅ **CREATE Side Bet Feature** ✅ **COMPLETED**
+  - ✅ `POST /api/rounds/:id/side-bets` - Create side bet
+    - ✅ **Permissions**: Any round participant can create
+    - ✅ **Auto-join**: Creator automatically joins the bet
+    - ✅ **Bet Types**: Restricted to "hole" (requires holeNumber) or "round" (no holeNumber)
+    - ✅ **Multiple Bets**: Allow multiple bets of same type on same/different holes
+    - ✅ **Request Format**: `{ name, description?, amount, betType, holeNumber? }`
+    - ✅ **Validation**: Round exists, user is participant, amount > 0, betType "hole"|"round", holeNumber validation
+    - ✅ **Database**: Transaction-based creation with auto-join of creator as participant
+    - ✅ **Cancellation Support**: Added cancelled_at and cancelled_by_id fields for future cancellation
+    - ✅ **Winner Tracking**: Added won_at and declared_by_id fields to participants table
+    - ✅ Service: `sideBets.create.service.js` - Full TDD implementation
+    - ✅ Controller: `sideBets.create.controller.js` - Full TDD implementation
+    - ✅ Routes: Added to `rounds.routes.js` with authentication middleware
+    - ✅ Unit tests: Service, controller, and route testing complete
+    - ✅ Integration tests: Full request/response testing with database operations
+    - ✅ API documentation: `/docs/api/rounds/POST_rounds_id_side-bets.md`
+    - ✅ **Ready for local testing**
+
+  - [ ] `GET /api/rounds/:id/side-bets` - List all side bets for round
+    - [ ] **Response**: Array of bets with participant count, winner info, financial summary
+    - [ ] **Include**: Creator info, participants count, total pot, winner details
+    - [ ] **Permissions**: Only round participants can view
+    - [ ] Service: `sideBets.list.service.js`
+    - [ ] Controller: `sideBets.list.controller.js`
+    - [ ] Full TDD implementation
+
+  - [ ] `POST /api/rounds/:id/side-bets/:betId/join` - Join existing bet
+    - [ ] **Validation**: Bet exists, user is round participant, not already joined
+    - [ ] **No Leaving**: Once joined, cannot leave (immutable)
+    - [ ] **Response**: Updated bet with new participant
+    - [ ] Service: `sideBets.join.service.js`
+    - [ ] Controller: `sideBets.join.controller.js`
+    - [ ] Full TDD implementation
+
+  - [ ] `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare/update winner
+    - [ ] **Permissions**: Any round participant can declare/change winner
+    - [ ] **Multiple Winners**: Single winner only (no splitting pots)
+    - [ ] **Mistakes**: Allow re-declaration (change winner after initial declaration)
+    - [ ] **Request Format**: `{ winnerId }` or `{ cancelled: true }`
+    - [ ] **Validation**: Winner must be bet participant
+    - [ ] Service: `sideBets.declareWinner.service.js`
+    - [ ] Controller: `sideBets.declareWinner.controller.js`
+    - [ ] Full TDD implementation
+
+  - [ ] `GET /api/rounds/:id/side-bets/:betId` - Get bet details
+    - [ ] **Response**: Full bet info with all participants (names, winner status)
+    - [ ] **Include**: Financial breakdown (who owes whom)
+    - [ ] Service: `sideBets.get.service.js`
+    - [ ] Controller: `sideBets.get.controller.js`
+
+- [ ] **Financial Tracking**
+  - [ ] Calculate net gain/loss per player for each bet
+  - [ ] **Formula**: Winners get `amount × (participants - 1)`, losers pay `amount`
+  - [ ] Track total won/lost across all side bets in round
+  - [ ] Add financial summary to bet responses
+  - [ ] Service: `sideBets.calculateFinancials.service.js`
+
+- [ ] **Business Rules**
+  - [ ] **Immutability**: Players removed from round keep their bets
+  - [ ] **Cancellation**: Any participant can cancel a bet (all get refunded)
+  - [ ] **Winner Changes**: Support re-declaration for mistakes
+  - [ ] **Bet Types**: "hole" bets resolved during/after specific hole, "round" bets resolved at end
+  - [ ] **Frontend Resolution**: Frontend can automatically prompt for winners based on betType timing
+
+- [ ] **Integration Updates**
+  - [ ] Update `GET /api/rounds/:id/leaderboard` to include side bet wins summary
+    - [ ] Add `sideBetsWon` count per player
+    - [ ] Add `sideBetsNetGain` financial summary
+    - [ ] Update leaderboard service and documentation
+  - [ ] Future: Combine skins + side bets for total financial summary
 
 #### Step 4.3: Betting Analytics
 - [ ] Betting history tracking
@@ -878,12 +956,12 @@ model users {
 
 ### Par Management
 - ✅ `PUT /api/rounds/:id/holes/:holeNumber/par` - Set/update hole par (any player, triggers recalculation)
-- `GET /api/rounds/:id/pars` - Get all round pars (defaults to par 3)
+- ✅ `GET /api/rounds/:id/pars` - Get all round pars (defaults to par 3) ✅ **COMPLETED**
 
 ### Scoring  
-- `POST /api/rounds/:id/scores` - Submit/update scores (batch API, no par field, supports retroactive edits)
-- `GET /api/rounds/:id/scores` - Get all scores in matrix format (dynamic par lookup)
-- `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with skins integration
+- ✅ `POST /api/rounds/:id/scores` - Submit/update scores (batch API, no par field, supports retroactive edits) ✅ **COMPLETED**
+- ✅ `GET /api/rounds/:id/scores` - Get all scores in matrix format (dynamic par lookup) ✅ **COMPLETED**
+- ✅ `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with live skins integration ✅ **COMPLETED**
 
 ### Betting
 - ✅ `GET /api/rounds/:id/skins` - Get current skins results with carry-over tracking ✅ **COMPLETED**
@@ -893,7 +971,12 @@ model users {
   - **Data:** Dynamic calculation based on current scores and pars
   - **Documentation:** `/docs/api/rounds/GET_rounds_id_skins.md`
 - `GET /api/rounds/:id/skins/history` - Audit trail of skins changes (score edits) - **Future enhancement**
-- `POST /api/rounds/:id/side-bets` - Create side bet - **Not implemented**
+- ✅ `POST /api/rounds/:id/side-bets` - Create side bet ✅ **COMPLETED**
+  - **Response:** Created side bet object with ID, round reference, bet details, timestamps
+  - **Business Logic:** Transaction-based creation with auto-join of creator as participant
+  - **Security:** Requires authentication, participant-only access, full validation
+  - **Data:** Supports optional description and hole-specific bets
+  - **Documentation:** `/docs/api/rounds/POST_rounds_id_side-bets.md`
 - `POST /api/rounds/:id/side-bets/:betId/join` - Join bet - **Not implemented**
 - `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner - **Not implemented**
 

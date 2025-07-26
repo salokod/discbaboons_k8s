@@ -13,6 +13,7 @@ import submitScoresController from '../controllers/rounds.submitScores.controlle
 import getScoresController from '../controllers/rounds.getScores.controller.js';
 import getLeaderboardController from '../controllers/rounds.getLeaderboard.controller.js';
 import skinsCalculateController from '../controllers/skins.calculate.controller.js';
+import sideBetsCreateController from '../controllers/sideBets.create.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -49,6 +50,9 @@ router.get('/:id/leaderboard', authenticateToken, getLeaderboardController);
 
 // GET /api/rounds/:id/skins - Get round skins calculation (requires authentication)
 router.get('/:id/skins', authenticateToken, skinsCalculateController);
+
+// POST /api/rounds/:id/side-bets - Create side bet for round (requires authentication)
+router.post('/:id/side-bets', authenticateToken, sideBetsCreateController);
 
 // PUT /api/rounds/:id - Update round details (requires authentication)
 router.put('/:id', authenticateToken, updateRoundController);
