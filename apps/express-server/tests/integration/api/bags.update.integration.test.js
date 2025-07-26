@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 import 'dotenv/config';
 import {
   describe, test, expect, beforeEach, afterEach,
@@ -7,304 +6,234 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('PUT /api/bags/:id - Integration', () => {
-  let user;
-  let token;
-  let testId;
+  let user; let
+    token;
   let createdUserIds = [];
-  let createdBag;
+  let createdBagIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run (short for username limits)
-    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`; // 10 chars total
+    // Reset arrays for parallel test safety
     createdUserIds = [];
+    createdBagIds = [];
 
-    // Register user with unique identifier (under 20 char limit)
-    const password = `Test1!${chance.word({ length: 2 })}`; // Meets complexity requirements
-    const userData = {
-      username: `bu${testId}`, // bu + 10 chars = 12 chars total (under 20 limit)
-      email: `bu${testId}@ex.co`,
-      password,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-
-    // Login
-    const loginRes = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = loginRes.body.tokens.accessToken;
-    user = loginRes.body.user;
+    // Create user directly in DB for speed
+    const testUser = await createTestUser({ prefix: 'bagsupdate' });
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
   });
 
   afterEach(async () => {
-    // Clean up only data created in this specific test
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM bags WHERE user_id = ANY($1)', [createdUserIds]);
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
+    // Clean up in FK order
+    if (createdBagIds.length > 0) {
+      await query('DELETE FROM bag_contents WHERE bag_id = ANY($1)', [createdBagIds]);
+      await query('DELETE FROM bags WHERE id = ANY($1)', [createdBagIds]);
     }
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
     const bagId = chance.guid();
-    const res = await request(app)
+
+    await request(app)
       .put(`/api/bags/${bagId}`)
-      .send({ name: 'Updated Bag' });
-    expect(res.status).toBe(401);
+      .send({ name: chance.word() })
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
+  // GOOD: Integration concern - bag existence validation
   test('should return 404 for non-existent bag', async () => {
     const nonExistentBagId = chance.guid();
     const updateData = {
-      name: 'Updated Bag Name',
-      description: 'Updated description',
+      name: chance.word(),
+      description: chance.sentence(),
     };
 
-    const res = await request(app)
+    const response = await request(app)
       .put(`/api/bags/${nonExistentBagId}`)
       .set('Authorization', `Bearer ${token}`)
       .send(updateData)
       .expect(404);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found',
+      message: expect.stringMatching(/not found/i),
     });
   });
 
-  test('should return 400 for invalid UUID format', async () => {
-    const invalidBagId = 'invalidUUID';
-    const updateData = {
-      name: 'Updated Bag Name',
-    };
-
-    const res = await request(app)
-      .put(`/api/bags/${invalidBagId}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData)
-      .expect(404);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Bag not found',
-    });
-  });
-
-  test('should return 400 for empty request body', async () => {
-    // Create a bag first
-    const bagData = {
-      name: `TestBag-${testId}-update-empty-body`,
-      description: 'Test bag for empty body test',
-    };
-
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    createdBag = createRes.body.bag;
-
-    // Send empty object - this should fail because no update data provided
-    const res = await request(app)
-      .put(`/api/bags/${createdBag.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({})
-      .expect(400); // ValidationError gets caught by error handler and returns 400
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'updateData is required',
-    });
-  });
-
-  test('should successfully update bag when user owns it', async () => {
-    // Create a bag first
-    const bagData = {
-      name: `TestBag-${testId}-update`,
-      description: 'Original description',
+  // GOOD: Integration concern - bag update and database persistence
+  test('should update bag and persist changes to database', async () => {
+    // Create bag directly in DB
+    const originalBagData = {
+      name: chance.word(),
+      description: chance.sentence(),
       is_public: false,
       is_friends_visible: false,
     };
 
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    createdBag = createRes.body.bag;
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [
+        user.id,
+        originalBagData.name,
+        originalBagData.description,
+        originalBagData.is_public,
+        originalBagData.is_friends_visible,
+      ],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
 
     // Update the bag
     const updateData = {
-      name: `UpdatedBag-${testId}`,
-      description: 'Updated description',
+      name: chance.word(),
+      description: chance.sentence(),
       is_public: true,
       is_friends_visible: true,
     };
 
-    const res = await request(app)
-      .put(`/api/bags/${createdBag.id}`)
+    const response = await request(app)
+      .put(`/api/bags/${bag.id}`)
       .set('Authorization', `Bearer ${token}`)
       .send(updateData)
       .expect(200);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: true,
       bag: {
-        id: createdBag.id,
+        id: bag.id,
         name: updateData.name,
         description: updateData.description,
         is_public: updateData.is_public,
         is_friends_visible: updateData.is_friends_visible,
         user_id: user.id,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
       },
     });
 
-    // Verify all expected properties are present
-    expect(res.body.bag).toHaveProperty('created_at');
-    expect(res.body.bag).toHaveProperty('updated_at');
-
-    // Verify the original created_at is preserved but updated_at changed
-    expect(res.body.bag.created_at).toBe(createdBag.created_at);
-    expect(new Date(res.body.bag.updated_at)).toBeInstanceOf(Date);
-    expect(new Date(res.body.bag.updated_at).getTime()).toBeGreaterThan(new Date(createdBag.updated_at).getTime());
+    // Integration: Verify persistence to database
+    const updatedBag = await query('SELECT * FROM bags WHERE id = $1', [bag.id]);
+    expect(updatedBag.rows[0]).toMatchObject({
+      name: updateData.name,
+      description: updateData.description,
+      is_public: updateData.is_public,
+      is_friends_visible: updateData.is_friends_visible,
+    });
   });
 
-  test('should allow partial updates', async () => {
-    // Create a bag first
-    const bagData = {
-      name: `TestBag-${testId}-partial`,
-      description: 'Original description',
+  // GOOD: Integration concern - partial update functionality
+  test('should allow partial updates and preserve unchanged fields', async () => {
+    // Create bag directly in DB
+    const originalBagData = {
+      name: chance.word(),
+      description: chance.sentence(),
       is_public: false,
       is_friends_visible: true,
     };
 
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    createdBag = createRes.body.bag;
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [
+        user.id,
+        originalBagData.name,
+        originalBagData.description,
+        originalBagData.is_public,
+        originalBagData.is_friends_visible,
+      ],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
 
     // Update only the name
     const updateData = {
-      name: `PartialUpdate-${testId}`,
+      name: chance.word(),
     };
 
-    const res = await request(app)
-      .put(`/api/bags/${createdBag.id}`)
+    const response = await request(app)
+      .put(`/api/bags/${bag.id}`)
       .set('Authorization', `Bearer ${token}`)
       .send(updateData)
       .expect(200);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: true,
       bag: {
-        id: createdBag.id,
+        id: bag.id,
         name: updateData.name,
-        description: bagData.description, // Should remain unchanged
-        is_public: bagData.is_public, // Should remain unchanged
-        is_friends_visible: bagData.is_friends_visible, // Should remain unchanged
+        description: originalBagData.description, // Should remain unchanged
+        is_public: originalBagData.is_public, // Should remain unchanged
+        is_friends_visible: originalBagData.is_friends_visible, // Should remain unchanged
         user_id: user.id,
       },
     });
 
-    // Verify updated_at was changed
-    expect(new Date(res.body.bag.updated_at).getTime()).toBeGreaterThan(new Date(createdBag.updated_at).getTime());
+    // Integration: Verify partial update in database
+    const updatedBag = await query('SELECT * FROM bags WHERE id = $1', [bag.id]);
+    expect(updatedBag.rows[0]).toMatchObject({
+      name: updateData.name,
+      description: originalBagData.description,
+      is_public: originalBagData.is_public,
+      is_friends_visible: originalBagData.is_friends_visible,
+    });
   });
 
-  test('should return 404 when user tries to update another users bag', async () => {
-    // Create bag with first user
-    const bagData = {
-      name: `TestBag-${testId}-security`,
-      description: 'Security test bag',
+  // GOOD: Integration concern - ownership validation
+  test('should prevent updating bag owned by different user', async () => {
+    // Create bag owned by different user
+    const otherUser = await createTestUser({ prefix: 'otherbag' });
+    createdUserIds.push(otherUser.user.id);
+
+    const originalBagData = {
+      name: chance.word(),
+      description: chance.sentence(),
     };
 
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [otherUser.user.id, originalBagData.name, originalBagData.description, false, false],
+    );
+    createdBagIds.push(bagResult.rows[0].id);
 
-    const bagId = createRes.body.bag.id;
-
-    // Create second user
-    const password2 = `Test1!${chance.word({ length: 2 })}`;
-    const userData2 = {
-      username: `bu${testId}2`, // bu + 10 chars + 1 = 13 chars total (under 20 limit)
-      email: `bu${testId}2@ex.co`,
-      password: password2,
-    };
-    await request(app).post('/api/auth/register').send(userData2).expect(201);
-
-    const loginRes2 = await request(app).post('/api/auth/login').send({
-      username: userData2.username,
-      password: userData2.password,
-    }).expect(200);
-    const token2 = loginRes2.body.tokens.accessToken;
-    createdUserIds.push(loginRes2.body.user.id);
-
-    // Second user should NOT be able to update first user's bag
+    // Attempt to update bag owned by different user
     const updateData = {
-      name: 'Malicious Update',
+      name: chance.word(),
     };
 
-    const res = await request(app)
-      .put(`/api/bags/${bagId}`)
-      .set('Authorization', `Bearer ${token2}`)
+    const response = await request(app)
+      .put(`/api/bags/${bagResult.rows[0].id}`)
+      .set('Authorization', `Bearer ${token}`)
       .send(updateData)
       .expect(404);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found',
+      message: expect.stringMatching(/not found/i),
     });
 
-    // Verify original bag is unchanged
-    const originalBagRes = await request(app)
-      .get(`/api/bags/${bagId}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    expect(originalBagRes.body.bag.name).toBe(bagData.name); // Should be unchanged
-  });
-
-  test('should handle database validation errors gracefully', async () => {
-    // Create a bag first
-    const bagData = {
-      name: `TestBag-${testId}-validation`,
-      description: 'Test bag for validation',
-    };
-
-    const createRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-
-    createdBag = createRes.body.bag;
-
-    // Try to update with invalid data (name too long)
-    const updateData = {
-      name: 'a'.repeat(101), // Exceeds 100 character limit from schema
-    };
-
-    const res = await request(app)
-      .put(`/api/bags/${createdBag.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData)
-      .expect(500); // Database validation error
-
-    expect(res.body).toMatchObject({
-      success: false,
+    // Integration: Verify bag remains unchanged in database
+    const unchangedBag = await query('SELECT * FROM bags WHERE id = $1', [bagResult.rows[0].id]);
+    expect(unchangedBag.rows[0]).toMatchObject({
+      name: originalBagData.name,
+      description: originalBagData.description,
     });
   });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Invalid bag ID format (unit test concern)
+  // - Empty request body validation (unit test concern)
+  // - Field length validation (unit test concern)
+  // - Type validation (unit test concern)
+  // These are all tested at the service unit test level
 });

@@ -60,6 +60,13 @@ const skinsCalculateService = async (roundId, userId) => {
     }
   }
 
+  // Check if skins are enabled for this round
+  if (!round.skins_enabled) {
+    const error = new Error('Skins are not enabled for this round');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Get all players in the round
   const playersQuery = `
     SELECT rp.id, rp.user_id, rp.guest_name, rp.is_guest, u.username

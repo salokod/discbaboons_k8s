@@ -115,13 +115,26 @@ Each player UUID (as string key) contains:
 ```
 
 ### 400 Bad Request
-**Condition**: Invalid round ID format
+
+#### Invalid round ID format
+**Condition**: Round ID is not a valid UUID
 
 **Content**:
 ```json
 {
   "success": false,
   "message": "Round ID must be a valid UUID"
+}
+```
+
+#### Skins not enabled
+**Condition**: Skins are not enabled for this round
+
+**Content**:
+```json
+{
+  "success": false,
+  "message": "Skins are not enabled for this round"
 }
 ```
 

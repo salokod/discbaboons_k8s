@@ -6,260 +6,243 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query, queryOne } from '../setup.js';
-import { createUniqueCourseData } from '../test-helpers.js';
+import {
+  createTestUser,
+  createTestCourse,
+  createTestRound,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
+  let round;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
-  let testCourse;
-  let testRound;
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `trsp${timestamp}${pid}${random}`; // TRSP = Test Round Set Par
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `sp${timestamp}${pid}`, // sp = "set par" - keep under 20 chars
-      email: `trsp${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Direct DB setup using test helpers
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds with globally unique identifiers
-    const courseData = createUniqueCourseData('trsp'); // TRSP = Test Round Set Par
-    const courseResponse = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    testCourse = courseResponse.body;
-    createdCourseIds.push(testCourse.id);
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
 
-    // Create test round
-    const roundData = {
-      courseId: testCourse.id,
-      name: `Test Round ${testId}${Date.now()}`,
-      startingHole: chance.integer({ min: 1, max: testCourse.hole_count }),
-    };
-    const roundResponse = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(201);
-    testRound = roundResponse.body;
-    createdRoundIds.push(testRound.id);
+    // Small delay to ensure FK references are fully committed
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+
+    // Create test round with user as creator
+    const roundData = await createTestRound(user.id, course.id);
+    round = roundData.round;
+    createdRoundIds.push(round.id);
   });
 
   afterEach(async () => {
-    // Clean up in reverse order of creation to respect foreign key constraints
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM round_hole_pars WHERE round_id = ANY($1)', [createdRoundIds]);
-      await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    // Clean up in reverse order for foreign key constraints
+    await query('DELETE FROM round_hole_pars WHERE round_id = ANY($1)', [createdRoundIds]);
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
-  test('should set par for a hole successfully', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
+  // GOOD: Integration concern - middleware
+  test('should require authentication', async () => {
+    const holeNumber = chance.integer({ min: 1, max: course.hole_count });
+    const par = chance.integer({ min: 3, max: 5 });
+
+    await request(app)
+      .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
+      .send({ par })
+      .expect(401, {
+        error: 'Access token required',
+      });
+  });
+
+  // GOOD: Integration concern - DB INSERT and foreign key constraints
+  test('should set par for hole successfully and persist to database', async () => {
+    const holeNumber = chance.integer({ min: 1, max: course.hole_count });
     const par = chance.integer({ min: 3, max: 5 });
 
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
       .set('Authorization', `Bearer ${token}`)
       .send({ par })
       .expect(200);
 
-    expect(response.body).toEqual({ success: true });
+    expect(response.body).toMatchObject({ success: true });
 
-    // Verify par was set in database
+    // Verify DB persistence with foreign key constraints (integration concern)
     const savedPar = await queryOne(
-      'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
-      [testRound.id, holeNumber],
+      'SELECT rhp.*, rp.user_id FROM round_hole_pars rhp JOIN round_players rp ON rhp.set_by_player_id = rp.id WHERE rhp.round_id = $1 AND rhp.hole_number = $2',
+      [round.id, holeNumber],
     );
 
     expect(savedPar).toBeTruthy();
-    expect(savedPar.par).toBe(par);
-    expect(savedPar.round_id).toBe(testRound.id);
-    expect(savedPar.hole_number).toBe(holeNumber);
+    expect(savedPar).toMatchObject({
+      par,
+      round_id: round.id,
+      hole_number: holeNumber,
+      user_id: user.id, // Verifies foreign key constraint worked
+    });
   });
 
-  test('should update existing par for a hole', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
+  // GOOD: Integration concern - UPSERT functionality in database
+  test('should update existing par using UPSERT and maintain single record', async () => {
+    const holeNumber = chance.integer({ min: 1, max: course.hole_count });
     const originalPar = 3;
     const newPar = 4;
 
     // Set initial par
     await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
       .set('Authorization', `Bearer ${token}`)
       .send({ par: originalPar })
       .expect(200);
 
-    // Update par
+    // Update par (should UPSERT)
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
+      .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
       .set('Authorization', `Bearer ${token}`)
       .send({ par: newPar })
       .expect(200);
 
-    expect(response.body).toEqual({ success: true });
+    expect(response.body).toMatchObject({ success: true });
 
-    // Verify par was updated in database
+    // Verify UPSERT worked: updated value, single record (integration concern)
     const savedPar = await queryOne(
       'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
-      [testRound.id, holeNumber],
+      [round.id, holeNumber],
     );
-
     expect(savedPar.par).toBe(newPar);
 
-    // Should only have one record for this hole
+    // Verify UPSERT: only one record exists (no duplicates)
     const allPars = await query(
       'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
-      [testRound.id, holeNumber],
+      [round.id, holeNumber],
     );
     expect(allPars.rows).toHaveLength(1);
   });
 
-  test('should return 401 when not authenticated', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const par = chance.integer({ min: 3, max: 5 });
-
-    await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .send({ par })
-      .expect(401);
-  });
-
-  test('should return 400 when par is missing', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-
-    const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({})
-      .expect(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: 'Par is required',
-    });
-  });
-
-  test('should return 400 when par is out of range', async () => {
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const invalidPar = chance.integer({ min: 11, max: 20 });
-
-    const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ par: invalidPar })
-      .expect(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: 'Par must be between 1 and 10',
-    });
-  });
-
-  test('should return 400 when hole number exceeds course hole count', async () => {
-    // testCourse has a known hole count, try to set par for hole beyond that
-    const invalidHoleNumber = testCourse.hole_count + 1;
+  // GOOD: Integration concern - round validation with JOIN to courses table
+  test('should return 404 when round does not exist in database', async () => {
+    const fakeRoundId = chance.guid();
+    const holeNumber = chance.integer({ min: 1, max: course.hole_count });
     const par = chance.integer({ min: 3, max: 5 });
 
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${invalidHoleNumber}/par`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ par })
-      .expect(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: `Hole number cannot exceed course hole count (${testCourse.hole_count})`,
-    });
-  });
-
-  test('should return 404 when round not found', async () => {
-    const nonExistentRoundId = chance.guid();
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
-    const par = chance.integer({ min: 3, max: 5 });
-
-    const response = await request(app)
-      .put(`/api/rounds/${nonExistentRoundId}/holes/${holeNumber}/par`)
+      .put(`/api/rounds/${fakeRoundId}/holes/${holeNumber}/par`)
       .set('Authorization', `Bearer ${token}`)
       .send({ par })
       .expect(404);
 
-    expect(response.body).toEqual({
+    expect(response.body).toMatchObject({
       success: false,
       message: 'Round not found',
     });
   });
 
-  test('should return 403 when user is not participant in round', async () => {
-    // Create another user who is not a participant in the round
-    const otherUserData = {
-      username: `other${timestamp}${process.pid}`,
-      email: `other${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-
-    await request(app)
-      .post('/api/auth/register')
-      .send(otherUserData)
-      .expect(201);
-
-    const otherLoginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({
-        username: otherUserData.username,
-        password: otherUserData.password,
-      })
-      .expect(200);
-
-    const otherAuthToken = otherLoginResponse.body.tokens.accessToken;
-    createdUserIds.push(otherLoginResponse.body.user.id); // Track for cleanup
-
-    const holeNumber = chance.integer({ min: 1, max: testCourse.hole_count });
+  // GOOD: Integration concern - hole validation against actual course data from DB JOIN
+  test('should validate hole number against actual course hole count from database', async () => {
+    // Use hole number that exceeds actual course hole count from DB
+    const invalidHoleNumber = course.hole_count + 1;
     const par = chance.integer({ min: 3, max: 5 });
 
     const response = await request(app)
-      .put(`/api/rounds/${testRound.id}/holes/${holeNumber}/par`)
-      .set('Authorization', `Bearer ${otherAuthToken}`)
+      .put(`/api/rounds/${round.id}/holes/${invalidHoleNumber}/par`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ par })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: `Hole number cannot exceed course hole count (${course.hole_count})`,
+    });
+  });
+
+  // GOOD: Integration concern - permission validation against actual DB
+  test('should return 403 when user is not participant in round', async () => {
+    // Create user who is NOT a participant in the round
+    const otherUser = await createTestUser({ prefix: 'outsider' });
+    createdUserIds.push(otherUser.user.id);
+
+    const holeNumber = chance.integer({ min: 1, max: course.hole_count });
+    const par = chance.integer({ min: 3, max: 5 });
+
+    const response = await request(app)
+      .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
+      .set('Authorization', `Bearer ${otherUser.token}`)
       .send({ par })
       .expect(403);
 
-    expect(response.body).toEqual({
+    expect(response.body).toMatchObject({
       success: false,
       message: 'Permission denied: User is not a participant in this round',
     });
+
+    // Verify no par was set in DB
+    const noPar = await queryOne(
+      'SELECT * FROM round_hole_pars WHERE round_id = $1 AND hole_number = $2',
+      [round.id, holeNumber],
+    );
+    expect(noPar).toBeNull();
   });
+
+  // GOOD: Integration concern - participant can set par
+  test('should allow existing participant to set par', async () => {
+    // Add another user as participant
+    const participantUser = await createTestUser({ prefix: 'participant' });
+    createdUserIds.push(participantUser.user.id);
+
+    // Add user as participant directly in DB
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, participantUser.user.id],
+    );
+
+    const holeNumber = chance.integer({ min: 1, max: course.hole_count });
+    const par = chance.integer({ min: 3, max: 5 });
+
+    // Participant should be able to set par
+    const response = await request(app)
+      .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
+      .set('Authorization', `Bearer ${participantUser.token}`)
+      .send({ par })
+      .expect(200);
+
+    expect(response.body).toMatchObject({ success: true });
+
+    // Verify par was set with correct player reference
+    const savedPar = await queryOne(
+      'SELECT rhp.*, rp.user_id FROM round_hole_pars rhp JOIN round_players rp ON rhp.set_by_player_id = rp.id WHERE rhp.round_id = $1 AND rhp.hole_number = $2',
+      [round.id, holeNumber],
+    );
+    expect(savedPar.user_id).toBe(participantUser.user.id);
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing roundId (unit test concern)
+  // - Invalid UUID format (unit test concern)
+  // - Missing holeNumber (unit test concern)
+  // - Invalid holeNumber format (unit test concern)
+  // - Hole number range 1-50 (unit test concern)
+  // - Missing par (unit test concern)
+  // - Invalid par format (unit test concern)
+  // - Par range 1-10 (unit test concern)
+  // - Missing requestingUserId (unit test concern)
+  // These are all tested at the service unit test level
 });

@@ -6,409 +6,278 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
-import { createUniqueCourseData } from '../test-helpers.js';
+import {
+  createTestUser,
+  createTestCourse,
+  createTestRound,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('POST /api/rounds/:id/players - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
+  let round;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `trap${timestamp}${pid}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tp${timestamp}${pid}`, // tp = "test player" - keep under 20 chars
-      email: `trap${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Direct DB setup using test helpers
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds with globally unique identifiers
-    const courseData = createUniqueCourseData('trap'); // TRAP = Test Round Add Player
-    const courseCreateRes = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    createdCourseIds.push(courseCreateRes.body.id);
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
 
-    // Get the course to know its hole count for valid starting hole
-    const courseGetRes = await request(app)
-      .get(`/api/courses/${createdCourseIds[0]}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
-    // Create a test round to add players to
-    const roundData = {
-      courseId: createdCourseIds[0],
-      name: `Test Round ${testId}${Date.now()}`,
-      startingHole: chance.integer({ min: 1, max: courseGetRes.body.hole_count }),
-    };
-    const roundRes = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(201);
-    createdRoundIds.push(roundRes.body.id);
+    // Create test round with user as creator
+    const roundData = await createTestRound(user.id, course.id);
+    round = roundData.round;
+    createdRoundIds.push(round.id);
   });
 
   afterEach(async () => {
-    // Clean up in reverse order due to foreign key constraints
-    await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    // Clean up in reverse order for foreign key constraints
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware
   test('should require authentication', async () => {
-    const playerData = { userId: chance.integer({ min: 1, max: 1000 }) };
+    const playerData = {
+      players: [{ userId: chance.guid() }],
+    };
 
-    const res = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
+    await request(app)
+      .post(`/api/rounds/${round.id}/players`)
       .send(playerData)
-      .expect(401);
-
-    expect(res.body).toHaveProperty('error');
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should add a user player to a round successfully', async () => {
-    // Create another user to add as a player
-    const playerUserData = {
-      username: `pl${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
-      email: `player${testId}${Date.now()}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    const playerRegisterResponse = await request(app)
-      .post('/api/auth/register')
-      .send(playerUserData)
-      .expect(201);
-
-    const playerId = playerRegisterResponse.body.user.id;
-    createdUserIds.push(playerId);
+  // GOOD: Integration concern - DB persistence and foreign key validation
+  test('should add user player successfully and persist to database', async () => {
+    // Create test user directly in DB
+    const newUser = await createTestUser({ prefix: 'player' });
+    createdUserIds.push(newUser.user.id);
 
     const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
+      .post(`/api/rounds/${round.id}/players`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ players: [{ userId: playerId }] })
+      .send({ players: [{ userId: newUser.user.id }] })
       .expect(201);
 
+    // Verify response structure
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toHaveProperty('id');
-    expect(response.body[0].round_id).toBe(createdRoundIds[0]);
-    expect(response.body[0].user_id).toBe(playerId);
-    expect(response.body[0].is_guest).toBe(false);
-    expect(response.body[0].guest_name).toBeNull();
-    expect(response.body[0]).toHaveProperty('joined_at');
+    expect(response.body[0]).toMatchObject({
+      id: expect.any(String),
+      round_id: round.id,
+      user_id: newUser.user.id,
+      is_guest: false,
+      guest_name: null,
+    });
+
+    // Verify DB persistence (integration concern)
+    const savedPlayer = await query(
+      'SELECT * FROM round_players WHERE round_id = $1 AND user_id = $2',
+      [round.id, newUser.user.id],
+    );
+    expect(savedPlayer.rows).toHaveLength(1);
+    expect(savedPlayer.rows[0]).toMatchObject({
+      round_id: round.id,
+      user_id: newUser.user.id,
+      is_guest: false,
+    });
   });
 
-  test('should add a guest player to a round successfully', async () => {
+  // GOOD: Integration concern - guest player DB persistence
+  test('should add guest player successfully and persist to database', async () => {
     const guestName = chance.name();
 
     const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
+      .post(`/api/rounds/${round.id}/players`)
       .set('Authorization', `Bearer ${token}`)
       .send({ players: [{ guestName }] })
       .expect(201);
 
+    // Verify response structure
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toHaveProperty('id');
-    expect(response.body[0].round_id).toBe(createdRoundIds[0]);
-    expect(response.body[0].user_id).toBeNull();
-    expect(response.body[0].is_guest).toBe(true);
-    expect(response.body[0].guest_name).toBe(guestName);
-    expect(response.body[0]).toHaveProperty('joined_at');
+    expect(response.body[0]).toMatchObject({
+      id: expect.any(String),
+      round_id: round.id,
+      user_id: null,
+      is_guest: true,
+      guest_name: guestName,
+    });
+
+    // Verify DB persistence (integration concern)
+    const savedPlayer = await query(
+      'SELECT * FROM round_players WHERE round_id = $1 AND guest_name = $2',
+      [round.id, guestName],
+    );
+    expect(savedPlayer.rows).toHaveLength(1);
+    expect(savedPlayer.rows[0]).toMatchObject({
+      round_id: round.id,
+      user_id: null,
+      is_guest: true,
+      guest_name: guestName,
+    });
   });
 
-  test('should return 400 when neither userId nor guestName provided', async () => {
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({}) // Empty body
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('Players array is required and must contain at least one player');
-  });
-
-  test('should return 400 when both userId and guestName provided in single player', async () => {
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        players: [{
-          userId: chance.integer({ min: 1, max: 1000 }),
-          guestName: chance.name(),
-        }],
-      })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toContain('cannot have both userId and guestName');
-  });
-
-  test('should return 404 when round does not exist', async () => {
+  // GOOD: Integration concern - round validation against DB
+  test('should return 404 when round does not exist in database', async () => {
     const fakeRoundId = chance.guid();
+    const newUser = await createTestUser({ prefix: 'fake' });
+    createdUserIds.push(newUser.user.id);
 
     const response = await request(app)
       .post(`/api/rounds/${fakeRoundId}/players`)
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        players: [{ userId: chance.integer({ min: 1, max: 1000 }) }],
-      })
+      .send({ players: [{ userId: newUser.user.id }] })
       .expect(404);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('Round not found');
+    expect(response.body).toMatchObject({
+      success: false,
+      message: 'Round not found',
+    });
   });
 
+  // GOOD: Integration concern - duplicate player prevention at DB level
   test('should return 409 when user is already a player in the round', async () => {
-    // Create another user
-    const uniqueTimestamp = Date.now().toString();
-    const playerUserData = {
-      username: `tr${uniqueTimestamp.slice(-8)}${process.pid.toString().slice(-3)}`,
-      email: `trapplayer${testId}${uniqueTimestamp}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    const playerRegisterResponse = await request(app)
-      .post('/api/auth/register')
-      .send(playerUserData)
-      .expect(201);
+    const newUser = await createTestUser({ prefix: 'duplicate' });
+    createdUserIds.push(newUser.user.id);
 
-    const playerId = playerRegisterResponse.body.user.id;
-    createdUserIds.push(playerId);
+    // Add player first time - direct DB setup
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, newUser.user.id],
+    );
 
-    // Add player first time
-    await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ players: [{ userId: playerId }] })
-      .expect(201);
-
-    // Try to add same player again
+    // Try to add same player again via API
     const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
+      .post(`/api/rounds/${round.id}/players`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ players: [{ userId: playerId }] })
+      .send({ players: [{ userId: newUser.user.id }] })
       .expect(409);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe(`User ${playerId} is already a player in this round`);
+    expect(response.body).toMatchObject({
+      success: false,
+      message: `User ${newUser.user.id} is already a player in this round`,
+    });
   });
 
+  // GOOD: Integration concern - permission validation against actual DB
   test('should return 403 when user is not creator or existing player', async () => {
-    // Create another user who is not creator or player
-    const otherUserData = {
-      username: `ot${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
-      email: `other${testId}${Date.now()}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    const otherRegisterResponse = await request(app)
-      .post('/api/auth/register')
-      .send(otherUserData)
-      .expect(201);
+    // Create user who is NOT creator or player in the round
+    const otherUser = await createTestUser({ prefix: 'outsider' });
+    createdUserIds.push(otherUser.user.id);
 
-    const otherUserId = otherRegisterResponse.body.user.id;
-    createdUserIds.push(otherUserId);
-
-    // Login to get the auth token
-    const otherLogin = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherAuthToken = otherLogin.body.tokens.accessToken;
+    const playerToAdd = await createTestUser({ prefix: 'newplayer' });
+    createdUserIds.push(playerToAdd.user.id);
 
     // Try to add player as non-creator/non-player
     const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${otherAuthToken}`)
-      .send({ players: [{ userId: chance.integer({ min: 1, max: 1000 }) }] })
+      .post(`/api/rounds/${round.id}/players`)
+      .set('Authorization', `Bearer ${otherUser.token}`)
+      .send({ players: [{ userId: playerToAdd.user.id }] })
       .expect(403);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('You must be the round creator or a player to add new players');
+    expect(response.body).toMatchObject({
+      success: false,
+      message: 'You must be the round creator or a player to add new players',
+    });
   });
 
-  test('should return 400 when players array is missing', async () => {
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({})
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('Players array is required and must contain at least one player');
-  });
-
-  test('should return 400 when players array is empty', async () => {
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ players: [] })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe('Players array is required and must contain at least one player');
-  });
-
-  test('should return 400 when player has neither userId nor guestName', async () => {
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ players: [{}] })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toContain('must include either userId or guestName');
-  });
-
-  test('should return 400 when duplicate userId in batch', async () => {
-    const duplicateUserId = chance.integer({ min: 1, max: 1000 });
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        players: [
-          { userId: duplicateUserId },
-          { userId: duplicateUserId },
-        ],
-      })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toContain('Duplicate userId');
-  });
-
-  test('should successfully add single user player', async () => {
-    // Create another user
-    const playerUserData = {
-      username: `sg${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
-      email: `single${testId}${Date.now()}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    const playerRegisterResponse = await request(app)
-      .post('/api/auth/register')
-      .send(playerUserData)
-      .expect(201);
-
-    const playerId = playerRegisterResponse.body.user.id;
-    createdUserIds.push(playerId);
-
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ players: [{ userId: playerId }] })
-      .expect(201);
-
-    expect(Array.isArray(response.body)).toBe(true);
-    expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toHaveProperty('id');
-    expect(response.body[0].user_id).toBe(playerId);
-    expect(response.body[0].is_guest).toBe(false);
-  });
-
-  test('should successfully add single guest player', async () => {
-    const guestName = chance.name();
-
-    const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ players: [{ guestName }] })
-      .expect(201);
-
-    expect(Array.isArray(response.body)).toBe(true);
-    expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toHaveProperty('id');
-    expect(response.body[0].guest_name).toBe(guestName);
-    expect(response.body[0].is_guest).toBe(true);
-    expect(response.body[0].user_id).toBeNull();
-  });
-
-  test('should successfully add multiple players (users and guests)', async () => {
-    // Create two users
-    const user1Data = {
-      username: `m1${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
-      email: `multi1${testId}${Date.now()}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    const user2Data = {
-      username: `m2${Date.now().toString().slice(-8)}${process.pid.toString().slice(-3)}`,
-      email: `multi2${testId}${Date.now()}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-
-    const user1Response = await request(app)
-      .post('/api/auth/register')
-      .send(user1Data)
-      .expect(201);
-    const user2Response = await request(app)
-      .post('/api/auth/register')
-      .send(user2Data)
-      .expect(201);
-
-    const user1Id = user1Response.body.user.id;
-    const user2Id = user2Response.body.user.id;
-    createdUserIds.push(user1Id, user2Id);
+  // GOOD: Integration concern - batch transaction handling
+  test('should add multiple players in single transaction', async () => {
+    // Create multiple test users
+    const user1 = await createTestUser({ prefix: 'batch1' });
+    const user2 = await createTestUser({ prefix: 'batch2' });
+    createdUserIds.push(user1.user.id, user2.user.id);
 
     const guest1Name = chance.name();
     const guest2Name = chance.name();
 
     const response = await request(app)
-      .post(`/api/rounds/${createdRoundIds[0]}/players`)
+      .post(`/api/rounds/${round.id}/players`)
       .set('Authorization', `Bearer ${token}`)
       .send({
         players: [
-          { userId: user1Id },
+          { userId: user1.user.id },
           { guestName: guest1Name },
-          { userId: user2Id },
+          { userId: user2.user.id },
           { guestName: guest2Name },
         ],
       })
       .expect(201);
 
+    // Verify all players were added
     expect(Array.isArray(response.body)).toBe(true);
     expect(response.body).toHaveLength(4);
 
-    // Check user players
-    const userPlayers = response.body.filter((p) => !p.is_guest);
-    expect(userPlayers).toHaveLength(2);
-    expect(userPlayers.map((p) => p.user_id)).toContain(user1Id);
-    expect(userPlayers.map((p) => p.user_id)).toContain(user2Id);
+    // Verify transaction worked: all players exist in DB
+    const allPlayers = await query(
+      'SELECT * FROM round_players WHERE round_id = $1 ORDER BY joined_at',
+      [round.id],
+    );
+    // Should have creator + 4 new players = 5 total
+    expect(allPlayers.rows).toHaveLength(5);
 
-    // Check guest players
-    const guestPlayers = response.body.filter((p) => p.is_guest);
+    // Verify user players
+    const userPlayers = allPlayers.rows.filter((p) => !p.is_guest && p.user_id !== user.id);
+    expect(userPlayers).toHaveLength(2);
+    expect(userPlayers.map((p) => p.user_id)).toContain(user1.user.id);
+    expect(userPlayers.map((p) => p.user_id)).toContain(user2.user.id);
+
+    // Verify guest players
+    const guestPlayers = allPlayers.rows.filter((p) => p.is_guest);
     expect(guestPlayers).toHaveLength(2);
     expect(guestPlayers.map((p) => p.guest_name)).toContain(guest1Name);
     expect(guestPlayers.map((p) => p.guest_name)).toContain(guest2Name);
   });
+
+  // GOOD: Integration concern - transaction rollback on failure
+  test('should handle database transaction rollback on error', async () => {
+    // Create data that will cause a DB constraint violation
+    // Use a very long guest name that exceeds column limit
+    const longGuestName = chance.string({ length: 500 }); // Exceeds VARCHAR limit
+
+    await request(app)
+      .post(`/api/rounds/${round.id}/players`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ players: [{ guestName: longGuestName }] })
+      .expect(500); // Database error
+
+    // Verify no partial data was saved (transaction rolled back)
+    const allPlayers = await query(
+      'SELECT * FROM round_players WHERE round_id = $1',
+      [round.id],
+    );
+    // Should only have the original creator as player
+    expect(allPlayers.rows).toHaveLength(1);
+    expect(allPlayers.rows[0].user_id).toBe(user.id);
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing players array (unit test concern)
+  // - Empty players array (unit test concern)
+  // - Missing userId and guestName (unit test concern)
+  // - Both userId and guestName provided (unit test concern)
+  // - Duplicate userId in batch (unit test concern)
+  // These are all tested at the service unit test level
 });

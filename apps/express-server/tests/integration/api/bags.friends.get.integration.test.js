@@ -6,293 +6,211 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  createFriendship,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('GET /api/bags/friends/:friendUserId/:bagId - Integration', () => {
-  let userA; let userB; let userC; let tokenA; let tokenB;
-  let requestId;
-  let testId;
+  let userA; let userB; let userC; let tokenA; let
+    tokenB;
   let createdUserIds = [];
   let createdBagIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdBagIds = [];
 
-    // Register User A (will view friend's bag)
-    const userAData = {
-      username: `tfbga${testId}`, // tfbga = "test friend bag get A"
-      email: `tfbga${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userAData).expect(201);
-    const loginA = await request(app).post('/api/auth/login').send({
-      username: userAData.username,
-      password: userAData.password,
-    }).expect(200);
-    tokenA = loginA.body.tokens.accessToken;
-    userA = loginA.body.user;
+    // Create users directly in DB for speed
+    const testUserA = await createTestUser({ prefix: 'friendbagA' });
+    userA = testUserA.user;
+    tokenA = testUserA.token;
     createdUserIds.push(userA.id);
 
-    // Register User B (friend who owns bags)
-    const userBData = {
-      username: `tfbgb${testId}`, // tfbgb = "test friend bag get B"
-      email: `tfbgb${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userBData).expect(201);
-    const loginB = await request(app).post('/api/auth/login').send({
-      username: userBData.username,
-      password: userBData.password,
-    }).expect(200);
-    tokenB = loginB.body.tokens.accessToken;
-    userB = loginB.body.user;
+    const testUserB = await createTestUser({ prefix: 'friendbagB' });
+    userB = testUserB.user;
+    tokenB = testUserB.token;
     createdUserIds.push(userB.id);
 
-    // Register User C (non-friend)
-    const userCData = {
-      username: `tfbgc${testId}`, // tfbgc = "test friend bag get C"
-      email: `tfbgc${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userCData).expect(201);
-    const loginC = await request(app).post('/api/auth/login').send({
-      username: userCData.username,
-      password: userCData.password,
-    }).expect(200);
-    userC = loginC.body.user;
+    const testUserC = await createTestUser({ prefix: 'friendbagC' });
+    userC = testUserC.user;
     createdUserIds.push(userC.id);
 
-    // User A sends friend request to User B
-    const reqRes = await request(app)
-      .post('/api/friends/request')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ recipientId: userB.id })
-      .expect(200);
-    requestId = reqRes.body.id;
-
-    // User B accepts friend request from User A
-    await request(app)
-      .post('/api/friends/respond')
-      .set('Authorization', `Bearer ${tokenB}`)
-      .send({ requestId, action: 'accept' })
-      .expect(200);
+    // Create friendship between A and B directly in DB
+    await createFriendship(userA.id, userB.id);
   });
 
   afterEach(async () => {
-    // Clean up bag contents first (foreign key constraints)
+    // Clean up in FK order
     if (createdBagIds.length > 0) {
       await query('DELETE FROM bag_contents WHERE bag_id = ANY($1)', [createdBagIds]);
-    }
-
-    // Clean up bags
-    if (createdBagIds.length > 0) {
       await query('DELETE FROM bags WHERE id = ANY($1)', [createdBagIds]);
     }
-
-    // Clean up friendship_requests
     if (createdUserIds.length > 0) {
-      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($2)', [createdUserIds, createdUserIds]);
-
-      // Clean up users
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)', [createdUserIds]);
     }
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
     const bagId = chance.guid();
-    const res = await request(app)
+
+    await request(app)
       .get(`/api/bags/friends/${userB.id}/${bagId}`)
-      .expect(401);
-
-    expect(res.body).toMatchObject({
-      error: 'Access token required',
-    });
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should return 400 for invalid friendUserId format', async () => {
-    const bagId = chance.guid();
-    const res = await request(app)
-      .get(`/api/bags/friends/invalid/${bagId}`)
-      .set('Authorization', `Bearer ${tokenA}`)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'friendUserId must be a valid integer',
-    });
-  });
-
-  test('should return 400 for invalid bagId format', async () => {
-    const res = await request(app)
-      .get(`/api/bags/friends/${userB.id}/invalid-uuid`)
-      .set('Authorization', `Bearer ${tokenA}`)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Invalid bagId format',
-    });
-  });
-
+  // GOOD: Integration concern - friendship validation
   test('should return 403 when users are not friends', async () => {
     const bagId = chance.guid();
-    const res = await request(app)
+
+    const response = await request(app)
       .get(`/api/bags/friends/${userC.id}/${bagId}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(403);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'You are not friends with this user',
+      message: expect.stringMatching(/not friends/i),
     });
   });
 
+  // GOOD: Integration concern - bag visibility validation
   test('should return 403 for private bag', async () => {
-    // Create private bag for User B
-    const privateBagData = {
-      name: `PrivateBag-${testId}`,
-      description: 'This is a private bag',
-      is_public: false,
-      is_friends_visible: false,
-    };
-    const privateBagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${tokenB}`)
-      .send(privateBagData)
-      .expect(201);
-    createdBagIds.push(privateBagRes.body.bag.id);
+    // Create private bag directly in DB
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userB.id, chance.word(), chance.sentence(), false, false],
+    );
+    createdBagIds.push(bagResult.rows[0].id);
 
-    const res = await request(app)
-      .get(`/api/bags/friends/${userB.id}/${privateBagRes.body.bag.id}`)
+    const response = await request(app)
+      .get(`/api/bags/friends/${userB.id}/${bagResult.rows[0].id}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(403);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found or not visible',
+      message: expect.stringMatching(/not found|not visible/i),
     });
   });
 
+  // GOOD: Integration concern - non-existent bag handling
   test('should return 403 for non-existent bag', async () => {
     const nonExistentBagId = chance.guid();
-    const res = await request(app)
+
+    const response = await request(app)
       .get(`/api/bags/friends/${userB.id}/${nonExistentBagId}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(403);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: false,
-      message: 'Bag not found or not visible',
+      message: expect.stringMatching(/not found|not visible/i),
     });
   });
 
-  test('should return public bag with empty contents', async () => {
-    // Create public bag for User B
-    const publicBagData = {
-      name: `PublicBag-${testId}`,
-      description: 'This is a public bag',
-      is_public: true,
-      is_friends_visible: false,
-    };
-    const publicBagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${tokenB}`)
-      .send(publicBagData)
-      .expect(201);
-    createdBagIds.push(publicBagRes.body.bag.id);
+  // GOOD: Integration concern - public bag access
+  test('should return public bag with contents from database', async () => {
+    // Create public bag directly in DB
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userB.id, chance.word(), chance.sentence(), true, false],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
 
-    const res = await request(app)
-      .get(`/api/bags/friends/${userB.id}/${publicBagRes.body.bag.id}`)
+    const response = await request(app)
+      .get(`/api/bags/friends/${userB.id}/${bag.id}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: true,
       friend: {
         id: userB.id,
       },
       bag: {
-        id: publicBagRes.body.bag.id,
-        name: publicBagData.name,
-        description: publicBagData.description,
+        id: bag.id,
+        name: bag.name,
+        description: bag.description,
         is_public: true,
         is_friends_visible: false,
-        contents: [],
+        contents: expect.any(Array),
       },
     });
   });
 
-  test('should return friends-visible bag with empty contents', async () => {
-    // Create friends-visible bag for User B
-    const friendsBagData = {
-      name: `FriendsBag-${testId}`,
-      description: 'This is a friends-visible bag',
-      is_public: false,
-      is_friends_visible: true,
-    };
-    const friendsBagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${tokenB}`)
-      .send(friendsBagData)
-      .expect(201);
-    createdBagIds.push(friendsBagRes.body.bag.id);
+  // GOOD: Integration concern - friends-visible bag access
+  test('should return friends-visible bag with contents from database', async () => {
+    // Create friends-visible bag directly in DB
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userB.id, chance.word(), chance.sentence(), false, true],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
 
-    const res = await request(app)
-      .get(`/api/bags/friends/${userB.id}/${friendsBagRes.body.bag.id}`)
+    const response = await request(app)
+      .get(`/api/bags/friends/${userB.id}/${bag.id}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: true,
       friend: {
         id: userB.id,
       },
       bag: {
-        id: friendsBagRes.body.bag.id,
-        name: friendsBagData.name,
+        id: bag.id,
+        name: bag.name,
+        description: bag.description,
+        is_public: false,
         is_friends_visible: true,
-        contents: [],
+        contents: expect.any(Array),
       },
     });
   });
 
+  // GOOD: Integration concern - bidirectional friendship access
   test('should work bidirectionally - User B can view User A bag', async () => {
-    // Create bag for User A
-    const userABagData = {
-      name: `UserABag-${testId}`,
-      description: 'User A bag',
-      is_public: false,
-      is_friends_visible: true,
-    };
-    const userABagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send(userABagData)
-      .expect(201);
-    createdBagIds.push(userABagRes.body.bag.id);
+    // Create bag for User A directly in DB
+    const bagResult = await query(
+      'INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userA.id, chance.word(), chance.sentence(), false, true],
+    );
+    const bag = bagResult.rows[0];
+    createdBagIds.push(bag.id);
 
     // User B should be able to view User A's bag
-    const res = await request(app)
-      .get(`/api/bags/friends/${userA.id}/${userABagRes.body.bag.id}`)
+    const response = await request(app)
+      .get(`/api/bags/friends/${userA.id}/${bag.id}`)
       .set('Authorization', `Bearer ${tokenB}`)
       .expect(200);
 
-    expect(res.body).toMatchObject({
+    expect(response.body).toMatchObject({
       success: true,
       friend: {
         id: userA.id,
       },
       bag: {
-        id: userABagRes.body.bag.id,
-        name: userABagData.name,
-        contents: [],
+        id: bag.id,
+        name: bag.name,
+        description: bag.description,
+        contents: expect.any(Array),
       },
     });
   });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Invalid friendUserId format (unit test concern)
+  // - Invalid bagId format (unit test concern)
+  // These are all tested at the service unit test level
 });

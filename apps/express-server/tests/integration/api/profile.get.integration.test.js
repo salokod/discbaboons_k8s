@@ -1,136 +1,119 @@
 import 'dotenv/config';
 import {
-  describe, test, expect, beforeEach, afterEach, vi,
+  describe, test, expect, beforeEach, afterEach,
 } from 'vitest';
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
-// Generate unique identifier for this test file
-const timestamp = Date.now().toString().slice(-6);
-const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-const testId = `pg${timestamp}${random}`;
-
-describe('GET/PUT /api/profile - Integration', () => {
-  let userData;
-  let accessToken;
+describe('GET /api/profile - Integration', () => {
   let user;
+  let token;
   let createdUserIds = [];
 
   beforeEach(async () => {
+    // Reset arrays for parallel test safety
     createdUserIds = [];
-    // Clean up any leftover test data
-    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
 
-    // Register a new user
-    const password = `Abcdef1!${chance.string({ length: 5 })}`;
-    const userSuffix = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    userData = {
-      username: `u${timestamp}${userSuffix}`,
-      email: `${testId}-${userSuffix}@example.com`,
-      password,
-    };
-
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send(userData)
-      .expect(201);
-
-    createdUserIds.push(registerRes.body.user.id);
-
-    // Login as that user
-    const loginRes = await request(app)
-      .post('/api/auth/login')
-      .send({
-        username: userData.username,
-        password: userData.password,
-      })
-      .expect(200);
-
-    accessToken = loginRes.body.tokens.accessToken;
-    user = loginRes.body.user;
+    // Create user directly in DB for speed
+    const testUser = await createTestUser({ prefix: 'profileget' });
+    user = testUser.user;
+    token = testUser.token;
+    createdUserIds.push(user.id);
   });
 
   afterEach(async () => {
-    // Clean up users created in this test by ID
+    // Clean up in FK order
     if (createdUserIds.length > 0) {
       await query('DELETE FROM user_profiles WHERE user_id = ANY($1)', [createdUserIds]);
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
     }
-    // Fallback cleanup by email pattern
-    await query('DELETE FROM users WHERE email LIKE $1', [`%${testId}%`]);
-    createdUserIds = [];
-
-    vi.restoreAllMocks();
+    await cleanupUsers(createdUserIds);
   });
 
-  test('should get empty or default profile, update it, and get updated profile', async () => {
-    // 1. GET profile (should be empty or default)
-    const getRes1 = await request(app)
+  // GOOD: Integration concern - middleware authentication
+  test('should require authentication', async () => {
+    await request(app)
       .get('/api/profile')
-      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401, {
+        error: 'Access token required',
+      });
+  });
+
+  // GOOD: Integration concern - profile retrieval from database
+  test('should retrieve user profile from database', async () => {
+    const response = await request(app)
+      .get('/api/profile')
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    // Accept either null or a default profile (depends on your implementation)
-    expect(getRes1.body.success).toBe(true);
-    // If your app auto-creates a profile, check for user_id match
-    if (getRes1.body.profile) {
-      expect(getRes1.body.profile.user_id).toBe(user.id);
-    } else {
-      expect(getRes1.body.profile).toBeNull();
-    }
+    expect(response.body).toMatchObject({
+      success: true,
+    });
 
-    // 2. Update profile
-    const updateData = {
-      name: `Updated Name ${chance.name()}`,
-      bio: `Updated bio ${chance.sentence()}`,
+    // Integration: Verify profile data structure (may be null or have user_id)
+    if (response.body.profile) {
+      expect(response.body.profile.user_id).toBe(user.id);
+    }
+  });
+
+  // GOOD: Integration concern - profile creation and persistence
+  test('should retrieve profile after creation in database', async () => {
+    // Create profile directly in DB
+    const profileData = {
+      name: chance.name(),
+      bio: chance.sentence(),
       city: chance.city(),
       country: chance.country({ full: true }),
       state_province: chance.state({ full: true }),
-      isnamepublic: true,
-      isbiopublic: true,
-      islocationpublic: true,
+      isnamepublic: chance.bool(),
+      isbiopublic: chance.bool(),
+      islocationpublic: chance.bool(),
     };
 
-    const putRes = await request(app)
-      .put('/api/profile')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send(updateData)
+    await query(
+      `INSERT INTO user_profiles (user_id, name, bio, city, country, state_province, 
+        isnamepublic, isbiopublic, islocationpublic) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        user.id,
+        profileData.name,
+        profileData.bio,
+        profileData.city,
+        profileData.country,
+        profileData.state_province,
+        profileData.isnamepublic,
+        profileData.isbiopublic,
+        profileData.islocationpublic,
+      ],
+    );
+
+    const response = await request(app)
+      .get('/api/profile')
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(putRes.body.success).toBe(true);
-    expect(putRes.body.profile).toMatchObject({
-      user_id: user.id,
-      ...updateData,
-    });
-
-    // 3. GET profile again (should match updated data)
-    const getRes2 = await request(app)
-      .get('/api/profile')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .expect(200);
-
-    expect(getRes2.body.success).toBe(true);
-    expect(getRes2.body.profile).toMatchObject({
-      user_id: user.id,
-      ...updateData,
+    expect(response.body).toMatchObject({
+      success: true,
+      profile: {
+        user_id: user.id,
+        name: profileData.name,
+        bio: profileData.bio,
+        city: profileData.city,
+        country: profileData.country,
+        state_province: profileData.state_province,
+      },
     });
   });
 
-  // You can add more tests for edge cases, e.g.:
-  test('should return 401 if no token is provided', async () => {
-    await request(app)
-      .get('/api/profile')
-      .expect(401);
-  });
-
-  test('should return 401 for invalid token', async () => {
-    await request(app)
-      .get('/api/profile')
-      .set('Authorization', 'Bearer invalidtoken')
-      .expect(401);
-  });
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Invalid token format (unit test concern)
+  // - Token expiration (unit test concern)
+  // These are all tested at the service unit test level
 });

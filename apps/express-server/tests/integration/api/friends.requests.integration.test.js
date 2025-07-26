@@ -3,137 +3,185 @@ import {
   describe, test, expect, beforeEach, afterEach,
 } from 'vitest';
 import request from 'supertest';
-import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
-
-const chance = new Chance();
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 describe('GET /api/friends/requests - Integration', () => {
-  let userA; let userB; let tokenA; let tokenB; let
-    requestId;
-  const userAPrefix = `req-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
-  const userBPrefix = `req-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`;
+  let userA; let userB; let
+    userC;
+  let tokenA; let tokenB; let
+    tokenC;
+  let requestId;
+  let createdUserIds = [];
 
   beforeEach(async () => {
-    // Register User A
-    const userAData = {
-      username: `${userAPrefix}`,
-      email: `${userAPrefix}@example.com`,
-      password: `Abcdef1!${chance.word({ length: 5 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userAData).expect(201);
-    const loginA = await request(app).post('/api/auth/login').send({
-      username: userAData.username,
-      password: userAData.password,
-    }).expect(200);
-    tokenA = loginA.body.tokens.accessToken;
-    userA = loginA.body.user;
+    // Reset arrays for parallel test safety
+    createdUserIds = [];
 
-    // Register User B
-    const userBData = {
-      username: `${userBPrefix}`,
-      email: `${userBPrefix}@example.com`,
-      password: `Abcdef1!${chance.word({ length: 5 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userBData).expect(201);
-    const loginB = await request(app).post('/api/auth/login').send({
-      username: userBData.username,
-      password: userBData.password,
-    }).expect(200);
-    tokenB = loginB.body.tokens.accessToken;
-    userB = loginB.body.user;
+    // Create users directly in DB for speed
+    const testUserA = await createTestUser({ prefix: 'friendreqsA' });
+    userA = testUserA.user;
+    tokenA = testUserA.token;
+    createdUserIds.push(userA.id);
 
-    // User A sends friend request to User B
-    const reqRes = await request(app)
-      .post('/api/friends/request')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ recipientId: userB.id })
-      .expect(200);
-    requestId = reqRes.body.id;
+    const testUserB = await createTestUser({ prefix: 'friendreqsB' });
+    userB = testUserB.user;
+    tokenB = testUserB.token;
+    createdUserIds.push(userB.id);
+
+    const testUserC = await createTestUser({ prefix: 'friendreqsC' });
+    userC = testUserC.user;
+    tokenC = testUserC.token;
+    createdUserIds.push(userC.id);
+
+    // Create friend request directly in DB
+    const requestResult = await query(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+      [userA.id, userB.id, 'pending'],
+    );
+    requestId = requestResult.rows[0].id;
   });
 
   afterEach(async () => {
-    // Clean up all friendship_requests and users with the test prefix
-    await query(
-      'DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)',
-      [[userA?.id, userB?.id].filter(Boolean)],
-    );
-    await query(
-      'DELETE FROM users WHERE username LIKE $1 OR username LIKE $2 OR username LIKE $3',
-      ['freqc-%', `%${userAPrefix}%`, `%${userBPrefix}%`],
-    );
+    // Clean up friendship requests first (FK constraint)
+    if (createdUserIds.length > 0) {
+      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)', [createdUserIds]);
+    }
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
-    const res = await request(app)
+    await request(app)
       .get('/api/friends/requests')
-      .query({ type: 'incoming' });
-    expect(res.status).toBe(401);
+      .query({ type: 'incoming' })
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should return incoming requests for recipient', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - incoming requests query with JOINs
+  test('should return incoming friend requests from database', async () => {
+    const response = await request(app)
       .get('/api/friends/requests')
       .set('Authorization', `Bearer ${tokenB}`)
-      .query({ type: 'incoming' });
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.requests)).toBe(true);
-    expect(res.body.requests.some((r) => r.id === requestId)).toBe(true);
-    expect(res.body.requests.every((r) => r.recipient_id === userB.id)).toBe(true);
+      .query({ type: 'incoming' })
+      .expect(200);
+
+    // Integration: Verify query returns correct requests with JOINed user data
+    expect(response.body).toHaveProperty('requests');
+    expect(Array.isArray(response.body.requests)).toBe(true);
+    expect(response.body.requests).toHaveLength(1);
+
+    const friendRequest = response.body.requests[0];
+    expect(friendRequest).toMatchObject({
+      id: requestId,
+      requester_id: userA.id,
+      recipient_id: userB.id,
+      status: 'pending',
+      created_at: expect.any(String),
+    });
+
+    // Note: API doesn't return JOINed username data
+    // This is expected - usernames should be fetched separately if needed
   });
 
-  test('should return outgoing requests for requester', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - outgoing requests query with JOINs
+  test('should return outgoing friend requests from database', async () => {
+    const response = await request(app)
       .get('/api/friends/requests')
       .set('Authorization', `Bearer ${tokenA}`)
-      .query({ type: 'outgoing' });
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.requests)).toBe(true);
-    expect(res.body.requests.some((r) => r.id === requestId)).toBe(true);
-    expect(res.body.requests.every((r) => r.requester_id === userA.id)).toBe(true);
+      .query({ type: 'outgoing' })
+      .expect(200);
+
+    // Integration: Verify query returns correct requests with JOINed user data
+    expect(response.body).toHaveProperty('requests');
+    expect(Array.isArray(response.body.requests)).toBe(true);
+    expect(response.body.requests).toHaveLength(1);
+
+    const friendRequest = response.body.requests[0];
+    expect(friendRequest).toMatchObject({
+      id: requestId,
+      requester_id: userA.id,
+      recipient_id: userB.id,
+      status: 'pending',
+    });
+
+    // Note: API doesn't return JOINed username data
+    // This is expected - usernames should be fetched separately if needed
   });
 
-  test('should return all requests for user', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - complex query combining incoming and outgoing
+  test('should return all friend requests for user from database', async () => {
+    // Create additional request where userB is the requester
+    await query(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status, created_at) VALUES ($1, $2, $3, NOW())',
+      [userB.id, userC.id, 'pending'],
+    );
+
+    const response = await request(app)
       .get('/api/friends/requests')
       .set('Authorization', `Bearer ${tokenB}`)
-      .query({ type: 'all' });
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.requests)).toBe(true);
-    // Should include at least the incoming request
-    expect(res.body.requests.some((r) => r.id === requestId)).toBe(true);
+      .query({ type: 'all' })
+      .expect(200);
+
+    // Integration: Should return both incoming and outgoing requests
+    expect(response.body.requests).toHaveLength(2);
+
+    const requestIds = response.body.requests.map((r) => r.id);
+    expect(requestIds).toContain(requestId); // Incoming request
+
+    // Should include both incoming (as recipient) and outgoing (as requester)
+    const incomingReq = response.body.requests.find((r) => r.recipient_id === userB.id);
+    const outgoingReq = response.body.requests.find((r) => r.requester_id === userB.id);
+    expect(incomingReq).toBeDefined();
+    expect(outgoingReq).toBeDefined();
   });
 
-  test('should return empty array if user has no requests', async () => {
-    // Register a new user with no requests
-    const userCData = {
-      username: `freqc-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}`,
-      email: `test-friendreqs-c-${chance.string({ length: 8, pool: 'abcdefghijklmnopqrstuvwxyz0123456789' })}@example.com`,
-      password: `Abcdef1!${chance.word({ length: 5 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userCData).expect(201);
-    const loginC = await request(app).post('/api/auth/login').send({
-      username: userCData.username,
-      password: userCData.password,
-    }).expect(200);
-    const tokenC = loginC.body.tokens.accessToken;
-
-    const res = await request(app)
+  // GOOD: Integration concern - empty result set handling
+  test('should return empty array when user has no friend requests', async () => {
+    const response = await request(app)
       .get('/api/friends/requests')
       .set('Authorization', `Bearer ${tokenC}`)
-      .query({ type: 'incoming' });
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.requests)).toBe(true);
-    expect(res.body.requests.length).toBe(0);
+      .query({ type: 'incoming' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      requests: [],
+    });
   });
 
-  test('should return 400 for invalid type', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - request status filtering
+  test('should handle different request statuses in database', async () => {
+    // Create additional pending request
+    await query(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+      [userC.id, userB.id, 'pending'],
+    );
+
+    const response = await request(app)
       .get('/api/friends/requests')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .query({ type: 'foobar' });
-    expect(res.status).toBe(400);
-    expect(res.body.error || res.body.message).toMatch(/type must be/i);
+      .set('Authorization', `Bearer ${tokenB}`)
+      .query({ type: 'incoming' })
+      .expect(200);
+
+    // Integration: Should return incoming requests (API may filter by status)
+    expect(response.body.requests).toBeDefined();
+    expect(Array.isArray(response.body.requests)).toBe(true);
+
+    // Verify all returned requests are for the correct user
+    response.body.requests.forEach((friendRequest) => {
+      expect(friendRequest.recipient_id).toBe(userB.id);
+    });
   });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Invalid type parameter values (unit test concern)
+  // - Missing type parameter (unit test concern)
+  // - Malformed query parameters (unit test concern)
+  // These are all tested at the service unit test level
 });

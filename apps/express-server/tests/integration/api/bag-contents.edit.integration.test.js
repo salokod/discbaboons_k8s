@@ -5,317 +5,221 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { query, queryOne } from '../setup.js';
+import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('PUT /api/bags/:id/discs/:contentId - Integration', () => {
   let user;
   let token;
-  let testId;
+  let otherUser;
+  let bagId;
+  let otherBagId;
+  let discId;
+  let bagContentId;
+  let otherBagContentId;
   let createdUserIds = [];
-  let createdBag;
-  let createdDisc;
-  let createdBagContent;
+  let createdBagIds = [];
+  let createdDiscIds = [];
+  let createdBagContentIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
+    createdBagIds = [];
+    createdDiscIds = [];
+    createdBagContentIds = [];
 
-    // Register user with unique identifier
-    const password = `Test1!${chance.word({ length: 2 })}`;
-    const userData = {
-      username: `tbed${testId}`, // tbed for "test bag edit disc"
-      email: `tbed${testId}@ex.co`,
-      password,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-
-    // Login
-    const loginRes = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = loginRes.body.tokens.accessToken;
-    user = loginRes.body.user;
+    // Create user directly in DB
+    const testUser = await createTestUser({ prefix: 'bagcontentsedit' });
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test bag
-    const bagData = {
-      name: `Test Bag Edit ${testId}`,
-      description: 'Test bag for editing disc content',
-      is_public: false,
-      is_friends_visible: false,
-    };
-    const bagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-    createdBag = bagRes.body.bag;
+    // Create other user directly in DB
+    const testOther = await createTestUser({ prefix: 'bagcontenteditother' });
+    otherUser = testOther.user;
+    createdUserIds.push(otherUser.id);
 
-    // Create an approved test disc
-    createdDisc = await queryOne(
-      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [`TestBrand${testId}`, `TestModel${testId}`, 12, 5, -1, 3, true, user.id],
+    // Create bag directly in DB
+    const bag = await query(
+      `INSERT INTO bags (user_id, name, description, is_public, is_friends_visible)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [user.id, chance.company(), chance.sentence(), false, false],
     );
+    bagId = bag.rows[0].id;
+    createdBagIds.push(bagId);
 
-    // Add disc to bag to create content for editing
-    const addToBagData = {
-      disc_id: createdDisc.id,
-      notes: 'Original notes',
-      weight: 175.0,
-      condition: 'good',
-      plastic_type: 'Champion',
-      color: 'Red',
-      speed: 11, // Custom flight number
-      glide: 6, // Custom flight number
-    };
+    // Create other user's bag directly in DB
+    const otherBag = await query(
+      `INSERT INTO bags (user_id, name, description, is_public, is_friends_visible)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [otherUser.id, chance.company(), chance.sentence(), false, false],
+    );
+    otherBagId = otherBag.rows[0].id;
+    createdBagIds.push(otherBagId);
 
-    const addToBagRes = await request(app)
-      .post(`/api/bags/${createdBag.id}/discs`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(addToBagData)
-      .expect(201);
-    createdBagContent = addToBagRes.body.bag_content;
+    // Create disc directly in DB
+    const disc = await query(
+      `INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        chance.company(),
+        chance.word(),
+        chance.integer({ min: 1, max: 14 }),
+        chance.integer({ min: 1, max: 7 }),
+        chance.integer({ min: -5, max: 2 }),
+        chance.integer({ min: 0, max: 5 }),
+        true,
+        user.id,
+      ],
+    );
+    discId = disc.rows[0].id;
+    createdDiscIds.push(discId);
+
+    // Create bag content directly in DB
+    const bagContent = await query(
+      `INSERT INTO bag_contents (user_id, bag_id, disc_id, notes, weight, condition, plastic_type, color)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        user.id,
+        bagId,
+        discId,
+        chance.sentence(),
+        chance.floating({ min: 150, max: 180, fixed: 1 }),
+        'good',
+        chance.word(),
+        chance.color(),
+      ],
+    );
+    bagContentId = bagContent.rows[0].id;
+    createdBagContentIds.push(bagContentId);
+
+    // Create other user's bag content directly in DB
+    const otherBagContent = await query(
+      `INSERT INTO bag_contents (user_id, bag_id, disc_id, notes, weight, condition)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        otherUser.id,
+        otherBagId,
+        discId,
+        chance.sentence(),
+        chance.floating({ min: 150, max: 180, fixed: 1 }),
+        'worn',
+      ],
+    );
+    otherBagContentId = otherBagContent.rows[0].id;
+    createdBagContentIds.push(otherBagContentId);
   });
 
   afterEach(async () => {
-    // Clean up test data
-    if (createdBagContent) {
-      await query('DELETE FROM bag_contents WHERE id = $1', [createdBagContent.id]);
+    // Clean up in FK order
+    if (createdBagContentIds.length > 0) {
+      await query('DELETE FROM bag_contents WHERE id = ANY($1)', [createdBagContentIds]);
     }
-
-    if (createdBag) {
-      await query('DELETE FROM bags WHERE id = $1', [createdBag.id]);
+    if (createdBagIds.length > 0) {
+      await query('DELETE FROM bags WHERE id = ANY($1)', [createdBagIds]);
     }
-
-    if (createdDisc) {
-      await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
+    if (createdDiscIds.length > 0) {
+      await query('DELETE FROM disc_master WHERE id = ANY($1)', [createdDiscIds]);
     }
-
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    await cleanupUsers(createdUserIds);
   });
 
-  test('should successfully edit bag content with authentication', async () => {
-    const updateData = {
-      notes: 'Updated notes for testing',
-      weight: 174.5,
-      condition: 'worn',
-      plastic_type: 'Star',
-      color: 'Blue',
-      speed: chance.integer({ min: 1, max: 15 }), // Updated flight number
-      glide: chance.integer({ min: 1, max: 7 }), // Updated flight number
-      turn: chance.integer({ min: -5, max: 2 }), // New flight number
-      fade: chance.integer({ min: 0, max: 5 }), // New flight number
-      brand: chance.word(), // Custom disc name
-      model: chance.word(), // Custom disc model
-    };
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.bag_content).toBeDefined();
-    expect(response.body.bag_content.id).toBe(createdBagContent.id);
-    expect(response.body.bag_content.notes).toBe(updateData.notes);
-    expect(Number(response.body.bag_content.weight)).toBe(updateData.weight);
-    expect(response.body.bag_content.condition).toBe(updateData.condition);
-    expect(response.body.bag_content.plastic_type).toBe(updateData.plastic_type);
-    expect(response.body.bag_content.color).toBe(updateData.color);
-    expect(response.body.bag_content.speed).toBe(updateData.speed);
-    expect(response.body.bag_content.glide).toBe(updateData.glide);
-    expect(response.body.bag_content.turn).toBe(updateData.turn);
-    expect(response.body.bag_content.fade).toBe(updateData.fade);
-  });
-
-  test('should return 401 if no authorization token provided', async () => {
-    const updateData = { notes: 'Should fail without auth' };
-
+  // GOOD: Integration concern - middleware authentication
+  test('should require authentication', async () => {
     await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
+      .put(`/api/bags/${bagId}/discs/${bagContentId}`)
+      .send({ notes: chance.sentence() })
+      .expect(401, {
+        error: 'Access token required',
+      });
+  });
+
+  // GOOD: Integration concern - bag content update and database persistence
+  test('should edit bag content and persist to database', async () => {
+    const updateData = {
+      notes: chance.sentence(),
+      weight: chance.floating({ min: 150, max: 180, fixed: 1 }),
+      condition: chance.pickone(['new', 'good', 'worn', 'beat-in']),
+      plastic_type: chance.word(),
+      color: chance.color(),
+      speed: chance.integer({ min: 1, max: 14 }),
+      glide: chance.integer({ min: 1, max: 7 }),
+      turn: chance.integer({ min: -5, max: 2 }),
+      fade: chance.integer({ min: 0, max: 5 }),
+    };
+
+    const response = await request(app)
+      .put(`/api/bags/${bagId}/discs/${bagContentId}`)
+      .set('Authorization', `Bearer ${token}`)
       .send(updateData)
-      .expect(401);
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.bag_content).toMatchObject({
+      id: bagContentId,
+      user_id: user.id,
+      bag_id: bagId,
+      disc_id: discId,
+      notes: updateData.notes,
+      weight: updateData.weight.toString(),
+      condition: updateData.condition,
+      plastic_type: updateData.plastic_type,
+      color: updateData.color,
+      speed: updateData.speed,
+      glide: updateData.glide,
+      turn: updateData.turn,
+      fade: updateData.fade,
+    });
+
+    // Integration: Verify persistence to database
+    const bagContent = await query(
+      'SELECT * FROM bag_contents WHERE id = $1',
+      [bagContentId],
+    );
+    expect(bagContent.rows[0]).toMatchObject({
+      notes: updateData.notes,
+      condition: updateData.condition,
+      plastic_type: updateData.plastic_type,
+      color: updateData.color,
+    });
   });
 
-  test('should return 400 for invalid speed value', async () => {
-    const updateData = { speed: 16 }; // Invalid: speed must be 1-15
-
+  // GOOD: Integration concern - ownership authorization
+  test('should deny access to other user bag content', async () => {
     const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
+      .put(`/api/bags/${otherBagId}/discs/${otherBagContentId}`)
       .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
+      .send({ notes: chance.sentence() })
+      .expect(403);
 
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/speed must be between 1 and 15/i);
-  });
-
-  test('should return 400 for invalid glide value', async () => {
-    const updateData = { glide: 8 }; // Invalid: glide must be 1-7
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/glide must be between 1 and 7/i);
-  });
-
-  test('should return 400 for invalid turn value', async () => {
-    const updateData = { turn: 3 }; // Invalid: turn must be -5 to 2
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/turn must be between -5 and 2/i);
-  });
-
-  test('should return 400 for invalid fade value', async () => {
-    const updateData = { fade: 6 }; // Invalid: fade must be 0-5
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/fade must be between 0 and 5/i);
-  });
-
-  test('should return 403 if user tries to edit content from another user\'s bag', async () => {
-    // Create another user
-    const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-
-    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
-
-    // Login as other user
-    const otherLoginRes = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherToken = otherLoginRes.body.tokens.accessToken;
-    createdUserIds.push(otherLoginRes.body.user.id);
-
-    const updateData = { notes: 'Should not be allowed' };
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${otherToken}`)
-      .send(updateData);
-
-    expect(response.status).toBe(403);
     expect(response.body.success).toBe(false);
     expect(response.body.message).toMatch(/access denied/i);
   });
 
-  test('should return 404 if bag content does not exist', async () => {
-    const nonExistentContentId = '00000000-0000-4000-8000-000000000000';
-    const updateData = { notes: 'Should not find content' };
+  // GOOD: Integration concern - non-existent content handling
+  test('should return 403 for non-existent bag content', async () => {
+    const nonExistentContentId = chance.guid();
 
     const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${nonExistentContentId}`)
+      .put(`/api/bags/${bagId}/discs/${nonExistentContentId}`)
       .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
+      .send({ notes: chance.sentence() })
+      .expect(403);
 
-    expect(response.status).toBe(403);
     expect(response.body.success).toBe(false);
     expect(response.body.message).toMatch(/access denied/i);
   });
 
-  test('should allow partial updates (only some fields)', async () => {
-    const updateData = {
-      notes: 'Only updating notes',
-    };
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.bag_content.notes).toBe(updateData.notes);
-    // Other fields should remain unchanged
-    expect(Number(response.body.bag_content.weight)).toBe(175.0);
-    expect(response.body.bag_content.condition).toBe('good');
-  });
-
-  test('should return 400 for brand exceeding 50 characters', async () => {
-    const updateData = { brand: 'a'.repeat(51) }; // 51 characters, exceeds limit
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/brand must be a string with maximum 50 characters/i);
-  });
-
-  test('should return 400 for model exceeding 50 characters', async () => {
-    const updateData = { model: 'b'.repeat(51) }; // 51 characters, exceeds limit
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/model must be a string with maximum 50 characters/i);
-  });
-
-  test('should return 400 for non-string brand', async () => {
-    const updateData = { brand: chance.integer() }; // Not a string
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/brand must be a string with maximum 50 characters/i);
-  });
-
-  test('should successfully update only brand and model', async () => {
-    const updateData = {
-      brand: chance.word(),
-      model: chance.word(),
-    };
-
-    const response = await request(app)
-      .put(`/api/bags/${createdBag.id}/discs/${createdBagContent.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(updateData);
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.bag_content.brand).toBe(updateData.brand);
-    expect(response.body.bag_content.model).toBe(updateData.model);
-    // Other fields should remain unchanged
-    expect(Number(response.body.bag_content.weight)).toBe(175.0);
-    expect(response.body.bag_content.condition).toBe('good');
-  });
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Flight number validation (unit test concern)
+  // - Field length validation (unit test concern)
+  // - Field type validation (unit test concern)
+  // - Partial update logic (unit test concern)
+  // These are all tested at the service unit test level
 });

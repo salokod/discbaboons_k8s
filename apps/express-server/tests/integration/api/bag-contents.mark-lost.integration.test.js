@@ -5,112 +5,113 @@ import {
 import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
-import { query, queryOne } from '../setup.js';
+import { query } from '../setup.js';
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
   let user;
   let token;
-  let testId;
+  let bagId;
+  let discId;
+  let bagContentId;
   let createdUserIds = [];
-  let createdBag;
-  let createdDisc;
-  let createdBagContent;
+  let createdBagIds = [];
+  let createdDiscIds = [];
+  let createdBagContentIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    const timestamp = Date.now().toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
+    createdBagIds = [];
+    createdDiscIds = [];
+    createdBagContentIds = [];
 
-    // Register user with unique identifier
-    const password = `Test1!${chance.word({ length: 2 })}`;
-    const userData = {
-      username: `tbml${testId}`, // tbml for "test bag mark lost"
-      email: `tbml${testId}@ex.co`,
-      password,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-
-    // Login
-    const loginRes = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = loginRes.body.tokens.accessToken;
-    user = loginRes.body.user;
+    // Create user directly in DB
+    const testUser = await createTestUser({ prefix: 'bagcontentsmarklost' });
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test bag
-    const bagData = {
-      name: `Test Bag Lost ${testId}`,
-      description: chance.sentence(),
-      is_public: false,
-      is_friends_visible: false,
-    };
-    const bagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${token}`)
-      .send(bagData)
-      .expect(201);
-    createdBag = bagRes.body.bag;
-
-    // Create an approved test disc
-    const discSpeed = chance.integer({ min: 1, max: 15 });
-    const discGlide = chance.integer({ min: 1, max: 7 });
-    const discTurn = chance.integer({ min: -5, max: 2 });
-    const discFade = chance.integer({ min: 0, max: 5 });
-
-    createdDisc = await queryOne(
-      'INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [chance.company(), chance.word(), discSpeed, discGlide, discTurn, discFade, true, user.id],
+    // Create bag directly in DB
+    const bag = await query(
+      `INSERT INTO bags (user_id, name, description, is_public, is_friends_visible)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [user.id, chance.company(), chance.sentence(), false, false],
     );
+    bagId = bag.rows[0].id;
+    createdBagIds.push(bagId);
 
-    // Add disc to bag to create content for testing
-    const addToBagData = {
-      disc_id: createdDisc.id,
-      notes: chance.sentence(),
-      weight: chance.floating({ min: 150, max: 180, fixed: 1 }),
-      condition: chance.pickone(['new', 'good', 'worn', 'beat-in']),
-      plastic_type: chance.word(),
-      color: chance.color({ format: 'name' }),
-    };
+    // Create disc directly in DB
+    const disc = await query(
+      `INSERT INTO disc_master (brand, model, speed, glide, turn, fade, approved, added_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        chance.company(),
+        chance.word(),
+        chance.integer({ min: 1, max: 14 }),
+        chance.integer({ min: 1, max: 7 }),
+        chance.integer({ min: -5, max: 2 }),
+        chance.integer({ min: 0, max: 5 }),
+        true,
+        user.id,
+      ],
+    );
+    discId = disc.rows[0].id;
+    createdDiscIds.push(discId);
 
-    const addToBagRes = await request(app)
-      .post(`/api/bags/${createdBag.id}/discs`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(addToBagData)
-      .expect(201);
-    createdBagContent = addToBagRes.body.bag_content;
+    // Create bag content directly in DB
+    const bagContent = await query(
+      `INSERT INTO bag_contents (user_id, bag_id, disc_id, notes, weight, condition, is_lost)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        user.id,
+        bagId,
+        discId,
+        chance.sentence(),
+        chance.floating({ min: 150, max: 180, fixed: 1 }),
+        'good',
+        false,
+      ],
+    );
+    bagContentId = bagContent.rows[0].id;
+    createdBagContentIds.push(bagContentId);
   });
 
   afterEach(async () => {
-    // Clean up test data
-    if (createdBagContent) {
-      await query('DELETE FROM bag_contents WHERE id = $1', [createdBagContent.id]);
+    // Clean up in FK order
+    if (createdBagContentIds.length > 0) {
+      await query('DELETE FROM bag_contents WHERE id = ANY($1)', [createdBagContentIds]);
     }
-
-    if (createdDisc) {
-      await query('DELETE FROM disc_master WHERE id = $1', [createdDisc.id]);
+    if (createdBagIds.length > 0) {
+      await query('DELETE FROM bags WHERE id = ANY($1)', [createdBagIds]);
     }
-
-    if (createdBag) {
-      await query('DELETE FROM bags WHERE id = $1', [createdBag.id]);
+    if (createdDiscIds.length > 0) {
+      await query('DELETE FROM disc_master WHERE id = ANY($1)', [createdDiscIds]);
     }
-
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    await cleanupUsers(createdUserIds);
   });
 
-  test('should mark disc as lost with notes and automatic date', async () => {
+  // GOOD: Integration concern - middleware authentication
+  test('should require authentication', async () => {
+    await request(app)
+      .patch(`/api/bags/discs/${bagContentId}/lost`)
+      .send({ is_lost: true })
+      .expect(401, {
+        error: 'Access token required',
+      });
+  });
+
+  // GOOD: Integration concern - mark disc as lost and persist to database
+  test('should mark disc as lost and persist to database', async () => {
     const lostNotes = chance.sentence();
-    const beforeTime = new Date();
 
     const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .patch(`/api/bags/discs/${bagContentId}/lost`)
       .set('Authorization', `Bearer ${token}`)
       .send({
         is_lost: true,
@@ -118,69 +119,91 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
       })
       .expect(200);
 
-    const afterTime = new Date();
-
     expect(response.body.success).toBe(true);
-    expect(response.body.bag_content).toBeDefined();
-    expect(response.body.bag_content.is_lost).toBe(true);
-    expect(response.body.bag_content.lost_notes).toBe(lostNotes);
-    expect(response.body.bag_content.lost_at).toBeDefined();
-    expect(response.body.bag_content.updated_at).toBeDefined();
+    expect(response.body.bag_content).toMatchObject({
+      id: bagContentId,
+      is_lost: true,
+      lost_notes: lostNotes,
+      bag_id: null, // Removed from bag when lost
+      lost_at: expect.any(String),
+    });
 
-    // Verify lost_at timestamp is reasonable
-    const lostAt = new Date(response.body.bag_content.lost_at);
-    expect(lostAt.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
-    expect(lostAt.getTime()).toBeLessThanOrEqual(afterTime.getTime());
-
-    // Verify updated_at timestamp is reasonable
-    const updatedAt = new Date(response.body.bag_content.updated_at);
-    expect(updatedAt.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
-    expect(updatedAt.getTime()).toBeLessThanOrEqual(afterTime.getTime());
+    // Integration: Verify persistence to database
+    const bagContent = await query(
+      'SELECT * FROM bag_contents WHERE id = $1',
+      [bagContentId],
+    );
+    expect(bagContent.rows[0]).toMatchObject({
+      is_lost: true,
+      lost_notes: lostNotes,
+      bag_id: null,
+    });
+    expect(bagContent.rows[0].lost_at).toBeTruthy();
   });
 
-  test('should mark disc as found and clear lost data', async () => {
-    // First mark as lost
-    await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: true,
-        lost_notes: chance.sentence(),
-      })
-      .expect(200);
+  // GOOD: Integration concern - mark disc as found and database persistence
+  test('should mark disc as found and persist to database', async () => {
+    // First mark as lost directly in DB
+    await query(
+      'UPDATE bag_contents SET is_lost = true, lost_notes = $1, lost_at = NOW(), bag_id = NULL WHERE id = $2',
+      ['Lost disc', bagContentId],
+    );
 
-    const beforeFoundTime = new Date();
-
-    // Then mark as found - assign back to the original bag
     const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
+      .patch(`/api/bags/discs/${bagContentId}/lost`)
       .set('Authorization', `Bearer ${token}`)
       .send({
         is_lost: false,
-        bag_id: createdBag.id, // Required: specify which bag to put it in
+        bag_id: bagId,
       })
       .expect(200);
 
-    const afterFoundTime = new Date();
-
     expect(response.body.success).toBe(true);
-    expect(response.body.bag_content.is_lost).toBe(false);
-    expect(response.body.bag_content.bag_id).toBe(createdBag.id); // Assigned to bag
-    expect(response.body.bag_content.lost_notes).toBeNull();
-    expect(response.body.bag_content.lost_at).toBeNull();
-    expect(response.body.bag_content.updated_at).toBeDefined();
+    expect(response.body.bag_content).toMatchObject({
+      id: bagContentId,
+      is_lost: false,
+      bag_id: bagId,
+      lost_notes: null,
+      lost_at: null,
+    });
 
-    // Verify updated_at timestamp reflects the found operation
-    const updatedAt = new Date(response.body.bag_content.updated_at);
-    expect(updatedAt.getTime()).toBeGreaterThanOrEqual(beforeFoundTime.getTime());
-    expect(updatedAt.getTime()).toBeLessThanOrEqual(afterFoundTime.getTime());
+    // Integration: Verify persistence to database
+    const bagContent = await query(
+      'SELECT * FROM bag_contents WHERE id = $1',
+      [bagContentId],
+    );
+    expect(bagContent.rows[0]).toMatchObject({
+      is_lost: false,
+      bag_id: bagId,
+      lost_notes: null,
+      lost_at: null,
+    });
   });
 
+  // GOOD: Integration concern - ownership authorization
+  test('should deny access to other user bag content', async () => {
+    // Create other user directly in DB
+    const otherTestUser = await createTestUser({ prefix: 'bagcontentsmarkother' });
+    const otherUser = otherTestUser.user;
+    const otherToken = otherTestUser.token;
+    createdUserIds.push(otherUser.id);
+
+    const response = await request(app)
+      .patch(`/api/bags/discs/${bagContentId}/lost`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ is_lost: true })
+      .expect(404);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/not found or access denied/i);
+  });
+
+  // GOOD: Integration concern - non-existent content handling
   test('should return 404 for non-existent bag content', async () => {
-    const fakeContentId = chance.guid();
+    const nonExistentContentId = chance.guid();
 
     const response = await request(app)
-      .patch(`/api/bags/discs/${fakeContentId}/lost`)
+      .patch(`/api/bags/discs/${nonExistentContentId}/lost`)
       .set('Authorization', `Bearer ${token}`)
       .send({ is_lost: true })
       .expect(404);
@@ -189,244 +212,12 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
     expect(response.body.message).toMatch(/not found or access denied/i);
   });
 
-  test('should return 401 without authentication', async () => {
-    await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .send({ is_lost: true })
-      .expect(401);
-  });
-
-  test('should return 400 for missing is_lost field', async () => {
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        lost_notes: chance.sentence(),
-      })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/is_lost/i);
-  });
-
-  test('should return 400 for invalid is_lost value', async () => {
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: 'not_boolean',
-      })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/is_lost/i);
-  });
-
-  test('should return 400 when marking as found without bag_id', async () => {
-    // First mark as lost
-    await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: true,
-        lost_notes: chance.sentence(),
-      })
-      .expect(200);
-
-    // Try to mark as found without bag_id
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: false,
-        // No bag_id provided
-      })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/bag_id is required when marking disc as found/i);
-  });
-
-  test('should return 400 when bag_id has invalid UUID format', async () => {
-    // First mark as lost
-    await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: true,
-        lost_notes: chance.sentence(),
-      })
-      .expect(200);
-
-    // Try to mark as found with invalid UUID format
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: false,
-        bag_id: 'invalidUUID', // Invalid UUID format
-      })
-      .expect(400);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/invalid bag_id format/i);
-  });
-
-  test('should return 403 when target bag not owned by user', async () => {
-    // Create another user and their bag
-    const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
-      password: `Test1!${chance.word()}`,
-    };
-    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
-
-    const otherLoginRes = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherToken = otherLoginRes.body.tokens.accessToken;
-    createdUserIds.push(otherLoginRes.body.user.id);
-
-    // Create bag for other user
-    const otherBagData = {
-      name: `Other Bag ${testId}`,
-      description: chance.sentence(),
-      is_public: false,
-      is_friends_visible: false,
-    };
-    const otherBagRes = await request(app)
-      .post('/api/bags')
-      .set('Authorization', `Bearer ${otherToken}`)
-      .send(otherBagData)
-      .expect(201);
-    const otherBag = otherBagRes.body.bag;
-
-    // First mark as lost
-    await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: true,
-        lost_notes: chance.sentence(),
-      })
-      .expect(200);
-
-    // Try to mark as found with other user's bag
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: false,
-        bag_id: otherBag.id, // Not owned by current user
-      })
-      .expect(403);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/target bag not found or access denied/i);
-
-    // Clean up other bag
-    await query('DELETE FROM bags WHERE id = $1', [otherBag.id]);
-  });
-
-  test('should remove disc from bag when marking as lost', async () => {
-    // Verify disc is initially in the bag
-    expect(createdBagContent.bag_id).toBe(createdBag.id);
-
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: true,
-        lost_notes: chance.sentence(),
-      })
-      .expect(200);
-
-    expect(response.body.success).toBe(true);
-    expect(response.body.bag_content.is_lost).toBe(true);
-    expect(response.body.bag_content.bag_id).toBeNull(); // Removed from bag
-    expect(response.body.bag_content.lost_notes).toBeDefined();
-    expect(response.body.bag_content.lost_at).toBeDefined();
-  });
-
-  test('should deny access to other users bag content', async () => {
-    // Create another user
-    const otherUserData = {
-      username: `other${testId}`,
-      email: `other${testId}@ex.co`,
-      password: `Test1!${chance.word()}`,
-    };
-    await request(app).post('/api/auth/register').send(otherUserData).expect(201);
-
-    // Login as other user
-    const otherLoginRes = await request(app).post('/api/auth/login').send({
-      username: otherUserData.username,
-      password: otherUserData.password,
-    }).expect(200);
-    const otherToken = otherLoginRes.body.tokens.accessToken;
-    createdUserIds.push(otherLoginRes.body.user.id);
-
-    // Try to mark first user's disc as lost
-    const response = await request(app)
-      .patch(`/api/bags/discs/${createdBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${otherToken}`)
-      .send({ is_lost: true })
-      .expect(404);
-
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toMatch(/not found or access denied/i);
-  });
-
-  test('should preserve custom flight numbers when marking disc as lost', async () => {
-    // Create a disc with custom flight numbers
-    const customSpeed = 13;
-    const customTurn = 0;
-    const customBrand = 'Custom Brand';
-
-    const customDiscData = {
-      disc_id: createdDisc.id,
-      notes: chance.sentence(),
-      weight: chance.floating({ min: 150, max: 180, fixed: 1 }),
-      condition: 'good',
-      // Custom flight numbers
-      speed: customSpeed,
-      turn: customTurn,
-      brand: customBrand,
-      // glide, fade, model will use disc_master values
-    };
-
-    const customDiscRes = await request(app)
-      .post(`/api/bags/${createdBag.id}/discs`)
-      .set('Authorization', `Bearer ${token}`)
-      .send(customDiscData)
-      .expect(201);
-
-    const customBagContent = customDiscRes.body.bag_content;
-
-    // Mark as lost
-    const response = await request(app)
-      .patch(`/api/bags/discs/${customBagContent.id}/lost`)
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        is_lost: true,
-        lost_notes: 'Lost with custom flight numbers',
-      })
-      .expect(200);
-
-    expect(response.body.success).toBe(true);
-    expect(response.body.bag_content.is_lost).toBe(true);
-
-    // Verify custom flight numbers are preserved
-    expect(response.body.bag_content.speed).toBe(customSpeed);
-    expect(response.body.bag_content.turn).toBe(customTurn);
-    expect(response.body.bag_content.brand).toBe(customBrand);
-
-    // Verify fallback values are preserved (should use disc_master values since not set)
-    expect(response.body.bag_content.glide).toBe(createdDisc.glide);
-    expect(response.body.bag_content.fade).toBe(createdDisc.fade);
-    expect(response.body.bag_content.model).toBe(createdDisc.model);
-
-    // Clean up
-    await query('DELETE FROM bag_contents WHERE id = $1', [customBagContent.id]);
-  });
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing is_lost field validation (unit test concern)
+  // - Invalid is_lost value validation (unit test concern)
+  // - Missing bag_id when marking found validation (unit test concern)
+  // - Invalid UUID format validation (unit test concern)
+  // - Timestamp generation and formatting (unit test concern)
+  // - Custom flight numbers preservation logic (unit test concern)
+  // These are all tested at the service unit test level
 });

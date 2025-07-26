@@ -11,8 +11,13 @@ const chance = new Chance();
 describe('POST /api/auth/register - Integration Test', () => {
   // Clean up test users after each test
   beforeEach(async () => {
-    // Remove any test users that might exist
-    await query('DELETE FROM users WHERE email LIKE $1 OR username LIKE $2', ['%test-register%', '%testuser%']);
+    // Small delay to avoid deadlocks with parallel tests
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+
+    // Remove any test users that might exist (more specific patterns to reduce conflicts)
+    await query('DELETE FROM users WHERE email LIKE $1 OR username LIKE $2', ['%test-register%', '%testregister%']);
   });
 
   afterAll(async () => {

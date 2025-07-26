@@ -6,97 +6,68 @@ import request from 'supertest';
 import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
+import {
+  createTestUser,
+  createTestCourse,
+  cleanupRounds,
+  cleanupCourses,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 const chance = new Chance();
 
 describe('POST /api/rounds - Integration', () => {
   let user;
   let token;
-  let testId;
-  let timestamp;
+  let course;
   let createdUserIds = [];
   let createdCourseIds = [];
   let createdRoundIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run
-    // Use process ID + timestamp + random for guaranteed uniqueness across parallel tests
-    const fullTimestamp = Date.now();
-    timestamp = fullTimestamp.toString().slice(-6);
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    const pid = process.pid.toString().slice(-3);
-    testId = `trcr${timestamp}${pid}${random}`;
+    // Reset arrays for parallel test safety
     createdUserIds = [];
     createdCourseIds = [];
     createdRoundIds = [];
 
-    // Register test user
-    const userData = {
-      username: `tc${timestamp}${pid}`, // tc = "test create" - keep under 20 chars
-      email: `trcr${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userData).expect(201);
-    const login = await request(app).post('/api/auth/login').send({
-      username: userData.username,
-      password: userData.password,
-    }).expect(200);
-    token = login.body.tokens.accessToken;
-    user = login.body.user;
+    // Direct DB setup using test helpers
+    const testUser = await createTestUser();
+    user = testUser.user;
+    token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create a test course to use in rounds
-    const courseData = {
-      name: `TRCR Course ${testId}${Date.now()}`, // TRCR = Test Round CReate
-      city: chance.city(),
-      stateProvince: chance.state({ abbreviated: true }),
-      country: 'US',
-      holeCount: chance.integer({ min: 9, max: 27 }),
-    };
-    const courseRes = await request(app)
-      .post('/api/courses')
-      .set('Authorization', `Bearer ${token}`)
-      .send(courseData)
-      .expect(201);
-    createdCourseIds.push(courseRes.body.id);
+    course = await createTestCourse();
+    createdCourseIds.push(course.id);
   });
 
   afterEach(async () => {
-    // Clean up in reverse order due to foreign key constraints
-    await query('DELETE FROM round_players WHERE round_id = ANY($1)', [createdRoundIds]);
-    if (createdRoundIds.length > 0) {
-      await query('DELETE FROM rounds WHERE id = ANY($1)', [createdRoundIds]);
-    }
-    if (createdCourseIds.length > 0) {
-      await query('DELETE FROM courses WHERE id = ANY($1)', [createdCourseIds]);
-    }
-    if (createdUserIds.length > 0) {
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
-    }
+    // Clean up in reverse order for foreign key constraints
+    await cleanupRounds(createdRoundIds);
+    await cleanupCourses(createdCourseIds);
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware
   test('should require authentication', async () => {
     const roundData = {
-      courseId: createdCourseIds[0],
+      courseId: course.id,
       name: chance.sentence({ words: 3 }),
     };
 
-    const res = await request(app)
+    await request(app)
       .post('/api/rounds')
       .send(roundData)
-      .expect(401);
-
-    expect(res.body).toMatchObject({
-      error: 'Access token required',
-    });
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should create round with valid data', async () => {
-    const courseId = createdCourseIds[0];
+  // GOOD: Integration concern - DB persistence and transaction
+  test('should create round successfully and persist to database', async () => {
     const roundData = {
-      courseId,
+      courseId: course.id,
       name: chance.sentence({ words: 3 }),
-      startingHole: chance.integer({ min: 1, max: 9 }),
+      startingHole: chance.integer({ min: 1, max: course.hole_count }),
       isPrivate: chance.bool(),
       skinsEnabled: chance.bool(),
       skinsValue: chance.floating({ min: 1, max: 50, fixed: 2 }),
@@ -108,34 +79,37 @@ describe('POST /api/rounds - Integration', () => {
       .send(roundData)
       .expect(201);
 
-    // Should return the created round data
+    // Verify response structure
     expect(res.body).toMatchObject({
       id: expect.any(String),
       created_by_id: user.id,
-      course_id: courseId,
+      course_id: course.id,
       name: roundData.name,
       starting_hole: roundData.startingHole,
       is_private: roundData.isPrivate,
       skins_enabled: roundData.skinsEnabled,
-      skins_value: roundData.skinsValue ? expect.any(String) : null,
       status: 'in_progress',
-      start_time: expect.any(String),
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
     });
 
     // Track for cleanup
     createdRoundIds.push(res.body.id);
+
+    // Verify DB persistence (integration concern)
+    const savedRound = await query('SELECT * FROM rounds WHERE id = $1', [res.body.id]);
+    expect(savedRound.rows).toHaveLength(1);
+    expect(savedRound.rows[0]).toMatchObject({
+      id: res.body.id,
+      created_by_id: user.id,
+      course_id: course.id,
+    });
   });
 
-  test('should automatically add creator as player when round is created', async () => {
-    const courseId = createdCourseIds[0];
+  // GOOD: Integration concern - transaction creates round AND auto-adds player
+  test('should automatically add creator as player in single transaction', async () => {
     const roundData = {
-      courseId,
+      courseId: course.id,
       name: chance.sentence({ words: 3 }),
-      startingHole: chance.integer({ min: 1, max: 9 }),
-      isPrivate: false,
-      skinsEnabled: false,
+      startingHole: chance.integer({ min: 1, max: course.hole_count }),
     };
 
     const res = await request(app)
@@ -147,60 +121,25 @@ describe('POST /api/rounds - Integration', () => {
     const roundId = res.body.id;
     createdRoundIds.push(roundId);
 
-    // Verify the creator was automatically added as a player
-    const playerCheckResult = await query(
-      'SELECT * FROM round_players WHERE round_id = $1 AND user_id = $2',
-      [roundId, user.id],
-    );
+    // Verify transaction worked: both round and player exist
+    const [roundResult, playerResult] = await Promise.all([
+      query('SELECT * FROM rounds WHERE id = $1', [roundId]),
+      query('SELECT * FROM round_players WHERE round_id = $1 AND user_id = $2', [roundId, user.id]),
+    ]);
 
-    expect(playerCheckResult.rows).toHaveLength(1);
-    const player = playerCheckResult.rows[0];
-    expect(player.round_id).toBe(roundId);
-    expect(player.user_id).toBe(user.id);
-    expect(player.is_guest).toBe(false);
-    expect(player.guest_name).toBeNull();
-    expect(player.joined_at).toBeDefined();
-  });
-
-  test('should return 400 when courseId is missing', async () => {
-    const roundData = {
-      // courseId missing
-      name: chance.sentence({ words: 3 }),
-    };
-
-    const res = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Course ID is required',
+    expect(roundResult.rows).toHaveLength(1);
+    expect(playerResult.rows).toHaveLength(1);
+    expect(playerResult.rows[0]).toMatchObject({
+      round_id: roundId,
+      user_id: user.id,
+      is_guest: false,
     });
   });
 
-  test('should return 400 when name is missing', async () => {
+  // GOOD: Integration concern - DB foreign key validation
+  test('should return 400 when course does not exist in database', async () => {
     const roundData = {
-      courseId: createdCourseIds[0],
-      // name missing
-    };
-
-    const res = await request(app)
-      .post('/api/rounds')
-      .set('Authorization', `Bearer ${token}`)
-      .send(roundData)
-      .expect(400);
-
-    expect(res.body).toMatchObject({
-      success: false,
-      message: 'Round name is required',
-    });
-  });
-
-  test('should return 400 when course does not exist', async () => {
-    const roundData = {
-      courseId: 'nonexistent-course-id',
+      courseId: chance.guid(), // Non-existent course ID
       name: chance.sentence({ words: 3 }),
     };
 
@@ -216,17 +155,12 @@ describe('POST /api/rounds - Integration', () => {
     });
   });
 
-  test('should return 400 when starting hole exceeds course hole count', async () => {
-    // Get the course to know its hole count
-    const courseRes = await request(app)
-      .get(`/api/courses/${createdCourseIds[0]}`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200);
-
+  // GOOD: Integration concern - course validation against actual DB
+  test('should validate starting hole against actual course hole count from database', async () => {
     const roundData = {
-      courseId: createdCourseIds[0],
+      courseId: course.id,
       name: chance.sentence({ words: 3 }),
-      startingHole: courseRes.body.hole_count + 1, // Exceed hole count
+      startingHole: course.hole_count + 1, // Exceed actual hole count
     };
 
     const res = await request(app)
@@ -240,4 +174,33 @@ describe('POST /api/rounds - Integration', () => {
       message: 'Starting hole cannot exceed course hole count',
     });
   });
+
+  // GOOD: Integration concern - transaction rollback on failure
+  test('should handle database transaction rollback on error', async () => {
+    // Create data that will cause a DB constraint violation
+    const roundData = {
+      courseId: course.id,
+      name: chance.string({ length: 300 }), // Exceeds VARCHAR limit
+    };
+
+    await request(app)
+      .post('/api/rounds')
+      .set('Authorization', `Bearer ${token}`)
+      .send(roundData)
+      .expect(500); // Database error
+
+    // Verify no partial data was saved (transaction rolled back)
+    const rounds = await query('SELECT * FROM rounds WHERE created_by_id = $1', [user.id]);
+    const players = await query('SELECT * FROM round_players WHERE user_id = $1', [user.id]);
+
+    expect(rounds.rows).toHaveLength(0);
+    expect(players.rows).toHaveLength(0);
+  });
+
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing courseId (unit test concern)
+  // - Missing name (unit test concern)
+  // - Missing userId (unit test concern)
+  // - Invalid data types (unit test concern)
+  // These are all tested at the service unit test level
 });

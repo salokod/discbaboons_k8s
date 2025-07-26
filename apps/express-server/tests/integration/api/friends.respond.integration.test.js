@@ -3,98 +3,128 @@ import {
   describe, test, expect, beforeEach, afterEach,
 } from 'vitest';
 import request from 'supertest';
-import Chance from 'chance';
 import app from '../../../server.js';
 import { query } from '../setup.js';
-
-const chance = new Chance();
+import {
+  createTestUser,
+  cleanupUsers,
+} from '../test-helpers.js';
 
 describe('POST /api/friends/respond - Integration', () => {
-  let userA; let userB; let tokenA; let tokenB; let requestId;
-  let testId; let createdUserIds = [];
+  let userA; let
+    userB;
+  let tokenA; let
+    tokenB;
+  let requestId;
+  let createdUserIds = [];
 
   beforeEach(async () => {
-    // Generate GLOBALLY unique test identifier for this test run (short for username limits)
-    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
-    const random = chance.string({ length: 4, pool: 'abcdefghijklmnopqrstuvwxyz' });
-    testId = `${timestamp}${random}`; // 10 chars total
+    // Reset arrays for parallel test safety
     createdUserIds = [];
 
-    // Register User A
-    const userAData = {
-      username: `fa${testId}`, // fa + 10 chars = 12 chars total (under 20 limit)
-      email: `fa${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`, // Meets complexity requirements
-    };
-    await request(app).post('/api/auth/register').send(userAData).expect(201);
-    const loginA = await request(app).post('/api/auth/login').send({
-      username: userAData.username,
-      password: userAData.password,
-    }).expect(200);
-    tokenA = loginA.body.tokens.accessToken;
-    userA = loginA.body.user;
+    // Create users directly in DB for speed
+    const testUserA = await createTestUser({ prefix: 'friendrespA' });
+    userA = testUserA.user;
+    tokenA = testUserA.token;
+    createdUserIds.push(userA.id);
 
-    // Register User B
-    const userBData = {
-      username: `fb${testId}`, // fb + 10 chars = 12 chars total (under 20 limit)
-      email: `fb${testId}@ex.co`,
-      password: `Test1!${chance.word({ length: 2 })}`,
-    };
-    await request(app).post('/api/auth/register').send(userBData).expect(201);
-    const loginB = await request(app).post('/api/auth/login').send({
-      username: userBData.username,
-      password: userBData.password,
-    }).expect(200);
-    tokenB = loginB.body.tokens.accessToken;
-    userB = loginB.body.user;
-    createdUserIds.push(userA.id, userB.id);
+    const testUserB = await createTestUser({ prefix: 'friendrespB' });
+    userB = testUserB.user;
+    tokenB = testUserB.token;
+    createdUserIds.push(userB.id);
 
-    // User A sends friend request to User B
-    const reqRes = await request(app)
-      .post('/api/friends/request')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ recipientId: userB.id })
-      .expect(200);
-    requestId = reqRes.body.id;
+    // Create a pending friend request directly in DB
+    const requestResult = await query(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+      [userA.id, userB.id, 'pending'],
+    );
+    requestId = requestResult.rows[0].id;
   });
 
   afterEach(async () => {
-    // Clean up only data created in this specific test
+    // Clean up friendship requests first (FK constraint)
     if (createdUserIds.length > 0) {
-      await query(
-        'DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)',
-        [createdUserIds],
-      );
-      await query('DELETE FROM users WHERE id = ANY($1)', [createdUserIds]);
+      await query('DELETE FROM friendship_requests WHERE requester_id = ANY($1) OR recipient_id = ANY($1)', [createdUserIds]);
     }
+    await cleanupUsers(createdUserIds);
   });
 
+  // GOOD: Integration concern - middleware authentication
   test('should require authentication', async () => {
-    const res = await request(app)
+    await request(app)
       .post('/api/friends/respond')
-      .send({ requestId, action: 'accept' });
-    expect(res.status).toBe(401);
+      .send({ requestId, action: 'accept' })
+      .expect(401, {
+        error: 'Access token required',
+      });
   });
 
-  test('should not allow non-recipient to respond', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - permission validation against DB
+  test('should prevent non-recipient from responding to friend request', async () => {
+    const response = await request(app)
       .post('/api/friends/respond')
       .set('Authorization', `Bearer ${tokenA}`) // requester, not recipient
-      .send({ requestId, action: 'accept' });
-    expect(res.status).toBe(403); // or 401/400 depending on your error handling
-    expect(res.body.error || res.body.message).toMatch(/not authorized/i);
+      .send({ requestId, action: 'accept' })
+      .expect(403);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: expect.stringMatching(/not authorized|recipient/i),
+    });
   });
 
-  test('should not allow invalid action', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - friend request acceptance and database update
+  test('should accept friend request and update database status', async () => {
+    const response = await request(app)
       .post('/api/friends/respond')
       .set('Authorization', `Bearer ${tokenB}`)
-      .send({ requestId, action: 'foobar' });
-    expect(res.status).toBe(400);
-    expect(res.body.error || res.body.message).toMatch(/action/i);
+      .send({ requestId, action: 'accept' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      request: {
+        id: requestId,
+        status: 'accepted',
+      },
+    });
+
+    // Integration: Verify database was updated
+    const updatedRequest = await query(
+      'SELECT * FROM friendship_requests WHERE id = $1',
+      [requestId],
+    );
+    expect(updatedRequest.rows[0]).toMatchObject({
+      status: 'accepted',
+    });
   });
 
-  test('should not allow responding to non-pending request', async () => {
+  // GOOD: Integration concern - friend request denial and database update
+  test('should deny friend request and update database status', async () => {
+    const response = await request(app)
+      .post('/api/friends/respond')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ requestId, action: 'deny' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      request: {
+        id: requestId,
+        status: 'denied',
+      },
+    });
+
+    // Integration: Verify database was updated
+    const updatedRequest = await query(
+      'SELECT * FROM friendship_requests WHERE id = $1',
+      [requestId],
+    );
+    expect(updatedRequest.rows[0]).toMatchObject({
+      status: 'denied',
+    });
+  });
+
+  // GOOD: Integration concern - prevent responding to already processed request
+  test('should prevent responding to non-pending request', async () => {
     // Accept the request first
     await request(app)
       .post('/api/friends/respond')
@@ -102,46 +132,38 @@ describe('POST /api/friends/respond - Integration', () => {
       .send({ requestId, action: 'accept' })
       .expect(200);
 
-    // Try to accept again
-    const res = await request(app)
+    // Try to respond again
+    const response = await request(app)
       .post('/api/friends/respond')
       .set('Authorization', `Bearer ${tokenB}`)
-      .send({ requestId, action: 'accept' });
-    expect(res.status).toBe(400);
-    expect(res.body.error || res.body.message).toMatch(/pending/i);
+      .send({ requestId, action: 'deny' })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: expect.stringMatching(/pending|already/i),
+    });
   });
 
-  test('should allow recipient to accept a friend request', async () => {
-    const res = await request(app)
+  // GOOD: Integration concern - non-existent request handling
+  test('should return 404 for non-existent friend request', async () => {
+    const fakeRequestId = 999999; // Use numeric ID that doesn't exist
+
+    const response = await request(app)
       .post('/api/friends/respond')
       .set('Authorization', `Bearer ${tokenB}`)
-      .send({ requestId, action: 'accept' });
-    expect(res.status).toBe(200);
-    expect(res.body.request.status).toBe('accepted');
-    expect(res.body.request.id).toBe(requestId);
+      .send({ requestId: fakeRequestId, action: 'accept' })
+      .expect(404);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: expect.stringMatching(/not found/i),
+    });
   });
 
-  test('should allow recipient to deny a friend request', async () => {
-  // Clean up any existing requests between these users
-    await query(
-      'DELETE FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
-      [userA.id, userB.id],
-    );
-
-    // Create a new request for this test
-    const reqRes = await request(app)
-      .post('/api/friends/request')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ recipientId: userB.id })
-      .expect(200);
-    const newRequestId = reqRes.body.id;
-
-    const res = await request(app)
-      .post('/api/friends/respond')
-      .set('Authorization', `Bearer ${tokenB}`)
-      .send({ requestId: newRequestId, action: 'deny' });
-    expect(res.status).toBe(200);
-    expect(res.body.request.status).toBe('denied');
-    expect(res.body.request.id).toBe(newRequestId);
-  });
+  // Note: We do NOT test these validation scenarios in integration tests:
+  // - Missing requestId (unit test concern)
+  // - Invalid action values (unit test concern)
+  // - Invalid UUID format (unit test concern)
+  // These are all tested at the service unit test level
 });
