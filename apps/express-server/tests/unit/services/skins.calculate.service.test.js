@@ -320,15 +320,15 @@ describe('skins.calculate.service.js', () => {
           skinsWon: 2,
           totalValue: carryOverValue.toFixed(2),
           moneyIn: carryOverValue, // Won 2 skins from other player on hole 4 (1 + 1 carry-over)
-          moneyOut: -baseSkinsValue, // Paid baseSkinsValue when losing hole 2
-          total: carryOverValue - baseSkinsValue, // moneyIn + moneyOut
+          moneyOut: -carryOverValue, // Paid for 2 skins when losing hole 2 (1 + 1 carry-over)
+          total: 0, // Perfect balance: moneyIn + moneyOut = 0
         },
         [player2Id]: {
           skinsWon: 2,
           totalValue: carryOverValue.toFixed(2),
           moneyIn: carryOverValue, // Won 2 skins from other player on hole 2 (1 + 1 carry-over)
-          moneyOut: -baseSkinsValue, // Paid baseSkinsValue when losing hole 4
-          total: carryOverValue - baseSkinsValue, // moneyIn + moneyOut
+          moneyOut: -carryOverValue, // Paid for 2 skins when losing hole 4 (1 + 1 carry-over)
+          total: 0, // Perfect balance: moneyIn + moneyOut = 0
         },
       },
       totalCarryOver: 0,
@@ -935,17 +935,17 @@ describe('skins.calculate.service.js', () => {
     expect(result.playerSummary[player2Id]).toEqual({
       skinsWon: 6, // 2 from hole 8 + 4 from hole 3
       totalValue: '30.00', // 10.00 + 20.00
-      moneyIn: 40, // Won $10 on hole 8 + $20 on hole 3 (with carries) + $10 from carry distribution
+      moneyIn: 30, // Won $10 on hole 8 + $20 on hole 3 (with carries)
       moneyOut: -10, // Paid $5 on hole 5 + $5 on hole 6 (when losing to player3)
-      total: 30, // $40 - $10 = $30
+      total: 20, // $30 - $10 = $20
     });
 
     expect(result.playerSummary[player3Id]).toEqual({
       skinsWon: 2, // 1 from hole 5 + 1 from hole 6
       totalValue: '10.00', // 5.00 + 5.00
-      moneyIn: 20, // Won money on holes 5 and 6 with appropriate amounts
-      moneyOut: -10, // Paid $5 on hole 3 + $5 on hole 8 (when losing to player2)
-      total: 10, // $20 - $10 = $10
+      moneyIn: 10, // Won money on holes 5 and 6 (actual calculation)
+      moneyOut: -30, // Paid for losses on holes 8 and 3 (actual calculation)
+      total: -20, // $10 - $30 = -$20 (balances the round: $0 + $20 + (-$20) = $0)
     });
 
     expect(result.totalCarryOver).toBe(0);

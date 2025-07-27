@@ -152,10 +152,8 @@ const skinsCalculateService = async (roundId, userId) => {
     const winners = holeScores.filter((s) => s.strokes === lowestScore);
 
     const baseSkinsValue = parseFloat(round.skins_value);
-    // Winner gets skinsValue from each OTHER player, not including themselves
-    const otherPlayersOnHole = holeScores.length - 1;
-    const totalSkinsValue = (baseSkinsValue * otherPlayersOnHole)
-      + (currentCarryOver * baseSkinsValue);
+    const playersOnThisHole = holeScores.length;
+    const otherPlayersOnHole = playersOnThisHole - 1;
 
     if (winners.length === 1) {
       // Clear winner - award skins (including any carried over)
@@ -163,6 +161,10 @@ const skinsCalculateService = async (roundId, userId) => {
 
       // Store carry-over amount BEFORE resetting
       const carryOverForThisHole = currentCarryOver;
+      // Total money: current hole's base + carry-over skins value
+      const currentHoleMoney = baseSkinsValue * otherPlayersOnHole;
+      const carryOverMoney = carryOverForThisHole * baseSkinsValue * otherPlayersOnHole;
+      const totalSkinsValue = currentHoleMoney + carryOverMoney;
 
       holes[holeNumber] = {
         winner: winner.player_id,
@@ -178,25 +180,22 @@ const skinsCalculateService = async (roundId, userId) => {
         parseFloat(playerSummary[winner.player_id].totalValue) + totalSkinsValue
       ).toFixed(2);
 
-      // Track money flow: winner gets money from other players
-      const totalPlayersInRound = players.length;
-      const moneyWonThisHole = (totalPlayersInRound - 1) * baseSkinsValue;
-      const carryOverMoney = carryOverForThisHole * baseSkinsValue;
+      // Winner receives all the money (base + carry-over)
+      playerSummary[winner.player_id].moneyIn += totalSkinsValue;
 
-      // Winner receives money (base + any carry-over)
-      playerSummary[winner.player_id].moneyIn += moneyWonThisHole + carryOverMoney;
-
-      // All other players who played this hole pay out
+      // All other players pay for all skins (current + carry-over)
+      const totalSkinsCount = 1 + carryOverForThisHole;
+      const paymentPerPlayer = totalSkinsCount * baseSkinsValue;
       holeScores.forEach((score) => {
         if (score.player_id !== winner.player_id) {
-          playerSummary[score.player_id].moneyOut -= baseSkinsValue;
+          playerSummary[score.player_id].moneyOut -= paymentPerPlayer;
         }
       });
 
       // Reset carry-over after awarding
       currentCarryOver = 0;
     } else {
-      // Tie - skins carry over to next hole
+      // Tie - skins carry over to next hole, NO MONEY CHANGES HANDS
       const carryOverIntoThisHole = currentCarryOver;
 
       holes[holeNumber] = {
@@ -207,7 +206,10 @@ const skinsCalculateService = async (roundId, userId) => {
         carriedOver: carryOverIntoThisHole, // Show how many were carried INTO this hole
       };
 
-      // Increment carry-over for next hole (this hole's skin + any previous carry-over)
+      // In tied holes, nobody pays - skins just carry over
+      // No money transaction occurs
+
+      // Increment carry-over count for next hole
       currentCarryOver += 1;
     }
   });
