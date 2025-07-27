@@ -82,12 +82,28 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
   });
 
   test('should create hole bet successfully and persist to database', async () => {
+    // Create another user and add to round
+    const player2 = await createTestUser();
+    createdUserIds.push(player2.user.id);
+
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, player2.user.id],
+    );
+
+    // Get player IDs
+    const players = await query(
+      'SELECT id FROM round_players WHERE round_id = $1',
+      [round.id],
+    );
+
     const betData = {
       name: chance.sentence({ words: 3 }),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'hole',
       description: chance.sentence(),
       holeNumber: chance.integer({ min: 1, max: course.hole_count }),
+      participants: players.rows.map((p) => p.id), // Include all players
     };
 
     const res = await request(app)
@@ -113,17 +129,33 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
     const savedBet = await query('SELECT * FROM side_bets WHERE id = $1', [res.body.id]);
     expect(savedBet.rows).toHaveLength(1);
 
-    // Verify auto-join happened
+    // Verify all participants were added
     const participants = await query('SELECT * FROM side_bet_participants WHERE side_bet_id = $1', [res.body.id]);
-    expect(participants.rows).toHaveLength(1);
+    expect(participants.rows).toHaveLength(2); // Both players added
   });
 
   test('should create round bet successfully and persist to database', async () => {
+    // Create another user and add to round
+    const player2 = await createTestUser();
+    createdUserIds.push(player2.user.id);
+
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, player2.user.id],
+    );
+
+    // Get player IDs
+    const players = await query(
+      'SELECT id FROM round_players WHERE round_id = $1',
+      [round.id],
+    );
+
     const betData = {
       name: chance.sentence({ words: 3 }),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'round',
       description: chance.sentence(),
+      participants: players.rows.map((p) => p.id), // Include all players
     };
 
     const res = await request(app)
@@ -187,13 +219,109 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
     });
   });
 
-  test('should handle database transaction rollback on error', async () => {
-    // This tests the integration's transaction handling
-    // We'll make the participant insert fail by using an invalid player_id
+  test('should create bet with specific participants successfully', async () => {
+    // Create additional users and add them to the round
+    const player2 = await createTestUser();
+    const player3 = await createTestUser();
+    createdUserIds.push(player2.user.id, player3.user.id);
+
+    // Add players to the round
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false), ($1, $3, false)',
+      [round.id, player2.user.id, player3.user.id],
+    );
+
+    // Get player IDs for the round
+    const players = await query(
+      'SELECT id, user_id FROM round_players WHERE round_id = $1 ORDER BY user_id',
+      [round.id],
+    );
+
+    const creatorPlayerId = players.rows.find((p) => p.user_id === user.id).id;
+    const player2Id = players.rows.find((p) => p.user_id === player2.user.id).id;
+    const player3Id = players.rows.find((p) => p.user_id === player3.user.id).id;
+
     const betData = {
       name: chance.sentence({ words: 3 }),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'round',
+      participants: [creatorPlayerId, player2Id, player3Id],
+    };
+
+    const res = await request(app)
+      .post(`/api/rounds/${round.id}/side-bets`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(betData)
+      .expect(201);
+
+    // Track for cleanup
+    createdSideBetIds.push(res.body.id);
+
+    // Verify all 3 participants were added to the database
+    const participants = await query(
+      'SELECT player_id FROM side_bet_participants WHERE side_bet_id = $1 ORDER BY player_id',
+      [res.body.id],
+    );
+
+    expect(participants.rows).toHaveLength(3);
+    const participantIds = participants.rows.map((p) => p.player_id);
+    expect(participantIds).toContain(creatorPlayerId);
+    expect(participantIds).toContain(player2Id);
+    expect(participantIds).toContain(player3Id);
+  });
+
+  test('should return 400 when participants array contains invalid player ID', async () => {
+    // Get the real player ID for the first participant
+    const realPlayer = await query(
+      'SELECT id FROM round_players WHERE round_id = $1 LIMIT 1',
+      [round.id],
+    );
+    const fakePlayerId = chance.guid();
+
+    const betData = {
+      name: chance.sentence({ words: 3 }),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+      participants: [realPlayer.rows[0].id, fakePlayerId], // 1 real, 1 fake
+    };
+
+    const res = await request(app)
+      .post(`/api/rounds/${round.id}/side-bets`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(betData)
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'All participants must be players in this round',
+    });
+
+    // Verify no bet was created (transaction rolled back)
+    const bets = await query('SELECT * FROM side_bets WHERE round_id = $1', [round.id]);
+    expect(bets.rows).toHaveLength(0);
+  });
+
+  test('should handle database transaction rollback on error', async () => {
+    // Create another user and add to round for minimum 2 participants
+    const player2 = await createTestUser();
+    createdUserIds.push(player2.user.id);
+
+    await query(
+      'INSERT INTO round_players (round_id, user_id, is_guest) VALUES ($1, $2, false)',
+      [round.id, player2.user.id],
+    );
+
+    // Get player IDs for participants
+    const players = await query(
+      'SELECT id FROM round_players WHERE round_id = $1',
+      [round.id],
+    );
+
+    const betData = {
+      name: chance.sentence({ words: 3 }),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+      participants: players.rows.map((p) => p.id), // Valid participants
     };
 
     // Mock a database error by attempting to create with very long name that exceeds DB limit

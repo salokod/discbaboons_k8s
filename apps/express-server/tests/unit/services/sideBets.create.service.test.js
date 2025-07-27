@@ -112,19 +112,78 @@ describe('sideBetsCreateService', () => {
     await expect(sideBetsCreateService(betData, roundId, userId)).rejects.toThrow('Bet amount must be positive');
   });
 
-  it('should create a hole bet with valid data', async () => {
+  it('should require participants array', async () => {
     const roundId = chance.guid();
     const userId = chance.integer({ min: 1, max: 1000 });
     const playerId = chance.guid();
     const betData = {
       name: chance.word(),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+    };
+
+    // Mock finding the player (user is participant)
+    queryOne.mockResolvedValueOnce({ id: playerId });
+
+    await expect(sideBetsCreateService(betData, roundId, userId)).rejects.toThrow('Participants array is required');
+  });
+
+  it('should require non-empty participants array', async () => {
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+    const betData = {
+      name: chance.word(),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+      participants: [],
+    };
+
+    // Mock finding the player (user is participant)
+    queryOne.mockResolvedValueOnce({ id: playerId });
+
+    await expect(sideBetsCreateService(betData, roundId, userId)).rejects.toThrow('Participants array is required');
+  });
+
+  it('should require at least 2 participants', async () => {
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+    const betData = {
+      name: chance.word(),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+      participants: [playerId], // Only 1 participant
+    };
+
+    // Mock finding the player (user is participant)
+    queryOne.mockResolvedValueOnce({ id: playerId });
+
+    await expect(sideBetsCreateService(betData, roundId, userId)).rejects.toThrow('At least 2 participants are required for a bet');
+  });
+
+  it('should create a hole bet with valid data', async () => {
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+    const otherPlayerId = chance.guid();
+    const betData = {
+      name: chance.word(),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'hole',
       holeNumber: chance.integer({ min: 1, max: 18 }),
+      participants: [playerId, otherPlayerId], // At least 2 participants
     };
 
     // Mock finding the player
     queryOne.mockResolvedValueOnce({ id: playerId });
+
+    // Mock participant validation
+    const { queryRows } = await import('../../../lib/database.js');
+    queryRows.mockResolvedValueOnce([
+      { id: playerId },
+      { id: otherPlayerId },
+    ]);
 
     // Mock bet creation
     const mockBet = {
@@ -140,7 +199,8 @@ describe('sideBetsCreateService', () => {
     // Mock transaction calls
     mockClient.query.mockResolvedValueOnce(undefined); // BEGIN
     mockClient.query.mockResolvedValueOnce({ rows: [mockBet] }); // INSERT bet
-    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 1
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 2
     mockClient.query.mockResolvedValueOnce(undefined); // COMMIT
 
     const result = await sideBetsCreateService(betData, roundId, userId);
@@ -152,14 +212,23 @@ describe('sideBetsCreateService', () => {
     const roundId = chance.guid();
     const userId = chance.integer({ min: 1, max: 1000 });
     const playerId = chance.guid();
+    const otherPlayerId = chance.guid();
     const betData = {
       name: chance.word(),
       amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
       betType: 'round',
+      participants: [playerId, otherPlayerId], // At least 2 participants
     };
 
     // Mock finding the player
     queryOne.mockResolvedValueOnce({ id: playerId });
+
+    // Mock participant validation
+    const { queryRows } = await import('../../../lib/database.js');
+    queryRows.mockResolvedValueOnce([
+      { id: playerId },
+      { id: otherPlayerId },
+    ]);
 
     // Mock bet creation
     const mockBet = {
@@ -175,11 +244,87 @@ describe('sideBetsCreateService', () => {
     // Mock transaction calls
     mockClient.query.mockResolvedValueOnce(undefined); // BEGIN
     mockClient.query.mockResolvedValueOnce({ rows: [mockBet] }); // INSERT bet
-    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 1
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 2
     mockClient.query.mockResolvedValueOnce(undefined); // COMMIT
 
     const result = await sideBetsCreateService(betData, roundId, userId);
 
     expect(result).toEqual(mockBet);
+  });
+
+  it('should create bet with specified participants', async () => {
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+    const otherPlayerId1 = chance.guid();
+    const otherPlayerId2 = chance.guid();
+
+    const betData = {
+      name: chance.word(),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+      participants: [playerId, otherPlayerId1, otherPlayerId2], // Include creator + others
+    };
+
+    // Mock finding the creator player
+    queryOne.mockResolvedValueOnce({ id: playerId });
+
+    // Mock participant validation - all 3 participants are valid
+    const { queryRows } = await import('../../../lib/database.js');
+    queryRows.mockResolvedValueOnce([
+      { id: playerId },
+      { id: otherPlayerId1 },
+      { id: otherPlayerId2 },
+    ]);
+
+    // Mock bet creation
+    const mockBet = {
+      id: chance.guid(),
+      round_id: roundId,
+      name: betData.name,
+      amount: betData.amount,
+      bet_type: betData.betType,
+      hole_number: null,
+      created_by_id: playerId,
+    };
+
+    // Mock transaction calls
+    mockClient.query.mockResolvedValueOnce(undefined); // BEGIN
+    mockClient.query.mockResolvedValueOnce({ rows: [mockBet] }); // INSERT bet
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 1
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 2
+    mockClient.query.mockResolvedValueOnce(undefined); // INSERT participant 3
+    mockClient.query.mockResolvedValueOnce(undefined); // COMMIT
+
+    const result = await sideBetsCreateService(betData, roundId, userId);
+
+    expect(result).toEqual(mockBet);
+    // BEGIN + INSERT bet + 3 participants + COMMIT
+    expect(mockClient.query).toHaveBeenCalledTimes(6);
+  });
+
+  it('should validate all participants are in the round', async () => {
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+    const invalidPlayerId = chance.guid();
+
+    const betData = {
+      name: chance.word(),
+      amount: chance.floating({ min: 0.01, max: 100, fixed: 2 }),
+      betType: 'round',
+      participants: [playerId, invalidPlayerId],
+    };
+
+    // Mock finding the creator player (success)
+    queryOne.mockResolvedValueOnce({ id: playerId });
+
+    // Mock participant validation - only 1 valid participant (not 2)
+    const { queryRows } = await import('../../../lib/database.js');
+    queryRows.mockResolvedValueOnce([{ id: playerId }]); // Only creator found, not invalidPlayerId
+
+    await expect(sideBetsCreateService(betData, roundId, userId))
+      .rejects.toThrow('All participants must be players in this round');
   });
 });
