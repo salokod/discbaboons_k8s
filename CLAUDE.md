@@ -2,7 +2,7 @@
 
 ## Development Workflow
 - **Always use TDD (Test-Driven Development)**: Write tests first, then implement
-- **Test Data**: Always use Chance.js for generating test data instead of hardcoding values
+- **Test Data**: Follow Martin Fowler's Testing Pyramid principles for data generation
 - **Error Handling**: Always use the existing `errorHandler` middleware for consistent error responses
 
 ## TDD Methodology (Claude + Human Pair Programming)
@@ -14,12 +14,31 @@
 - **Security-first approach**: Always validate user ownership/permissions in the same database query
 - **Edge cases as separate slices**: Test happy path first, then add edge cases one by one
 
-## Testing Standards
+## Testing Standards - Martin Fowler's Testing Pyramid
 - Use Vitest for all tests
-- Integration tests should use `supertest` with the app instance
+- Integration tests should use `supertest` with the app instance  
 - Test files should follow the pattern: `*.integration.test.js` or `*.test.js`
 - Always clean up test data in `beforeEach` and `afterEach` hooks
-- Use unique test identifiers (like `testbc` for bag create tests) to avoid conflicts
+
+### Integration Test Principles (Martin Fowler)
+- **Focus on integration concerns**: Middleware, database persistence, JOINs, FK constraints, transactions
+- **Use hardcoded values**: Predictable, deterministic test scenarios (NOT Chance.js for business logic)
+- **Direct DB setup**: Use test helpers instead of API call chains for speed
+- **Parallel safety**: Unique IDs with global counter to prevent race conditions
+- **Sequential cleanup**: Respect FK constraint order to prevent violations
+
+### When to Use Chance.js vs Hardcoded Values
+- **Chance.js for**: Unique identifiers (usernames, emails, IDs), test data setup, non-business values
+- **Hardcoded for**: Business logic values (scores, prices, calculations), expected test scenarios, assertions
+
+### What NOT to Test in Integration Tests
+- Validation scenarios (unit test concern)
+- Missing fields (unit test concern)  
+- Invalid formats (unit test concern)
+- Business logic edge cases (unit test concern)
+
+### Test Data Guidelines
+- Use unique test identifiers to avoid conflicts between parallel tests
 - **IMPORTANT: Error response format is `{ success: false, message: "..." }` NOT `{ error: "..." }`**
 - **IMPORTANT: Pagination must always include metadata: `{ items: [...], total: N, limit: N, offset: N, hasMore: boolean }`**
 

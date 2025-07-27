@@ -714,14 +714,27 @@ model users {
     - ✅ **Testing**: Added comprehensive integration test for hole-5 start scenario
   - [ ] **Retroactive Recalculation**: Full recalc when any score changes - **Future enhancement**
   - [ ] Track skins history for audit trail - **Future enhancement**
-- [ ] **Skins Money Tracking** - **Planned Enhancement**
-  - [ ] Calculate net gain/loss per player across all participants
-  - [ ] **Formula**: `netGain = totalValueWon - (totalSkinsInRound * skinsValuePerHole)`
-  - [ ] **Example**: Win all 9 skins at $1/hole with 2 opponents = +$18 (you get $9 from each)
-  - [ ] **Example**: Lose all skins in 3-player game = -$9 (pay $1/hole to winner)
-  - [ ] Add `netGain` field to playerSummary in skins API response
-  - [ ] Include total pot contribution and winnings breakdown
-  - [ ] Update API documentation with money tracking examples
+- ✅ **Skins Money Tracking (+/- per player)** ✅ **COMPLETED**
+  - ✅ **Simple Money Flow Implementation**: Replaced complex netGain with intuitive moneyIn/moneyOut tracking
+  - ✅ **Running Tally System**: Players can see real-time +/- throughout the round
+  - ✅ **Dynamic Player Scaling**: Calculations work correctly for any number of players (not hardcoded)
+  - ✅ **Money Flow Fields**:
+    - ✅ `moneyIn` - Money received from winning skins
+    - ✅ `moneyOut` - Money paid when losing holes (negative values)
+    - ✅ `total` - Net running balance (moneyIn + moneyOut)
+  - ✅ **Example Scenarios Implemented**:
+    - ✅ 3 players, $1 skins: Winner gets +$2, losers each get -$1
+    - ✅ 6 players, $1 skins: Winner gets +$5, losers each get -$1
+    - ✅ Carry-over holes: Winner gets base amount + accumulated carry-over
+  - ✅ **Implementation Complete**:
+    - ✅ Updated `skins.calculate.service.js` with dynamic player-based calculations
+    - ✅ Removed complex netGain calculation in favor of simple money tracking
+    - ✅ Fixed dynamic calculation to scale with actual player count
+    - ✅ Updated all unit tests to expect new money flow fields
+    - ✅ Updated integration tests for dynamic calculations
+    - ✅ Updated `GET /api/rounds/:id/skins` API response format
+    - ✅ Updated `GET /api/rounds/:id/leaderboard` to include skins money flow
+    - ✅ Updated API documentation with new money tracking examples
 - [ ] **Skins State Management** - **Future enhancement (caching optimization)**
   - [ ] Create `skins_results` table to store calculated results
   - [ ] Store hole-by-hole winners and carry-over amounts
@@ -764,15 +777,18 @@ model users {
 - Comprehensive error handling and validation
 - Real-time calculation (no caching needed for MVP)
 
-**Planned Money Tracking Enhancement:**
-- **Net Gain/Loss Calculation**: Track how much each player is up/down
-- **Multi-Player Math**: Winner gets skins value × number of other players
-- **Example Scenarios**:
-  - 2 players, $1/hole: Winner gets $1, loser pays $1 (net: +$1/-$1)
-  - 3 players, $1/hole: Winner gets $2, losers each pay $1 (net: +$2/-$1/-$1)
-  - 4 players, $5/hole: Winner gets $15, losers each pay $5 (net: +$15/-$5/-$5/-$5)
+**✅ Money Tracking Implementation COMPLETED:**
+- ✅ **Simple Money Flow System**: Replaced complex netGain with moneyIn/moneyOut/total fields
+- ✅ **Dynamic Multi-Player Math**: Calculations scale correctly for any number of players
+- ✅ **Implemented Scenarios**:
+  - 2 players, $1/hole: Winner gets +$1, loser gets -$1 (total: +$1/-$1)
+  - 3 players, $1/hole: Winner gets +$2, losers each get -$1 (total: +$2/-$1/-$1)
+  - 6 players, $5/hole: Winner gets +$25, losers each get -$5 (total: +$25/-$5/-$5/-$5/-$5/-$5)
+- ✅ **Real-time Updates**: Integrated into both skins endpoint and leaderboard
+- ✅ **Testing**: Full unit and integration test coverage with dynamic player scenarios
 
 #### Step 4.2: Side Bets **🎯 CREATE ENDPOINT COMPLETED**
+**✅ PREREQUISITE COMPLETE**: Skins Money Tracking (Step 4.1) implementation finished - ready to proceed with side bets list feature
 - ✅ Create side bets migrations (V24-V25)
   - ✅ Run V24__create_side_bets_table.sql migration
   - ✅ Run V25__create_side_bet_participants_table.sql migration
