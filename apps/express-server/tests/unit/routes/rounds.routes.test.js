@@ -22,6 +22,7 @@ let submitScoresController;
 let getScoresController;
 let getLeaderboardController;
 let sideBetsCreateController;
+let sideBetsListController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -80,6 +81,10 @@ beforeAll(async () => {
 
   sideBetsCreateController = vi.fn((req, res) => {
     res.status(201).json({ message: 'side bet create controller called' });
+  });
+
+  sideBetsListController = vi.fn((req, res) => {
+    res.json({ message: 'side bet list controller called' });
   });
 
   // Mock the auth middleware
@@ -144,6 +149,10 @@ beforeAll(async () => {
     default: sideBetsCreateController,
   }));
 
+  vi.doMock('../../../controllers/sideBets.list.controller.js', () => ({
+    default: sideBetsListController,
+  }));
+
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
     default: authenticateToken,
   }));
@@ -203,6 +212,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/sideBets.list.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -224,6 +237,7 @@ describe('rounds routes', () => {
     getScoresController.mockClear();
     getLeaderboardController.mockClear();
     sideBetsCreateController.mockClear();
+    sideBetsListController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -812,6 +826,26 @@ describe('rounds routes', () => {
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
     expect(req.body).toEqual(betData);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('GET /api/rounds/:id/side-bets should require authentication and call sideBetsList controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .get(`/api/rounds/${roundId}/side-bets`)
+      .expect(200);
+
+    expect(sideBetsListController).toHaveBeenCalled();
+    const lastCall = sideBetsListController.mock.calls[
+      sideBetsListController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
     expect(req.user).toEqual({ userId: 1 });
   });
 });

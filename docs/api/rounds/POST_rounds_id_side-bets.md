@@ -29,7 +29,8 @@ Content-Type: application/json
   "amount": "number (required)",
   "betType": "\"hole\" | \"round\" (required)",
   "description": "string (optional)",
-  "holeNumber": "integer (required for hole bets, forbidden for round bets)"
+  "holeNumber": "integer (required for hole bets, forbidden for round bets)",
+  "participants": "array of player UUIDs (required)"
 }
 ```
 
@@ -39,6 +40,7 @@ Content-Type: application/json
 - **betType** (required): Type of bet, must be either "hole" or "round"
 - **description** (optional): Additional details about the bet
 - **holeNumber** (conditional): Required for "hole" bets, must be omitted for "round" bets (1-50)
+- **participants** (required): Array of round_players.id UUIDs to include in the bet. Must contain at least 2 participants (bets cannot be made with yourself). All participants must be valid round players.
 
 ## Response
 
@@ -119,6 +121,27 @@ Content-Type: application/json
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "All participants must be players in this round"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Participants array is required"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "At least 2 participants are required for a bet"
+}
+```
+
 #### 401 Unauthorized
 ```json
 {
@@ -130,14 +153,18 @@ Content-Type: application/json
 
 ### Side Bet Creation
 - **Participant Only**: Only round participants can create side bets
-- **Auto-Join Creator**: The bet creator is automatically added as a participant
+- **Required Participants**: `participants` array is required - specify all players who will be in the bet
+- **Creator Inclusion**: Creator should be included in the `participants` array (not added automatically)
+- **Atomic Creation**: Bet and all participants are added in a single database transaction
 - **Multiple Bets**: Multiple bets of the same type are allowed
 - **Bet Types**: Must be either "hole" (resolved during/after specific hole) or "round" (resolved at end of round)
 - **Hole Validation**: "hole" bets require holeNumber, "round" bets must not include holeNumber
 
 ### Bet Participation
-- **Open Joining**: Any round participant can join existing bets
-- **No Leaving**: Players cannot leave bets once joined
+- **Creation-Time Only**: All participants must be specified when creating the bet
+- **Participant Validation**: All participant UUIDs must be valid round_players.id values
+- **No Joining After Creation**: Players cannot join bets after creation (no separate join endpoint)
+- **Editing Participants**: Participant list can be modified via PUT endpoint (future feature)
 - **Persistent**: Bets persist even if player is removed from round
 
 ### Financial Tracking
@@ -188,12 +215,40 @@ curl -X POST "https://api.discbaboons.com/api/rounds/660f9500-f39c-51e5-b827-557
   }'
 ```
 
+### Bet with Specific Participants
+```bash
+curl -X POST "https://api.discbaboons.com/api/rounds/660f9500-f39c-51e5-b827-557766551111/side-bets" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Ace Pool",
+    "amount": 20.00,
+    "betType": "round",
+    "description": "First ace of the round",
+    "participants": [
+      "770a0600-a40d-62f6-c938-668877662222",
+      "880b1700-b51e-73g7-d049-779988773333", 
+      "990c2800-c62f-84h8-e15a-88aa99884444"
+    ]
+  }'
+```
+
 ## Implementation Notes
 
 - Bet creator is automatically determined from authenticated user
-- Creator is auto-joined as participant in the bet
+- **Participants Logic**: `participants` array is required and all specified players are added to the bet
+- **Atomic Operations**: Bet creation and participant additions happen in a single database transaction
+- **Validation**: All participant UUIDs validated against round_players table before bet creation
+- **Error Handling**: If any participant is invalid, entire operation is rolled back
 - All monetary amounts stored as DECIMAL(10,2) for precision
 - Bet types are restricted to "hole" or "round" with corresponding validation rules
 - Hole numbers validated against reasonable range (1-50) but not against specific course
-- Transaction used to ensure atomic bet creation and participant addition
 - Created timestamp set to current time
+
+## Getting Player UUIDs
+
+To use the `participants` array, you need the round_players.id UUIDs (not user.id). Get these from:
+- `GET /api/rounds/:id/players` - Returns all players with their round_players.id values
+- `GET /api/rounds/:id` - Includes players array in the round details response
+
+**Important**: Use `round_players.id` (the UUID), not `user_id` (the integer) in the participants array.

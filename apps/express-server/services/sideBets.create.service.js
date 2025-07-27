@@ -1,4 +1,4 @@
-import pool, { queryOne } from '../lib/database.js';
+import pool, { queryOne, queryRows } from '../lib/database.js';
 
 const sideBetsCreateService = async (betData, roundId, userId) => {
   if (!betData) {
@@ -77,7 +77,37 @@ const sideBetsCreateService = async (betData, roundId, userId) => {
     throw error;
   }
 
-  // Create the side bet and auto-join the creator
+  // Validate participants are provided
+  const { participants } = betData;
+
+  if (!participants || participants.length === 0) {
+    const error = new Error('Participants array is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (participants.length < 2) {
+    const error = new Error('At least 2 participants are required for a bet');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate all participant IDs are valid round players
+  const participantQuery = `
+    SELECT id FROM round_players
+    WHERE round_id = $1 AND id = ANY($2)
+  `;
+  const validParticipants = await queryRows(participantQuery, [roundId, participants]);
+
+  if (validParticipants.length !== participants.length) {
+    const error = new Error('All participants must be players in this round');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  const participantIds = participants;
+
+  // Create the side bet and add all participants
   const client = await pool.connect();
 
   try {
@@ -101,12 +131,20 @@ const sideBetsCreateService = async (betData, roundId, userId) => {
       player.id,
     ]);
 
-    // Auto-join the creator as a participant
+    // Add all participants to the bet
     const joinBetQuery = `
       INSERT INTO side_bet_participants (side_bet_id, player_id)
       VALUES ($1, $2)
     `;
-    await client.query(joinBetQuery, [betResult.rows[0].id, player.id]);
+
+    // Use Promise.all to avoid await in loop
+    await Promise.all(
+      participantIds.map((participantId) => client.query(
+        joinBetQuery,
+        [betResult.rows[0].id,
+          participantId],
+      )),
+    );
 
     await client.query('COMMIT');
 

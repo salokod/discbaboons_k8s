@@ -786,8 +786,13 @@ model users {
   - 6 players, $5/hole: Winner gets +$25, losers each get -$5 (total: +$25/-$5/-$5/-$5/-$5/-$5)
 - ✅ **Real-time Updates**: Integrated into both skins endpoint and leaderboard
 - ✅ **Testing**: Full unit and integration test coverage with dynamic player scenarios
+- ✅ **CRITICAL BUG FIX (2024)**: Fixed money balance calculation 
+  - **Issue**: Player totals didn't balance to zero, money was "created" or "lost"
+  - **Root Cause**: Incorrect tied hole logic (players paid money on ties) and carry-over calculations
+  - **Solution**: Fixed tied holes (no payments), correct carry-over math (losers pay for all skins)
+  - **Result**: Mathematical balance guaranteed - sum of all player totals = $0
 
-#### Step 4.2: Side Bets **🎯 CREATE ENDPOINT COMPLETED**
+do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
 **✅ PREREQUISITE COMPLETE**: Skins Money Tracking (Step 4.1) implementation finished - ready to proceed with side bets list feature
 - ✅ Create side bets migrations (V24-V25)
   - ✅ Run V24__create_side_bets_table.sql migration
@@ -796,48 +801,53 @@ model users {
   - [ ] Update Prisma schema with side_bets and side_bet_participants models
 
 - ✅ **CREATE Side Bet Feature** ✅ **COMPLETED**
-  - ✅ `POST /api/rounds/:id/side-bets` - Create side bet
+  - ✅ `POST /api/rounds/:id/side-bets` - Create side bet **WITH REQUIRED PARTICIPANTS**
     - ✅ **Permissions**: Any round participant can create
-    - ✅ **Auto-join**: Creator automatically joins the bet
+    - ✅ **Required Participants**: `participants` array is required - specify all players in the bet
+    - ✅ **Creator Inclusion**: Creator must be included in participants array (not auto-added)
     - ✅ **Bet Types**: Restricted to "hole" (requires holeNumber) or "round" (no holeNumber)
     - ✅ **Multiple Bets**: Allow multiple bets of same type on same/different holes
-    - ✅ **Request Format**: `{ name, description?, amount, betType, holeNumber? }`
-    - ✅ **Validation**: Round exists, user is participant, amount > 0, betType "hole"|"round", holeNumber validation
-    - ✅ **Database**: Transaction-based creation with auto-join of creator as participant
+    - ✅ **Request Format**: `{ name, description?, amount, betType, holeNumber?, participants (required) }`
+    - ✅ **Validation**: Round exists, user is participant, amount > 0, betType "hole"|"round", all participants valid
+    - ✅ **Database**: Transaction-based creation with all specified participants added
     - ✅ **Cancellation Support**: Added cancelled_at and cancelled_by_id fields for future cancellation
     - ✅ **Winner Tracking**: Added won_at and declared_by_id fields to participants table
-    - ✅ Service: `sideBets.create.service.js` - Full TDD implementation
+    - ✅ Service: `sideBets.create.service.js` - Full TDD implementation with participants validation
     - ✅ Controller: `sideBets.create.controller.js` - Full TDD implementation
     - ✅ Routes: Added to `rounds.routes.js` with authentication middleware
-    - ✅ Unit tests: Service, controller, and route testing complete
-    - ✅ Integration tests: Full request/response testing with database operations
-    - ✅ API documentation: `/docs/api/rounds/POST_rounds_id_side-bets.md`
+    - ✅ Unit tests: Service, controller, and route testing complete (including participants validation)
+    - ✅ Integration tests: Full request/response testing with database operations and participants
+    - ✅ API documentation: `/docs/api/rounds/POST_rounds_id_side-bets.md` - Updated for required participants
     - ✅ **Ready for local testing**
 
-  - [ ] `GET /api/rounds/:id/side-bets` - List all side bets for round
-    - [ ] **Response**: Array of bets with participant count, winner info, financial summary
-    - [ ] **Include**: Creator info, participants count, total pot, winner details
-    - [ ] **Permissions**: Only round participants can view
-    - [ ] Service: `sideBets.list.service.js`
-    - [ ] Controller: `sideBets.list.controller.js`
-    - [ ] Full TDD implementation
+- 🚧 **LIST Side Bet Feature** **IN PROGRESS**
+  - ✅ `GET /api/rounds/:id/side-bets` - List all side bets for round **CORE IMPLEMENTATION**
+    - ✅ **Service**: `sideBets.list.service.js` - TDD implementation with validation and authorization
+    - ✅ **Controller**: `sideBets.list.controller.js` - Error handling controller following established patterns
+    - ✅ **Routes**: Added GET route to `rounds.routes.js` with authentication middleware
+    - ✅ **Unit Tests**: Service, controller, and route testing complete
+    - ✅ **Database Logic**: Fetches side bets from database with proper SQL queries
+    - ✅ **Data Formatting**: Converts snake_case DB fields to camelCase API response
+    - ✅ **Authentication**: Requires authentication, participant-only access validation
+    - ✅ **API Documentation**: `/docs/api/rounds/GET_rounds_id_side-bets.md`
+    - [ ] **Player Summary**: Implementation of moneyIn/moneyOut calculation for each player
+    - [ ] **Integration Tests**: Full request/response testing with database operations
+    - **Next Step**: Implement player money summary calculation (similar to skins money tracking)
 
-  - [ ] `POST /api/rounds/:id/side-bets/:betId/join` - Join existing bet
-    - [ ] **Validation**: Bet exists, user is round participant, not already joined
-    - [ ] **No Leaving**: Once joined, cannot leave (immutable)
-    - [ ] **Response**: Updated bet with new participant
-    - [ ] Service: `sideBets.join.service.js`
-    - [ ] Controller: `sideBets.join.controller.js`
-    - [ ] Full TDD implementation
+  - ❌ **REMOVED**: `POST /api/rounds/:id/side-bets/:betId/join` - Join existing bet
+    - **Decision**: No separate join endpoint - all participants specified at creation time
+    - **Reason**: Cleaner UX - specify everyone when creating the bet
 
-  - [ ] `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare/update winner
-    - [ ] **Permissions**: Any round participant can declare/change winner
+  - [ ] `PUT /api/rounds/:id/side-bets/:betId` - Edit side bet (participants and/or winner)
+    - [ ] **Participants Editing**: Modify who's in the bet after creation
+    - [ ] **Winner Declaration**: Declare/update winner of the bet
+    - [ ] **Permissions**: Any round participant can edit participants or declare winner
     - [ ] **Multiple Winners**: Single winner only (no splitting pots)
     - [ ] **Mistakes**: Allow re-declaration (change winner after initial declaration)
-    - [ ] **Request Format**: `{ winnerId }` or `{ cancelled: true }`
-    - [ ] **Validation**: Winner must be bet participant
-    - [ ] Service: `sideBets.declareWinner.service.js`
-    - [ ] Controller: `sideBets.declareWinner.controller.js`
+    - [ ] **Request Format**: `{ participants?: [...], winnerId?: uuid, cancelled?: boolean }`
+    - [ ] **Validation**: All participants and winner must be bet participants
+    - [ ] Service: `sideBets.edit.service.js`
+    - [ ] Controller: `sideBets.edit.controller.js`
     - [ ] Full TDD implementation
 
   - [ ] `GET /api/rounds/:id/side-bets/:betId` - Get bet details
