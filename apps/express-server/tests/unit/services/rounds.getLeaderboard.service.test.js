@@ -152,6 +152,9 @@ describe('rounds.getLeaderboard.service.js', () => {
           holesCompleted: 1,
           currentHole: 2, // Next hole to play
           skinsWon: 0, // Placeholder
+          moneyIn: 0,
+          moneyOut: 0,
+          total: 0,
         },
         {
           playerId: playerId1,
@@ -165,6 +168,9 @@ describe('rounds.getLeaderboard.service.js', () => {
           holesCompleted: 2,
           currentHole: 3, // Next hole to play
           skinsWon: 0, // Placeholder
+          moneyIn: 0,
+          moneyOut: 0,
+          total: 0,
         },
       ],
       roundSettings: {
@@ -198,10 +204,16 @@ describe('rounds.getLeaderboard.service.js', () => {
         [playerId1]: {
           skinsWon: player1SkinsWon,
           totalValue: (parseFloat(skinsValue) * player1SkinsWon).toFixed(2),
+          moneyIn: parseFloat(skinsValue) * player1SkinsWon,
+          moneyOut: -5,
+          total: (parseFloat(skinsValue) * player1SkinsWon) - 5,
         },
         [playerId2]: {
           skinsWon: player2SkinsWon,
           totalValue: (parseFloat(skinsValue) * player2SkinsWon).toFixed(2),
+          moneyIn: parseFloat(skinsValue) * player2SkinsWon,
+          moneyOut: 2.5,
+          total: (parseFloat(skinsValue) * player2SkinsWon) + 2.5,
         },
       },
       totalCarryOver: carryOver,
@@ -247,6 +259,14 @@ describe('rounds.getLeaderboard.service.js', () => {
     expect(result.players[0].skinsWon).toBe(player1SkinsWon);
     expect(result.players[1].skinsWon).toBe(player2SkinsWon);
 
+    // Verify money flow is included in player objects
+    expect(result.players[0].moneyIn).toBe(parseFloat(skinsValue) * player1SkinsWon);
+    expect(result.players[0].moneyOut).toBe(-5);
+    expect(result.players[0].total).toBe((parseFloat(skinsValue) * player1SkinsWon) - 5);
+    expect(result.players[1].moneyIn).toBe(parseFloat(skinsValue) * player2SkinsWon);
+    expect(result.players[1].moneyOut).toBe(2.5);
+    expect(result.players[1].total).toBe((parseFloat(skinsValue) * player2SkinsWon) + 2.5);
+
     // Verify round settings include real carry-over
     expect(result.roundSettings.currentCarryOver).toBe(carryOver);
   });
@@ -268,8 +288,20 @@ describe('rounds.getLeaderboard.service.js', () => {
       skinsEnabled: true,
       skinsValue,
       playerSummary: {
-        [playerId1]: { skinsWon: 2, totalValue: (parseFloat(skinsValue) * 2).toFixed(2) },
-        [playerId2]: { skinsWon: 1, totalValue: skinsValue },
+        [playerId1]: {
+          skinsWon: 2,
+          totalValue: (parseFloat(skinsValue) * 2).toFixed(2),
+          moneyIn: parseFloat(skinsValue) * 2,
+          moneyOut: 0,
+          total: parseFloat(skinsValue) * 2,
+        },
+        [playerId2]: {
+          skinsWon: 1,
+          totalValue: skinsValue,
+          moneyIn: parseFloat(skinsValue),
+          moneyOut: -2.5,
+          total: parseFloat(skinsValue) - 2.5,
+        },
       },
       totalCarryOver: 0,
     };
@@ -444,6 +476,9 @@ describe('rounds.getLeaderboard.service.js', () => {
       holesCompleted: holeCount,
       currentHole: holeCount, // Should cap at holeCount, not exceed it
       skinsWon: 0,
+      moneyIn: 0,
+      moneyOut: 0,
+      total: 0,
     });
   });
 });

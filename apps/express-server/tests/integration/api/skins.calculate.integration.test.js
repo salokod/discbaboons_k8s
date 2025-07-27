@@ -208,6 +208,58 @@ describe('GET /api/rounds/:id/skins - Integration', () => {
       playerSummary: expect.any(Object),
       totalCarryOver: expect.any(Number),
     });
+
+    // Verify that moneyIn, moneyOut, and total exist in playerSummary for both players
+    expect(response.body.playerSummary[testPlayer1.id]).toHaveProperty('moneyIn');
+    expect(response.body.playerSummary[testPlayer1.id]).toHaveProperty('moneyOut');
+    expect(response.body.playerSummary[testPlayer1.id]).toHaveProperty('total');
+    expect(response.body.playerSummary[testPlayer2.id]).toHaveProperty('moneyIn');
+    expect(response.body.playerSummary[testPlayer2.id]).toHaveProperty('moneyOut');
+    expect(response.body.playerSummary[testPlayer2.id]).toHaveProperty('total');
+
+    // With no scores, all values should be 0 (no money exchanged)
+    expect(response.body.playerSummary[testPlayer1.id].moneyIn).toBe(0);
+    expect(response.body.playerSummary[testPlayer1.id].moneyOut).toBe(0);
+    expect(response.body.playerSummary[testPlayer1.id].total).toBe(0);
+    expect(response.body.playerSummary[testPlayer2.id].moneyIn).toBe(0);
+    expect(response.body.playerSummary[testPlayer2.id].moneyOut).toBe(0);
+    expect(response.body.playerSummary[testPlayer2.id].total).toBe(0);
+  });
+
+  // GOOD: Integration concern - money flow calculation with actual scores
+  test('should calculate money flow correctly with scores from database', async () => {
+    // Set up scores: Player 1 wins hole 1, Player 2 wins hole 2
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer1.id, 1, 3], // Hole 1: Player 1 wins
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer2.id, 1, 4], // Hole 1: Player 2 loses
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer1.id, 2, 4], // Hole 2: Player 1 loses
+    );
+    await query(
+      'INSERT INTO scores (round_id, player_id, hole_number, strokes) VALUES ($1, $2, $3, $4)',
+      [round.id, testPlayer2.id, 2, 3], // Hole 2: Player 2 wins
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/skins`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    // Verify money flow calculation
+    // Player 1: Won $5 on hole 1 (moneyIn), paid $5 on hole 2 (moneyOut)
+    expect(response.body.playerSummary[testPlayer1.id].moneyIn).toBe(5);
+    expect(response.body.playerSummary[testPlayer1.id].moneyOut).toBe(-5);
+    expect(response.body.playerSummary[testPlayer1.id].total).toBe(0);
+    // Player 2: Won $5 on hole 2 (moneyIn), paid $5 on hole 1 (moneyOut)
+    expect(response.body.playerSummary[testPlayer2.id].moneyIn).toBe(5);
+    expect(response.body.playerSummary[testPlayer2.id].moneyOut).toBe(-5);
+    expect(response.body.playerSummary[testPlayer2.id].total).toBe(0);
   });
 
   // Note: We do NOT test these validation scenarios in integration tests:

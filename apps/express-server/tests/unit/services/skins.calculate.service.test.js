@@ -186,8 +186,20 @@ describe('skins.calculate.service.js', () => {
         },
       },
       playerSummary: {
-        [player1Id]: { skinsWon: 1, totalValue: formattedSkinsValue },
-        [player2Id]: { skinsWon: 1, totalValue: formattedSkinsValue },
+        [player1Id]: {
+          skinsWon: 1,
+          totalValue: formattedSkinsValue,
+          moneyIn: parseFloat(skinsValue), // Won from 1 other player
+          moneyOut: -parseFloat(skinsValue), // Paid to other player
+          total: 0, // Won $X, paid $X = $0
+        },
+        [player2Id]: {
+          skinsWon: 1,
+          totalValue: formattedSkinsValue,
+          moneyIn: parseFloat(skinsValue), // Won from 1 other player
+          moneyOut: -parseFloat(skinsValue), // Paid to other player
+          total: 0, // Won $X, paid $X = $0
+        },
       },
       totalCarryOver: 0,
     });
@@ -262,7 +274,12 @@ describe('skins.calculate.service.js', () => {
     const result = await skinsCalculateService(roundId, userId);
 
     const baseSkinsValue = parseFloat(skinsValue);
-    const carryOverValue = baseSkinsValue * 2;
+    const numberOfPlayers = mockPlayers.length; // 2 players in this test
+    const otherPlayers = numberOfPlayers - 1; // 1 other player
+    // When winning with 1 carry-over: get money from other players + carry-over money
+    const moneyFromCurrentHole = baseSkinsValue * otherPlayers; // $X from 1 other player
+    const carryOverMoney = 1 * baseSkinsValue * otherPlayers; // 1 carry-over * $X * 1 other player
+    const carryOverValue = moneyFromCurrentHole + carryOverMoney;
 
     const formattedBaseSkinsValue = parseFloat(skinsValue).toFixed(2);
 
@@ -299,8 +316,20 @@ describe('skins.calculate.service.js', () => {
         },
       },
       playerSummary: {
-        [player1Id]: { skinsWon: 2, totalValue: carryOverValue.toFixed(2) },
-        [player2Id]: { skinsWon: 2, totalValue: carryOverValue.toFixed(2) },
+        [player1Id]: {
+          skinsWon: 2,
+          totalValue: carryOverValue.toFixed(2),
+          moneyIn: carryOverValue, // Won 2 skins from other player on hole 4 (1 + 1 carry-over)
+          moneyOut: -baseSkinsValue, // Paid baseSkinsValue when losing hole 2
+          total: carryOverValue - baseSkinsValue, // moneyIn + moneyOut
+        },
+        [player2Id]: {
+          skinsWon: 2,
+          totalValue: carryOverValue.toFixed(2),
+          moneyIn: carryOverValue, // Won 2 skins from other player on hole 2 (1 + 1 carry-over)
+          moneyOut: -baseSkinsValue, // Paid baseSkinsValue when losing hole 4
+          total: carryOverValue - baseSkinsValue, // moneyIn + moneyOut
+        },
       },
       totalCarryOver: 0,
     });
@@ -730,9 +759,13 @@ describe('skins.calculate.service.js', () => {
       carriedOver: 0,
     });
 
-    // player1 should have 1 skin, player2 should have 0
-    expect(result.playerSummary.player1.skinsWon).toBe(1);
+    // player1 should have 9 skins (1 direct win + 8 carry-overs), player2 should have 0
+    // All carry-overs go to player1 since they're the only winner at end of round
+    expect(result.playerSummary.player1.skinsWon).toBe(9);
     expect(result.playerSummary.player2.skinsWon).toBe(0);
+
+    // All carry-overs should be distributed at end of round
+    expect(result.totalCarryOver).toBe(0);
   });
 
   test('should handle carry-over correctly for round starting on hole 5 with ties and wins', async () => {
@@ -894,18 +927,182 @@ describe('skins.calculate.service.js', () => {
     expect(result.playerSummary[player1Id]).toEqual({
       skinsWon: 0,
       totalValue: '0.00',
+      moneyIn: 0, // Won nothing
+      moneyOut: 0, // Paid nothing (didn't play any holes)
+      total: 0, // $0
     });
 
     expect(result.playerSummary[player2Id]).toEqual({
       skinsWon: 6, // 2 from hole 8 + 4 from hole 3
       totalValue: '30.00', // 10.00 + 20.00
+      moneyIn: 40, // Won $10 on hole 8 + $20 on hole 3 (with carries) + $10 from carry distribution
+      moneyOut: -10, // Paid $5 on hole 5 + $5 on hole 6 (when losing to player3)
+      total: 30, // $40 - $10 = $30
     });
 
     expect(result.playerSummary[player3Id]).toEqual({
       skinsWon: 2, // 1 from hole 5 + 1 from hole 6
       totalValue: '10.00', // 5.00 + 5.00
+      moneyIn: 20, // Won money on holes 5 and 6 with appropriate amounts
+      moneyOut: -10, // Paid $5 on hole 3 + $5 on hole 8 (when losing to player2)
+      total: 10, // $20 - $10 = $10
     });
 
+    expect(result.totalCarryOver).toBe(0);
+  });
+
+  test('should include moneyIn, moneyOut, and total in playerSummary', async () => {
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+
+    const userId = 123;
+    const mockRound = {
+      id: 'round-123',
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: '5.00',
+      starting_hole: 1,
+      hole_count: 9,
+    };
+    const mockPlayers = [
+      { id: 'player1', user_id: userId, guest_name: null },
+      { id: 'player2', user_id: 456, guest_name: null },
+    ];
+
+    const mockScores = [
+      { player_id: 'player1', hole_number: 1, strokes: 3 },
+      { player_id: 'player2', hole_number: 1, strokes: 4 }, // player1 wins
+    ];
+
+    const mockPars = [{ hole_number: 1, par: 3 }];
+
+    queryOne.mockResolvedValueOnce(mockRound);
+    queryRows
+      .mockResolvedValueOnce(mockPlayers)
+      .mockResolvedValueOnce(mockScores)
+      .mockResolvedValueOnce(mockPars);
+
+    const result = await skinsCalculateService(chance.guid(), userId);
+
+    // Check that moneyIn, moneyOut, and total exist in playerSummary
+    expect(result.playerSummary.player1).toHaveProperty('moneyIn');
+    expect(result.playerSummary.player1).toHaveProperty('moneyOut');
+    expect(result.playerSummary.player1).toHaveProperty('total');
+    expect(result.playerSummary.player2).toHaveProperty('moneyIn');
+    expect(result.playerSummary.player2).toHaveProperty('moneyOut');
+    expect(result.playerSummary.player2).toHaveProperty('total');
+  });
+
+  test('should calculate money flow correctly with moneyIn and moneyOut', async () => {
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+
+    const userId = 123;
+    const mockRound = {
+      id: chance.guid(),
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: '5.00',
+      starting_hole: 1,
+      hole_count: 2,
+    };
+    const mockPlayers = [
+      { id: 'player1', user_id: userId, guest_name: null },
+      { id: 'player2', user_id: 456, guest_name: null },
+    ];
+
+    const mockScores = [
+      { player_id: 'player1', hole_number: 1, strokes: 3 },
+      { player_id: 'player2', hole_number: 1, strokes: 4 }, // player1 wins hole 1
+      { player_id: 'player1', hole_number: 2, strokes: 4 },
+      { player_id: 'player2', hole_number: 2, strokes: 3 }, // player2 wins hole 2
+    ];
+
+    const mockPars = [
+      { hole_number: 1, par: 3 },
+      { hole_number: 2, par: 3 },
+    ];
+
+    queryOne.mockResolvedValueOnce(mockRound);
+    queryRows
+      .mockResolvedValueOnce(mockPlayers)
+      .mockResolvedValueOnce(mockScores)
+      .mockResolvedValueOnce(mockPars);
+
+    const result = await skinsCalculateService(mockRound.id, userId);
+
+    // Player 1: Won $5 on hole 1, paid $5 on hole 2
+    expect(result.playerSummary.player1.moneyIn).toBe(5);
+    expect(result.playerSummary.player1.moneyOut).toBe(-5);
+    expect(result.playerSummary.player1.total).toBe(0);
+
+    // Player 2: Won $5 on hole 2, paid $5 on hole 1
+    expect(result.playerSummary.player2.moneyIn).toBe(5);
+    expect(result.playerSummary.player2.moneyOut).toBe(-5);
+    expect(result.playerSummary.player2.total).toBe(0);
+  });
+
+  test('should award end-of-round carry-over to leading player', async () => {
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+
+    const userId = 123;
+    const mockRound = {
+      id: chance.guid(),
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: '5.00',
+      starting_hole: 1,
+      hole_count: 3,
+    };
+
+    const player1Id = 'player1';
+    const player2Id = 'player2';
+
+    const mockPlayers = [
+      { id: player1Id, user_id: userId, guest_name: null },
+      { id: player2Id, user_id: 456, guest_name: null },
+    ];
+
+    // Player 1 wins holes 1&2, hole 3 ties (carry-over should go to player 1 who has 2+ skins)
+    const mockScores = [
+      { player_id: player1Id, hole_number: 1, strokes: 3 },
+      { player_id: player2Id, hole_number: 1, strokes: 4 }, // player1 wins hole 1
+      { player_id: player1Id, hole_number: 2, strokes: 3 },
+      { player_id: player2Id, hole_number: 2, strokes: 4 }, // player1 wins hole 2
+      { player_id: player1Id, hole_number: 3, strokes: 4 },
+      { player_id: player2Id, hole_number: 3, strokes: 4 }, // tie on hole 3 (final hole)
+    ];
+
+    const mockPars = [
+      { hole_number: 1, par: 3 },
+      { hole_number: 2, par: 4 },
+      { hole_number: 3, par: 4 },
+    ];
+
+    queryOne.mockResolvedValueOnce(mockRound);
+    queryRows
+      .mockResolvedValueOnce(mockPlayers)
+      .mockResolvedValueOnce(mockScores)
+      .mockResolvedValueOnce(mockPars);
+
+    const result = await skinsCalculateService(mockRound.id, userId);
+
+    // Player 1 should get: 2 skins from holes 1&2 + 1 carry-over skin from hole 3 = 3 total
+    expect(result.playerSummary[player1Id].skinsWon).toBe(3);
+    expect(result.playerSummary[player1Id].totalValue).toBe('15.00'); // 3 skins × $5
+    expect(result.playerSummary[player1Id].moneyIn).toBe(10); // Won money from holes 1&2
+    expect(result.playerSummary[player1Id].moneyOut).toBe(0); // Never lost a hole, so no money out
+    expect(result.playerSummary[player1Id].total).toBe(10); // $10 - $0 = $10
+
+    // Player 2 should get nothing
+    expect(result.playerSummary[player2Id].skinsWon).toBe(0);
+    expect(result.playerSummary[player2Id].totalValue).toBe('0.00');
+    expect(result.playerSummary[player2Id].moneyIn).toBe(0); // Won nothing
+    expect(result.playerSummary[player2Id].moneyOut).toBe(-10);
+    expect(result.playerSummary[player2Id].total).toBe(-10); // $0 - $10 = -$10
+
+    // Total carry-over should be 0 (all distributed)
     expect(result.totalCarryOver).toBe(0);
   });
 });

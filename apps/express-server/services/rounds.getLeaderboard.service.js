@@ -162,12 +162,17 @@ const getLeaderboardService = async (roundId, userId) => {
     // Get skins data for this player
     const playerSkinsData = skinsData && skinsData.playerSummary[player.playerId]
       ? skinsData.playerSummary[player.playerId]
-      : { skinsWon: 0, totalValue: '0.00' };
+      : {
+        skinsWon: 0, totalValue: '0.00', moneyIn: 0, moneyOut: 0, total: 0,
+      };
 
     return {
       ...player,
       position,
       skinsWon: playerSkinsData.skinsWon,
+      moneyIn: playerSkinsData.moneyIn,
+      moneyOut: playerSkinsData.moneyOut,
+      total: playerSkinsData.total,
     };
   });
 

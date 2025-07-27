@@ -35,7 +35,9 @@ GET /api/rounds/:id/leaderboard
       "relativeScore": -3,
       "holesCompleted": 6,
       "currentHole": 7,
-      "skinsWon": 0
+      "skinsWon": 0,
+      "netGain": "0.00",
+      "netGain": "0.00"
     },
     {
       "playerId": "550e8400-e29b-41d4-a716-446655440001",
@@ -48,7 +50,8 @@ GET /api/rounds/:id/leaderboard
       "relativeScore": 2,
       "holesCompleted": 5,
       "currentHole": 6,
-      "skinsWon": 0
+      "skinsWon": 0,
+      "netGain": "0.00"
     }
   ],
   "roundSettings": {
@@ -74,6 +77,7 @@ Each player object contains:
 - `holesCompleted` (number): Number of holes with scores recorded
 - `currentHole` (number): Next hole number to play (highest completed + 1)
 - `skinsWon` (number): Number of skins won (real-time calculation when skins are enabled)
+- `netGain` (string): Net profit/loss from skins game (money won minus total pot contribution)
 
 #### Round Settings
 - `skinsEnabled` (boolean): Whether skins game is enabled for this round
@@ -142,7 +146,8 @@ curl -X GET \
       "relativeScore": 0,
       "holesCompleted": 0,
       "currentHole": 1,
-      "skinsWon": 0
+      "skinsWon": 0,
+      "netGain": "0.00"
     }
   ],
   "roundSettings": {
@@ -168,7 +173,8 @@ curl -X GET \
       "relativeScore": -3,
       "holesCompleted": 5,
       "currentHole": 6,
-      "skinsWon": 3
+      "skinsWon": 3,
+      "netGain": "-5.00"
     },
     {
       "playerId": "550e8400-e29b-41d4-a716-446655440000",
@@ -181,7 +187,8 @@ curl -X GET \
       "relativeScore": 1,
       "holesCompleted": 5,
       "currentHole": 6,
-      "skinsWon": 0
+      "skinsWon": 0,
+      "netGain": "-12.50"
     }
   ],
   "roundSettings": {
@@ -199,6 +206,7 @@ This endpoint now includes **real-time skins calculation** when skins are enable
 
 - **Real-time Calculation**: Skins are calculated dynamically based on current scores
   - `skinsWon` shows actual skins won by each player
+  - `netGain` displays profit/loss for each player (money won minus total pot contribution)
   - `currentCarryOver` displays any skins waiting to be won due to ties
   - Calculations respect the round's starting hole order
   - Carry-over logic automatically accumulates skins from tied holes
