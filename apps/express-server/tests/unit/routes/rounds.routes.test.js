@@ -23,6 +23,7 @@ let getScoresController;
 let getLeaderboardController;
 let sideBetsCreateController;
 let sideBetsListController;
+let sideBetsUpdateController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -85,6 +86,10 @@ beforeAll(async () => {
 
   sideBetsListController = vi.fn((req, res) => {
     res.json({ message: 'side bet list controller called' });
+  });
+
+  sideBetsUpdateController = vi.fn((req, res) => {
+    res.json({ message: 'side bet update controller called' });
   });
 
   // Mock the auth middleware
@@ -153,6 +158,10 @@ beforeAll(async () => {
     default: sideBetsListController,
   }));
 
+  vi.doMock('../../../controllers/sideBets.update.controller.js', () => ({
+    default: sideBetsUpdateController,
+  }));
+
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
     default: authenticateToken,
   }));
@@ -216,6 +225,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/sideBets.update.service.js', () => ({
+    default: vi.fn().mockResolvedValue({}),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -238,6 +251,7 @@ describe('rounds routes', () => {
     getLeaderboardController.mockClear();
     sideBetsCreateController.mockClear();
     sideBetsListController.mockClear();
+    sideBetsUpdateController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -846,6 +860,54 @@ describe('rounds routes', () => {
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('PUT /api/rounds/:id/side-bets/:betId should require authentication and call sideBetsUpdate controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betId = chance.guid();
+    const updateData = { name: chance.word() };
+
+    const response = await request(app)
+      .put(`/api/rounds/${roundId}/side-bets/${betId}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'side bet update controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(sideBetsUpdateController).toHaveBeenCalled();
+  });
+
+  test('PUT /api/rounds/:id/side-bets/:betId should pass roundId, betId in params and update data in body', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betId = chance.guid();
+    const updateData = {
+      name: chance.word(),
+      description: chance.sentence(),
+      winnerId: chance.guid(),
+    };
+
+    await request(app)
+      .put(`/api/rounds/${roundId}/side-bets/${betId}`)
+      .send(updateData)
+      .expect(200);
+
+    expect(sideBetsUpdateController).toHaveBeenCalled();
+    const lastCall = sideBetsUpdateController.mock.calls[
+      sideBetsUpdateController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.params.betId).toBe(betId);
+    expect(req.body).toEqual(updateData);
     expect(req.user).toEqual({ userId: 1 });
   });
 });

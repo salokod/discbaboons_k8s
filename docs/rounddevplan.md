@@ -820,8 +820,8 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
     - ✅ API documentation: `/docs/api/rounds/POST_rounds_id_side-bets.md` - Updated for required participants
     - ✅ **Ready for local testing**
 
-- 🚧 **LIST Side Bet Feature** **IN PROGRESS**
-  - ✅ `GET /api/rounds/:id/side-bets` - List all side bets for round **CORE IMPLEMENTATION**
+- ✅ **LIST Side Bet Feature** ✅ **COMPLETED**
+  - ✅ `GET /api/rounds/:id/side-bets` - List all side bets for round **FULL IMPLEMENTATION**
     - ✅ **Service**: `sideBets.list.service.js` - TDD implementation with validation and authorization
     - ✅ **Controller**: `sideBets.list.controller.js` - Error handling controller following established patterns
     - ✅ **Routes**: Added GET route to `rounds.routes.js` with authentication middleware
@@ -830,25 +830,34 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
     - ✅ **Data Formatting**: Converts snake_case DB fields to camelCase API response
     - ✅ **Authentication**: Requires authentication, participant-only access validation
     - ✅ **API Documentation**: `/docs/api/rounds/GET_rounds_id_side-bets.md`
-    - [ ] **Player Summary**: Implementation of moneyIn/moneyOut calculation for each player
-    - [ ] **Integration Tests**: Full request/response testing with database operations
-    - **Next Step**: Implement player money summary calculation (similar to skins money tracking)
+    - ✅ **Winner Information**: Participants include `isWinner`, `wonAt`, `declaredById` fields
+    - ✅ **Dynamic Status**: Status correctly shows 'completed' when bet has winner, 'active' otherwise
+    - ✅ **Player Summary**: Full moneyIn/moneyOut calculation with completed bet support
+    - ✅ **Money Flow Logic**: Winners get `moneyIn` (bet amount), losers get `moneyOut` (bet amount lost)
+    - ✅ **Bet Count Tracking**: Counts active and completed bets per player (excludes cancelled)
+    - ✅ **Guest Player Support**: Fixed LEFT JOIN issue to display guest players in participants
+    - ✅ **Integration Tests**: Full request/response testing with database operations and winner scenarios
 
   - ❌ **REMOVED**: `POST /api/rounds/:id/side-bets/:betId/join` - Join existing bet
     - **Decision**: No separate join endpoint - all participants specified at creation time
     - **Reason**: Cleaner UX - specify everyone when creating the bet
 
-  - [ ] `PUT /api/rounds/:id/side-bets/:betId` - Edit side bet (participants and/or winner)
-    - [ ] **Participants Editing**: Modify who's in the bet after creation
-    - [ ] **Winner Declaration**: Declare/update winner of the bet
-    - [ ] **Permissions**: Any round participant can edit participants or declare winner
-    - [ ] **Multiple Winners**: Single winner only (no splitting pots)
-    - [ ] **Mistakes**: Allow re-declaration (change winner after initial declaration)
-    - [ ] **Request Format**: `{ participants?: [...], winnerId?: uuid, cancelled?: boolean }`
-    - [ ] **Validation**: All participants and winner must be bet participants
-    - [ ] Service: `sideBets.edit.service.js`
-    - [ ] Controller: `sideBets.edit.controller.js`
-    - [ ] Full TDD implementation
+  - ✅ `PUT /api/rounds/:id/side-bets/:betId` - Edit side bet (winner declaration and reactivation) ✅ **COMPLETED**
+    - ✅ **Winner Declaration**: Declare/update winner of the bet by setting `winnerId`
+    - ✅ **Bet Reactivation**: Clear winner and reactivate bet by setting `winnerId: null`
+    - ✅ **Mistake Correction**: Allow re-declaration (change winner after initial declaration)
+    - ✅ **Field Updates**: Support updating bet `name` and `description`
+    - ✅ **Request Format**: `{ name?: string, description?: string, winnerId?: uuid|null }`
+    - ✅ **Validation**: Winner must be valid participant in the specific bet
+    - ✅ **Database Logic**: Uses `side_bet_participants` table with `is_winner`, `won_at`, `declared_by_id` fields
+    - ✅ **Atomic Operations**: Single transaction handles clearing old winners and setting new winner
+    - ✅ **Permissions**: Any round participant can update side bets
+    - ✅ Service: `sideBets.update.service.js` - Full TDD implementation
+    - ✅ Controller: `sideBets.update.controller.js` - Full TDD implementation  
+    - ✅ Routes: Added PUT route to `rounds.routes.js`
+    - ✅ Unit Tests: Complete service, controller, and route testing
+    - ✅ Integration Tests: Full request/response testing with winner scenarios
+    - ✅ API Documentation: `/docs/api/rounds/PUT_rounds_id_side-bets_betId.md` with mistake correction workflow
 
   - [ ] `GET /api/rounds/:id/side-bets/:betId` - Get bet details
     - [ ] **Response**: Full bet info with all participants (names, winner status)
@@ -1003,8 +1012,18 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
   - **Security:** Requires authentication, participant-only access, full validation
   - **Data:** Supports optional description and hole-specific bets
   - **Documentation:** `/docs/api/rounds/POST_rounds_id_side-bets.md`
-- `POST /api/rounds/:id/side-bets/:betId/join` - Join bet - **Not implemented**
-- `PUT /api/rounds/:id/side-bets/:betId/winner` - Declare winner - **Not implemented**
+- ✅ `GET /api/rounds/:id/side-bets` - List all side bets for round ✅ **COMPLETED**
+  - **Response:** Array of side bets with participants, winner information, and player summary
+  - **Business Logic:** Dynamic status calculation, money flow tracking, bet count per player
+  - **Security:** Requires authentication, participant-only access
+  - **Data:** Includes guest player support, completed bet money calculations
+  - **Documentation:** `/docs/api/rounds/GET_rounds_id_side-bets.md`
+- ✅ `PUT /api/rounds/:id/side-bets/:betId` - Update side bet and declare winners ✅ **COMPLETED**
+  - **Response:** Updated side bet object with new winner information  
+  - **Business Logic:** Winner declaration, bet reactivation, mistake correction workflow
+  - **Security:** Requires authentication, participant-only access, winner validation
+  - **Data:** Supports field updates (name, description) and winner management
+  - **Documentation:** `/docs/api/rounds/PUT_rounds_id_side-bets_betId.md`
 
 ---
 
