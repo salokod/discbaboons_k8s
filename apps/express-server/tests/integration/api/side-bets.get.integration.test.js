@@ -280,4 +280,54 @@ describe('GET /api/rounds/:id/side-bets/:betId', () => {
     );
     expect(totalAmount).toBe(0);
   });
+
+  it('should return 400 when bet has no participants', async () => {
+    // Remove all participants from the bet
+    await query(
+      'DELETE FROM side_bet_participants WHERE side_bet_id = $1',
+      [bet.id],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/side-bets/${bet.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Side bet participants not found',
+    });
+  });
+
+  it('should return 400 when bet has multiple winners', async () => {
+    // Add another player to round and bet
+    const player2 = await createTestUser();
+    createdUserIds.push(player2.user.id);
+
+    const player2Result = await query(
+      'INSERT INTO round_players (round_id, user_id) VALUES ($1, $2) RETURNING id',
+      [round.id, player2.user.id],
+    );
+
+    await query(
+      'INSERT INTO side_bet_participants (side_bet_id, player_id) VALUES ($1, $2)',
+      [bet.id, player2Result.rows[0].id],
+    );
+
+    // Set BOTH participants as winners (data corruption scenario)
+    await query(
+      'UPDATE side_bet_participants SET is_winner = true, won_at = NOW(), declared_by_id = $1 WHERE side_bet_id = $2',
+      [playerId, bet.id],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/side-bets/${bet.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Side bet cannot have multiple winners',
+    });
+  });
 });

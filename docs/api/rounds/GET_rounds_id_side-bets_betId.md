@@ -104,6 +104,27 @@ Authorization: Bearer <access_token>
 }
 ```
 
+```json
+{
+  "success": false,
+  "message": "Invalid bet amount"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Side bet participants not found"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Side bet cannot have multiple winners"
+}
+```
+
 #### 401 Unauthorized
 ```json
 {

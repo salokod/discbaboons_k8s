@@ -145,7 +145,7 @@ describe('DELETE /api/rounds/:id - Integration', () => {
     try {
       const sideBetResult = await query(
         'INSERT INTO side_bets (round_id, name, amount, bet_type, created_by_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [round.id, 'Test Bet', 5.00, 'round', user.id],
+        [round.id, 'Test Bet', 5.00, 'round', playerIdValue],
       );
       sideBetId = sideBetResult.rows[0].id;
     } catch (error) {

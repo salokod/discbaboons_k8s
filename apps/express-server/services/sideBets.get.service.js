@@ -81,14 +81,21 @@ const sideBetsGetService = async (betId, roundId, userId) => {
 
   // Validate participants exist
   if (participants.length === 0) {
-    const error = new Error('Side bet has no participants');
+    const error = new Error('Side bet participants not found');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate bet amount
+  const betAmount = parseFloat(bet.amount);
+  if (Number.isNaN(betAmount) || betAmount <= 0) {
+    const error = new Error('Invalid bet amount');
     error.name = 'ValidationError';
     throw error;
   }
 
   // Format participants with bet amounts
   const participantCount = participants.length;
-  const betAmount = parseFloat(bet.amount);
 
   const formattedParticipants = participants.map((p) => {
     const baseParticipant = {
@@ -117,9 +124,15 @@ const sideBetsGetService = async (betId, roundId, userId) => {
     return baseParticipant;
   });
 
-  // Validate winner consistency for completed bets
-  const winners = formattedParticipants.filter((p) => p.isWinner);
-  if (winners.length > 1) {
+  // Validate winner consistency and determine status in single pass
+  let winnerCount = 0;
+  formattedParticipants.forEach((betParticipant) => {
+    if (betParticipant.isWinner) {
+      winnerCount += 1;
+    }
+  });
+
+  if (winnerCount > 1) {
     const error = new Error('Side bet cannot have multiple winners');
     error.name = 'ValidationError';
     throw error;
@@ -129,7 +142,7 @@ const sideBetsGetService = async (betId, roundId, userId) => {
   let status = 'active';
   if (bet.cancelled_at) {
     status = 'cancelled';
-  } else if (winners.length > 0) {
+  } else if (winnerCount > 0) {
     status = 'completed';
   }
 
