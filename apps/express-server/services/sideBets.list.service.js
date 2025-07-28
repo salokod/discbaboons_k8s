@@ -71,6 +71,9 @@ const sideBetsListService = async (roundId, userId) => {
       SELECT 
         sbp.side_bet_id,
         sbp.player_id,
+        sbp.is_winner,
+        sbp.won_at,
+        sbp.declared_by_id,
         rp.user_id,
         rp.is_guest,
         CASE 
@@ -94,7 +97,18 @@ const sideBetsListService = async (roundId, userId) => {
         playerId: p.player_id,
         userId: p.user_id,
         displayName: p.display_name,
+        isWinner: p.is_winner,
+        wonAt: p.won_at,
+        declaredById: p.declared_by_id,
       }));
+
+    // Determine status: cancelled > completed (has winner) > active
+    let status = 'active';
+    if (bet.cancelled_at) {
+      status = 'cancelled';
+    } else if (betParticipants.some((p) => p.isWinner)) {
+      status = 'completed';
+    }
 
     return {
       id: bet.id,
@@ -103,7 +117,7 @@ const sideBetsListService = async (roundId, userId) => {
       amount: bet.amount,
       betType: bet.bet_type,
       holeNumber: bet.hole_number,
-      status: bet.cancelled_at ? 'cancelled' : 'active',
+      status,
       createdById: bet.created_by_id,
       createdAt: bet.created_at,
       updatedAt: bet.updated_at,
@@ -132,22 +146,31 @@ const sideBetsListService = async (roundId, userId) => {
 
   // Calculate money summary for each player
   const playerSummary = playersRows.map((player) => {
-    const moneyIn = 0;
+    let moneyIn = 0;
     let moneyOut = 0;
     let betCount = 0;
 
     sideBets.forEach((bet) => {
-      const isParticipant = bet.participants.some((p) => p.playerId === player.player_id);
+      const playerParticipant = bet.participants.find((p) => p.playerId === player.player_id);
 
-      if (isParticipant) {
+      if (playerParticipant) {
         if (bet.status === 'active') {
           // For active bets, players have money at risk (money out)
           moneyOut += parseFloat(bet.amount);
           betCount += 1; // Count active bets
+        } else if (bet.status === 'completed') {
+          // For completed bets
+          if (playerParticipant.isWinner) {
+            // Winner gets money in (total pot)
+            moneyIn += parseFloat(bet.amount);
+          } else {
+            // Loser has money out (their bet amount)
+            moneyOut += parseFloat(bet.amount);
+          }
+          betCount += 1; // Count completed bets
         } else if (bet.status === 'cancelled') {
           // Cancelled bets don't affect money flow or bet count
         }
-        // TODO: When we add winner tracking, completed bets will affect moneyIn and betCount
       }
     });
 

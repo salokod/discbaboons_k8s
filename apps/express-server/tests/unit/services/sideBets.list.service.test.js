@@ -161,6 +161,9 @@ describe('sideBets.list.service.js', () => {
           user_id: userId,
           is_guest: false,
           display_name: 'Player One',
+          is_winner: false,
+          won_at: null,
+          declared_by_id: null,
         },
         {
           side_bet_id: betId,
@@ -168,6 +171,9 @@ describe('sideBets.list.service.js', () => {
           user_id: userId2,
           is_guest: false,
           display_name: 'Player Two',
+          is_winner: false,
+          won_at: null,
+          declared_by_id: null,
         },
       ])
       .mockResolvedValueOnce([
@@ -207,11 +213,17 @@ describe('sideBets.list.service.js', () => {
           playerId: playerId1,
           userId,
           displayName: 'Player One',
+          isWinner: false,
+          wonAt: null,
+          declaredById: null,
         },
         {
           playerId: playerId2,
           userId: userId2,
           displayName: 'Player Two',
+          isWinner: false,
+          wonAt: null,
+          declaredById: null,
         },
       ],
     });
@@ -234,6 +246,260 @@ describe('sideBets.list.service.js', () => {
       moneyOut: '5.00',
       total: '-5.00',
       betCount: 1,
+    });
+  });
+
+  test('should show status as completed when bet has winner', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsListService = (await import('../../../services/sideBets.list.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const betId = chance.guid();
+    const playerId1 = chance.guid();
+
+    // Mock round exists and user is creator
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+    });
+
+    // Mock side bets query
+    queryRows
+      .mockResolvedValueOnce([
+        {
+          id: betId,
+          name: chance.sentence({ words: 3 }),
+          description: 'Test bet with winner',
+          amount: '10.00',
+          bet_type: 'hole',
+          hole_number: 5,
+          created_by_id: playerId1,
+          created_at: '2025-01-27T10:00:00Z',
+          updated_at: '2025-01-27T10:00:00Z',
+          cancelled_at: null,
+          cancelled_by_id: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Mock participants query with winner
+        {
+          side_bet_id: betId,
+          player_id: playerId1,
+          user_id: userId,
+          is_guest: false,
+          display_name: 'Winner Player',
+          is_winner: true,
+          won_at: '2025-01-27T11:00:00Z',
+          declared_by_id: playerId1,
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Mock players query for this round
+        {
+          player_id: playerId1,
+          user_id: userId,
+          is_guest: false,
+          display_name: 'Winner Player',
+        },
+      ]);
+
+    const result = await sideBetsListService(roundId, userId);
+
+    // Should show status as completed when there's a winner
+    expect(result.sideBets[0].status).toBe('completed');
+  });
+
+  test('should calculate money flow for completed bets', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsListService = (await import('../../../services/sideBets.list.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const userId2 = chance.integer({ min: 1001, max: 2000 });
+    const betId = chance.guid();
+    const playerId1 = chance.guid(); // Winner
+    const playerId2 = chance.guid(); // Loser
+    const betAmount = '10.00';
+
+    // Mock round exists and user is creator
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+    });
+
+    // Mock side bets query - completed bet
+    queryRows
+      .mockResolvedValueOnce([
+        {
+          id: betId,
+          name: chance.sentence({ words: 3 }),
+          description: 'Completed bet',
+          amount: betAmount,
+          bet_type: 'hole',
+          hole_number: 5,
+          created_by_id: playerId1,
+          created_at: '2025-01-27T10:00:00Z',
+          updated_at: '2025-01-27T10:00:00Z',
+          cancelled_at: null,
+          cancelled_by_id: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Mock participants - player1 wins, player2 loses
+        {
+          side_bet_id: betId,
+          player_id: playerId1,
+          user_id: userId,
+          is_guest: false,
+          display_name: 'Winner Player',
+          is_winner: true,
+          won_at: '2025-01-27T11:00:00Z',
+          declared_by_id: playerId2,
+        },
+        {
+          side_bet_id: betId,
+          player_id: playerId2,
+          user_id: userId2,
+          is_guest: false,
+          display_name: 'Loser Player',
+          is_winner: false,
+          won_at: null,
+          declared_by_id: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Mock players query for this round
+        {
+          player_id: playerId1,
+          user_id: userId,
+          is_guest: false,
+          display_name: 'Winner Player',
+        },
+        {
+          player_id: playerId2,
+          user_id: userId2,
+          is_guest: false,
+          display_name: 'Loser Player',
+        },
+      ]);
+
+    const result = await sideBetsListService(roundId, userId);
+
+    // Winner should have money in (won the bet amount), loser should have money out
+    expect(result.playerSummary[0]).toEqual({
+      playerId: playerId1,
+      userId,
+      displayName: 'Winner Player',
+      moneyIn: '10.00', // Won the bet
+      moneyOut: '0.00', // No money at risk
+      total: '10.00', // Net positive
+      betCount: 1, // Count completed bets
+    });
+
+    expect(result.playerSummary[1]).toEqual({
+      playerId: playerId2,
+      userId: userId2,
+      displayName: 'Loser Player',
+      moneyIn: '0.00', // Didn't win anything
+      moneyOut: '10.00', // Lost the bet amount
+      total: '-10.00', // Net negative
+      betCount: 1, // Count completed bets
+    });
+  });
+
+  test('should include winner fields in participants data', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsListService = (await import('../../../services/sideBets.list.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const userId2 = chance.integer({ min: 1001, max: 2000 });
+    const betId = chance.guid();
+    const playerId1 = chance.guid();
+    const playerId2 = chance.guid();
+
+    // Mock round exists and user is creator
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+    });
+
+    // Mock side bets query
+    queryRows
+      .mockResolvedValueOnce([
+        {
+          id: betId,
+          name: chance.sentence({ words: 3 }),
+          description: 'Test bet with winner',
+          amount: '10.00',
+          bet_type: 'hole',
+          hole_number: 5,
+          created_by_id: playerId1,
+          created_at: '2025-01-27T10:00:00Z',
+          updated_at: '2025-01-27T10:00:00Z',
+          cancelled_at: null,
+          cancelled_by_id: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Mock participants query with winner fields
+        {
+          side_bet_id: betId,
+          player_id: playerId1,
+          user_id: userId,
+          is_guest: false,
+          display_name: 'Winner Player',
+          is_winner: true,
+          won_at: '2025-01-27T11:00:00Z',
+          declared_by_id: playerId2,
+        },
+        {
+          side_bet_id: betId,
+          player_id: playerId2,
+          user_id: userId2,
+          is_guest: false,
+          display_name: 'Other Player',
+          is_winner: false,
+          won_at: null,
+          declared_by_id: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Mock players query for this round
+        {
+          player_id: playerId1,
+          user_id: userId,
+          is_guest: false,
+          display_name: 'Winner Player',
+        },
+        {
+          player_id: playerId2,
+          user_id: userId2,
+          is_guest: false,
+          display_name: 'Other Player',
+        },
+      ]);
+
+    const result = await sideBetsListService(roundId, userId);
+
+    // Should include winner information in participants
+    expect(result.sideBets[0].participants[0]).toEqual({
+      playerId: playerId1,
+      userId,
+      displayName: 'Winner Player',
+      isWinner: true,
+      wonAt: '2025-01-27T11:00:00Z',
+      declaredById: playerId2,
+    });
+
+    expect(result.sideBets[0].participants[1]).toEqual({
+      playerId: playerId2,
+      userId: userId2,
+      displayName: 'Other Player',
+      isWinner: false,
+      wonAt: null,
+      declaredById: null,
     });
   });
 
