@@ -1,5 +1,8 @@
 import { queryOne, queryRows } from '../lib/database.js';
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const sideBetsGetService = async (betId, roundId, userId) => {
   if (!betId) {
     const error = new Error('Bet ID is required');
@@ -7,8 +10,20 @@ const sideBetsGetService = async (betId, roundId, userId) => {
     throw error;
   }
 
+  if (!UUID_REGEX.test(betId)) {
+    const error = new Error('Invalid bet ID format');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   if (!roundId) {
     const error = new Error('Round ID is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (!UUID_REGEX.test(roundId)) {
+    const error = new Error('Invalid round ID format');
     error.name = 'ValidationError';
     throw error;
   }

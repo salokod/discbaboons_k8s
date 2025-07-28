@@ -87,6 +87,34 @@ describe('GET /api/rounds/:id/side-bets/:betId', () => {
     expect(response.body).toEqual({ error: 'Access token required' });
   });
 
+  it('should return 400 for invalid bet ID format', async () => {
+    const invalidBetId = 'not-a-valid-uuid';
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/side-bets/${invalidBetId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Invalid bet ID format',
+    });
+  });
+
+  it('should return 400 for invalid round ID format', async () => {
+    const invalidRoundId = 'not-a-valid-uuid';
+
+    const response = await request(app)
+      .get(`/api/rounds/${invalidRoundId}/side-bets/${bet.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Invalid round ID format',
+    });
+  });
+
   it('should return 404 when bet does not exist', async () => {
     const fakeBetId = chance.guid();
 

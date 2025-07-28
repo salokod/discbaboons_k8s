@@ -41,6 +41,26 @@ describe('sideBetsGetService', () => {
     await expect(sideBetsGetService(betId, roundId)).rejects.toThrow('User ID is required');
   });
 
+  it('should validate betId is valid UUID', async () => {
+    const sideBetsGetService = (await import('../../../services/sideBets.get.service.js')).default;
+    const invalidBetId = 'not-a-valid-uuid';
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    await expect(sideBetsGetService(invalidBetId, roundId, userId))
+      .rejects.toThrow('Invalid bet ID format');
+  });
+
+  it('should validate roundId is valid UUID', async () => {
+    const sideBetsGetService = (await import('../../../services/sideBets.get.service.js')).default;
+    const betId = chance.guid();
+    const invalidRoundId = 'not-a-valid-uuid';
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    await expect(sideBetsGetService(betId, invalidRoundId, userId))
+      .rejects.toThrow('Invalid round ID format');
+  });
+
   it('should throw error when bet does not exist', async () => {
     const { queryOne } = await import('../../../lib/database.js');
     const sideBetsGetService = (await import('../../../services/sideBets.get.service.js')).default;
