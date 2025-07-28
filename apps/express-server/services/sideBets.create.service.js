@@ -1,5 +1,8 @@
 import pool, { queryOne, queryRows } from '../lib/database.js';
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const sideBetsCreateService = async (betData, roundId, userId) => {
   if (!betData) {
     const error = new Error('Bet data is required');
@@ -9,6 +12,12 @@ const sideBetsCreateService = async (betData, roundId, userId) => {
 
   if (!roundId) {
     const error = new Error('Round ID is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (!UUID_REGEX.test(roundId)) {
+    const error = new Error('Invalid round ID format');
     error.name = 'ValidationError';
     throw error;
   }
@@ -88,6 +97,14 @@ const sideBetsCreateService = async (betData, roundId, userId) => {
 
   if (participants.length < 2) {
     const error = new Error('At least 2 participants are required for a bet');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Validate all participant IDs are UUIDs
+  const invalidParticipantIds = participants.filter((id) => !UUID_REGEX.test(id));
+  if (invalidParticipantIds.length > 0) {
+    const error = new Error('Invalid participant ID format');
     error.name = 'ValidationError';
     throw error;
   }

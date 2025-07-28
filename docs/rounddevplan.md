@@ -859,11 +859,18 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
     - ✅ Integration Tests: Full request/response testing with winner scenarios
     - ✅ API Documentation: `/docs/api/rounds/PUT_rounds_id_side-bets_betId.md` with mistake correction workflow
 
-  - [ ] `GET /api/rounds/:id/side-bets/:betId` - Get bet details
-    - [ ] **Response**: Full bet info with all participants (names, winner status)
-    - [ ] **Include**: Financial breakdown (who owes whom)
-    - [ ] Service: `sideBets.get.service.js`
-    - [ ] Controller: `sideBets.get.controller.js`
+  - ✅ `GET /api/rounds/:id/side-bets/:betId` - Get bet details ✅ **COMPLETED**
+    - ✅ **Response**: Full bet info with all participants (names, winner status)
+    - ✅ **Include**: Financial breakdown with betAmount field for each participant
+    - ✅ **UUID Validation**: Validates betId and roundId are valid UUIDs to prevent 500 errors
+    - ✅ **Authentication**: Requires authentication, participant-only access
+    - ✅ **Dynamic Status**: Status calculated based on winner presence (active/completed/cancelled)
+    - ✅ Service: `sideBets.get.service.js` - Full TDD implementation with UUID validation
+    - ✅ Controller: `sideBets.get.controller.js` - Full TDD implementation
+    - ✅ Routes: Added GET route to `rounds.routes.js`
+    - ✅ Unit Tests: Complete service, controller, and route testing
+    - ✅ Integration Tests: Full request/response testing with winner scenarios
+    - ✅ API Documentation: `/docs/api/rounds/GET_rounds_id_side-bets_betId.md`
 
 - [ ] **Financial Tracking**
   - [ ] Calculate net gain/loss per player for each bet
@@ -1024,6 +1031,12 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
   - **Security:** Requires authentication, participant-only access, winner validation
   - **Data:** Supports field updates (name, description) and winner management
   - **Documentation:** `/docs/api/rounds/PUT_rounds_id_side-bets_betId.md`
+- ✅ `GET /api/rounds/:id/side-bets/:betId` - Get single side bet details ✅ **COMPLETED**
+  - **Response:** Full bet info with all participants (names, winner status, financial breakdown)
+  - **Business Logic:** Dynamic status calculation, betAmount per participant (+/- based on winner status)
+  - **Security:** Requires authentication, participant-only access, UUID validation
+  - **Data:** Winners show positive betAmount (winnings), losers show negative (amount owed)
+  - **Documentation:** `/docs/api/rounds/GET_rounds_id_side-bets_betId.md`
 
 ---
 
