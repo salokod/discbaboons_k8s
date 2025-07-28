@@ -47,7 +47,8 @@ Authorization: Bearer <access_token>
       "displayName": "john_doe",
       "isWinner": false,
       "wonAt": null,
-      "declaredById": null
+      "declaredById": null,
+      "betAmount": -10.00
     },
     {
       "playerId": "990c2800-c62f-84h8-e15a-88aa99884444",
@@ -55,7 +56,8 @@ Authorization: Bearer <access_token>
       "displayName": "Guest Player",
       "isWinner": false,
       "wonAt": null,
-      "declaredById": null
+      "declaredById": null,
+      "betAmount": -10.00
     }
   ]
 }
@@ -78,6 +80,7 @@ Authorization: Bearer <access_token>
   - **isWinner**: Whether this participant won the bet
   - **wonAt**: Timestamp when declared as winner
   - **declaredById**: UUID of player who declared the winner
+  - **betAmount**: Financial position (-amount for owed, +amount for winnings)
 
 ### Status Determination
 - **active**: No winner declared
@@ -90,14 +93,14 @@ Authorization: Bearer <access_token>
 ```json
 {
   "success": false,
-  "message": "Bet ID is required"
+  "message": "Invalid bet ID format"
 }
 ```
 
 ```json
 {
   "success": false,
-  "message": "Round ID is required"
+  "message": "Invalid round ID format"
 }
 ```
 
@@ -156,7 +159,8 @@ Response will show:
       "displayName": "john_doe",
       "isWinner": true,
       "wonAt": "2025-01-20T15:45:00.000Z",
-      "declaredById": "990c2800-c62f-84h8-e15a-88aa99884444"
+      "declaredById": "990c2800-c62f-84h8-e15a-88aa99884444",
+      "betAmount": 10.00
     },
     {
       "playerId": "990c2800-c62f-84h8-e15a-88aa99884444",
@@ -164,7 +168,8 @@ Response will show:
       "displayName": "jane_smith",
       "isWinner": false,
       "wonAt": null,
-      "declaredById": null
+      "declaredById": null,
+      "betAmount": -10.00
     }
   ]
 }
@@ -177,6 +182,8 @@ Response will show:
 - Status calculated dynamically based on participant data
 - Validates both bet existence and user round participation
 - Returns consistent error format with `success: false` for errors
+- Validates UUID format for betId and roundId parameters to prevent 500 errors
+- Calculates financial positions: winners show positive amounts, losers show negative
 
 ## Related Endpoints
 
