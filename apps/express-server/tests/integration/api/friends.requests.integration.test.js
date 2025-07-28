@@ -60,7 +60,7 @@ describe('GET /api/friends/requests - Integration', () => {
       .get('/api/friends/requests')
       .query({ type: 'incoming' })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

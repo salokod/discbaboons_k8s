@@ -58,7 +58,7 @@ describe('GET /api/friends - Integration', () => {
     await request(app)
       .get('/api/friends')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

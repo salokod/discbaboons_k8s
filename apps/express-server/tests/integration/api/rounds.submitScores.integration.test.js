@@ -70,7 +70,7 @@ describe('POST /api/rounds/:id/scores - Integration', () => {
       .post(`/api/rounds/${round.id}/scores`)
       .send({ scores })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

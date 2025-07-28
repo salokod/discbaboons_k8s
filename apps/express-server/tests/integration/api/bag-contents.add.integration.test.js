@@ -98,7 +98,7 @@ describe('POST /api/bags/:id/discs - Integration', () => {
       .post(`/api/bags/${bagId}/discs`)
       .send({ disc_id: discId })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

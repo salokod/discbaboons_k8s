@@ -6,14 +6,16 @@ const authenticateToken = (req, res, next) => {
 
   if (!authHeader) {
     return res.status(401).json({
-      error: 'Access token required',
+      success: false,
+      message: 'Access token required',
     });
   }
 
   // Check for Bearer token format
   if (!authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
-      error: 'Invalid authorization header format',
+      success: false,
+      message: 'Invalid authorization header format',
     });
   }
 
@@ -27,7 +29,8 @@ const authenticateToken = (req, res, next) => {
     return next();
   } catch (error) {
     return res.status(401).json({
-      error: 'Invalid or expired token',
+      success: false,
+      message: 'Invalid or expired token',
     });
   }
 };

@@ -74,7 +74,7 @@ describe('PATCH /api/discs/:id/approve - Integration', () => {
     await request(app)
       .patch(`/api/discs/${pendingDiscId}/approve`)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

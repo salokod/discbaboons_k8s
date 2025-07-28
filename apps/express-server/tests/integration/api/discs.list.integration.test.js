@@ -103,7 +103,7 @@ describe('GET /api/discs/master - Integration', () => {
     await request(app)
       .get('/api/discs/master')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

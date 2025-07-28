@@ -58,7 +58,7 @@ describe('POST /api/rounds - Integration', () => {
       .post('/api/rounds')
       .send(roundData)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

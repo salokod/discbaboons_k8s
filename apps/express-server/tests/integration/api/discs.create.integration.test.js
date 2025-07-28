@@ -54,7 +54,7 @@ describe('POST /api/discs/master - Integration', () => {
       .post('/api/discs/master')
       .send(discData)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

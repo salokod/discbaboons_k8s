@@ -53,7 +53,7 @@ describe('POST /api/courses - Integration', () => {
       .post('/api/courses')
       .send(courseData)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

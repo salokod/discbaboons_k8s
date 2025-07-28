@@ -44,7 +44,8 @@ describe('AuthMiddleware', () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Access token required',
+      success: false,
+      message: 'Access token required',
     });
     expect(next).not.toHaveBeenCalled();
   });
@@ -57,7 +58,8 @@ describe('AuthMiddleware', () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Invalid authorization header format',
+      success: false,
+      message: 'Invalid authorization header format',
     });
     expect(next).not.toHaveBeenCalled();
   });
@@ -81,7 +83,8 @@ describe('AuthMiddleware', () => {
     );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Invalid or expired token',
+      success: false,
+      message: 'Invalid or expired token',
     });
     expect(next).not.toHaveBeenCalled();
   });

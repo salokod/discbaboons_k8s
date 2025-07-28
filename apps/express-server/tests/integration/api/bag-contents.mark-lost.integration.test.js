@@ -102,7 +102,7 @@ describe('PATCH /api/bags/discs/:contentId/lost - Integration', () => {
       .patch(`/api/bags/discs/${bagContentId}/lost`)
       .send({ is_lost: true })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

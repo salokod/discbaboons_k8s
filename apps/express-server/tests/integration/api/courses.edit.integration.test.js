@@ -103,7 +103,7 @@ describe('PUT /api/courses/:id - Integration', () => {
       .put(`/api/courses/${testCourseId}`)
       .send({ name: chance.company() })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

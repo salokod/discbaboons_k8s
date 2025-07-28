@@ -61,7 +61,7 @@ describe('DELETE /api/rounds/:id/players/:playerId - Integration', () => {
     await request(app)
       .delete(`/api/rounds/${round.id}/players/${playerId}`)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

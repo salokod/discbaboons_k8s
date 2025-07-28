@@ -55,7 +55,7 @@ describe('POST /api/friends/respond - Integration', () => {
       .post('/api/friends/respond')
       .send({ requestId, action: 'accept' })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 
