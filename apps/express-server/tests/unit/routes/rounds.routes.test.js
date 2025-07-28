@@ -23,6 +23,7 @@ let getScoresController;
 let getLeaderboardController;
 let sideBetsCreateController;
 let sideBetsListController;
+let sideBetsGetController;
 let sideBetsUpdateController;
 let authenticateToken;
 
@@ -86,6 +87,10 @@ beforeAll(async () => {
 
   sideBetsListController = vi.fn((req, res) => {
     res.json({ message: 'side bet list controller called' });
+  });
+
+  sideBetsGetController = vi.fn((req, res) => {
+    res.json({ message: 'side bet get controller called' });
   });
 
   sideBetsUpdateController = vi.fn((req, res) => {
@@ -156,6 +161,10 @@ beforeAll(async () => {
 
   vi.doMock('../../../controllers/sideBets.list.controller.js', () => ({
     default: sideBetsListController,
+  }));
+
+  vi.doMock('../../../controllers/sideBets.get.controller.js', () => ({
+    default: sideBetsGetController,
   }));
 
   vi.doMock('../../../controllers/sideBets.update.controller.js', () => ({
@@ -860,6 +869,28 @@ describe('rounds routes', () => {
     ];
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('GET /api/rounds/:id/side-bets/:betId should require authentication and call sideBetsGet controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betId = chance.guid();
+
+    await request(app)
+      .get(`/api/rounds/${roundId}/side-bets/${betId}`)
+      .expect(200);
+
+    expect(sideBetsGetController).toHaveBeenCalled();
+    const lastCall = sideBetsGetController.mock.calls[
+      sideBetsGetController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.params.betId).toBe(betId);
     expect(req.user).toEqual({ userId: 1 });
   });
 

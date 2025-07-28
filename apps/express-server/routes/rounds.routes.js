@@ -15,6 +15,7 @@ import getLeaderboardController from '../controllers/rounds.getLeaderboard.contr
 import skinsCalculateController from '../controllers/skins.calculate.controller.js';
 import sideBetsCreateController from '../controllers/sideBets.create.controller.js';
 import sideBetsListController from '../controllers/sideBets.list.controller.js';
+import sideBetsGetController from '../controllers/sideBets.get.controller.js';
 import sideBetsUpdateController from '../controllers/sideBets.update.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 
@@ -58,6 +59,9 @@ router.post('/:id/side-bets', authenticateToken, sideBetsCreateController);
 
 // GET /api/rounds/:id/side-bets - List side bets for round (requires authentication)
 router.get('/:id/side-bets', authenticateToken, sideBetsListController);
+
+// GET /api/rounds/:id/side-bets/:betId - Get single side bet (requires authentication)
+router.get('/:id/side-bets/:betId', authenticateToken, sideBetsGetController);
 
 // PUT /api/rounds/:id/side-bets/:betId - Update side bet (requires authentication)
 router.put('/:id/side-bets/:betId', authenticateToken, sideBetsUpdateController);
