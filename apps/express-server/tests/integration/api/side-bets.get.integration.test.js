@@ -225,4 +225,59 @@ describe('GET /api/rounds/:id/side-bets/:betId', () => {
       ]),
     );
   });
+
+  it('should show realistic financial breakdown with multiple participants', async () => {
+    // Add two more players to the round
+    const player2 = await createTestUser();
+    const player3 = await createTestUser();
+    createdUserIds.push(player2.user.id, player3.user.id);
+
+    const player2Result = await query(
+      'INSERT INTO round_players (round_id, user_id) VALUES ($1, $2) RETURNING id',
+      [round.id, player2.user.id],
+    );
+    const player3Result = await query(
+      'INSERT INTO round_players (round_id, user_id) VALUES ($1, $2) RETURNING id',
+      [round.id, player3.user.id],
+    );
+
+    // Add both new players to the bet (now 3 total participants)
+    await query(
+      'INSERT INTO side_bet_participants (side_bet_id, player_id) VALUES ($1, $2), ($1, $3)',
+      [bet.id, player2Result.rows[0].id, player3Result.rows[0].id],
+    );
+
+    // Declare the original player as winner
+    await query(
+      'UPDATE side_bet_participants SET is_winner = true, won_at = NOW(), declared_by_id = $1 WHERE side_bet_id = $2 AND player_id = $3',
+      [playerId, bet.id, playerId],
+    );
+
+    const response = await request(app)
+      .get(`/api/rounds/${round.id}/side-bets/${bet.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.status).toBe('completed');
+    expect(response.body.participants).toHaveLength(3);
+
+    // Find winner and losers
+    const winner = response.body.participants.find((p) => p.isWinner);
+    const losers = response.body.participants.filter((p) => !p.isWinner);
+
+    // Winner should get $20 (2 losers × $10 each)
+    expect(winner.betAmount).toBe(20);
+
+    // Each loser should owe $10
+    losers.forEach((loser) => {
+      expect(loser.betAmount).toBe(-10);
+    });
+
+    // Verify total balance is zero (no money created/destroyed)
+    const totalAmount = response.body.participants.reduce(
+      (sum, participant) => sum + participant.betAmount,
+      0,
+    );
+    expect(totalAmount).toBe(0);
+  });
 });

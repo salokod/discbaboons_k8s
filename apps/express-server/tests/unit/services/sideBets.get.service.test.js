@@ -164,6 +164,7 @@ describe('sideBetsGetService', () => {
     });
 
     expect(result.participants).toHaveLength(2);
+    const expectedBetAmount = -parseFloat(mockBet.amount);
     expect(result.participants[0]).toMatchObject({
       playerId,
       userId,
@@ -171,10 +172,10 @@ describe('sideBetsGetService', () => {
       isWinner: false,
       wonAt: null,
       declaredById: null,
-      betAmount: -10, // Non-winner owes the bet amount
+      betAmount: expectedBetAmount, // Non-winner owes the bet amount
     });
     expect(result.participants[1]).toMatchObject({
-      betAmount: -10, // Non-winner owes the bet amount
+      betAmount: expectedBetAmount, // Non-winner owes the bet amount
     });
   });
 
@@ -231,7 +232,137 @@ describe('sideBetsGetService', () => {
     expect(result.status).toBe('completed');
     expect(result.participants[0].isWinner).toBe(true);
     expect(result.participants[0].declaredById).toBe(playerId2);
-    expect(result.participants[0].betAmount).toBe(10); // Winner gets 1x bet from 1 loser
-    expect(result.participants[1].betAmount).toBe(-10); // Loser owes bet amount
+
+    const betAmount = parseFloat(mockBet.amount);
+    const participantCount = 2; // We mocked 2 participants
+    const expectedWinnings = betAmount * (participantCount - 1);
+    expect(result.participants[0].betAmount).toBe(expectedWinnings);
+    expect(result.participants[1].betAmount).toBe(-betAmount); // Loser owes bet amount
+  });
+
+  it('should throw error when bet has no participants', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsGetService = (await import('../../../services/sideBets.get.service.js')).default;
+
+    const betId = chance.guid();
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    const mockBet = {
+      id: betId,
+      round_id: roundId,
+      name: chance.sentence({ words: 3 }),
+      amount: '10.00',
+      bet_type: 'hole',
+      hole_number: 5,
+      created_by_id: chance.guid(),
+      cancelled_at: null,
+    };
+
+    // Mock bet exists
+    queryOne.mockResolvedValueOnce(mockBet);
+    // Mock user is participant
+    queryOne.mockResolvedValueOnce({ id: chance.guid() });
+    // Mock empty participants array
+    queryRows.mockResolvedValueOnce([]);
+
+    await expect(sideBetsGetService(betId, roundId, userId))
+      .rejects.toThrow('Side bet has no participants');
+  });
+
+  it('should throw error when bet has multiple winners', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsGetService = (await import('../../../services/sideBets.get.service.js')).default;
+
+    const betId = chance.guid();
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId1 = chance.guid();
+    const playerId2 = chance.guid();
+
+    const mockBet = {
+      id: betId,
+      round_id: roundId,
+      name: chance.sentence({ words: 3 }),
+      amount: '10.00',
+      bet_type: 'hole',
+      hole_number: 5,
+      created_by_id: playerId1,
+      cancelled_at: null,
+    };
+
+    // Mock bet exists
+    queryOne.mockResolvedValueOnce(mockBet);
+    // Mock user is participant
+    queryOne.mockResolvedValueOnce({ id: playerId1 });
+
+    // Mock participants with TWO winners
+    queryRows.mockResolvedValueOnce([
+      {
+        player_id: playerId1,
+        user_id: userId,
+        is_guest: false,
+        display_name: chance.name(),
+        is_winner: true, // Winner 1
+        won_at: new Date(),
+        declared_by_id: playerId2,
+      },
+      {
+        player_id: playerId2,
+        user_id: chance.integer({ min: 1001, max: 2000 }),
+        is_guest: false,
+        display_name: chance.name(),
+        is_winner: true, // Winner 2 (invalid!)
+        won_at: new Date(),
+        declared_by_id: playerId1,
+      },
+    ]);
+
+    await expect(sideBetsGetService(betId, roundId, userId))
+      .rejects.toThrow('Side bet cannot have multiple winners');
+  });
+
+  it('should handle invalid bet amount gracefully', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsGetService = (await import('../../../services/sideBets.get.service.js')).default;
+
+    const betId = chance.guid();
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
+
+    const mockBet = {
+      id: betId,
+      round_id: roundId,
+      name: chance.sentence({ words: 3 }),
+      amount: 'invalid-amount', // Invalid amount
+      bet_type: 'hole',
+      hole_number: 5,
+      created_by_id: playerId,
+      cancelled_at: null,
+    };
+
+    // Mock bet exists
+    queryOne.mockResolvedValueOnce(mockBet);
+    // Mock user is participant
+    queryOne.mockResolvedValueOnce({ id: playerId });
+
+    // Mock single participant
+    queryRows.mockResolvedValueOnce([
+      {
+        player_id: playerId,
+        user_id: userId,
+        is_guest: false,
+        display_name: chance.name(),
+        is_winner: false,
+        won_at: null,
+        declared_by_id: null,
+      },
+    ]);
+
+    const result = await sideBetsGetService(betId, roundId, userId);
+
+    // Should handle NaN gracefully (parseFloat('invalid-amount') returns NaN)
+    expect(result.participants[0].betAmount).toBeNaN();
   });
 });
