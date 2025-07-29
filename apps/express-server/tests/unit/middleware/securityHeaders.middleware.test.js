@@ -1,6 +1,9 @@
 import {
   describe, it, expect, vi,
 } from 'vitest';
+import Chance from 'chance';
+
+const chance = new Chance();
 
 describe('securityHeaders middleware', () => {
   it('should export securityHeaders function', async () => {
@@ -16,7 +19,7 @@ describe('securityHeaders middleware', () => {
   it('should set all required security headers', async () => {
     const securityHeaders = await import('../../../middleware/securityHeaders.middleware.js');
 
-    const mockReq = {};
+    const mockReq = { headers: {} };
     const mockRes = {
       setHeader: vi.fn(),
       removeHeader: vi.fn(),
@@ -33,12 +36,14 @@ describe('securityHeaders middleware', () => {
     expect(mockRes.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache, must-revalidate, private');
     expect(mockRes.setHeader).toHaveBeenCalledWith('Pragma', 'no-cache');
     expect(mockRes.setHeader).toHaveBeenCalledWith('Expires', '0');
+    expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    expect(mockRes.setHeader).toHaveBeenCalledWith('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   });
 
-  it('should remove X-Powered-By header', async () => {
+  it('should remove server information headers', async () => {
     const securityHeaders = await import('../../../middleware/securityHeaders.middleware.js');
 
-    const mockReq = {};
+    const mockReq = { headers: {} };
     const mockRes = {
       setHeader: vi.fn(),
       removeHeader: vi.fn(),
@@ -48,6 +53,7 @@ describe('securityHeaders middleware', () => {
     securityHeaders.default(mockReq, mockRes, mockNext);
 
     expect(mockRes.removeHeader).toHaveBeenCalledWith('X-Powered-By');
+    expect(mockRes.removeHeader).toHaveBeenCalledWith('Server');
   });
 
   it('should call next() to continue middleware chain', async () => {
@@ -123,10 +129,61 @@ describe('securityHeaders middleware', () => {
     securityHeaders.default(mockReq1, mockRes1, mockNext1);
     securityHeaders.default(mockReq2, mockRes2, mockNext2);
 
-    // Both should behave identically
-    expect(mockRes1.setHeader).toHaveBeenCalledTimes(7);
-    expect(mockRes2.setHeader).toHaveBeenCalledTimes(7);
+    // Both should behave identically (now 9 headers + X-Request-ID)
+    expect(mockRes1.setHeader).toHaveBeenCalledTimes(10);
+    expect(mockRes2.setHeader).toHaveBeenCalledTimes(10);
     expect(mockNext1).toHaveBeenCalledTimes(1);
     expect(mockNext2).toHaveBeenCalledTimes(1);
+  });
+
+  it('should generate X-Request-ID when not provided', async () => {
+    const securityHeaders = await import('../../../middleware/securityHeaders.middleware.js');
+
+    const mockReq = { headers: {} };
+    const mockRes = {
+      setHeader: vi.fn(),
+      removeHeader: vi.fn(),
+    };
+    const mockNext = vi.fn();
+
+    securityHeaders.default(mockReq, mockRes, mockNext);
+
+    // Verify X-Request-ID was generated
+    const requestIdCall = mockRes.setHeader.mock.calls.find((call) => call[0] === 'X-Request-ID');
+    expect(requestIdCall).toBeDefined();
+    expect(requestIdCall[1]).toMatch(/^auth-\d+-[a-z0-9]+$/);
+  });
+
+  it('should use existing X-Request-ID when provided', async () => {
+    const securityHeaders = await import('../../../middleware/securityHeaders.middleware.js');
+
+    const existingRequestId = chance.guid();
+    const mockReq = { headers: { 'x-request-id': existingRequestId } };
+    const mockRes = {
+      setHeader: vi.fn(),
+      removeHeader: vi.fn(),
+    };
+    const mockNext = vi.fn();
+
+    securityHeaders.default(mockReq, mockRes, mockNext);
+
+    expect(mockRes.setHeader).toHaveBeenCalledWith('X-Request-ID', existingRequestId);
+  });
+
+  it('should set enhanced CSP and Permissions Policy headers', async () => {
+    const securityHeaders = await import('../../../middleware/securityHeaders.middleware.js');
+
+    const mockReq = { headers: {} };
+    const mockRes = {
+      setHeader: vi.fn(),
+      removeHeader: vi.fn(),
+    };
+    const mockNext = vi.fn();
+
+    securityHeaders.default(mockReq, mockRes, mockNext);
+
+    // Verify enhanced security headers
+    expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    expect(mockRes.setHeader).toHaveBeenCalledWith('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   });
 });

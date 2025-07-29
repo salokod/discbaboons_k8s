@@ -1,5 +1,5 @@
 // Security headers middleware for enhanced API security
-const securityHeaders = (_req, res, next) => {
+const securityHeaders = (req, res, next) => {
   // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
@@ -17,8 +17,18 @@ const securityHeaders = (_req, res, next) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
+  // Content Security Policy for auth endpoints
+  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+
+  // Permissions policy to disable unnecessary features
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+
   // Remove server information leakage
   res.removeHeader('X-Powered-By');
+  res.removeHeader('Server');
+
+  // Add security timing headers to prevent timing attacks
+  res.setHeader('X-Request-ID', (req.headers && req.headers['x-request-id']) || `auth-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
 
   next();
 };
