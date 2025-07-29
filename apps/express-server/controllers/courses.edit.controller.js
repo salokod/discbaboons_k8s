@@ -6,11 +6,11 @@ const editController = async (req, res, next) => {
     const userId = req.user?.userId;
 
     if (!courseId) {
-      return res.status(400).json({ error: 'Course ID is required' });
+      return res.status(400).json({ success: false, message: 'Course ID is required' });
     }
 
     if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
+      return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
     // Extract update data from request body
@@ -35,14 +35,11 @@ const editController = async (req, res, next) => {
     const result = await coursesEditService.edit(courseId, updateData, userId);
 
     if (!result) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ success: false, message: 'Course not found' });
     }
 
     return res.json(result);
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: error.message });
-    }
     return next(error);
   }
 };

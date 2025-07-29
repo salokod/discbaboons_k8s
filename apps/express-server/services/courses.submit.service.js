@@ -103,45 +103,45 @@ const coursesSubmitService = async (userId, courseData = {}) => {
   // Generate URL-friendly course ID
   const courseId = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${city.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${stateProvince.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${country.toLowerCase()}`;
 
-  // Check if course already exists
-  const existingCourse = await queryOne(
-    'SELECT id FROM courses WHERE id = $1',
-    [courseId],
-  );
-
-  if (existingCourse) {
-    const error = new Error('A course with this name and location already exists');
-    error.name = 'ValidationError';
-    throw error;
-  }
-
   // Truncate coordinates to 5 decimal places for consistency
   const {
     latitude: truncatedLat,
     longitude: truncatedLng,
   } = truncateCoordinates(latitude, longitude);
 
-  // Insert course into database (updated field names)
-  const result = await queryOne(
-    `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-    [
-      courseId,
-      name,
-      city,
-      stateProvince.toUpperCase(),
-      country.toUpperCase(),
-      postalCode,
-      holeCount,
-      truncatedLat,
-      truncatedLng,
-      true,
-      false,
-      userId,
-    ],
-  );
+  // Insert course into database with race condition protection
+  // Using try/catch to handle unique constraint violations
+  try {
+    const result = await queryOne(
+      `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        courseId,
+        name,
+        city,
+        stateProvince.toUpperCase(),
+        country.toUpperCase(),
+        postalCode,
+        holeCount,
+        truncatedLat,
+        truncatedLng,
+        true,
+        false,
+        userId,
+      ],
+    );
 
-  return processCourseCoordinates(result);
+    return processCourseCoordinates(result);
+  } catch (dbError) {
+    // Handle unique constraint violation (duplicate course)
+    if (dbError.code === '23505') { // PostgreSQL unique violation error code
+      const error = new Error('A course with this name and location already exists');
+      error.name = 'ValidationError';
+      throw error;
+    }
+    // Re-throw other database errors
+    throw dbError;
+  }
 };
 
 export default coursesSubmitService;

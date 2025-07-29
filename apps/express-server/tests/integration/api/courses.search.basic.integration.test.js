@@ -18,6 +18,8 @@ describe('GET /api/courses - Integration', () => {
   let token;
   let approvedCourseId1;
   let approvedCourseId2;
+  let course1State;
+  let course2State;
   let createdUserIds = [];
   let createdCourseIds = [];
 
@@ -32,6 +34,11 @@ describe('GET /api/courses - Integration', () => {
     token = testUser.token;
     createdUserIds.push(user.id);
 
+    // Create test data with meaningful randomness
+    const testStates = ['CA', 'NY', 'TX', 'FL', 'WA'];
+    course1State = chance.pickone(testStates);
+    course2State = chance.pickone(testStates.filter((s) => s !== course1State));
+
     // Create approved courses directly in DB for search
     approvedCourseId1 = chance.guid();
     await query(
@@ -40,9 +47,9 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId1,
-        'Golden Gate Park',
-        'San Francisco',
-        'CA',
+        chance.company(),
+        chance.city(),
+        course1State,
         'US',
         chance.integer({ min: 9, max: 27 }),
         false,
@@ -58,9 +65,9 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId2,
-        'Central Park',
-        'New York',
-        'NY',
+        chance.company(),
+        chance.city(),
+        course2State,
         'US',
         chance.integer({ min: 9, max: 27 }),
         false,
@@ -112,15 +119,15 @@ describe('GET /api/courses - Integration', () => {
   // GOOD: Integration concern - search filtering from database
   test('should filter courses by state from database', async () => {
     const response = await request(app)
-      .get('/api/courses?state=CA')
+      .get(`/api/courses?state=${course1State}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(response.body.courses).toBeDefined();
-    // Integration: Should include our CA course
+    // Integration: Should include our test course with the correct state
     const foundCourse = response.body.courses.find((c) => c.id === approvedCourseId1);
     expect(foundCourse).toBeDefined();
-    expect(foundCourse.state_province).toBe('CA');
+    expect(foundCourse.state_province).toBe(course1State);
   });
 
   // GOOD: Integration concern - name search filtering from database

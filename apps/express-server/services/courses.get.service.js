@@ -13,20 +13,17 @@ const coursesGetService = async (courseId, userId = null) => {
 
   if (userId) {
     // Allow access to approved courses OR user's own unapproved courses
-    // OR friend's unapproved courses
+    // OR friend's unapproved courses (optimized with EXISTS)
     query = `
       SELECT * FROM courses 
       WHERE id = $1 AND (
         approved = true 
         OR submitted_by_id = $2
-        OR (approved = false AND submitted_by_id IN (
-          SELECT CASE 
-            WHEN requester_id = $2 THEN recipient_id
-            WHEN recipient_id = $2 THEN requester_id
-          END as friend_id
-          FROM friendship_requests 
-          WHERE status = 'accepted' 
-            AND (requester_id = $2 OR recipient_id = $2)
+        OR (approved = false AND EXISTS (
+          SELECT 1 FROM friendship_requests fr
+          WHERE fr.status = 'accepted' 
+            AND ((fr.requester_id = $2 AND fr.recipient_id = courses.submitted_by_id)
+                 OR (fr.recipient_id = $2 AND fr.requester_id = courses.submitted_by_id))
         ))
       )
     `;
