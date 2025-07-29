@@ -5,6 +5,12 @@ Get detailed information about a specific round, including all players and pars 
 ## Authentication
 Requires authentication via Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Support frequent access during active play
+- **Headers**: Standard rate limit headers included in response
+
 ## Permissions
 Only round participants can access round details:
 - Round creator (user who created the round)
@@ -92,7 +98,16 @@ Returns the complete round object with embedded players array and pars data.
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many round detail requests, please try again in 10 minutes"
 }
 ```
 

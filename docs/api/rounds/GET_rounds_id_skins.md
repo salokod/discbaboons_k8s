@@ -5,6 +5,12 @@ Get skins calculation results for a round.
 ## Authentication
 **Required**: Bearer token
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Prevent excessive skins data requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Parameters
 
 ### Path Parameters
@@ -97,7 +103,19 @@ Each player UUID (as string key) contains:
 **Content**:
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+### 429 Too Many Requests
+**Condition**: Rate limit exceeded
+
+**Content**:
+```json
+{
+  "success": false,
+  "message": "Too many skins requests, please try again in 10 minutes"
 }
 ```
 

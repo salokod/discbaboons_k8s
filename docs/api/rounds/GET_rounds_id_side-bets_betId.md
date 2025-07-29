@@ -5,6 +5,12 @@ Get details for a specific side bet in a disc golf round.
 ## Authentication Required
 This endpoint requires authentication via Bearer token.
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 20 per IP address
+- **Purpose**: Prevent excessive side bet requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Request
 
 ### HTTP Method
@@ -128,7 +134,16 @@ Authorization: Bearer <access_token>
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many side bet requests, please try again in 1 hour"
 }
 ```
 

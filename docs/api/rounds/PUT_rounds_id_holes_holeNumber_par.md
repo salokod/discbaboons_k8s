@@ -14,6 +14,17 @@ Any participant in a round can set or update the par value for any hole. This en
 
 Requires valid JWT token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Support frequent scoring operations during active play
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Parameters
 
 ### URL Parameters
@@ -97,7 +108,23 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "message": "Access denied. Please log in."
+  "message": "Access token required"
+}
+```
+
+### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 50KB."
+}
+```
+
+### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many scoring requests, please try again in 10 minutes"
 }
 ```
 

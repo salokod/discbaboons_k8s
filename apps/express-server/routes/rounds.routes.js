@@ -18,61 +18,76 @@ import sideBetsListController from '../controllers/sideBets.list.controller.js';
 import sideBetsGetController from '../controllers/sideBets.get.controller.js';
 import sideBetsUpdateController from '../controllers/sideBets.update.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
+import {
+  roundsListRateLimit,
+  roundsCreateRateLimit,
+  roundsDetailsRateLimit,
+  roundsUpdateRateLimit,
+  roundsDeleteRateLimit,
+  roundsPlayerRateLimit,
+  roundsScoringRateLimit,
+  roundsSideBetsRateLimit,
+} from '../middleware/roundsRateLimit.middleware.js';
+import {
+  roundsRequestLimit,
+  roundsScoringRequestLimit,
+} from '../middleware/roundsRequestLimit.middleware.js';
 
 const router = express.Router();
 
 // GET /api/rounds - List user's rounds (requires authentication)
-router.get('/', authenticateToken, roundsListController);
+router.get('/', roundsListRateLimit, authenticateToken, roundsListController);
 
 // POST /api/rounds - Create new round (requires authentication)
-router.post('/', authenticateToken, roundsCreateController);
+router.post('/', roundsCreateRateLimit, roundsRequestLimit, authenticateToken, roundsCreateController);
 
 // POST /api/rounds/:id/players - Add player to round (requires authentication)
-router.post('/:id/players', authenticateToken, addPlayerController);
+router.post('/:id/players', roundsPlayerRateLimit, roundsRequestLimit, authenticateToken, addPlayerController);
 
 // GET /api/rounds/:id/players - List round players (requires authentication)
-router.get('/:id/players', authenticateToken, listPlayersController);
+router.get('/:id/players', roundsPlayerRateLimit, authenticateToken, listPlayersController);
 
 // DELETE /api/rounds/:id/players/:playerId - Remove player from round (requires authentication)
-router.delete('/:id/players/:playerId', authenticateToken, removePlayerController);
+router.delete('/:id/players/:playerId', roundsPlayerRateLimit, authenticateToken, removePlayerController);
 
 // PUT /api/rounds/:id/holes/:holeNumber/par - Set hole par (requires authentication)
-router.put('/:id/holes/:holeNumber/par', authenticateToken, setParController);
+router.put('/:id/holes/:holeNumber/par', roundsScoringRateLimit, roundsRequestLimit, authenticateToken, setParController);
 
 // GET /api/rounds/:id/pars - Get all pars for a round (requires authentication)
-router.get('/:id/pars', authenticateToken, getParsController);
+router.get('/:id/pars', roundsScoringRateLimit, authenticateToken, getParsController);
 
 // POST /api/rounds/:id/scores - Submit scores for round (requires authentication)
-router.post('/:id/scores', authenticateToken, submitScoresController);
+router.post('/:id/scores', roundsScoringRateLimit, roundsScoringRequestLimit, authenticateToken, submitScoresController);
 
 // GET /api/rounds/:id/scores - Get all scores for round (requires authentication)
-router.get('/:id/scores', authenticateToken, getScoresController);
+router.get('/:id/scores', roundsScoringRateLimit, authenticateToken, getScoresController);
 
 // GET /api/rounds/:id/leaderboard - Get round leaderboard (requires authentication)
-router.get('/:id/leaderboard', authenticateToken, getLeaderboardController);
+router.get('/:id/leaderboard', roundsScoringRateLimit, authenticateToken, getLeaderboardController);
 
 // GET /api/rounds/:id/skins - Get round skins calculation (requires authentication)
-router.get('/:id/skins', authenticateToken, skinsCalculateController);
+router.get('/:id/skins', roundsScoringRateLimit, authenticateToken, skinsCalculateController);
 
 // POST /api/rounds/:id/side-bets - Create side bet for round (requires authentication)
-router.post('/:id/side-bets', authenticateToken, sideBetsCreateController);
+router.post('/:id/side-bets', roundsSideBetsRateLimit, roundsRequestLimit, authenticateToken, sideBetsCreateController);
 
 // GET /api/rounds/:id/side-bets - List side bets for round (requires authentication)
-router.get('/:id/side-bets', authenticateToken, sideBetsListController);
+router.get('/:id/side-bets', roundsSideBetsRateLimit, authenticateToken, sideBetsListController);
 
 // GET /api/rounds/:id/side-bets/:betId - Get single side bet (requires authentication)
-router.get('/:id/side-bets/:betId', authenticateToken, sideBetsGetController);
+router.get('/:id/side-bets/:betId', roundsSideBetsRateLimit, authenticateToken, sideBetsGetController);
 
 // PUT /api/rounds/:id/side-bets/:betId - Update side bet (requires authentication)
-router.put('/:id/side-bets/:betId', authenticateToken, sideBetsUpdateController);
+router.put('/:id/side-bets/:betId', roundsSideBetsRateLimit, roundsRequestLimit, authenticateToken, sideBetsUpdateController);
 
+// IMPORTANT: General routes MUST come after specific patterns to avoid matching conflicts
 // PUT /api/rounds/:id - Update round details (requires authentication)
-router.put('/:id', authenticateToken, updateRoundController);
+router.put('/:id', roundsUpdateRateLimit, roundsRequestLimit, authenticateToken, updateRoundController);
 
 // DELETE /api/rounds/:id - Delete round (requires authentication)
-router.delete('/:id', authenticateToken, deleteRoundController);
+router.delete('/:id', roundsDeleteRateLimit, authenticateToken, deleteRoundController);
 
 // GET /api/rounds/:id - Get round details (requires authentication)
-router.get('/:id', authenticateToken, getRoundController);
+router.get('/:id', roundsDetailsRateLimit, authenticateToken, getRoundController);
 
 export default router;

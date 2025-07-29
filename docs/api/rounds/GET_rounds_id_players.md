@@ -11,6 +11,12 @@ GET /api/rounds/:id/players
 - **Required**: Yes
 - **Type**: Bearer token
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 30 per IP address
+- **Purpose**: Moderate limits for player management operations
+- **Headers**: Standard rate limit headers included in response
+
 ## Permission Requirements
 - User must be the round creator OR an existing player in the round
 - Returns 403 if user doesn't have permission to view players
@@ -51,7 +57,16 @@ GET /api/rounds/:id/players
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many player management requests, please try again in 10 minutes"
 }
 ```
 
