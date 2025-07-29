@@ -5,6 +5,12 @@ Remove a player from a round.
 ## Authentication
 Requires authentication via Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 30 per IP address
+- **Purpose**: Moderate limits for player management operations
+- **Headers**: Standard rate limit headers included in response
+
 ## Permissions
 - Round creator can remove any player (except cannot remove themselves)
 - Players can remove themselves from the round
@@ -68,7 +74,16 @@ None required.
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many player management requests, please try again in 10 minutes"
 }
 ```
 

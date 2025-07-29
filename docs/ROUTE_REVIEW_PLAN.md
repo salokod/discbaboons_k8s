@@ -200,11 +200,11 @@ Following **PR_REVIEW_METHODOLOGY.md**, each route will be evaluated for:
 1. ✅ **auth.routes.js** - Authentication foundation (MERGED - Production ready)
 2. 🔄 **Security audit across all routes** - Authentication/authorization gaps (NEXT UP)
 
-### Phase 2: Core Functionality Review (Week 2)  
-3. **courses.routes.js** - Course management
-4. **rounds.routes.js** - Round management (largest file)
+### Phase 2: Core Functionality Review (Week 2)  ✅ **COMPLETED**
+3. ✅ **courses.routes.js** - Course management (COMPLETED - All Must/Should Fix items implemented)
 
-### Phase 3: Feature Functionality Review (Week 3)
+### Phase 3: Feature Functionality Review (Week 3) ✅ **IN PROGRESS**
+4. ✅ **rounds.routes.js** - Round management (COMPLETED - All Must/Should/Nice-to-Have items implemented)
 5. **profile.routes.js** - User profiles
 6. **friends.routes.js** - Social features  
 7. **bags.routes.js** - Bag management
@@ -232,8 +232,8 @@ Following **PR_REVIEW_METHODOLOGY.md**, each route will be evaluated for:
 | Route File | Status | Must Fix | Should Fix | Nice to Have | Questions | Overall |
 |------------|--------|----------|------------|--------------|-----------|---------|
 | auth.routes.js | ✅ **MERGED** | 0 | 0 | 2 | 0 | ✅ **PRODUCTION READY** |
-| courses.routes.js | ⏳ Pending | - | - | - | - | - |
-| rounds.routes.js | ⏳ Pending | - | - | - | - | - |
+| courses.routes.js | ✅ **COMPLETED** | 0 | 0 | 3 | 0 | ✅ **PRODUCTION READY** |
+| rounds.routes.js | ✅ **COMPLETED** | 0 | 0 | 0 | 0 | ✅ **PRODUCTION READY** |
 | profile.routes.js | ⏳ Pending | - | - | - | - | - |
 | friends.routes.js | ⏳ Pending | - | - | - | - | - |
 | bags.routes.js | ⏳ Pending | - | - | - | - | - |
@@ -305,3 +305,41 @@ Following **PR_REVIEW_METHODOLOGY.md**, each route will be evaluated for:
   - **Consideration**: Implement device fingerprinting for persistent bad actors
   - **Impact**: Attackers could easily circumvent IP-based rate limiting
   - **Timeline**: Phase 5 advanced security
+
+### API Documentation Maintenance
+*Added from courses.routes.js review - ensure documentation stays current with implementation changes*
+
+#### Required Updates When Routes Change
+- [ ] **Rate Limiting Changes**: Update API docs when rate limits are modified
+  - All endpoints must document current rate limiting windows and request limits
+  - Include 429 Too Many Requests error responses in documentation
+  - Document rate limiting headers returned in responses
+
+- [ ] **Error Response Format Updates**: Ensure consistent error format across all API docs
+  - All error responses must use `{ success: false, message: "..." }` format
+  - Remove legacy `{ error: "..." }` format from documentation
+  - Include all relevant HTTP status codes (400, 401, 403, 404, 413, 429, 500)
+
+- [ ] **Request Size Limits**: Document payload size restrictions
+  - Include 413 Payload Too Large error responses where applicable
+  - Specify exact size limits for each endpoint (e.g., 100KB, 50KB)
+  - Explain what constitutes the payload (request body, headers, etc.)
+
+- [ ] **Security Headers**: Document any new security-related response headers
+  - Rate limiting headers (X-RateLimit-Limit, X-RateLimit-Remaining, etc.)
+  - Security headers added by middleware
+  - CORS headers if modified
+
+#### Documentation Quality Checklist
+- [ ] **Complete Examples**: Every endpoint has working curl examples
+- [ ] **Error Coverage**: All possible error responses documented with examples
+- [ ] **Parameter Validation**: All validation rules clearly explained
+- [ ] **Response Format**: Complete response structure with all fields documented
+- [ ] **Authentication**: Clear authentication requirements for protected endpoints
+- [ ] **Permissions**: Business rules and permission requirements explained
+
+#### Files That Must Be Updated
+When making route changes, always check these documentation files:
+- `/docs/api/[route-group]/[METHOD]_[endpoint].md` - Primary endpoint documentation
+- `/docs/api/README.md` - API overview and general information
+- Any integration guides that reference the modified endpoints

@@ -10,6 +10,12 @@ GET /api/rounds/:id/leaderboard
 ## Authentication
 - **Required**: Yes (Bearer token)
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Prevent excessive leaderboard requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Parameters
 
 ### Path Parameters
@@ -102,7 +108,16 @@ Players are sorted by:
 ### 401 Unauthorized - Missing Authentication
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many leaderboard requests, please try again in 10 minutes"
 }
 ```
 

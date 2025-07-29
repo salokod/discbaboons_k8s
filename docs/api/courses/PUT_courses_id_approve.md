@@ -11,6 +11,17 @@ PUT /api/courses/:id/approve
 ## Authentication
 **Required**: Bearer token in Authorization header + Admin privileges.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 20 per IP address
+- **Purpose**: Prevent excessive admin API usage
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## URL Parameters
 
 | Parameter | Type | Required | Description |
@@ -62,35 +73,56 @@ PUT /api/courses/:id/approve
 #### 400 Bad Request - Missing Course ID
 ```json
 {
-  "error": "Course ID is required"
+  "success": false,
+  "message": "Course ID is required"
 }
 ```
 
 #### 400 Bad Request - Invalid Approval Status
 ```json
 {
-  "error": "Approved status must be true or false"
+  "success": false,
+  "message": "Approved status must be true or false"
 }
 ```
 
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
 }
 ```
 
 #### 403 Forbidden
 ```json
 {
-  "error": "Admin access required"
+  "success": false,
+  "message": "Admin access required"
 }
 ```
 
 #### 404 Not Found
 ```json
 {
-  "error": "Course not found"
+  "success": false,
+  "message": "Course not found"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 50KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many admin requests. Please try again later."
 }
 ```
 

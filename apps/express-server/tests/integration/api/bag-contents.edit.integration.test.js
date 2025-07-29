@@ -167,7 +167,7 @@ describe('PUT /api/bags/:id/discs/:contentId - Integration', () => {
       bag_id: bagId,
       disc_id: discId,
       notes: updateData.notes,
-      weight: updateData.weight.toString(),
+      weight: updateData.weight.toFixed(1),
       condition: updateData.condition,
       plastic_type: updateData.plastic_type,
       color: updateData.color,

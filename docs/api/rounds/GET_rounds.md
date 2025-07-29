@@ -5,6 +5,12 @@ List and filter rounds for the authenticated user.
 ## Authentication Required
 This endpoint requires authentication via Bearer token.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 50 per IP address
+- **Purpose**: Prevent excessive listing requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Request
 
 ### HTTP Method
@@ -92,7 +98,16 @@ All query parameters are optional for filtering and pagination:
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many rounds list requests, please try again in 10 minutes"
 }
 ```
 

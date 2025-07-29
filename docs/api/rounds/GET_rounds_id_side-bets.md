@@ -11,6 +11,12 @@ List all side bets for a specific round with player money summary.
 - Requires valid JWT token
 - User must be a participant (creator or player) in the round
 
+### Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 20 per IP address
+- **Purpose**: Prevent excessive side bet requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Response
 
 ### Success Response (200 OK)
@@ -149,6 +155,14 @@ List all side bets for a specific round with player money summary.
 {
   "success": false,
   "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many side bet requests, please try again in 1 hour"
 }
 ```
 

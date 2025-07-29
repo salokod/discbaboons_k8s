@@ -11,6 +11,12 @@ DELETE /api/rounds/:id
 - **Required**: Yes (Bearer token)
 - **Permission**: User must be the round creator (stricter than update permission)
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 5 per IP address
+- **Purpose**: Prevent accidental or malicious round deletion
+- **Headers**: Standard rate limit headers included in response
+
 ## Parameters
 
 ### Path Parameters
@@ -50,7 +56,16 @@ DELETE /api/rounds/123e4567-e89b-12d3-a456-426614174000
 ### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many round deletion requests, please try again in 1 hour"
 }
 ```
 

@@ -5,6 +5,17 @@ Add one or more players (registered users or guests) to an existing round in a s
 ## Authentication Required
 This endpoint requires authentication via Bearer token.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 30 per IP address
+- **Purpose**: Moderate limits for player management operations
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Request
 
 ### HTTP Method
@@ -111,7 +122,24 @@ Returns an array of all successfully added players:
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 50KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many player management requests, please try again in 10 minutes"
 }
 ```
 

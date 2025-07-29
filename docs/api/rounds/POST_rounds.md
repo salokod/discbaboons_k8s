@@ -5,6 +5,17 @@ Create a new round for disc golf.
 ## Authentication Required
 This endpoint requires authentication via Bearer token.
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 10 per IP address
+- **Purpose**: Prevent round creation spam
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Request
 
 ### HTTP Method
@@ -93,7 +104,24 @@ Content-Type: application/json
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 50KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many round creation requests, please try again in 1 hour"
 }
 ```
 

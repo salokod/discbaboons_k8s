@@ -11,6 +11,17 @@ GET /api/courses/pending
 ## Authentication
 **Required**: Bearer token in Authorization header + Admin privileges.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 20 per IP address
+- **Purpose**: Prevent excessive admin API usage
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body (if any)
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Query Parameters
 
 | Parameter | Type | Required | Default | Description |
@@ -61,7 +72,8 @@ GET /api/courses/pending
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
 }
 ```
 
@@ -69,6 +81,14 @@ GET /api/courses/pending
 ```json
 {
   "error": "Admin access required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many admin requests. Please try again later."
 }
 ```
 

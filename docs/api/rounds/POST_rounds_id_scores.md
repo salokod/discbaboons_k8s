@@ -5,6 +5,18 @@ Submit or update scores for players in a round. Supports batch submission of mul
 ## Authentication
 Requires authentication via Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Support frequent scoring during active play
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 100KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+- **Note**: Higher limit to support batch score submissions
+
 ## Permissions
 Only round participants can submit scores:
 - Round creator (user who created the round)
@@ -122,7 +134,24 @@ Content-Type: application/json
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 100KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many scoring requests, please try again in 10 minutes"
 }
 ```
 

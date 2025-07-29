@@ -14,6 +14,12 @@ Returns an object with hole numbers as keys and par values as values. Only holes
 
 Requires valid JWT token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Prevent excessive scoring-related requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Parameters
 
 ### URL Parameters
@@ -64,6 +70,14 @@ Authorization: Bearer <jwt_token>
 {
   "success": false,
   "message": "Access denied. Please log in."
+}
+```
+
+### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many scoring requests, please try again in 10 minutes"
 }
 ```
 

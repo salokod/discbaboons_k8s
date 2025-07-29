@@ -11,6 +11,17 @@ PUT /api/rounds/:id
 - **Required**: Yes (Bearer token)
 - **Permission**: User must be a participant in the round (creator or existing player)
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 20 per IP address
+- **Purpose**: Prevent excessive round modifications
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Parameters
 
 ### Path Parameters
@@ -140,7 +151,24 @@ PUT /api/rounds/:id
 ### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 50KB."
+}
+```
+
+### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many round update requests, please try again in 1 hour"
 }
 ```
 

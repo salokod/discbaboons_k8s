@@ -8,6 +8,12 @@ Get all scores for a specific round with dynamic par calculation.
 ## Authentication
 Bearer token required. User must be authenticated.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Support frequent access during active play
+- **Headers**: Standard rate limit headers included in response
+
 ## Authorization
 User must be a participant in the round (creator or player).
 
@@ -89,7 +95,15 @@ Missing or invalid authentication token:
 ```json
 {
   "success": false,
-  "message": "Access token is required"
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many scoring requests, please try again in 10 minutes"
 }
 ```
 
