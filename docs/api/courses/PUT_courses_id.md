@@ -11,6 +11,17 @@ PUT /api/courses/:id
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 15 minutes
+- **Max Requests**: 10 per IP address
+- **Purpose**: Prevent abuse while allowing reasonable editing
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 100KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Permission Rules
 1. **Admins**: Can edit any course
 2. **Course Owner**: Can edit their own submitted courses
@@ -84,35 +95,56 @@ The endpoint supports both camelCase and snake_case field names:
 #### 400 Bad Request - Missing Course ID
 ```json
 {
-  "error": "Course ID is required"
+  "success": false,
+  "message": "Course ID is required"
 }
 ```
 
 #### 400 Bad Request - No Fields to Update
 ```json
 {
-  "error": "No valid fields to update"
+  "success": false,
+  "message": "No valid fields to update"
 }
 ```
 
 #### 400 Bad Request - Permission Denied
 ```json
 {
-  "error": "You do not have permission to edit this course"
+  "success": false,
+  "message": "You do not have permission to edit this course"
 }
 ```
 
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
 }
 ```
 
 #### 404 Not Found
 ```json
 {
-  "error": "Course not found"
+  "success": false,
+  "message": "Course not found"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 100KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many course edit requests. Please try again later."
 }
 ```
 

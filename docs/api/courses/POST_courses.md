@@ -5,6 +5,17 @@ Submit a new disc golf course for review and approval.
 ## Authentication Required
 This endpoint requires a valid authentication token.
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 5 per IP address
+- **Purpose**: Prevent spam submissions and ensure quality
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 100KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Request
 
 ### HTTP Method
@@ -119,7 +130,24 @@ Content-Type: application/json
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 100KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many course submissions. Please try again later."
 }
 ```
 

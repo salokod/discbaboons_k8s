@@ -11,6 +11,11 @@ GET /api/courses
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 5 minutes
+- **Max Requests**: 30 per IP address
+- **Headers**: Standard rate limit headers included in response
+
 ## Query Parameters
 
 | Parameter | Type | Required | Default | Description |
@@ -81,7 +86,16 @@ GET /api/courses
 #### 401 Unauthorized
 ```json
 {
-  "error": "Access token required"
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many course searches. Please try again later."
 }
 ```
 
