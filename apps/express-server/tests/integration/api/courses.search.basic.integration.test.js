@@ -40,6 +40,7 @@ describe('GET /api/courses - Integration', () => {
     course2State = chance.pickone(testStates.filter((s) => s !== course1State));
 
     // Create approved courses directly in DB for search
+    // Course 1: Contains "park" for name search test
     approvedCourseId1 = chance.guid();
     await query(
       `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
@@ -47,7 +48,7 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId1,
-        chance.company(),
+        `${chance.word()} Park Golf Course`, // Guarantee "park" in name
         chance.city(),
         course1State,
         'US',
@@ -58,6 +59,7 @@ describe('GET /api/courses - Integration', () => {
     );
     createdCourseIds.push(approvedCourseId1);
 
+    // Course 2: Different name without "park" for variety
     approvedCourseId2 = chance.guid();
     await query(
       `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
@@ -65,7 +67,7 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId2,
-        chance.company(),
+        `${chance.pickone(['Mountain', 'Valley', 'River', 'Forest', 'Lake'])} ${chance.pickone(['Ridge', 'Creek', 'Hill', 'Mesa', 'Meadow'])} Golf Course`, // Guaranteed no "park"
         chance.city(),
         course2State,
         'US',
@@ -124,10 +126,20 @@ describe('GET /api/courses - Integration', () => {
       .expect(200);
 
     expect(response.body.courses).toBeDefined();
-    // Integration: Should include our test course with the correct state
+
+    // Integration: Should find at least one course with the specified state
+    expect(response.body.courses.length).toBeGreaterThan(0);
+
+    // Should include our specific test course with the correct state
     const foundCourse = response.body.courses.find((c) => c.id === approvedCourseId1);
     expect(foundCourse).toBeDefined();
     expect(foundCourse.state_province).toBe(course1State);
+
+    // Verify state filtering works by checking that our course is included
+    const coursesWithCorrectState = response.body.courses.filter(
+      (c) => c.state_province === course1State,
+    );
+    expect(coursesWithCorrectState.length).toBeGreaterThan(0);
   });
 
   // GOOD: Integration concern - name search filtering from database
