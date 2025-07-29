@@ -33,4 +33,19 @@ const passwordRateLimit = rateLimit({
   skip: () => skipRateLimit, // Skip rate limiting in test environment
 });
 
-export { authRateLimit, passwordRateLimit };
+// Separate rate limiting for username recovery (less restrictive than password)
+const usernameRecoveryRateLimit = rateLimit({
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  max: 5, // Limit each IP to 5 username recovery attempts per 30 minutes
+  message: {
+    success: false,
+    message: 'Too many username recovery attempts, please try again in 30 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
+  skip: () => skipRateLimit, // Skip rate limiting in test environment
+});
+
+export { authRateLimit, passwordRateLimit, usernameRecoveryRateLimit };

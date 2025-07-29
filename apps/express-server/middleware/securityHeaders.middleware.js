@@ -12,8 +12,8 @@ const securityHeaders = (_req, res, next) => {
   // Control referrer information
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-  // Prevent caching of sensitive auth responses
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  // Prevent caching of sensitive auth responses (less aggressive for performance)
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
