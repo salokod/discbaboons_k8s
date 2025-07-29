@@ -18,6 +18,8 @@ describe('GET /api/courses - Integration', () => {
   let token;
   let approvedCourseId1;
   let approvedCourseId2;
+  let course1State;
+  let course2State;
   let createdUserIds = [];
   let createdCourseIds = [];
 
@@ -32,7 +34,13 @@ describe('GET /api/courses - Integration', () => {
     token = testUser.token;
     createdUserIds.push(user.id);
 
+    // Create test data with meaningful randomness
+    const testStates = ['CA', 'NY', 'TX', 'FL', 'WA'];
+    course1State = chance.pickone(testStates);
+    course2State = chance.pickone(testStates.filter((s) => s !== course1State));
+
     // Create approved courses directly in DB for search
+    // Course 1: Contains "park" for name search test
     approvedCourseId1 = chance.guid();
     await query(
       `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
@@ -40,9 +48,9 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId1,
-        'Golden Gate Park',
-        'San Francisco',
-        'CA',
+        `${chance.word()} Park Golf Course`, // Guarantee "park" in name
+        chance.city(),
+        course1State,
         'US',
         chance.integer({ min: 9, max: 27 }),
         false,
@@ -51,6 +59,7 @@ describe('GET /api/courses - Integration', () => {
     );
     createdCourseIds.push(approvedCourseId1);
 
+    // Course 2: Different name without "park" for variety
     approvedCourseId2 = chance.guid();
     await query(
       `INSERT INTO courses (id, name, city, state_province, country, hole_count, 
@@ -58,9 +67,9 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId2,
-        'Central Park',
-        'New York',
-        'NY',
+        `${chance.pickone(['Mountain', 'Valley', 'River', 'Forest', 'Lake'])} ${chance.pickone(['Ridge', 'Creek', 'Hill', 'Mesa', 'Meadow'])} Golf Course`, // Guaranteed no "park"
+        chance.city(),
+        course2State,
         'US',
         chance.integer({ min: 9, max: 27 }),
         false,
@@ -112,15 +121,25 @@ describe('GET /api/courses - Integration', () => {
   // GOOD: Integration concern - search filtering from database
   test('should filter courses by state from database', async () => {
     const response = await request(app)
-      .get('/api/courses?state=CA')
+      .get(`/api/courses?state=${course1State}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(response.body.courses).toBeDefined();
-    // Integration: Should include our CA course
+
+    // Integration: Should find at least one course with the specified state
+    expect(response.body.courses.length).toBeGreaterThan(0);
+
+    // Should include our specific test course with the correct state
     const foundCourse = response.body.courses.find((c) => c.id === approvedCourseId1);
     expect(foundCourse).toBeDefined();
-    expect(foundCourse.state_province).toBe('CA');
+    expect(foundCourse.state_province).toBe(course1State);
+
+    // Verify state filtering works by checking that our course is included
+    const coursesWithCorrectState = response.body.courses.filter(
+      (c) => c.state_province === course1State,
+    );
+    expect(coursesWithCorrectState.length).toBeGreaterThan(0);
   });
 
   // GOOD: Integration concern - name search filtering from database

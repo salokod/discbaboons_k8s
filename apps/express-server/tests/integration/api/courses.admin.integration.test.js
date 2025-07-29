@@ -207,7 +207,8 @@ describe('GET /api/courses/pending & PUT /api/courses/:id/approve - Integration'
       .expect(404);
 
     expect(response.body).toMatchObject({
-      error: expect.stringMatching(/not found/i),
+      success: false,
+      message: expect.stringMatching(/not found/i),
     });
   });
 

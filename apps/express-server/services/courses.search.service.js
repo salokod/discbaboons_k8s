@@ -21,17 +21,15 @@ const coursesSearchService = async (filters = {}, userId = null) => {
   // Base visibility rules: approved courses OR user's own unapproved courses
   // OR friend's unapproved courses
   if (userId) {
+    // Use a more efficient approach with EXISTS instead of IN subquery
     whereConditions.push(`(
       approved = true 
       OR submitted_by_id = $${params.length + 1}
-      OR (approved = false AND submitted_by_id IN (
-        SELECT CASE 
-          WHEN requester_id = $${params.length + 1} THEN recipient_id
-          WHEN recipient_id = $${params.length + 1} THEN requester_id
-        END as friend_id
-        FROM friendship_requests 
-        WHERE status = 'accepted' 
-          AND (requester_id = $${params.length + 1} OR recipient_id = $${params.length + 1})
+      OR (approved = false AND EXISTS (
+        SELECT 1 FROM friendship_requests fr
+        WHERE fr.status = 'accepted' 
+          AND ((fr.requester_id = $${params.length + 1} AND fr.recipient_id = courses.submitted_by_id)
+               OR (fr.recipient_id = $${params.length + 1} AND fr.requester_id = courses.submitted_by_id))
       ))
     )`);
     params.push(userId);

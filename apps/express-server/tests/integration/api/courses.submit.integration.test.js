@@ -44,7 +44,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.company(),
       city: chance.city(),
-      stateProvince: 'CA',
+      stateProvince: chance.state({ territories: true }),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
@@ -62,7 +62,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.company(),
       city: chance.city(),
-      stateProvince: 'CA',
+      stateProvince: chance.state({ territories: true }),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       postalCode: chance.zip(),
@@ -106,13 +106,13 @@ describe('POST /api/courses - Integration', () => {
 
   // GOOD: Integration concern - duplicate course prevention in database
   test('should prevent duplicate course creation in database', async () => {
-    const courseName = chance.company();
+    // Use static data to ensure identical IDs are generated
     const courseData = {
-      name: courseName,
-      city: chance.city(),
+      name: 'Test Course For Duplicates',
+      city: 'Test City',
       stateProvince: 'CA',
       country: 'US',
-      holeCount: chance.integer({ min: 9, max: 27 }),
+      holeCount: 18,
     };
 
     // Create first course

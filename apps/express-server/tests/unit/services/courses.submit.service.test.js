@@ -149,21 +149,14 @@ describe('courses.submit.service', () => {
       submitted_by_id: userId,
     };
 
-    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
-    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
-    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
-    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
-      1,
-      'SELECT id FROM courses WHERE id = $1',
-      [expectedCourseId],
-    );
-    expect(mockDatabase.queryOne).toHaveBeenNthCalledWith(
-      2,
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       `INSERT INTO courses (id, name, city, state_province, country, postal_code, hole_count, latitude, longitude, is_user_submitted, approved, submitted_by_id) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         expectedCourseId,
         courseData.name,
@@ -195,13 +188,12 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
-    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
-    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([randomStateProvince.toUpperCase(), randomCountry]),
@@ -223,13 +215,12 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
-    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
-    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([latitude]),
@@ -251,13 +242,12 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
-    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
-    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([longitude]),
@@ -283,13 +273,12 @@ describe('courses.submit.service', () => {
     };
 
     const mockResult = { id: chance.string() };
-    mockDatabase.queryOne.mockResolvedValueOnce(null); // First call - no existing course
-    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Second call - insert result
+    mockDatabase.queryOne.mockResolvedValueOnce(mockResult); // Insert result
 
     const result = await coursesSubmitService(userId, courseData);
 
     expect(result).toEqual(mockResult);
-    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(2);
+    expect(mockDatabase.queryOne).toHaveBeenCalledTimes(1);
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO courses'),
       expect.arrayContaining([latitude, longitude, postalCode]),
@@ -372,9 +361,10 @@ describe('courses.submit.service', () => {
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
 
-    // Mock that a course with the same ID already exists
-    const existingCourse = { id: 'existing-course' };
-    mockDatabase.queryOne.mockResolvedValueOnce(existingCourse); // First call finds existing course
+    // Mock a PostgreSQL unique constraint violation (code 23505)
+    const dbError = new Error('duplicate key value violates unique constraint');
+    dbError.code = '23505';
+    mockDatabase.queryOne.mockRejectedValueOnce(dbError);
 
     await expect(coursesSubmitService(userId, courseData)).rejects.toThrow('A course with this name and location already exists');
   });

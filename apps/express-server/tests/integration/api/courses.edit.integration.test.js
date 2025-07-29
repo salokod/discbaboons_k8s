@@ -192,7 +192,7 @@ describe('PUT /api/courses/:id - Integration', () => {
       .send({ name: chance.company() })
       .expect(400);
 
-    expect(response.body).toHaveProperty('error');
+    expect(response.body).toHaveProperty('message');
   });
 
   // GOOD: Integration concern - non-existent course handling
@@ -206,7 +206,8 @@ describe('PUT /api/courses/:id - Integration', () => {
       .expect(404);
 
     expect(response.body).toMatchObject({
-      error: expect.stringMatching(/not found/i),
+      success: false,
+      message: expect.stringMatching(/not found/i),
     });
   });
 
