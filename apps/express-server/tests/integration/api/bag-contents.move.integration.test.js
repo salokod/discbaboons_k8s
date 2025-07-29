@@ -115,7 +115,7 @@ describe('PUT /api/bags/discs/move - Integration', () => {
         contentIds: [bagContentId],
       })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

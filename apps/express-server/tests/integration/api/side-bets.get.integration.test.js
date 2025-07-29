@@ -84,7 +84,10 @@ describe('GET /api/rounds/:id/side-bets/:betId', () => {
       .get(`/api/rounds/${round.id}/side-bets/${bet.id}`)
       .expect(401);
 
-    expect(response.body).toEqual({ error: 'Access token required' });
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Access token required',
+    });
   });
 
   it('should return 400 for invalid bet ID format', async () => {

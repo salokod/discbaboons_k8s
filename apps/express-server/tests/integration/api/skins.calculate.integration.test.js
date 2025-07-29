@@ -81,7 +81,7 @@ describe('GET /api/rounds/:id/skins - Integration', () => {
     await request(app)
       .get(`/api/rounds/${round.id}/skins`)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

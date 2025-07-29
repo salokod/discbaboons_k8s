@@ -64,7 +64,7 @@ describe('PUT /api/rounds/:id - Integration', () => {
       .put(`/api/rounds/${round.id}`)
       .send(updateData)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

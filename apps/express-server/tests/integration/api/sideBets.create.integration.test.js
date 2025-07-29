@@ -77,7 +77,7 @@ describe('POST /api/rounds/:id/side-bets - Integration', () => {
       .expect(401);
 
     expect(res.body).toMatchObject({
-      error: 'Access token required',
+      success: false, message: 'Access token required',
     });
   });
 

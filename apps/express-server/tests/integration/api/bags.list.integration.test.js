@@ -45,7 +45,7 @@ describe('GET /api/bags - Integration', () => {
     await request(app)
       .get('/api/bags')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

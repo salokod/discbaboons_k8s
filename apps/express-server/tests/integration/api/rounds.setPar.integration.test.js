@@ -69,7 +69,7 @@ describe('PUT /api/rounds/:id/holes/:holeNumber/par - Integration', () => {
       .put(`/api/rounds/${round.id}/holes/${holeNumber}/par`)
       .send({ par })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

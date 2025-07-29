@@ -6,23 +6,7 @@ const loginController = async (req, res, next) => {
 
     return res.status(200).json(result);
   } catch (error) {
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    // Handle authentication errors
-    if (error.status === 401) {
-      return res.status(401).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    // Pass other errors to error middleware
+    // Pass all errors to global error handler for consistency
     return next(error);
   }
 };

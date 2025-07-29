@@ -100,7 +100,7 @@ describe('DELETE /api/bags/discs/:contentId - Integration', () => {
     await request(app)
       .delete(`/api/bags/discs/${bagContentId}`)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

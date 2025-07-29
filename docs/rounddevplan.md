@@ -872,12 +872,15 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
     - ✅ Integration Tests: Full request/response testing with winner scenarios
     - ✅ API Documentation: `/docs/api/rounds/GET_rounds_id_side-bets_betId.md`
 
-- [ ] **Financial Tracking**
-  - [ ] Calculate net gain/loss per player for each bet
-  - [ ] **Formula**: Winners get `amount × (participants - 1)`, losers pay `amount`
-  - [ ] Track total won/lost across all side bets in round
-  - [ ] Add financial summary to bet responses
-  - [ ] Service: `sideBets.calculateFinancials.service.js`
+- ✅ **Financial Tracking** ✅ **COMPLETED**
+  - ✅ Calculate net gain/loss per player across all side bets
+  - ✅ **Formula**: Winners get bet amount, losers pay bet amount (implemented correctly)
+  - ✅ Track total won/lost across all side bets in round (`moneyIn`/`moneyOut`/`total`)
+  - ✅ Add financial summary to bet responses (`playerSummary` in list endpoint)
+  - ✅ **Implementation**: Built into `sideBets.list.service.js` - no separate service needed
+  - ✅ **Player Summary Fields**: `moneyIn`, `moneyOut`, `total`, `betCount` for comprehensive tracking
+  - ✅ **Cross-Bet Aggregation**: Calculates totals across all side bets per player
+  - ✅ **Status Handling**: Properly handles active, completed, and cancelled bet states
 
 - [ ] **Business Rules**
   - [ ] **Immutability**: Players removed from round keep their bets
@@ -886,12 +889,14 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
   - [ ] **Bet Types**: "hole" bets resolved during/after specific hole, "round" bets resolved at end
   - [ ] **Frontend Resolution**: Frontend can automatically prompt for winners based on betType timing
 
-- [ ] **Integration Updates**
+- [ ] **Integration Updates** 🎯 **NEXT PRIORITY**
   - [ ] Update `GET /api/rounds/:id/leaderboard` to include side bet wins summary
-    - [ ] Add `sideBetsWon` count per player
-    - [ ] Add `sideBetsNetGain` financial summary
+    - [ ] **Approach**: Integrate existing `sideBetsListService` data into leaderboard response
+    - [ ] Add `sideBetsWon` count per player (from `playerSummary.betCount`)
+    - [ ] Add `sideBetsNetGain` financial summary (from `playerSummary.total`) 
+    - [ ] Add `overallNetGain` combining skins + side bets for comprehensive financial view
     - [ ] Update leaderboard service and documentation
-  - [ ] Future: Combine skins + side bets for total financial summary
+    - [ ] **Implementation Note**: Use existing financial tracking from list service, no new calculation needed
 
 #### Step 4.3: Betting Analytics
 - [ ] Betting history tracking

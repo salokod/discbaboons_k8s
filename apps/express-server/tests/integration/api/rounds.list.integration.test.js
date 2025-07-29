@@ -58,7 +58,7 @@ describe('GET /api/rounds - Integration', () => {
     await request(app)
       .get('/api/rounds')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

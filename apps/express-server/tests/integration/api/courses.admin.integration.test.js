@@ -76,7 +76,7 @@ describe('GET /api/courses/pending & PUT /api/courses/:id/approve - Integration'
     await request(app)
       .get('/api/courses/pending')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 
@@ -119,7 +119,7 @@ describe('GET /api/courses/pending & PUT /api/courses/:id/approve - Integration'
       .put(`/api/courses/${pendingCourseId}/approve`)
       .send({ approved: true })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

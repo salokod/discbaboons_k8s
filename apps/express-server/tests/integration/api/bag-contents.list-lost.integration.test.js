@@ -101,7 +101,7 @@ describe('GET /api/bags/lost-discs - Integration', () => {
     await request(app)
       .get('/api/bags/lost-discs')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

@@ -52,7 +52,7 @@ describe('GET /api/bags/:id - Integration', () => {
     await request(app)
       .get(`/api/bags/${bagId}`)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

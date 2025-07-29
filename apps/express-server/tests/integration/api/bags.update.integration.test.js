@@ -48,7 +48,7 @@ describe('PUT /api/bags/:id - Integration', () => {
       .put(`/api/bags/${bagId}`)
       .send({ name: chance.word() })
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

@@ -52,7 +52,7 @@ describe('POST /api/bags - Integration', () => {
       .post('/api/bags')
       .send(bagData)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

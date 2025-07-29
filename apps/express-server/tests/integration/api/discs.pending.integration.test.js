@@ -107,7 +107,7 @@ describe('GET /api/discs/pending - Integration', () => {
     await request(app)
       .get('/api/discs/pending')
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 

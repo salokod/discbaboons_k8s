@@ -99,7 +99,7 @@ describe('AuthLoginController', () => {
     });
   });
 
-  test('should handle 401 authentication errors', async () => {
+  test('should pass authentication errors to global error handler', async () => {
     const loginData = {
       username: chance.string({ length: 8, alpha: true }),
       password: chance.string({ length: 10 }),
@@ -112,14 +112,16 @@ describe('AuthLoginController', () => {
 
     await loginController(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({
-      success: false,
+    // Should call next with error instead of handling directly
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
       message: 'Invalid username or password',
-    });
+      status: 401,
+    }));
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
-  test('should handle validation errors', async () => {
+  test('should pass validation errors to global error handler', async () => {
     const loginData = {
       password: chance.string({ length: 10 }), // missing username
     };
@@ -128,11 +130,13 @@ describe('AuthLoginController', () => {
 
     await loginController(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      success: false,
+    // Should call next with ValidationError instead of handling directly
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
       message: 'Username is required',
-    });
+      name: 'ValidationError',
+    }));
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   test('should call next for unexpected errors', async () => {

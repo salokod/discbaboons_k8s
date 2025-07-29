@@ -63,7 +63,7 @@ describe('GET /api/bags/friends/:friendUserId/:bagId - Integration', () => {
     await request(app)
       .get(`/api/bags/friends/${userB.id}/${bagId}`)
       .expect(401, {
-        error: 'Access token required',
+        success: false, message: 'Access token required',
       });
   });
 
