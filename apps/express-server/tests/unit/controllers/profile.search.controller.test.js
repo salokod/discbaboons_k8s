@@ -20,14 +20,27 @@ describe('searchProfilesController', () => {
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
     };
-    const results = [{ user_id: 1, name: 'Alice' }];
-    mockSearchProfilesService.mockResolvedValueOnce(results);
+    const serviceResult = {
+      profiles: [{ user_id: 1, name: 'Alice' }],
+      total: 1,
+      limit: 20,
+      offset: 0,
+      hasMore: false,
+    };
+    mockSearchProfilesService.mockResolvedValueOnce(serviceResult);
 
     await searchProfilesController(req, res);
 
     expect(mockSearchProfilesService).toHaveBeenCalledWith({ username: 'alice' });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, results });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      profiles: [{ user_id: 1, name: 'Alice' }],
+      total: 1,
+      limit: 20,
+      offset: 0,
+      hasMore: false,
+    });
   });
 
   test('should call next with error if service throws ValidationError', async () => {

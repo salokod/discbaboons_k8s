@@ -89,19 +89,22 @@ describe('GET /api/profile/search - Integration', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      success: true,
-      results: expect.any(Array),
+      profiles: expect.any(Array),
+      total: expect.any(Number),
+      limit: expect.any(Number),
+      offset: expect.any(Number),
+      hasMore: expect.any(Boolean),
     });
 
     // Integration: Verify privacy filtering - user1 has name/city public
-    const user1Result = response.body.results.find((p) => p.user_id === user1.id);
+    const user1Result = response.body.profiles.find((p) => p.user_id === user1.id);
     expect(user1Result).toBeDefined();
     expect(user1Result).toHaveProperty('name');
     expect(user1Result).toHaveProperty('city', sharedCity);
     expect(user1Result).not.toHaveProperty('bio'); // bio is private
 
     // Integration: Verify privacy filtering - user2 has bio public
-    const user2Result = response.body.results.find((p) => p.user_id === user2.id);
+    const user2Result = response.body.profiles.find((p) => p.user_id === user2.id);
     expect(user2Result).toBeDefined();
     expect(user2Result).toHaveProperty('bio');
     expect(user2Result).not.toHaveProperty('name'); // name is private
@@ -116,12 +119,15 @@ describe('GET /api/profile/search - Integration', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      success: true,
-      results: expect.any(Array),
+      profiles: expect.any(Array),
+      total: expect.any(Number),
+      limit: expect.any(Number),
+      offset: expect.any(Number),
+      hasMore: expect.any(Boolean),
     });
 
     // Integration: Should find user1 and respect privacy settings
-    const user1Result = response.body.results.find((p) => p.user_id === user1.id);
+    const user1Result = response.body.profiles.find((p) => p.user_id === user1.id);
     expect(user1Result).toBeDefined();
     expect(user1Result).toHaveProperty('name');
     expect(user1Result).toHaveProperty('city');
@@ -136,8 +142,11 @@ describe('GET /api/profile/search - Integration', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      success: true,
-      results: [],
+      profiles: [],
+      total: 0,
+      limit: expect.any(Number),
+      offset: expect.any(Number),
+      hasMore: false,
     });
   });
 

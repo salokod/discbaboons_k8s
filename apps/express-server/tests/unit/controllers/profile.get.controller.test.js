@@ -17,6 +17,7 @@ describe('ProfileGetController', () => {
   let mockService;
   let req;
   let res;
+  let next;
 
   beforeEach(async () => {
     const service = await import('../../../services/profile.get.service.js');
@@ -29,6 +30,7 @@ describe('ProfileGetController', () => {
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
     };
+    next = vi.fn();
 
     vi.clearAllMocks();
   });
@@ -37,18 +39,18 @@ describe('ProfileGetController', () => {
     expect(typeof getProfileController).toBe('function');
   });
 
-  test('should return 401 when user is not authenticated', async () => {
+  test('should call next with error when user is not authenticated', async () => {
     // No user in request (JWT middleware failed)
     req.user = undefined;
+    const error = new Error('User ID is required');
+    error.name = 'ValidationError';
+    mockService.mockRejectedValueOnce(error);
 
-    await getProfileController(req, res);
+    await getProfileController(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({
-      success: false,
-      message: 'User not authenticated',
-    });
-    expect(mockService).not.toHaveBeenCalled();
+    expect(mockService).toHaveBeenCalledWith(undefined);
+    expect(next).toHaveBeenCalledWith(error);
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   test('should call service and return profile when user is authenticated', async () => {
@@ -86,8 +88,6 @@ describe('ProfileGetController', () => {
 
     // Mock service to throw an error
     mockService.mockRejectedValue(new Error('Database connection failed'));
-
-    const next = vi.fn();
 
     await getProfileController(req, res, next);
 

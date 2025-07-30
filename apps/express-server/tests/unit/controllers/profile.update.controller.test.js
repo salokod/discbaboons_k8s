@@ -1,5 +1,5 @@
 import {
-  describe, test, expect, vi,
+  describe, test, expect, vi, beforeEach,
 } from 'vitest';
 import Chance from 'chance';
 
@@ -13,6 +13,10 @@ vi.mock('../../../services/profile.update.service.js', () => ({
 const { default: updateProfileController } = await import('../../../controllers/profile.update.controller.js');
 
 describe('updateProfileController', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test('should be a function', () => {
     expect(typeof updateProfileController).toBe('function');
   });
@@ -38,7 +42,7 @@ describe('updateProfileController', () => {
     expect(res.json).toHaveBeenCalledWith(updatedProfile);
   });
 
-  test('should return 401 if user is not authenticated', async () => {
+  test('should call next with error if user is not authenticated', async () => {
     const name = chance.name();
     const req = {
       user: null,
@@ -48,14 +52,16 @@ describe('updateProfileController', () => {
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
     };
+    const next = vi.fn();
+    const error = new Error('User ID is required');
+    error.name = 'ValidationError';
+    mockUpdateProfileService.mockRejectedValueOnce(error);
 
-    await updateProfileController(req, res);
+    await updateProfileController(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({
-      success: false,
-      message: 'User not authenticated',
-    });
+    expect(mockUpdateProfileService).toHaveBeenLastCalledWith(undefined, { name });
+    expect(next).toHaveBeenCalledWith(error);
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   test('should return 400 if service throws ValidationError', async () => {
