@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-import { validateJWTPayload } from '../lib/validation.js';
 
 const authenticateToken = (req, res, next) => {
   // Check for authorization header
@@ -27,9 +26,17 @@ const authenticateToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Validate the decoded payload structure
-    const validatedPayload = validateJWTPayload(decoded);
-    req.user = validatedPayload;
+    // Basic JWT payload validation
+    if (!decoded.userId) {
+      const error = new Error('Token payload is missing required userId field');
+      error.name = 'ValidationError';
+      throw error;
+    }
+
+    req.user = {
+      userId: decoded.userId,
+      username: decoded.username,
+    };
 
     return next();
   } catch (error) {

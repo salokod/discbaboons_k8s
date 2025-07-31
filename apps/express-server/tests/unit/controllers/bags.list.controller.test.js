@@ -33,7 +33,7 @@ describe('bagsListController', () => {
 
     mockListBagsService.mockResolvedValue(mockResult);
 
-    const req = { user: { userId } };
+    const req = { user: { userId }, query: {} };
     const res = {
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
@@ -42,7 +42,7 @@ describe('bagsListController', () => {
 
     await bagsListController(req, res, next);
 
-    expect(mockListBagsService).toHaveBeenCalledWith(userId);
+    expect(mockListBagsService).toHaveBeenCalledWith(userId, {});
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,

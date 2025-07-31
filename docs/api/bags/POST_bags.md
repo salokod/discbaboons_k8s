@@ -1,7 +1,7 @@
 # POST /api/bags
 
 ## Overview
-Creates a new disc golf bag for the authenticated user.
+Creates a new disc bag for the authenticated user.
 
 ## Endpoint
 ```
@@ -11,143 +11,168 @@ POST /api/bags
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Max Requests**: 20 per IP address
+- **Purpose**: Prevent bag creation spam
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 50KB
+- **Applies to**: Request body
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Request Body
 ```json
 {
-  "name": "string",
-  "description": "string",  // Optional
-  "is_public": boolean,     // Optional, defaults to false
-  "is_friends_visible": boolean  // Optional, defaults to false
+  "name": "string (required)",
+  "description": "string (optional, max 500 chars)",
+  "is_public": "boolean (optional, default: false)",
+  "is_friends_visible": "boolean (optional, default: false)"
 }
 ```
 
-### Field Requirements
-
-| Field | Type | Required | Constraints | Default |
-|-------|------|----------|-------------|---------|
-| `name` | string | Yes | 1-100 characters, unique per user | - |
-| `description` | string | No | Max 500 characters | null |
-| `is_public` | boolean | No | true/false | false |
-| `is_friends_visible` | boolean | No | true/false | false |
-
-### Validation Rules
-- **Name uniqueness**: Case-insensitive unique constraint per user
-- **Name length**: 1-100 characters
-- **Description length**: Max 500 characters (if provided)
-- **Boolean validation**: `is_public` and `is_friends_visible` must be valid booleans
+### Field Descriptions
+- **name** (required): Bag name, maximum 100 characters
+- **description** (optional): Bag description, maximum 500 characters
+- **is_public** (optional): Whether bag is visible to everyone (default: false)
+- **is_friends_visible** (optional): Whether bag is visible to friends (default: false)
 
 ## Response
 
 ### Success (201 Created)
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "user_id": 123,
-  "name": "Tournament Bag",
-  "description": "My main tournament setup",
-  "is_public": false,
-  "is_friends_visible": true,
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-15T10:30:00.000Z"
+  "success": true,
+  "bag": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "user_id": 123,
+    "name": "Tournament Bag",
+    "description": "My go-to bag for competitive play",
+    "is_public": false,
+    "is_friends_visible": true,
+    "created_at": "2025-01-31T14:30:00.000Z",
+    "updated_at": "2025-01-31T14:30:00.000Z"
+  }
 }
 ```
 
 ### Error Responses
 
-#### 400 Bad Request - Validation Error
+#### 400 Bad Request - Validation Errors
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Bag name is required"
 }
 ```
 
-**Possible validation messages:**
-- "userId is required"
-- "Bag name is required"
-- "Bag name must be 100 characters or less"
-- "Description must be 500 characters or less"
-- "is_public must be a boolean"
-- "is_friends_visible must be a boolean"
-- "Bag with this name already exists for this user"
+```json
+{
+  "success": false,
+  "message": "Bag name must be 100 characters or less"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Bag with this name already exists for this user"
+}
+```
 
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
 }
 ```
 
-## Service Implementation
-**File:** `services/bags.create.service.js`
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 50KB."
+}
+```
 
-### Key Features
-- Input validation for all fields
-- Case-insensitive duplicate name checking
-- Default value handling for boolean fields
-- User association via authenticated userId
-- Length constraints for name and description
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many bag creation requests, please try again in 1 hour"
+}
+```
 
-### Security Features
-- **User Isolation**: Bags are tied to authenticated user only
-- **Name Uniqueness**: Prevents duplicate bag names per user (case-insensitive)
-- **Input Validation**: Strict validation of all input fields
+## Business Rules
 
-### Database Operations
-- Duplicate check: `SELECT id FROM bags WHERE user_id = $1 AND LOWER(name) = LOWER($2)`
-- Create bag: `INSERT INTO bags (user_id, name, description, is_public, is_friends_visible) VALUES (...)`
+### Bag Creation
+- **Name uniqueness**: Bag names must be unique per user (case-insensitive)
+- **Immediate creation**: Bags are created immediately and active
+- **Default privacy**: New bags are private by default
 
-## Example Usage
+### Validation Rules
+- **Name**: Required, 1-100 characters
+- **Description**: Optional, max 500 characters
+- **Privacy flags**: Must be boolean values if provided
 
-### Minimal Bag Creation
+## Example Requests
+
+### Basic Bag Creation
 ```bash
-curl -X POST http://localhost:3000/api/bags \
+curl -X POST "https://api.discbaboons.com/api/bags" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "My First Bag"
+    "name": "Tournament Bag"
   }'
 ```
 
-### Full Bag Creation
+### Bag with Description
 ```bash
-curl -X POST http://localhost:3000/api/bags \
+curl -X POST "https://api.discbaboons.com/api/bags" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Tournament Bag",
-    "description": "My competitive disc golf setup for tournaments",
-    "is_public": false,
+    "name": "Practice Bag",
+    "description": "Lightweight bag for field work and casual rounds"
+  }'
+```
+
+### Public Bag
+```bash
+curl -X POST "https://api.discbaboons.com/api/bags" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Signature Disc Setup",
+    "description": "My signature disc selection",
+    "is_public": true
+  }'
+```
+
+### Friends-Only Bag
+```bash
+curl -X POST "https://api.discbaboons.com/api/bags" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Experimental Setup",
+    "description": "Testing new disc combinations",
     "is_friends_visible": true
   }'
 ```
 
-### Invalid Request (Duplicate Name)
-```bash
-curl -X POST http://localhost:3000/api/bags \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "tournament bag"  // Case-insensitive duplicate
-  }'
-```
+## Privacy Levels
 
-## Visibility Settings
+### Bag Visibility Options
+- **Private** (`is_public: false, is_friends_visible: false`): Only owner can see
+- **Friends Only** (`is_public: false, is_friends_visible: true`): Owner and friends can see  
+- **Public** (`is_public: true`): Everyone can see (friends_visible setting ignored)
 
-### Privacy Options
-- **Private** (`is_public: false`, `is_friends_visible: false`): Only visible to owner
-- **Friends Only** (`is_public: false`, `is_friends_visible: true`): Visible to friends
-- **Public** (`is_public: true`): Visible to everyone
-
-### Use Cases
-- **Tournament Bag**: Often friends-visible to share setups
-- **Practice Bag**: Often private for experimenting
-- **Showcase Bag**: Public for demonstrating disc combinations
-
-## Related Endpoints
-- **[GET /api/bags](./GET_bags.md)** - List user's bags
-- **[GET /api/bags/:id](./GET_bags_id.md)** - Get specific bag
-- **[PUT /api/bags/:id](./PUT_bags_id.md)** - Update bag
-- **[DELETE /api/bags/:id](./DELETE_bags_id.md)** - Delete bag
-- **[POST /api/bags/:id/discs](./POST_bags_id_discs.md)** - Add discs to bag
+## Use Cases
+- **Tournament Preparation**: Create specific bags for different tournament formats
+- **Course-Specific Bags**: Different disc selections for different course types
+- **Skill Development**: Practice bags for working on specific shots
+- **Sharing**: Public or friends-only bags to share disc recommendations
