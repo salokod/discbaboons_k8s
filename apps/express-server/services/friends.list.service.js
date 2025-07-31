@@ -1,9 +1,12 @@
 import { queryRows, queryOne } from '../lib/database.js';
-import { validateUserId, validateQueryParams } from '../lib/validation.js';
 
 const getFriendsListService = async (userId, options = {}) => {
-  // Validate user ID format to prevent database errors
-  const validatedUserId = validateUserId(userId);
+  // Validate required userId
+  if (!userId) {
+    const error = new Error('User ID is required');
+    error.name = 'ValidationError';
+    throw error;
+  }
 
   // Parse pagination options with robust validation
   const parsedLimit = parseInt(options.limit, 10);
@@ -58,8 +61,8 @@ const getFriendsListService = async (userId, options = {}) => {
   `;
 
   // Validate query parameters before database execution
-  const friendsQueryParams = validateQueryParams([validatedUserId, limit, offset]);
-  const countQueryParams = validateQueryParams([validatedUserId]);
+  const friendsQueryParams = [userId, limit, offset];
+  const countQueryParams = [userId];
 
   // Execute both queries with performance monitoring
   const [friendsData, totalResult] = await Promise.all([

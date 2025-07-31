@@ -1,7 +1,7 @@
 # GET /api/bags
 
 ## Overview
-Retrieves a list of all bags owned by the authenticated user, including disc count for each bag.
+Retrieves a paginated list of all bags owned by the authenticated user, including disc counts and privacy settings.
 
 ## Endpoint
 ```
@@ -11,57 +11,104 @@ GET /api/bags
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Prevent excessive bag list requests
+- **Headers**: Standard rate limit headers included in response
+
 ## Query Parameters
-None.
+All query parameters are optional:
+
+| Parameter | Type | Description | Default | Validation |
+|-----------|------|-------------|---------|------------|
+| `limit` | integer | Results per page | 20 | 1-100 |
+| `offset` | integer | Results to skip | 0 | ≥ 0 |
+| `include_lost` | boolean | Include lost discs in count | false | "true" or "false" |
+
+### Validation Rules
+- **limit**: Must be a positive integer between 1 and 100
+- **offset**: Must be a non-negative integer (0 or greater)
+- **include_lost**: Must be exactly "true" or "false" if provided
+- **Unknown parameters**: Any parameters other than allowed ones will result in a 400 error
 
 ## Response
 
 ### Success (200 OK)
 ```json
 {
+  "success": true,
   "bags": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "user_id": 123,
       "name": "Tournament Bag",
-      "description": "My main tournament setup",
+      "description": "My go-to bag for competitive play",
       "is_public": false,
       "is_friends_visible": true,
       "disc_count": 15,
-      "created_at": "2024-01-15T10:30:00.000Z",
-      "updated_at": "2024-01-20T14:45:00.000Z"
+      "created_at": "2025-01-20T14:30:00.000Z",
+      "updated_at": "2025-01-25T09:15:00.000Z"
     },
     {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "id": "660f9500-f3ac-52e5-b827-557766551111",
       "user_id": 123,
       "name": "Practice Bag",
-      "description": "Casual rounds and practice",
+      "description": "Lightweight bag for field work",
       "is_public": true,
       "is_friends_visible": true,
       "disc_count": 8,
-      "created_at": "2024-01-10T09:15:00.000Z",
-      "updated_at": "2024-01-18T16:20:00.000Z"
+      "created_at": "2025-01-15T10:00:00.000Z",
+      "updated_at": "2025-01-20T16:45:00.000Z"
     }
   ],
-  "total": 2
+  "pagination": {
+    "total": 2,
+    "limit": 20,
+    "offset": 0,
+    "hasMore": false
+  }
 }
 ```
 
 ### Error Responses
 
+#### 400 Bad Request - Validation Error
+```json
+{
+  "success": false,
+  "message": "Limit must be a positive integer",
+  "field": "limit"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Unknown query parameters: sort, filter"
+}
+```
+
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
 }
 ```
 
-#### 400 Bad Request
 ```json
 {
-  "error": "ValidationError", 
-  "message": "userId is required"
+  "success": false,
+  "message": "Token validation failed: JWT payload contains invalid userId format"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many bags list requests, please try again in 10 minutes"
 }
 ```
 

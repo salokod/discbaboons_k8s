@@ -24,7 +24,7 @@ describe('listBagsService', () => {
       throw new Error('Did not throw');
     } catch (err) {
       expect(err.name).toBe('ValidationError');
-      expect(err.message).toMatch(/userId is required/i);
+      expect(err.message).toMatch(/User ID is required/i);
     }
   });
 
@@ -38,10 +38,10 @@ describe('listBagsService', () => {
     const result = await listBagsService(userId);
 
     expect(result).toHaveProperty('bags');
-    expect(result).toHaveProperty('total');
+    expect(result).toHaveProperty('pagination');
     expect(Array.isArray(result.bags)).toBe(true);
-    expect(typeof result.total).toBe('number');
-    expect(result.total).toBe(0);
+    expect(typeof result.pagination.total).toBe('number');
+    expect(result.pagination.total).toBe(0);
   });
 
   test('should include disc_count for each bag', async () => {
@@ -80,7 +80,7 @@ describe('listBagsService', () => {
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
       expect.stringContaining('LEFT JOIN bag_contents bc ON b.id = bc.bag_id'),
-      [userId],
+      [userId, 20, 0],
     );
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       expect.stringContaining('SELECT COUNT(*) as count'),

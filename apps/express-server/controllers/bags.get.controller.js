@@ -5,8 +5,7 @@ const getBagController = async (req, res, next) => {
   try {
     const { userId } = req.user;
     const { id: bagId } = req.params;
-    const { include_lost } = req.query;
-    const includeLost = include_lost === 'true';
+    const includeLost = req.query.include_lost === 'true';
 
     const bag = await getBagService(userId, bagId, includeLost);
 
@@ -18,8 +17,8 @@ const getBagController = async (req, res, next) => {
     }
 
     return res.status(200).json({ success: true, bag });
-  } catch (err) {
-    return next(err);
+  } catch (error) {
+    return next(error);
   }
 };
 

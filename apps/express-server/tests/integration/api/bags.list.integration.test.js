@@ -59,7 +59,12 @@ describe('GET /api/bags - Integration', () => {
     expect(response.body).toMatchObject({
       success: true,
       bags: [],
-      total: 0,
+      pagination: {
+        total: 0,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
+      },
     });
   });
 
@@ -85,7 +90,9 @@ describe('GET /api/bags - Integration', () => {
     // Integration: Verify bags returned with correct structure and aggregations
     expect(response.body).toMatchObject({
       success: true,
-      total: 2,
+      pagination: {
+        total: 2,
+      },
     });
     expect(Array.isArray(response.body.bags)).toBe(true);
     expect(response.body.bags).toHaveLength(2);
@@ -130,7 +137,7 @@ describe('GET /api/bags - Integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(response1.body.total).toBe(1);
+    expect(response1.body.pagination.total).toBe(1);
     expect(response1.body.bags[0].user_id).toBe(user.id);
     expect(response1.body.bags[0].id).toBe(bag1Result.rows[0].id);
 
@@ -140,7 +147,7 @@ describe('GET /api/bags - Integration', () => {
       .set('Authorization', `Bearer ${otherUser.token}`)
       .expect(200);
 
-    expect(response2.body.total).toBe(1);
+    expect(response2.body.pagination.total).toBe(1);
     expect(response2.body.bags[0].user_id).toBe(otherUser.user.id);
     expect(response2.body.bags[0].id).toBe(bag2Result.rows[0].id);
   });
