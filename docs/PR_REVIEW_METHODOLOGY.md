@@ -13,6 +13,11 @@
 - **Security First**: Validate user ownership/permissions in same database query
 - **Consistency**: Match existing codebase patterns and naming conventions
 - **Error Handling**: Use `{ success: false, message: "..." }` format consistently
+- **Martin Fowler's Testing Principles**: Apply the Testing Pyramid approach:
+  - **Unit Tests**: Fast, isolated, test single units of behavior
+  - **Integration Tests**: Test integration points, use real dependencies
+  - **Avoid Over-Mocking**: Don't mock what you don't own
+  - **Test Behavior, Not Implementation**: Tests should survive refactoring
 
 ### Review Focus Areas
 1. **Business Logic Validation**
@@ -25,6 +30,11 @@
    - Are tests testing behavior, not implementation?
    - Is error handling properly tested?
    - Are integration tests using proper cleanup patterns?
+   - **Martin Fowler's Testing Pyramid Applied**:
+     - Are unit tests truly isolated and fast?
+     - Do integration tests focus on integration concerns (DB, API contracts)?
+     - Are we avoiding testing implementation details?
+     - Can tests survive refactoring without changes?
 
 3. **Security & Permissions**
    - Is user authorization checked correctly?
@@ -113,6 +123,11 @@ expect(result.data).toMatchObject({
 - Logic errors that could cause data corruption
 - Missing critical error handling
 - Tests that don't actually test functionality
+- **Testing Anti-Patterns** (per Martin Fowler):
+  - Tests that break on refactoring (testing implementation)
+  - Over-mocked unit tests that don't test real behavior
+  - Integration tests that mock the database
+  - Tests with no clear assertion of behavior
 
 ### 🟡 Should Fix (Non-blocking but important)
 - Hardcoded test values instead of dynamic generation

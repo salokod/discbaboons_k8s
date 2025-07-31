@@ -7,6 +7,23 @@ const searchProfilesService = async (query) => {
     throw error;
   }
 
+  // Pagination parameters
+  const limit = Math.min(parseInt(query.limit, 10) || 20, 100); // Default 20, max 100
+  const offset = parseInt(query.offset, 10) || 0;
+
+  // Validate pagination parameters
+  if (query.limit && (Number.isNaN(limit) || limit <= 0)) {
+    const error = new Error('Limit must be a positive integer');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  if (query.offset && (Number.isNaN(offset) || offset < 0)) {
+    const error = new Error('Offset must be a non-negative integer');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
   // Build the WHERE clause conditions
   const whereConditions = [];
   const params = [];
@@ -26,7 +43,9 @@ const searchProfilesService = async (query) => {
   // Add visibility conditions (profiles must have at least one public field)
   whereConditions.push('(up.isnamepublic = true OR up.isbiopublic = true OR up.islocationpublic = true)');
 
-  // Build the complete query
+  const whereClause = whereConditions.join(' AND ');
+
+  // Build the complete query with pagination
   const searchQuery = `
     SELECT 
       up.user_id,
@@ -41,14 +60,31 @@ const searchProfilesService = async (query) => {
       u.username
     FROM user_profiles up
     JOIN users u ON up.user_id = u.id
-    WHERE ${whereConditions.join(' AND ')}
+    WHERE ${whereClause}
     ORDER BY u.username ASC
+    LIMIT ${limit}
+    OFFSET ${offset}
   `;
 
-  const profiles = await queryRows(searchQuery, params);
+  // Get total count for pagination metadata
+  const countQuery = `
+    SELECT COUNT(*) as count
+    FROM user_profiles up
+    JOIN users u ON up.user_id = u.id
+    WHERE ${whereClause}
+  `;
+
+  // Execute both queries
+  const [profiles, countResult] = await Promise.all([
+    queryRows(searchQuery, params),
+    queryRows(countQuery, params),
+  ]);
+
+  const total = parseInt(countResult[0]?.count || 0, 10);
+  const hasMore = offset + limit < total;
 
   // Transform profiles to only include public data
-  return profiles.map((profile) => {
+  const transformedProfiles = profiles.map((profile) => {
     const publicProfile = { user_id: profile.user_id };
     if (profile.username) publicProfile.username = profile.username;
     if (profile.isnamepublic) publicProfile.name = profile.name;
@@ -60,6 +96,14 @@ const searchProfilesService = async (query) => {
     }
     return publicProfile;
   });
+
+  return {
+    profiles: transformedProfiles,
+    total,
+    limit,
+    offset,
+    hasMore,
+  };
 };
 
 export default searchProfilesService;

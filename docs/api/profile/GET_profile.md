@@ -26,28 +26,34 @@ GET /api/profile
     "city": "Austin",
     "isnamepublic": true,
     "isbiopublic": false,
-    "islocationpublic": true,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-15T10:30:00.000Z"
+    "islocationpublic": true
   }
 }
 ```
 
 ### Error Responses
 
-#### 400 Bad Request - Validation Error
-```json
-{
-  "error": "ValidationError",
-  "message": "User ID is required"
-}
-```
-
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many profile requests, please try again in 10 minutes"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "success": false,
+  "message": "Internal server error"
 }
 ```
 
@@ -63,28 +69,30 @@ GET /api/profile
 | Field | Type | Description |
 |-------|------|-------------|
 | `user_id` | integer | User's unique identifier |
-| `name` | string | User's display name |
-| `bio` | string | User's biography/description |
-| `country` | string | User's country |
-| `state_province` | string | User's state or province |
-| `city` | string | User's city |
+| `name` | string\|null | User's display name |
+| `bio` | string\|null | User's biography/description |
+| `country` | string\|null | User's country |
+| `state_province` | string\|null | User's state or province |
+| `city` | string\|null | User's city |
 | `isnamepublic` | boolean | Whether name is visible in search results |
 | `isbiopublic` | boolean | Whether bio is visible in search results |
 | `islocationpublic` | boolean | Whether location is visible in search results |
-| `created_at` | string (ISO 8601) | Profile creation timestamp |
-| `updated_at` | string (ISO 8601) | Last profile update timestamp |
+
+**Note**: Internal database fields (`id`, `created_at`, `updated_at`) are filtered out for security and are not included in the response.
 
 ## Service Implementation
 **File:** `services/profile.get.service.js`
 
 ### Key Features
-- **Complete Profile Data**: Returns all profile information including privacy settings
+- **Auto-Profile Creation**: Creates default profile if none exists for the user
+- **Field Filtering**: Removes internal database fields (id, created_at, updated_at) from response
 - **User Validation**: Validates user ID from JWT token
-- **Direct Database Access**: Simple query for user's own profile
-- **No Privacy Filtering**: Returns all data since user is viewing their own profile
+- **Rate Limited**: 100 requests per 10 minutes per IP address
+- **Privacy Settings**: Returns all data since user is viewing their own profile
 
 ### Database Operations
 - Profile lookup: `SELECT * FROM user_profiles WHERE user_id = $1`
+- Auto-creation (if needed): `INSERT INTO user_profiles (user_id, ...) VALUES ($1, NULL, ...) RETURNING *`
 
 ## Example Usage
 
@@ -107,9 +115,7 @@ curl -X GET http://localhost:3000/api/profile \
     "city": "Austin",
     "isnamepublic": true,
     "isbiopublic": false,
-    "islocationpublic": true,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-15T10:30:00.000Z"
+    "islocationpublic": true
   }
 }
 ```

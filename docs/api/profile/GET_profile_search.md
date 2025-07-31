@@ -17,6 +17,8 @@ GET /api/profile/search
 |-----------|------|----------|-------------|
 | `username` | string | No* | Search by username (partial match, case-insensitive) |
 | `city` | string | No* | Search by city (partial match, case-insensitive) |
+| `limit` | integer | No | Number of results per page (default: 20, max: 100) |
+| `offset` | integer | No | Number of results to skip (default: 0) |
 
 **Note**: At least one search parameter (`username` OR `city`) must be provided.
 
@@ -24,25 +26,31 @@ GET /api/profile/search
 
 ### Success (200 OK)
 ```json
-[
-  {
-    "user_id": 123,
-    "username": "johndoe",
-    "name": "John Doe",
-    "bio": "Disc golf enthusiast from Austin",
-    "city": "Austin",
-    "state_province": "Texas",
-    "country": "United States"
-  },
-  {
-    "user_id": 456,
-    "username": "janediscgolf",
-    "name": "Jane Smith",
-    "city": "Austin",
-    "state_province": "Texas",
-    "country": "United States"
-  }
-]
+{
+  "profiles": [
+    {
+      "user_id": 123,
+      "username": "johndoe",
+      "name": "John Doe",
+      "bio": "Disc golf enthusiast from Austin",
+      "city": "Austin",
+      "state_province": "Texas",
+      "country": "United States"
+    },
+    {
+      "user_id": 456,
+      "username": "janediscgolf",
+      "name": "Jane Smith",
+      "city": "Austin",
+      "state_province": "Texas",
+      "country": "United States"
+    }
+  ],
+  "total": 25,
+  "limit": 20,
+  "offset": 0,
+  "hasMore": true
+}
 ```
 
 **Note**: Only public fields are included in the response based on user privacy settings.
@@ -52,12 +60,37 @@ GET /api/profile/search
 #### 400 Bad Request - Validation Error
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Search query is required"
 }
 ```
 
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many profile search requests, please try again in 10 minutes"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "success": false,
+  "message": "Internal server error"
+}
+```
+
 ## Response Fields
+
+### Success Response
+| Field | Type | Description |
+|-------|------|-------------|
+| `profiles` | array | Array of matching user profiles |
+| `total` | integer | Total number of matching profiles |
+| `limit` | integer | Number of results requested (max 100) |
+| `offset` | integer | Number of results skipped |
+| `hasMore` | boolean | Whether more results are available |
 
 ### Profile Object
 | Field | Type | Conditional | Description |
@@ -81,6 +114,8 @@ Fields are only included if the user has made them public:
 
 ### Key Features
 - **Privacy Respecting**: Only returns profiles with at least one public field
+- **Paginated Results**: Supports limit/offset pagination (default 20, max 100)
+- **Rate Limited**: 20 requests per 10 minutes per IP address
 - **Flexible Search**: Supports username and/or city filtering
 - **Case-Insensitive**: Uses ILIKE for partial matching
 - **Public Data Only**: Filters out private profile information

@@ -73,7 +73,7 @@ PUT /api/profile
 #### 400 Bad Request - Validation Errors
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Update data is required"
 }
 ```
@@ -86,8 +86,32 @@ PUT /api/profile
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request entity too large"
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many profile update requests, please try again in 1 hour"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "success": false,
+  "message": "Internal server error"
 }
 ```
 
