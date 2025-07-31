@@ -48,31 +48,63 @@ export async function testDatabaseConnection() {
   }
 }
 
-// Execute a query with parameters
-export async function query(text, params = []) {
+// Execute a query with parameters and performance monitoring
+export async function query(text, params = [], options = {}) {
   const client = await pool.connect();
+  const startTime = Date.now();
+
   try {
     const result = await client.query(text, params);
+    const duration = Date.now() - startTime;
+
+    // Log slow queries (configurable threshold, default to 1000ms)
+    const slowQueryThreshold = options.slowQueryThreshold || 1000;
+    if (duration > slowQueryThreshold) {
+      console.warn('[SLOW QUERY]', {
+        duration: `${duration}ms`,
+        query: text.replace(/\s+/g, ' ').trim(),
+        params: process.env.NODE_ENV === 'production' ? '[REDACTED]' : params,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Performance metrics logging (can be extended with APM tools)
+    if (process.env.NODE_ENV !== 'test' && options.logPerformance) {
+      console.log('[QUERY PERFORMANCE]', {
+        duration: `${duration}ms`,
+        queryType: text.trim().split(' ')[0].toUpperCase(),
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return result;
   } catch (error) {
+    const duration = Date.now() - startTime;
+
+    // Log query errors with performance context
     if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'production') {
-      console.log('error', error);
+      console.log('[QUERY ERROR]', {
+        error: error.message,
+        duration: `${duration}ms`,
+        query: text.replace(/\s+/g, ' ').trim(),
+        params,
+      });
     }
-    throw error; // Let the caller handle the error instead of returning null
+    throw error;
   } finally {
     client.release();
   }
 }
 
 // Execute a query and return only the rows
-export async function queryRows(text, params = []) {
-  const result = await query(text, params);
+export async function queryRows(text, params = [], options = {}) {
+  const result = await query(text, params, options);
   return result.rows;
 }
 
 // Execute a query and return only the first row
-export async function queryOne(text, params = []) {
-  const result = await query(text, params);
+export async function queryOne(text, params = [], options = {}) {
+  const result = await query(text, params, options);
   return result.rows[0] || null;
 }
 

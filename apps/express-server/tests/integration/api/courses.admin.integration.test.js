@@ -52,7 +52,7 @@ describe('GET /api/courses/pending & PUT /api/courses/:id/approve - Integration'
         pendingCourseId,
         chance.company(),
         chance.city(),
-        chance.state({ territories: true }), // 2-char abbreviation
+        chance.state({ territories: true, full: false }), // 2-char abbreviation
         'US',
         chance.integer({ min: 9, max: 27 }),
         true,

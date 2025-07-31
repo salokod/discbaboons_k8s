@@ -69,16 +69,25 @@ describe('GET /api/friends - Integration', () => {
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
 
-    // Integration: Verify complex friend data structure with JOINs
+    // Integration: Verify complex friend data structure with JOINs and pagination
     expect(response.body).toHaveProperty('friends');
+    expect(response.body).toHaveProperty('pagination');
     expect(Array.isArray(response.body.friends)).toBe(true);
     expect(response.body.friends).toHaveLength(1);
+
+    // Verify pagination metadata
+    expect(response.body.pagination).toMatchObject({
+      total: expect.any(Number),
+      limit: expect.any(Number),
+      offset: expect.any(Number),
+      hasMore: expect.any(Boolean),
+    });
 
     const friend = response.body.friends[0];
     expect(friend).toMatchObject({
       id: userB.id,
       username: userB.username,
-      email: userB.email,
+      // Note: email is intentionally excluded for privacy
       friendship: {
         status: 'accepted',
         created_at: expect.any(String),

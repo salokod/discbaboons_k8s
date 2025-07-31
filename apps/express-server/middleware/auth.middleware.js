@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { validateJWTPayload } from '../lib/validation.js';
 
 const authenticateToken = (req, res, next) => {
   // Check for authorization header
@@ -25,9 +26,21 @@ const authenticateToken = (req, res, next) => {
   // Verify JWT token
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+
+    // Validate the decoded payload structure
+    const validatedPayload = validateJWTPayload(decoded);
+    req.user = validatedPayload;
+
     return next();
   } catch (error) {
+    // Handle validation errors specifically
+    if (error.name === 'ValidationError') {
+      return res.status(401).json({
+        success: false,
+        message: `Token validation failed: ${error.message}`,
+      });
+    }
+
     return res.status(401).json({
       success: false,
       message: 'Invalid or expired token',
