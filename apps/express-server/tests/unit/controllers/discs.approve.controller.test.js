@@ -35,7 +35,10 @@ describe('discsApproveController', () => {
     await discsApproveController(req, res, next);
 
     expect(mockApproveDiscService).toHaveBeenCalledWith(req.params.id);
-    expect(res.json).toHaveBeenCalledWith(approvedDisc);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      disc: approvedDisc,
+    });
     expect(next).not.toHaveBeenCalled();
   });
 

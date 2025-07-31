@@ -11,6 +11,9 @@ describe('listDiscsService', () => {
   beforeEach(() => {
     // Reset all mocks before each test
     mockDatabase.queryRows.mockReset();
+    mockDatabase.queryOne.mockReset();
+    // Default mock for count query
+    mockDatabase.queryOne.mockResolvedValue({ count: '0' });
   });
 
   test('should export a function', () => {
@@ -217,8 +220,10 @@ describe('listDiscsService', () => {
       speed: chance.integer({ min: 1, max: 14 }),
     }));
     mockDatabase.queryRows.mockResolvedValue(fakeResults);
+    mockDatabase.queryOne.mockResolvedValue({ count: fakeResults.length.toString() });
     const result = await listDiscsService({ brand: fakeResults[0].brand }, mockDatabase);
-    expect(result).toBe(fakeResults);
+    expect(result.discs).toBe(fakeResults);
+    expect(result.total).toBe(fakeResults.length);
   });
 
   test('should order by brand and model ascending', async () => {
@@ -246,16 +251,62 @@ describe('listDiscsService', () => {
   });
 
   test('should return only pending discs when approved is false', async () => {
-    mockDatabase.queryRows.mockResolvedValue([
+    const pendingDiscs = [
       {
         id: 1, brand: 'Test', model: 'Pending', approved: false,
       },
-    ]);
+    ];
+    mockDatabase.queryRows.mockResolvedValue(pendingDiscs);
+    mockDatabase.queryOne.mockResolvedValue({ count: '1' });
     const result = await listDiscsService({ approved: false });
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
       'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
       [false, 50, 0],
     );
-    expect(result.every((d) => d.approved === false)).toBe(true);
+    expect(result.discs.every((d) => d.approved === false)).toBe(true);
+  });
+
+  test('should cap limit at 100', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ limit: '200' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
+      [true, 100, 0],
+    );
+  });
+
+  test('should return pagination metadata with discs', async () => {
+    const mockDiscs = [
+      { id: 1, brand: 'Innova', model: 'Destroyer' },
+      { id: 2, brand: 'Discraft', model: 'Buzzz' },
+    ];
+
+    // Mock both the data query and the count query
+    mockDatabase.queryRows.mockResolvedValueOnce(mockDiscs);
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '25' });
+
+    const result = await listDiscsService({ limit: '10', offset: '5' }, mockDatabase);
+
+    expect(result).toEqual({
+      discs: mockDiscs,
+      total: 25,
+      limit: 10,
+      offset: 5,
+      hasMore: true,
+    });
+  });
+
+  test('should calculate hasMore correctly when on last page', async () => {
+    const mockDiscs = [
+      { id: 1, brand: 'Innova', model: 'Destroyer' },
+    ];
+
+    mockDatabase.queryRows.mockResolvedValueOnce(mockDiscs);
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '21' });
+
+    const result = await listDiscsService({ limit: '10', offset: '20' }, mockDatabase);
+
+    expect(result.hasMore).toBe(false);
   });
 });

@@ -24,15 +24,30 @@ describe('discmasterListController', () => {
     expect(typeof discmasterListController).toBe('function');
   });
 
-  test('should call listDiscsService with req.query and return result as JSON', async () => {
+  test('should call listDiscsService with req.query and return standardized response', async () => {
     req.query = { brand: 'Innova', speed: '7' };
-    const fakeResult = [{ id: 1, brand: 'Innova', model: 'Leopard' }];
-    listDiscsService.mockResolvedValue(fakeResult);
+    const serviceResult = {
+      discs: [{ id: 1, brand: 'Innova', model: 'Leopard' }],
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
+    listDiscsService.mockResolvedValue(serviceResult);
 
     await discmasterListController(req, res, next);
 
     expect(listDiscsService).toHaveBeenCalledWith(req.query);
-    expect(res.json).toHaveBeenCalledWith(fakeResult);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -49,41 +64,86 @@ describe('discmasterListController', () => {
 
   test('should pass query params through unchanged', async () => {
     req.query = { brand: 'Discraft', speed: '5-7', approved: 'false' };
-    const fakeResult = [{ id: 2, brand: 'Discraft', model: 'Buzzz' }];
-    listDiscsService.mockResolvedValue(fakeResult);
+    const serviceResult = {
+      discs: [{ id: 2, brand: 'Discraft', model: 'Buzzz' }],
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
+    listDiscsService.mockResolvedValue(serviceResult);
 
     await discmasterListController(req, res, next);
 
     expect(listDiscsService).toHaveBeenCalledWith(req.query);
-    expect(res.json).toHaveBeenCalledWith(fakeResult);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
   test('should handle empty query params', async () => {
     req.query = {};
-    const fakeResult = [];
-    listDiscsService.mockResolvedValue(fakeResult);
+    const serviceResult = {
+      discs: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
+    listDiscsService.mockResolvedValue(serviceResult);
 
     await discmasterListController(req, res, next);
 
     expect(listDiscsService).toHaveBeenCalledWith({});
-    expect(res.json).toHaveBeenCalledWith(fakeResult);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
   test('should call service with approved=false and return pending discs', async () => {
-    const pendingDiscs = [
-      {
-        id: 1, brand: 'Test', model: 'Pending', approved: false,
-      },
-    ];
+    const serviceResult = {
+      discs: [
+        {
+          id: 1, brand: 'Test', model: 'Pending', approved: false,
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
     req.query = { approved: 'false' };
-    listDiscsService.mockResolvedValue(pendingDiscs);
+    listDiscsService.mockResolvedValue(serviceResult);
 
     await discmasterListController(req, res, next);
 
     expect(listDiscsService).toHaveBeenCalledWith({ approved: 'false' });
-    expect(res.json).toHaveBeenCalledWith(pendingDiscs);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
     expect(next).not.toHaveBeenCalled();
   });
 });

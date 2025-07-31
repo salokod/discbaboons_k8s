@@ -43,7 +43,10 @@ describe('discsCreateController', () => {
 
     expect(createDiscService).toHaveBeenCalledWith({ ...req.body, added_by_id: req.user.userId });
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith(fakeResult);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      disc: fakeResult,
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
