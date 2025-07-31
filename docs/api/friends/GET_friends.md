@@ -11,6 +11,31 @@ GET /api/friends
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Prevent excessive friends list requests
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 1KB
+- **Applies to**: All request components (headers, query params, etc.)
+- **Error**: Returns 413 Payload Too Large if exceeded
+
+## Query Parameters
+All query parameters are optional:
+
+| Parameter | Type | Description | Default | Validation |
+|-----------|------|-------------|---------|------------|
+| `limit` | integer | Results per page | 20 | 1-100 |
+| `offset` | integer | Results to skip | 0 | ≥ 0 |
+
+### Validation Rules
+- **limit**: Must be a positive integer between 1 and 100
+- **offset**: Must be a non-negative integer (0 or greater)
+- **Unknown parameters**: Any parameters other than `limit` and `offset` will result in a 400 error
+- **Invalid types**: Non-numeric values for limit/offset will result in a 400 error
+
 ## Response
 
 ### Success (200 OK)
@@ -21,7 +46,6 @@ GET /api/friends
     {
       "id": 789,
       "username": "johndoe",
-      "email": "john@example.com",
       "friendship": {
         "id": 123,
         "status": "accepted",
@@ -36,7 +60,6 @@ GET /api/friends
     {
       "id": 456,
       "username": "janediscgolf",
-      "email": "jane@example.com",
       "friendship": {
         "id": 124,
         "status": "accepted",
@@ -48,7 +71,13 @@ GET /api/friends
         "public_bags": 2
       }
     }
-  ]
+  ],
+  "pagination": {
+    "total": 2,
+    "limit": 20,
+    "offset": 0,
+    "hasMore": false
+  }
 }
 ```
 
@@ -57,16 +86,47 @@ GET /api/friends
 #### 400 Bad Request - Validation Error
 ```json
 {
-  "error": "ValidationError",
-  "message": "User ID is required"
+  "success": false,
+  "message": "Limit must be a positive integer",
+  "field": "limit"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Unknown query parameters: sort, filter"
 }
 ```
 
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Token validation failed: JWT payload contains invalid userId format"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 1KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many friends list requests, please try again in 10 minutes"
 }
 ```
 
@@ -83,7 +143,6 @@ GET /api/friends
 |-------|------|-------------|
 | `id` | integer | Friend's user ID |
 | `username` | string | Friend's username |
-| `email` | string | Friend's email address |
 | `friendship` | object | Friendship relationship details |
 | `bag_stats` | object | Friend's bag visibility statistics |
 
@@ -106,54 +165,94 @@ GET /api/friends
 
 ### Key Features
 - **Bidirectional Friendship**: Handles friendships where user is requester or recipient
-- **Enhanced Data**: Enriches basic friendship data with user info and bag stats
+- **Optimized Query**: Single query with JOINs replaces multiple queries for better performance
+- **Pagination Support**: Built-in pagination with limit/offset and metadata
+- **Comprehensive Validation**: Input validation prevents 500 errors
+- **Performance Monitoring**: Query timing with configurable slow query thresholds
 - **Privacy Aware**: Calculates bag visibility based on privacy settings
-- **Performance Optimized**: Uses efficient parallel queries for friend data
 
-### Data Enhancement Process
-1. **Friendship Query**: Find all accepted friendships involving the user
-2. **Friend Identification**: Determine who the "other person" is in each friendship
-3. **User Data Lookup**: Get username and email for each friend
-4. **Bag Statistics**: Calculate total, public, and visible bag counts
-5. **Data Assembly**: Combine all data into enhanced friend objects
+### Validation & Error Prevention
+1. **User ID Validation**: Validates user ID format (integer/UUID) before database queries
+2. **Pagination Validation**: Ensures limit (1-100) and offset (≥0) are valid
+3. **Query Parameter Validation**: Rejects unknown parameters with descriptive errors
+4. **Database Parameter Safety**: Validates all parameters to prevent SQL injection
+5. **JWT Payload Validation**: Auth middleware validates token structure and userId format
+
+### Performance Features
+- **Single Optimized Query**: Replaces N+1 queries with efficient JOINs
+- **Query Performance Monitoring**: 
+  - Friends query: 500ms slow query threshold
+  - Count query: 200ms slow query threshold
+- **Parallel Execution**: Friends data and count queries run concurrently
+- **Indexed Lookups**: All queries use indexed columns for optimal performance
 
 ### Database Operations
 
-#### Main Friendship Query
+#### Optimized Single Query with JOINs
 ```sql
-SELECT id, requester_id, recipient_id, status, created_at, updated_at
+WITH friend_bag_stats AS (
+  SELECT 
+    user_id,
+    COUNT(*) as total_bags,
+    COUNT(*) FILTER (WHERE is_public = true) as public_bags,
+    COUNT(*) FILTER (WHERE is_public = true OR is_friends_visible = true) as visible_bags
+  FROM bags
+  GROUP BY user_id
+)
+SELECT 
+  CASE 
+    WHEN fr.requester_id = $1 THEN fr.recipient_id 
+    ELSE fr.requester_id 
+  END as friend_id,
+  u.username,
+  fr.id as friendship_id,
+  fr.status as friendship_status,
+  fr.created_at as friendship_created_at,
+  COALESCE(fbs.total_bags, 0) as total_bags,
+  COALESCE(fbs.public_bags, 0) as public_bags,
+  COALESCE(fbs.visible_bags, 0) as visible_bags
+FROM friendship_requests fr
+JOIN users u ON (
+  CASE 
+    WHEN fr.requester_id = $1 THEN u.id = fr.recipient_id 
+    ELSE u.id = fr.requester_id 
+  END
+)
+LEFT JOIN friend_bag_stats fbs ON fbs.user_id = u.id
+WHERE fr.status = 'accepted'
+  AND (fr.requester_id = $1 OR fr.recipient_id = $1)
+ORDER BY fr.created_at DESC
+LIMIT $2 OFFSET $3
+```
+
+#### Count Query for Pagination
+```sql
+SELECT COUNT(*) as count
 FROM friendship_requests
 WHERE status = 'accepted'
   AND (requester_id = $1 OR recipient_id = $1)
-ORDER BY created_at DESC
-```
-
-#### Friend User Details
-```sql
-SELECT id, username, email
-FROM users
-WHERE id = $1
-```
-
-#### Bag Statistics Queries
-```sql
--- Total bags
-SELECT COUNT(*) as count FROM bags WHERE user_id = $1
-
--- Public bags
-SELECT COUNT(*) as count FROM bags WHERE user_id = $1 AND is_public = true
-
--- Visible bags (public + friends_visible)
-SELECT COUNT(*) as count FROM bags 
-WHERE user_id = $1 AND (is_public = true OR is_friends_visible = true)
 ```
 
 ## Example Usage
 
-### Get Friends List
+### Get Friends List (Default)
 ```bash
 curl -X GET http://localhost:3000/api/friends \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Get Friends List with Pagination
+```bash
+curl -X GET "http://localhost:3000/api/friends?limit=10&offset=0" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Invalid Request (Unknown Parameters)
+```bash
+curl -X GET "http://localhost:3000/api/friends?sort=name&filter=active" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+# Returns 400: Unknown query parameters: sort, filter
 ```
 
 ### Response
@@ -164,7 +263,6 @@ curl -X GET http://localhost:3000/api/friends \
     {
       "id": 789,
       "username": "johndoe",
-      "email": "john@example.com",
       "friendship": {
         "id": 123,
         "status": "accepted",
@@ -176,7 +274,13 @@ curl -X GET http://localhost:3000/api/friends \
         "public_bags": 1
       }
     }
-  ]
+  ],
+  "pagination": {
+    "total": 1,
+    "limit": 20,
+    "offset": 0,
+    "hasMore": false
+  }
 }
 ```
 
@@ -222,10 +326,11 @@ const friendUserId = friendship.requester_id === userId
 - **Equal Treatment**: Both cases treated identically in friends list
 
 ## Performance Considerations
-- **Parallel Processing**: Uses Promise.all for concurrent friend data fetching
-- **Efficient Queries**: Minimizes database round trips
+- **Single Query Architecture**: One optimized query replaces multiple round trips
+- **Performance Monitoring**: Built-in slow query detection and logging
+- **Configurable Thresholds**: Different timing thresholds for different query types
 - **Indexed Lookups**: All queries use indexed columns
-- **Reasonable Scale**: Designed for typical social network friend counts
+- **Pagination**: Prevents large result sets from overwhelming the system
 
 ## Business Rules
 - **Accepted Only**: Only includes friendships with "accepted" status

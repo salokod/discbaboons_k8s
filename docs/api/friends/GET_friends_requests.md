@@ -11,6 +11,17 @@ GET /api/friends/requests
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Max Requests**: 100 per IP address
+- **Purpose**: Prevent excessive friends request checking
+- **Headers**: Standard rate limit headers included in response
+
+## Request Size Limit
+- **Maximum**: 1KB
+- **Applies to**: All request components (headers, query params, etc.)
+- **Error**: Returns 413 Payload Too Large if exceeded
+
 ## Query Parameters
 
 | Parameter | Type | Required | Description |
@@ -67,8 +78,24 @@ GET /api/friends/requests
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
+}
+```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 1KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many friends request checks, please try again in 10 minutes"
 }
 ```
 

@@ -107,13 +107,28 @@ expect(result.data).toMatchObject({
    - Should: [What it should test instead]
    - Example: [Code example]
 
+3. **Documentation Issues**: [Description]
+   - Files: `/docs/api/[affected files]`
+   - Missing: [What documentation is missing or outdated]
+   - Required: [What needs to be added/updated]
+
+### Documentation Review Checklist
+- [ ] **Implementation Match**: Documentation accurately reflects the code changes
+- [ ] **Error Response Format**: All examples use current error response format
+- [ ] **New Features**: All implemented features documented with examples
+- [ ] **Working Examples**: All curl commands match actual implementation and work
+- [ ] **Breaking Changes**: Any changes that affect existing API usage are documented
+- [ ] **Validation Changes**: Any new or modified validation rules are documented
+
 ### Questions
 - [Specific questions about design decisions]
 - [Edge cases to consider]
+- [Documentation completeness questions]
 
 ### Suggestions
 - [Specific improvements]
 - [Pattern recommendations]
+- [Documentation improvements]
 ```
 
 ## Review Categories
@@ -134,6 +149,14 @@ expect(result.data).toMatchObject({
   - Over-mocked unit tests that don't test real behavior
   - Integration tests that mock the database
   - Tests with no clear assertion of behavior
+- **Documentation Gaps** (Must Fix - Implementation Incomplete Without Docs):
+  - API documentation not updated to reflect implementation changes
+  - Code changes not reflected in corresponding endpoint documentation
+  - New features implemented but not documented with examples
+  - Error response changes not updated in documentation examples
+  - New validation rules implemented but not documented with examples
+  - Breaking changes implemented but not documented for users
+  - Non-working curl examples in documentation (examples don't match implementation)
 
 ### 🟡 Should Fix (Non-blocking but important)
 - Hardcoded test values instead of dynamic generation
@@ -161,3 +184,21 @@ A good review should result in:
 - **Learning**: Understanding of design decisions and trade-offs
 - **Consistency**: Code that follows established patterns
 - **Security**: Proper validation and authorization
+- **Complete Documentation**: Current, accurate API docs that match implementation
+
+### Documentation Success Criteria
+- **100% Documentation Currency**: All API docs reflect current implementation
+- **Working Examples**: All curl commands and JSON examples verified
+- **Complete Error Coverage**: All possible error responses documented
+- **User-Friendly**: Developers can use the API from docs alone
+- **Searchable**: Documentation is well-organized and findable
+
+### Documentation Review Requirements
+Before any PR can be approved:
+1. **All affected endpoints must have updated documentation**
+2. **All examples must be tested and working with the actual implementation**
+3. **Error responses must use current standard format** 
+4. **All implemented features must be documented with examples**
+5. **Breaking changes must be clearly documented for users**
+
+**⚠️ PRs with incomplete documentation are considered incomplete implementations and must be marked as "Needs Work"**
