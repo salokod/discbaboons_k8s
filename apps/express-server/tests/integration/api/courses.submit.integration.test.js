@@ -44,7 +44,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.company(),
       city: chance.city(),
-      stateProvince: chance.state({ territories: true }),
+      stateProvince: chance.state({ territories: true, full: false }),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
@@ -62,7 +62,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.company(),
       city: chance.city(),
-      stateProvince: chance.state({ territories: true }),
+      stateProvince: chance.state({ territories: true, full: false }),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       postalCode: chance.zip(),
