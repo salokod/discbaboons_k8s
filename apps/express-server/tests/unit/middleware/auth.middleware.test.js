@@ -89,7 +89,7 @@ describe('AuthMiddleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('should call next and add user to request when JWT token is valid', async () => {
+  test('should call next and add validated user to request when JWT token is valid', async () => {
     const validToken = chance.string();
     const userId = chance.integer({ min: 1, max: 1000 });
     const username = chance.word();
@@ -117,5 +117,53 @@ describe('AuthMiddleware', () => {
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
+  });
+
+  test('should return 401 when JWT payload validation fails', async () => {
+    const validToken = chance.string();
+    req.headers.authorization = `Bearer ${validToken}`;
+
+    const jwt = await import('jsonwebtoken');
+
+    // Mock JWT verify to return invalid payload (missing userId)
+    jwt.default.verify.mockReturnValue({
+      username: 'test',
+      // missing userId
+    });
+
+    authenticateToken(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: expect.stringContaining('Token validation failed'),
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('should return 401 when JWT payload has invalid userId format', async () => {
+    const validToken = chance.string();
+    req.headers.authorization = `Bearer ${validToken}`;
+
+    const jwt = await import('jsonwebtoken');
+
+    // Mock JWT verify to return payload with invalid userId
+    jwt.default.verify.mockReturnValue({
+      userId: 0, // Invalid - must be positive
+      username: 'test',
+    });
+
+    authenticateToken(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: expect.stringContaining('Token validation failed'),
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
   });
 });

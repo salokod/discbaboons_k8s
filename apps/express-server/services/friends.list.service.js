@@ -1,15 +1,16 @@
 import { queryRows, queryOne } from '../lib/database.js';
+import { validateUserId, validateQueryParams } from '../lib/validation.js';
 
 const getFriendsListService = async (userId, options = {}) => {
-  if (!userId) {
-    const error = new Error('User ID is required');
-    error.name = 'ValidationError';
-    throw error;
-  }
+  // Validate user ID format to prevent database errors
+  const validatedUserId = validateUserId(userId);
 
-  // Parse pagination options
-  const limit = Math.min(parseInt(options.limit, 10) || 20, 100);
-  const offset = parseInt(options.offset, 10) || 0;
+  // Parse pagination options with robust validation
+  const parsedLimit = parseInt(options.limit, 10);
+  const parsedOffset = parseInt(options.offset, 10);
+
+  const limit = Math.min(Math.max(Number.isNaN(parsedLimit) ? 20 : parsedLimit, 1), 100);
+  const offset = Math.max(Number.isNaN(parsedOffset) ? 0 : parsedOffset, 0);
 
   // Optimized single query with JOINs to get all friend data and bag statistics
   const friendsQuery = `
@@ -56,10 +57,19 @@ const getFriendsListService = async (userId, options = {}) => {
       AND (requester_id = $1 OR recipient_id = $1)
   `;
 
-  // Execute both queries
+  // Validate query parameters before database execution
+  const friendsQueryParams = validateQueryParams([validatedUserId, limit, offset]);
+  const countQueryParams = validateQueryParams([validatedUserId]);
+
+  // Execute both queries with performance monitoring
   const [friendsData, totalResult] = await Promise.all([
-    queryRows(friendsQuery, [userId, limit, offset]),
-    queryOne(countQuery, [userId]),
+    queryRows(friendsQuery, friendsQueryParams, {
+      slowQueryThreshold: 500, // Friends query should be fast
+      logPerformance: true,
+    }),
+    queryOne(countQuery, countQueryParams, {
+      slowQueryThreshold: 200, // Count query should be very fast
+    }),
   ]);
 
   const total = parseInt(totalResult.count, 10);

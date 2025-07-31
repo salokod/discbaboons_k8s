@@ -66,6 +66,62 @@ describe('getFriendsListService', () => {
     expect(result.friends[0]).toHaveProperty('bag_stats');
   });
 
+  test('should handle negative offset by setting to 0', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    mockDatabase.queryRows.mockResolvedValueOnce([]); // empty friends data
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '0' }); // total count
+
+    const result = await getFriendsListService(userId, { offset: -5 });
+
+    expect(result.pagination.offset).toBe(0);
+  });
+
+  test('should handle zero limit by setting to 1', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    mockDatabase.queryRows.mockResolvedValueOnce([]); // empty friends data
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '0' }); // total count
+
+    const result = await getFriendsListService(userId, { limit: 0 });
+
+    expect(result.pagination.limit).toBe(1);
+  });
+
+  test('should handle negative limit by setting to 1', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    mockDatabase.queryRows.mockResolvedValueOnce([]); // empty friends data
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '0' }); // total count
+
+    const result = await getFriendsListService(userId, { limit: -10 });
+
+    expect(result.pagination.limit).toBe(1);
+  });
+
+  test('should cap limit at 100 maximum', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    mockDatabase.queryRows.mockResolvedValueOnce([]); // empty friends data
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '0' }); // total count
+
+    const result = await getFriendsListService(userId, { limit: 500 });
+
+    expect(result.pagination.limit).toBe(100);
+  });
+
+  test('should handle non-numeric pagination parameters gracefully', async () => {
+    const userId = chance.integer({ min: 1, max: 1000 });
+
+    mockDatabase.queryRows.mockResolvedValueOnce([]); // empty friends data
+    mockDatabase.queryOne.mockResolvedValueOnce({ count: '0' }); // total count
+
+    const result = await getFriendsListService(userId, { limit: 'invalid', offset: 'invalid' });
+
+    expect(result.pagination.limit).toBe(20); // default
+    expect(result.pagination.offset).toBe(0); // default
+  });
+
   test('should throw if userId is missing', async () => {
     await expect(getFriendsListService(undefined))
       .rejects

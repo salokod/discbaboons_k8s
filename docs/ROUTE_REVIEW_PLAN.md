@@ -96,6 +96,12 @@ Following **PR_REVIEW_METHODOLOGY.md**, each route will be evaluated for:
 - [ ] **HTTP status codes**: Are status codes appropriate and consistent?
 - [ ] **Validation errors**: Are validation failures properly handled?
 - [ ] **Database errors**: Are database failures gracefully handled?
+- [ ] **500 Error Prevention**: Are all input fields validated to prevent internal server errors?
+  - [ ] User ID format validation (integer/UUID)
+  - [ ] Query parameter type validation (limit, offset, filters)
+  - [ ] Request body field validation (required fields, data types, lengths)
+  - [ ] JWT payload structure validation
+  - [ ] Database query parameter validation
 
 #### 4. **Business Logic**
 - [ ] **Permission logic**: Are business rules correctly implemented?

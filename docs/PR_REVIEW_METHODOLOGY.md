@@ -123,6 +123,12 @@ expect(result.data).toMatchObject({
 - Logic errors that could cause data corruption
 - Missing critical error handling
 - Tests that don't actually test functionality
+- **500 Error Prevention**: Incomplete input validation that could cause internal server errors
+  - Missing user ID format validation (must be integer/UUID)
+  - Missing query parameter validation (type, range, format)
+  - Missing request body validation (required fields, data types, max lengths)
+  - Missing JWT payload structure validation
+  - Missing database parameter validation
 - **Testing Anti-Patterns** (per Martin Fowler):
   - Tests that break on refactoring (testing implementation)
   - Over-mocked unit tests that don't test real behavior
