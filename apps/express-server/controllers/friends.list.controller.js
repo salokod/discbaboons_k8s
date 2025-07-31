@@ -1,17 +1,15 @@
 import getFriendsListService from '../services/friends.list.service.js';
 
 const friendsListController = async (req, res, next) => {
-  if (!req.user || !req.user.userId) {
-    return res.status(401).json({
-      success: false,
-      message: 'User not authenticated',
-    });
-  }
   try {
-    const friends = await getFriendsListService(req.user.userId);
+    // Extract pagination parameters from query string
+    const { limit, offset } = req.query;
+
+    const result = await getFriendsListService(req.user.userId, { limit, offset });
+
     return res.status(200).json({
       success: true,
-      friends,
+      ...result, // Spreads friends and pagination properties
     });
   } catch (err) {
     return next(err);
