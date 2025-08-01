@@ -906,42 +906,159 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
 
 **Prerequisites**: Enhanced Side Bet Structure with Categories for Meaningful Analytics
 
-##### **Phase 1: Structured Bet Categories (Week 1)** 🚀 **IN PROGRESS**
-- [ ] **Database Enhancement**: Add `bet_category` column to `side_bets` table
-  - [ ] V26__add_side_bet_categories.sql migration
-  - [ ] Default 'custom' for existing bets, structured categories for new ones
-  - [ ] Background categorization of existing bets using pattern matching
-- [ ] **Category System**: Define standard bet categories for consistency
+##### **Phase 1: Structured Bet Categories (Week 1)** ✅ **COMPLETED**
+- [x] **Database Enhancement**: Add `bet_category` column to `side_bets` table ✅
+  - [x] V26__add_side_bet_categories.sql migration
+  - [x] Nullable column for backwards compatibility
+  - [x] No database constraints for flexibility
+  - [x] Index for analytics performance
+- [x] **Category System**: Define standard bet categories for consistency ✅
   ```javascript
   const BET_CATEGORIES = [
-    // Distance/accuracy bets
-    'closest_to_pin', 'longest_drive', 'longest_drive_in_fairway', 'most_accurate_drive',
-    'most_fairways_hit', 'most_greens_in_regulation', 'longest_putt_made', 'shortest_missed_putt',
+    // Score-based bets (calculable from scores + pars)
+    'lowest_score',           // Total strokes
+    'first_birdie',          // First under par
+    'first_eagle',           // First 2+ under par
+    'most_birdies',          // Count scores under par
+    'most_pars',             // Count scores equal to par
+    'least_bogeys',          // Fewest scores over par
+    'no_bogeys',             // No scores over par
+    'best_back_nine',        // NOTE: Need to handle starting hole offset
+    'best_front_nine',       // NOTE: Need to handle starting hole offset
+    'most_consecutive_pars', // Longest par streak
     
-    // Score-based bets
-    'lowest_score', 'first_birdie', 'first_eagle', 'most_birdies', 'most_pars', 
-    'no_bogeys', 'least_bogeys', 'most_consecutive_pars', 'best_back_nine', 'best_front_nine',
-    'biggest_comeback', 'cleanest_round',
+    // Hole-specific bets (manual tracking)
+    'closest_to_pin',        // Specific hole bet
+    'longest_drive',         // Specific hole bet
     
-    // Skill-based bets
-    'fewest_putts', 'most_up_and_downs', 'most_sand_saves', 'most_dramatic_shot',
-    
-    // Fun/quirky bets
-    'first_water_hazard', 'last_to_finish',
-    
-    // Hole-specific bets
-    'hardest_hole_winner', 'par_3_champion', 'par_5_eagle',
+    // Fun/simple bets
+    'last_to_finish',        // Based on score submission time
     
     // Custom category
-    'custom'
+    'custom'                 // User-defined criteria
   ];
+  
+  // IMPLEMENTATION NOTES:
+  // 1. Front/Back Nine Calculations:
+  //    - Rounds don't always start on hole 1 (shotgun starts, etc)
+  //    - GOOD NEWS: round.starting_hole already exists in DB (default: 1)
+  //    - Front nine = first 9 holes played (not holes 1-9)
+  //    - Back nine = last 9 holes played (not holes 10-18)
+  //    - Example: Starting hole 7 on 18-hole course:
+  //      - Front nine: holes 7,8,9,10,11,12,13,14,15
+  //      - Back nine: holes 16,17,18,1,2,3,4,5,6
+  //    
+  // 2. Handling Different Course Sizes:
+  //    - 9-hole course: No front/back nine bets (disable these options)
+  //    - 18-hole course: Standard front/back nine
+  //    - 21-hole course: Options:
+  //      a) First 9 vs Last 9 (ignore middle 3 holes)
+  //      b) First 10 vs Last 11 (or 11 vs 10)
+  //      c) Let user define split point when creating bet
+  //    - 27-hole course: Options:
+  //      a) First 9 vs Last 9 (ignore middle 9)
+  //      b) Each 9-hole loop as separate bet
+  //      c) User-defined split
+  //    
+  // 3. UI Considerations:
+  //    - When creating front/back nine bet:
+  //      - Auto-detect course.hole_count from course_id
+  //      - If not 18 holes, either:
+  //        a) Disable these bet types, OR
+  //        b) Show dialog: "This course has 21 holes. How would you like to split?"
+  //           - First 10 vs Last 11
+  //           - First 11 vs Last 10
+  //           - Custom split (holes 1-X vs holes X+1-21)
   ```
-- [ ] **Enhanced Creation API**: `GET /api/rounds/:id/side-bets/suggestions`
-  - [ ] Popular bets among friends with success rates
-  - [ ] User's historically successful bet categories
-  - [ ] Smart suggestions based on hole type and player history
+
+  // Bet Resolution Categorization
+  const BET_RESOLUTION_TYPES = {
+    // IMMEDIATE RESOLUTION - Can auto-resolve mid-round from scores
+    immediate: [
+      'first_birdie',         // Resolves when first birdie scored (ties if same hole)
+      'first_eagle',          // Resolves when first eagle scored (ties if same hole)
+    ],
+    
+    // END-OF-ROUND - Auto-calculated from complete scores
+    endOfRound: [
+      'lowest_score',         // Total strokes winner
+      'best_back_nine',       // Last 9 holes played
+      'best_front_nine',      // First 9 holes played
+      'most_birdies',         // Count of birdies
+      'most_pars',            // Count of pars
+      'least_bogeys',         // Fewest bogeys
+      'no_bogeys',            // Binary - achieved or not
+      'last_to_finish',       // Based on score submission time
+    ],
+    
+    // PROGRESSIVE - Updates throughout round, final at end
+    progressive: [
+      'most_consecutive_pars', // Track streaks, can change leader
+    ],
+    
+    // MANUAL RESOLUTION - Requires human decision
+    manual: [
+      'closest_to_pin',       // Hole-specific, needs measurement
+      'longest_drive',        // Hole-specific, needs measurement
+      'custom',               // User-defined criteria
+    ]
+  };
+
+  // Tie Handling Rules
+  const TIE_RULES = {
+    splitPot: true,  // Default: Split pot evenly among winners
+    examples: {
+      twoWinnersFourPlayers: 'Two winners split pot, two losers lose bet amount',
+      allTied: 'If all participants tie, bet is cancelled/refunded',
+      firstBirdieSameHole: 'Multiple birdies on same hole = split pot'
+    }
+  };
+- [x] **Enhanced Creation API**: `GET /api/rounds/:id/side-bets/suggestions` ✅
+  - [x] Basic bet suggestions with popularity scores
+  - [x] Categorized suggestions (auto-calculable vs manual)
+  - [x] Service layer with validation and error handling
+  - [x] Controller with proper authentication
+  - [x] Route integration with rate limiting
+  - [x] API documentation created
+  - [ ] Future: Popular bets among friends with success rates
+  - [ ] Future: User's historically successful bet categories
+  - [ ] Future: Smart suggestions based on hole type and player history
 - [ ] **Backwards Compatibility**: Existing freeform bets continue working as 'custom'
 - [ ] **Migration Strategy**: Pattern-match existing bet names to assign categories
+
+  **EXECUTION PLAN (TDD Approach):**
+  1. **Database Migration (V26)** - Add bet_category column
+     - Write migration test first
+     - Nullable column, default NULL for existing bets
+     - CHECK constraint for valid categories
+     - Each step independently valuable
+  
+  2. **Category Constants & Pattern Matching**
+     - Create shared BET_CATEGORIES constant
+     - Build pattern matcher (e.g., "CTP" → closest_to_pin)
+     - Test with various bet name formats
+     - Backwards compatible
+  
+  3. **Suggestions Endpoint** - GET /api/rounds/:id/side-bets/suggestions
+     - Start with "endpoint exists" test
+     - Return categorized suggestions
+     - Filter by hole type (par 3s get CTP, etc.)
+     - Include popularity data if available
+  
+  4. **Enhanced Creation Flow**
+     - Add optional category field to POST
+     - Auto-categorize if not provided
+     - Test both with and without category
+     - Maintain full backwards compatibility
+
+  **COMPLETED DELIVERABLES:**
+  - ✅ Database migration V26 with bet_category column
+  - ✅ BET_CATEGORIES constants and validation system
+  - ✅ Pattern matching for categorizing existing bets
+  - ✅ GET /api/rounds/:id/side-bets/suggestions endpoint
+  - ✅ Complete TDD test coverage (service + controller + routes)
+  - ✅ API documentation: docs/api/rounds/GET_rounds_id_side-bets_suggestions.md
+  - ✅ Service-layer validation (no database constraints for flexibility)
 
 ##### **Phase 2: Analytics Foundation (Week 2)** 
 - [ ] **Analytics Data Pipeline**: Create materialized views and aggregation tables

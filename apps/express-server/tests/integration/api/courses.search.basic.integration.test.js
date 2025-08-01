@@ -9,6 +9,7 @@ import { query } from '../setup.js';
 import {
   createTestUser,
   cleanupUsers,
+  createGloballyUniqueId,
 } from '../test-helpers.js';
 
 const chance = new Chance();
@@ -34,12 +35,14 @@ describe('GET /api/courses - Integration', () => {
     token = testUser.token;
     createdUserIds.push(user.id);
 
-    // Create test data with meaningful randomness
-    const testStates = ['CA', 'NY', 'TX', 'FL', 'WA'];
-    course1State = chance.pickone(testStates);
-    course2State = chance.pickone(testStates.filter((s) => s !== course1State));
+    // Create unique test data to prevent race conditions with other tests
+    const uniqueId = createGloballyUniqueId('coursesbasic');
+    // Use a completely unique state prefix to ensure no conflicts with any other test or data
+    const baseStates = ['DE', 'VT', 'NH', 'RI', 'ME', 'WV', 'MT', 'ND'];
+    course1State = `${uniqueId.counter}${chance.pickone(baseStates)}`;
+    course2State = `${uniqueId.counter}${chance.pickone(baseStates.filter((s) => !course1State.includes(s)))}`;
 
-    // Create approved courses directly in DB for search
+    // Create approved courses directly in DB for search with unique identifiers
     // Course 1: Contains "park" for name search test
     approvedCourseId1 = chance.guid();
     await query(
@@ -48,8 +51,8 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId1,
-        `${chance.word()} Park Golf Course`, // Guarantee "park" in name
-        chance.city(),
+        `${uniqueId.shortId} Park Golf Course`, // Guarantee "park" in name with unique prefix
+        `${uniqueId.shortId}City`, // Unique city name
         course1State,
         'US',
         chance.integer({ min: 9, max: 27 }),
@@ -67,8 +70,8 @@ describe('GET /api/courses - Integration', () => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         approvedCourseId2,
-        `${chance.pickone(['Mountain', 'Valley', 'River', 'Forest', 'Lake'])} ${chance.pickone(['Ridge', 'Creek', 'Hill', 'Mesa', 'Meadow'])} Golf Course`, // Guaranteed no "park"
-        chance.city(),
+        `${uniqueId.shortId} ${chance.pickone(['Mountain', 'Valley', 'River', 'Forest', 'Lake'])} ${chance.pickone(['Ridge', 'Creek', 'Hill', 'Mesa', 'Meadow'])} Golf Course`, // Guaranteed no "park" with unique prefix
+        `${uniqueId.shortId}City2`, // Unique city name
         course2State,
         'US',
         chance.integer({ min: 9, max: 27 }),

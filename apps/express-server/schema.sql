@@ -444,6 +444,7 @@ CREATE TABLE public.side_bets (
     updated_at timestamp without time zone DEFAULT now(),
     cancelled_at timestamp without time zone,
     cancelled_by_id uuid,
+    bet_category character varying(50),
     CONSTRAINT check_amount_positive CHECK ((amount > (0)::numeric)),
     CONSTRAINT check_hole_number CHECK (((hole_number IS NULL) OR ((hole_number > 0) AND (hole_number <= 50))))
 );
@@ -482,6 +483,13 @@ COMMENT ON COLUMN public.side_bets.cancelled_at IS 'Timestamp when bet was cance
 --
 
 COMMENT ON COLUMN public.side_bets.cancelled_by_id IS 'Player who cancelled the bet';
+
+
+--
+-- Name: COLUMN side_bets.bet_category; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.side_bets.bet_category IS 'Standardized bet category for analytics. NULL for legacy bets, will be pattern-matched later. Validation happens in application layer for flexibility.';
 
 
 --
@@ -994,6 +1002,13 @@ CREATE INDEX idx_side_bet_participants_side_bet_id ON public.side_bet_participan
 --
 
 CREATE UNIQUE INDEX idx_side_bet_participants_unique ON public.side_bet_participants USING btree (side_bet_id, player_id);
+
+
+--
+-- Name: idx_side_bets_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_side_bets_category ON public.side_bets USING btree (bet_category);
 
 
 --
