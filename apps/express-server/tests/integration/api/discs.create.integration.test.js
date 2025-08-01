@@ -75,7 +75,8 @@ describe('POST /api/discs/master - Integration', () => {
       .send(discData)
       .expect(201);
 
-    expect(response.body).toMatchObject({
+    expect(response.body.success).toBe(true);
+    expect(response.body.disc).toMatchObject({
       brand: discData.brand,
       model: discData.model,
       speed: discData.speed,
@@ -86,10 +87,10 @@ describe('POST /api/discs/master - Integration', () => {
       added_by_id: user.id,
     });
 
-    createdDiscIds.push(response.body.id);
+    createdDiscIds.push(response.body.disc.id);
 
     // Integration: Verify persistence to database
-    const savedDisc = await query('SELECT * FROM disc_master WHERE id = $1', [response.body.id]);
+    const savedDisc = await query('SELECT * FROM disc_master WHERE id = $1', [response.body.disc.id]);
     expect(savedDisc.rows).toHaveLength(1);
     expect(savedDisc.rows[0]).toMatchObject({
       brand: discData.brand,

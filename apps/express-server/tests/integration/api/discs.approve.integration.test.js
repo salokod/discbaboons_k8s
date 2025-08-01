@@ -95,7 +95,8 @@ describe('PATCH /api/discs/:id/approve - Integration', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(response.body).toMatchObject({
+    expect(response.body.success).toBe(true);
+    expect(response.body.disc).toMatchObject({
       id: pendingDiscId,
       approved: true,
     });

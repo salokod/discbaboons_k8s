@@ -11,6 +11,15 @@ PATCH /api/discs/:id/approve
 ## Authentication
 **Required**: Bearer token in Authorization header with admin privileges.
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Limit**: 50 admin operations per IP address
+- **Purpose**: Prevents admin endpoint abuse while allowing efficient moderation
+- **Headers Returned**:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Requests remaining in current window
+  - `X-RateLimit-Reset`: Time when limit resets
+
 ## Path Parameters
 
 | Parameter | Type | Required | Description |
@@ -22,17 +31,20 @@ PATCH /api/discs/:id/approve
 ### Success (200 OK)
 ```json
 {
-  "id": "770e8400-e29b-41d4-a716-446655440000",
-  "brand": "Dynamic Discs",
-  "model": "Lucid Truth",
-  "speed": 5,
-  "glide": 5,
-  "turn": 0,
-  "fade": 2,
-  "approved": true,
-  "added_by_id": 456,
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-15T11:00:00.000Z"
+  "success": true,
+  "disc": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "brand": "Dynamic Discs",
+    "model": "Lucid Truth",
+    "speed": 5,
+    "glide": 5,
+    "turn": 0,
+    "fade": 2,
+    "approved": true,
+    "added_by_id": 456,
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "updated_at": "2024-01-15T11:00:00.000Z"
+  }
 }
 ```
 
@@ -41,7 +53,7 @@ PATCH /api/discs/:id/approve
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
 }
 ```
@@ -49,7 +61,7 @@ PATCH /api/discs/:id/approve
 #### 403 Forbidden
 ```json
 {
-  "error": "AuthorizationError",
+  "success": false,
   "message": "Admin access required"
 }
 ```
@@ -57,10 +69,23 @@ PATCH /api/discs/:id/approve
 #### 404 Not Found
 ```json
 {
-  "error": "NotFoundError",
+  "success": false,
   "message": "Disc not found"
 }
 ```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many admin operations, please try again in 1 hour"
+}
+```
+
+**Rate Limit Headers:**
+- `X-RateLimit-Limit`: 50
+- `X-RateLimit-Remaining`: 0
+- `X-RateLimit-Reset`: [timestamp]
 
 ## Response Fields
 

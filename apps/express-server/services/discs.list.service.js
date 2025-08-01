@@ -1,6 +1,6 @@
-import { queryRows } from '../lib/database.js';
+import { queryRows, queryOne } from '../lib/database.js';
 
-const listDiscsService = async (filters = {}, dbClient = { queryRows }) => {
+const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }) => {
   let { brand, model } = filters;
   const {
     speed, glide, turn, fade, approved, limit = '50', offset = '0',
@@ -157,12 +157,38 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows }) => {
     query += ` WHERE ${whereConditions.join(' AND ')}`;
   }
 
+  // Cap limit at 100 and ensure minimum of 1
+  const parsedLimit = Math.min(Math.max(Number.isNaN(Number(limit)) ? 50 : Number(limit), 1), 100);
+  const parsedOffset = Math.max(Number.isNaN(Number(offset)) ? 0 : Number(offset), 0);
+
   query += ' ORDER BY brand ASC, model ASC';
   query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
 
-  params.push(Number(limit), Number(offset));
+  params.push(parsedLimit, parsedOffset);
 
-  return dbClient.queryRows(query, params);
+  // Get total count with same filters
+  let countQuery = 'SELECT COUNT(*) as count FROM disc_master';
+  if (whereConditions.length > 0) {
+    countQuery += ` WHERE ${whereConditions.join(' AND ')}`;
+  }
+  const countParams = params.slice(0, -2); // Remove limit and offset for count query
+
+  // Execute both queries
+  const [discs, countResult] = await Promise.all([
+    dbClient.queryRows(query, params),
+    dbClient.queryOne(countQuery, countParams),
+  ]);
+
+  const total = parseInt(countResult.count, 10);
+  const hasMore = parsedOffset + parsedLimit < total;
+
+  return {
+    discs,
+    total,
+    limit: parsedLimit,
+    offset: parsedOffset,
+    hasMore,
+  };
 };
 
 export default listDiscsService;

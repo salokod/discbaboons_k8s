@@ -128,14 +128,15 @@ describe('GET /api/discs/pending - Integration', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.discs)).toBe(true);
 
     // Integration: Should only include unapproved discs
-    expect(response.body.length).toBeGreaterThanOrEqual(1);
-    expect(response.body.every((d) => d.approved === false)).toBe(true);
+    expect(response.body.discs.length).toBeGreaterThanOrEqual(1);
+    expect(response.body.discs.every((d) => d.approved === false)).toBe(true);
 
     // Should include submitter info
-    response.body.forEach((disc) => {
+    response.body.discs.forEach((disc) => {
       expect(disc).toHaveProperty('added_by_id');
     });
   });

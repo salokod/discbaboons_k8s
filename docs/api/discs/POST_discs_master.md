@@ -11,6 +11,20 @@ POST /api/discs/master
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 1 hour
+- **Limit**: 10 submissions per IP address
+- **Purpose**: Prevents spam disc submissions and database pollution
+- **Headers Returned**:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Requests remaining in current window
+  - `X-RateLimit-Reset`: Time when limit resets
+
+## Request Size Limits
+- **Maximum Payload Size**: 5KB
+- **Purpose**: Prevents large payload DoS attacks
+- **Error Response**: 413 Payload Too Large if exceeded
+
 ## Request Body
 
 | Field | Type | Required | Description |
@@ -39,17 +53,20 @@ POST /api/discs/master
 ### Success (201 Created)
 ```json
 {
-  "id": "770e8400-e29b-41d4-a716-446655440000",
-  "brand": "Innova",
-  "model": "Destroyer",
-  "speed": 12,
-  "glide": 5,
-  "turn": -1,
-  "fade": 3,
-  "approved": false,
-  "added_by_id": 123,
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-15T10:30:00.000Z"
+  "success": true,
+  "disc": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "brand": "Innova",
+    "model": "Destroyer",
+    "speed": 12,
+    "glide": 5,
+    "turn": -1,
+    "fade": 3,
+    "approved": false,
+    "added_by_id": 123,
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "updated_at": "2024-01-15T10:30:00.000Z"
+  }
 }
 ```
 
@@ -58,7 +75,7 @@ POST /api/discs/master
 #### 400 Bad Request - Validation Errors
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Brand is required"
 }
 ```
@@ -75,10 +92,31 @@ POST /api/discs/master
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
 }
 ```
+
+#### 413 Payload Too Large
+```json
+{
+  "success": false,
+  "message": "Request payload too large. Maximum size is 5KB."
+}
+```
+
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many disc submissions, please try again in 1 hour"
+}
+```
+
+**Rate Limit Headers:**
+- `X-RateLimit-Limit`: 10
+- `X-RateLimit-Remaining`: 0
+- `X-RateLimit-Reset`: [timestamp]
 
 ## Response Fields
 

@@ -116,20 +116,21 @@ describe('GET /api/discs/master - Integration', () => {
       .query({ brand: testBrand }) // Filter by our test brand
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
-    expect(response.body).toHaveLength(2); // Should only have approved discs (A & B, not C)
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.discs)).toBe(true);
+    expect(response.body.discs).toHaveLength(2); // Should only have approved discs (A & B, not C)
 
     // Integration: Verify approved filtering works
-    const discModels = response.body.map((d) => d.model);
+    const discModels = response.body.discs.map((d) => d.model);
     expect(discModels).toContain(testModelA);
     expect(discModels).toContain(testModelB);
     expect(discModels).not.toContain(testModelC); // Unapproved
 
     // All returned discs should be approved
-    expect(response.body.every((d) => d.approved === true)).toBe(true);
+    expect(response.body.discs.every((d) => d.approved === true)).toBe(true);
 
     // All should have our test brand
-    expect(response.body.every((d) => d.brand === testBrand)).toBe(true);
+    expect(response.body.discs.every((d) => d.brand === testBrand)).toBe(true);
   });
 
   // GOOD: Integration concern - brand filtering query
@@ -141,8 +142,8 @@ describe('GET /api/discs/master - Integration', () => {
       .expect(200);
 
     // Integration: Verify brand filtering
-    expect(response.body.length).toBeGreaterThan(0);
-    expect(response.body.every((d) => d.brand === testBrand)).toBe(true);
+    expect(response.body.discs.length).toBeGreaterThan(0);
+    expect(response.body.discs.every((d) => d.brand === testBrand)).toBe(true);
   });
 
   // GOOD: Integration concern - model substring search
@@ -156,7 +157,7 @@ describe('GET /api/discs/master - Integration', () => {
       .expect(200);
 
     // Integration: Verify substring search works
-    expect(response.body.some((d) => d.model === testModelA)).toBe(true);
+    expect(response.body.discs.some((d) => d.model === testModelA)).toBe(true);
   });
 
   // GOOD: Integration concern - unapproved disc access
@@ -168,9 +169,9 @@ describe('GET /api/discs/master - Integration', () => {
       .expect(200);
 
     // Integration: Verify unapproved discs are included
-    const discModels = response.body.map((d) => d.model);
+    const discModels = response.body.discs.map((d) => d.model);
     expect(discModels).toContain(testModelC);
-    expect(response.body.some((d) => d.approved === false)).toBe(true);
+    expect(response.body.discs.some((d) => d.approved === false)).toBe(true);
   });
 
   // Note: We do NOT test these validation scenarios in integration tests:

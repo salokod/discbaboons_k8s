@@ -11,6 +11,15 @@ GET /api/discs/master
 ## Authentication
 **Required**: Bearer token in Authorization header.
 
+## Rate Limiting
+- **Window**: 10 minutes
+- **Limit**: 100 requests per IP address
+- **Purpose**: Prevents database hammering and abuse of disc search functionality
+- **Headers Returned**:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Requests remaining in current window
+  - `X-RateLimit-Reset`: Time when limit resets
+
 ## Query Parameters
 
 | Parameter | Type | Required | Default | Description |
@@ -22,8 +31,8 @@ GET /api/discs/master
 | `turn` | string | No | - | Turn value or range (e.g., "-1" or "-2-0") |
 | `fade` | string | No | - | Fade value or range (e.g., "2" or "1-3") |
 | `approved` | boolean | No | true | Filter by approval status |
-| `limit` | integer | No | 50 | Number of results to return |
-| `offset` | integer | No | 0 | Number of results to skip |
+| `limit` | integer | No | 50 | Number of results to return (max 100) |
+| `offset` | integer | No | 0 | Number of results to skip (min 0) |
 
 ### Flight Number Ranges
 Flight numbers support both single values and ranges:
@@ -41,34 +50,43 @@ Flight numbers support both single values and ranges:
 
 ### Success (200 OK)
 ```json
-[
-  {
-    "id": "770e8400-e29b-41d4-a716-446655440000",
-    "brand": "Innova",
-    "model": "Thunderbird",
-    "speed": 9,
-    "glide": 5,
-    "turn": -1,
-    "fade": 2,
-    "approved": true,
-    "added_by_id": null,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  },
-  {
-    "id": "770e8400-e29b-41d4-a716-446655440001",
-    "brand": "Discraft",
-    "model": "Zone",
-    "speed": 4,
-    "glide": 3,
-    "turn": 0,
-    "fade": 3,
-    "approved": true,
-    "added_by_id": 123,
-    "created_at": "2024-01-15T10:30:00.000Z",
-    "updated_at": "2024-01-15T10:30:00.000Z"
+{
+  "success": true,
+  "discs": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440000",
+      "brand": "Innova",
+      "model": "Thunderbird",
+      "speed": 9,
+      "glide": 5,
+      "turn": -1,
+      "fade": 2,
+      "approved": true,
+      "added_by_id": null,
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440001",
+      "brand": "Discraft",
+      "model": "Zone",
+      "speed": 4,
+      "glide": 3,
+      "turn": 0,
+      "fade": 3,
+      "approved": true,
+      "added_by_id": 123,
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "updated_at": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0,
+    "hasMore": false
   }
-]
+}
 ```
 
 ### Error Responses
@@ -76,25 +94,45 @@ Flight numbers support both single values and ranges:
 #### 400 Bad Request - Validation Error
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Invalid filter value"
 }
 ```
 
 **Possible validation messages:**
 - "Invalid filter value" (for malformed flight number ranges)
-- "Invalid limit"
-- "Invalid offset"
+- "Invalid limit" (limit must be between 1-100)
+- "Invalid offset" (offset must be >= 0)
 
 #### 401 Unauthorized
 ```json
 {
-  "error": "UnauthorizedError",
+  "success": false,
   "message": "Access token required"
 }
 ```
 
+#### 429 Too Many Requests
+```json
+{
+  "success": false,
+  "message": "Too many disc searches, please try again in 10 minutes"
+}
+```
+
+**Rate Limit Headers:**
+- `X-RateLimit-Limit`: 100
+- `X-RateLimit-Remaining`: 0
+- `X-RateLimit-Reset`: [timestamp]
+
 ## Response Fields
+
+### Response Object
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Always true for successful responses |
+| `discs` | array | Array of disc objects (see below) |
+| `pagination` | object | Pagination metadata (see below) |
 
 ### Disc Object
 | Field | Type | Description |
@@ -110,6 +148,14 @@ Flight numbers support both single values and ranges:
 | `added_by_id` | integer | User ID who added disc (null for system discs) |
 | `created_at` | string (ISO 8601) | Disc creation timestamp |
 | `updated_at` | string (ISO 8601) | Last modification timestamp |
+
+### Pagination Object
+| Field | Type | Description |
+|-------|------|-------------|
+| `total` | integer | Total number of discs matching filters |
+| `limit` | integer | Number of results returned (max 100) |
+| `offset` | integer | Number of results skipped |
+| `hasMore` | boolean | Whether more results are available |
 
 ## Service Implementation
 **File:** `services/discs.list.service.js`
