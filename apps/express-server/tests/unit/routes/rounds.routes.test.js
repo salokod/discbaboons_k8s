@@ -25,6 +25,7 @@ let sideBetsCreateController;
 let sideBetsListController;
 let sideBetsGetController;
 let sideBetsUpdateController;
+let sideBetsCancelController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -95,6 +96,10 @@ beforeAll(async () => {
 
   sideBetsUpdateController = vi.fn((req, res) => {
     res.json({ message: 'side bet update controller called' });
+  });
+
+  sideBetsCancelController = vi.fn((req, res) => {
+    res.json({ message: 'side bet cancel controller called' });
   });
 
   // Mock the auth middleware
@@ -171,6 +176,10 @@ beforeAll(async () => {
     default: sideBetsUpdateController,
   }));
 
+  vi.doMock('../../../controllers/sideBets.cancel.controller.js', () => ({
+    default: sideBetsCancelController,
+  }));
+
   vi.doMock('../../../middleware/auth.middleware.js', () => ({
     default: authenticateToken,
   }));
@@ -238,6 +247,10 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({}),
   }));
 
+  vi.doMock('../../../services/sideBets.cancel.service.js', () => ({
+    default: vi.fn().mockResolvedValue({ success: true }),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -261,6 +274,7 @@ describe('rounds routes', () => {
     sideBetsCreateController.mockClear();
     sideBetsListController.mockClear();
     sideBetsUpdateController.mockClear();
+    sideBetsCancelController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -939,6 +953,45 @@ describe('rounds routes', () => {
     expect(req.params.id).toBe(roundId);
     expect(req.params.betId).toBe(betId);
     expect(req.body).toEqual(updateData);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('DELETE /api/rounds/:id/side-bets/:betId should require authentication and call sideBetsCancel controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betId = chance.guid();
+
+    const response = await request(app)
+      .delete(`/api/rounds/${roundId}/side-bets/${betId}`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'side bet cancel controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(sideBetsCancelController).toHaveBeenCalled();
+  });
+
+  test('DELETE /api/rounds/:id/side-bets/:betId should pass roundId and betId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+    const betId = chance.guid();
+
+    await request(app)
+      .delete(`/api/rounds/${roundId}/side-bets/${betId}`)
+      .expect(200);
+
+    expect(sideBetsCancelController).toHaveBeenCalled();
+    const lastCall = sideBetsCancelController.mock.calls[
+      sideBetsCancelController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
+    expect(req.params.betId).toBe(betId);
     expect(req.user).toEqual({ userId: 1 });
   });
 });
