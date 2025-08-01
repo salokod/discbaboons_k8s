@@ -17,6 +17,7 @@ import sideBetsCreateController from '../controllers/sideBets.create.controller.
 import sideBetsListController from '../controllers/sideBets.list.controller.js';
 import sideBetsGetController from '../controllers/sideBets.get.controller.js';
 import sideBetsUpdateController from '../controllers/sideBets.update.controller.js';
+import sideBetsSuggestionsController from '../controllers/sideBets.suggestions.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 import {
   roundsListRateLimit,
@@ -67,6 +68,9 @@ router.get('/:id/leaderboard', roundsScoringRateLimit, authenticateToken, getLea
 
 // GET /api/rounds/:id/skins - Get round skins calculation (requires authentication)
 router.get('/:id/skins', roundsScoringRateLimit, authenticateToken, skinsCalculateController);
+
+// GET /api/rounds/:id/side-bets/suggestions - Get side bet suggestions (requires authentication)
+router.get('/:id/side-bets/suggestions', roundsSideBetsRateLimit, authenticateToken, sideBetsSuggestionsController);
 
 // POST /api/rounds/:id/side-bets - Create side bet for round (requires authentication)
 router.post('/:id/side-bets', roundsSideBetsRateLimit, roundsRequestLimit, authenticateToken, sideBetsCreateController);
