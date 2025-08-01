@@ -17,6 +17,7 @@ import sideBetsCreateController from '../controllers/sideBets.create.controller.
 import sideBetsListController from '../controllers/sideBets.list.controller.js';
 import sideBetsGetController from '../controllers/sideBets.get.controller.js';
 import sideBetsUpdateController from '../controllers/sideBets.update.controller.js';
+import sideBetsCancelController from '../controllers/sideBets.cancel.controller.js';
 import sideBetsSuggestionsController from '../controllers/sideBets.suggestions.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 import {
@@ -83,6 +84,9 @@ router.get('/:id/side-bets/:betId', roundsSideBetsRateLimit, authenticateToken, 
 
 // PUT /api/rounds/:id/side-bets/:betId - Update side bet (requires authentication)
 router.put('/:id/side-bets/:betId', roundsSideBetsRateLimit, roundsRequestLimit, authenticateToken, sideBetsUpdateController);
+
+// DELETE /api/rounds/:id/side-bets/:betId - Cancel side bet (requires authentication)
+router.delete('/:id/side-bets/:betId', roundsSideBetsRateLimit, authenticateToken, sideBetsCancelController);
 
 // IMPORTANT: General routes MUST come after specific patterns to avoid matching conflicts
 // PUT /api/rounds/:id - Update round details (requires authentication)
