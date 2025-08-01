@@ -34,25 +34,30 @@ const sideBetsCancelService = async (betId, roundId, userId) => {
     throw error;
   }
 
-  // Verify bet exists and is not already cancelled
-  const bet = await queryOne(
-    'SELECT * FROM side_bets WHERE id = $1 AND round_id = $2 AND cancelled_at IS NULL',
-    [betId, roundId],
+  // Verify bet exists, is not cancelled, and user is authorized in one query
+  const betAndPlayer = await queryOne(
+    `SELECT sb.id as bet_id, rp.id as player_id 
+     FROM side_bets sb
+     JOIN round_players rp ON sb.round_id = rp.round_id 
+     WHERE sb.id = $1 AND sb.round_id = $2 AND sb.cancelled_at IS NULL 
+     AND rp.user_id = $3`,
+    [betId, roundId, userId],
   );
 
-  if (!bet) {
-    const error = new Error('Side bet not found');
-    error.name = 'NotFoundError';
-    throw error;
-  }
+  if (!betAndPlayer) {
+    // Check what specifically failed for better error messages
+    const bet = await queryOne(
+      'SELECT id FROM side_bets WHERE id = $1 AND round_id = $2 AND cancelled_at IS NULL',
+      [betId, roundId],
+    );
 
-  // Verify user is participant in round
-  const player = await queryOne(
-    'SELECT id FROM round_players WHERE round_id = $1 AND user_id = $2',
-    [roundId, userId],
-  );
+    if (!bet) {
+      const error = new Error('Side bet not found');
+      error.name = 'NotFoundError';
+      throw error;
+    }
 
-  if (!player) {
+    // If bet exists but we're here, user is not authorized
     const error = new Error('User must be a participant in this round');
     error.name = 'AuthorizationError';
     throw error;
@@ -60,8 +65,8 @@ const sideBetsCancelService = async (betId, roundId, userId) => {
 
   // Cancel the bet by setting cancelled_at and cancelled_by_id
   await query(
-    'UPDATE side_bets SET cancelled_at = NOW(), cancelled_by_id = $1, updated_at = NOW() WHERE id = $2',
-    [player.id, betId],
+    'UPDATE side_bets SET cancelled_at = NOW(), cancelled_by_id = $1, updated_at = NOW() WHERE id = $2 AND cancelled_at IS NULL',
+    [betAndPlayer.player_id, betId],
   );
 
   return { success: true };

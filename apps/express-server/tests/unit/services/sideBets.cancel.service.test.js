@@ -1,8 +1,11 @@
 import {
   describe, it, expect, vi, beforeEach,
 } from 'vitest';
+import Chance from 'chance';
 import sideBetsCancelService from '../../../services/sideBets.cancel.service.js';
 import { queryOne, query } from '../../../lib/database.js';
+
+const chance = new Chance();
 
 // Mock the database module
 vi.mock('../../../lib/database.js', () => ({
@@ -43,9 +46,9 @@ describe('sideBetsCancelService', () => {
   });
 
   it('should throw ValidationError if roundId is not provided', async () => {
-    const validUUID = '123e4567-e89b-12d3-a456-426614174000';
-    await expect(sideBetsCancelService(validUUID)).rejects.toThrow('Round ID is required');
-    await expect(sideBetsCancelService(validUUID)).rejects.toThrow(
+    const validBetId = chance.guid();
+    await expect(sideBetsCancelService(validBetId)).rejects.toThrow('Round ID is required');
+    await expect(sideBetsCancelService(validBetId)).rejects.toThrow(
       expect.objectContaining({
         name: 'ValidationError',
       }),
@@ -53,7 +56,7 @@ describe('sideBetsCancelService', () => {
   });
 
   it('should throw ValidationError if roundId is not a valid UUID', async () => {
-    const validBetId = '123e4567-e89b-12d3-a456-426614174000';
+    const validBetId = chance.guid();
     await expect(sideBetsCancelService(validBetId, 'not-a-uuid')).rejects.toThrow('Invalid round ID format');
     await expect(sideBetsCancelService(validBetId, '123')).rejects.toThrow('Invalid round ID format');
     await expect(sideBetsCancelService(validBetId, 'not-a-uuid')).rejects.toThrow(
@@ -64,8 +67,8 @@ describe('sideBetsCancelService', () => {
   });
 
   it('should throw ValidationError if userId is not provided', async () => {
-    const validBetId = '123e4567-e89b-12d3-a456-426614174000';
-    const validRoundId = '223e4567-e89b-12d3-a456-426614174000';
+    const validBetId = chance.guid();
+    const validRoundId = chance.guid();
     await expect(sideBetsCancelService(validBetId, validRoundId)).rejects.toThrow('User ID is required');
     await expect(sideBetsCancelService(validBetId, validRoundId)).rejects.toThrow(
       expect.objectContaining({
@@ -75,11 +78,14 @@ describe('sideBetsCancelService', () => {
   });
 
   it('should throw NotFoundError if bet does not exist', async () => {
-    const validBetId = '123e4567-e89b-12d3-a456-426614174000';
-    const validRoundId = '223e4567-e89b-12d3-a456-426614174000';
-    const userId = 123;
+    const validBetId = chance.guid();
+    const validRoundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
 
-    queryOne.mockResolvedValue(null); // Bet not found
+    // First query (combined bet+player) returns null
+    queryOne.mockResolvedValueOnce(null);
+    // Second query (bet only) also returns null - bet doesn't exist
+    queryOne.mockResolvedValueOnce(null);
 
     await expect(sideBetsCancelService(validBetId, validRoundId, userId)).rejects.toThrow('Side bet not found');
     await expect(sideBetsCancelService(validBetId, validRoundId, userId)).rejects.toThrow(
@@ -87,21 +93,17 @@ describe('sideBetsCancelService', () => {
         name: 'NotFoundError',
       }),
     );
-    expect(queryOne).toHaveBeenCalledWith(
-      'SELECT * FROM side_bets WHERE id = $1 AND round_id = $2 AND cancelled_at IS NULL',
-      [validBetId, validRoundId],
-    );
   });
 
   it('should throw AuthorizationError if user is not a participant in the round', async () => {
-    const validBetId = '123e4567-e89b-12d3-a456-426614174000';
-    const validRoundId = '223e4567-e89b-12d3-a456-426614174000';
-    const userId = 123;
+    const validBetId = chance.guid();
+    const validRoundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
 
-    // Bet exists
-    queryOne.mockResolvedValueOnce({ id: validBetId, round_id: validRoundId });
-    // User is not a participant
+    // First query (combined bet+player) returns null - user not authorized
     queryOne.mockResolvedValueOnce(null);
+    // Second query (bet only) returns bet - so bet exists, user just not authorized
+    queryOne.mockResolvedValueOnce({ id: validBetId });
 
     await expect(sideBetsCancelService(validBetId, validRoundId, userId)).rejects.toThrow(
       'User must be a participant in this round',
@@ -109,8 +111,8 @@ describe('sideBetsCancelService', () => {
 
     // Reset mocks for second call
     queryOne.mockReset();
-    queryOne.mockResolvedValueOnce({ id: validBetId, round_id: validRoundId });
     queryOne.mockResolvedValueOnce(null);
+    queryOne.mockResolvedValueOnce({ id: validBetId });
 
     await expect(sideBetsCancelService(validBetId, validRoundId, userId)).rejects.toThrow(
       expect.objectContaining({
@@ -120,15 +122,16 @@ describe('sideBetsCancelService', () => {
   });
 
   it('should successfully cancel bet when all validations pass', async () => {
-    const validBetId = '123e4567-e89b-12d3-a456-426614174000';
-    const validRoundId = '223e4567-e89b-12d3-a456-426614174000';
-    const userId = 123;
-    const playerId = '323e4567-e89b-12d3-a456-426614174000';
+    const validBetId = chance.guid();
+    const validRoundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId = chance.guid();
 
-    // Bet exists
-    queryOne.mockResolvedValueOnce({ id: validBetId, round_id: validRoundId });
-    // User is a participant
-    queryOne.mockResolvedValueOnce({ id: playerId });
+    // Combined query returns bet and player info
+    queryOne.mockResolvedValueOnce({
+      bet_id: validBetId,
+      player_id: playerId,
+    });
     // Mock the update query
     query.mockResolvedValueOnce({ rowCount: 1 });
 
@@ -136,7 +139,7 @@ describe('sideBetsCancelService', () => {
 
     expect(result).toEqual({ success: true });
     expect(query).toHaveBeenCalledWith(
-      'UPDATE side_bets SET cancelled_at = NOW(), cancelled_by_id = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE side_bets SET cancelled_at = NOW(), cancelled_by_id = $1, updated_at = NOW() WHERE id = $2 AND cancelled_at IS NULL',
       [playerId, validBetId],
     );
   });
