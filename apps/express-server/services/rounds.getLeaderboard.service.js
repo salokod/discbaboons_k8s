@@ -165,6 +165,19 @@ const getLeaderboardService = async (roundId, userId) => {
     sideBetsData = null;
   }
 
+  // Pre-calculate side bet wins for all players (performance optimization)
+  const playerSideBetWins = {};
+  if (sideBetsData && sideBetsData.sideBets) {
+    sideBetsData.sideBets.forEach((bet) => {
+      bet.participants.forEach((participant) => {
+        if (participant.isWinner) {
+          const currentCount = playerSideBetWins[participant.playerId] || 0;
+          playerSideBetWins[participant.playerId] = currentCount + 1;
+        }
+      });
+    });
+  }
+
   // Add position numbers and integrate skins and side bet data
   const playersWithPositions = leaderboard.map((player, index) => {
     const position = index + 1;
@@ -181,13 +194,8 @@ const getLeaderboardService = async (roundId, userId) => {
       ? sideBetsData.playerSummary.find((p) => p.playerId === player.playerId)
       : null;
 
-    // Count actual wins by looking at side bets where this player won
-    let sideBetsWon = 0;
-    if (sideBetsData && sideBetsData.sideBets) {
-      sideBetsWon = sideBetsData.sideBets.filter((bet) => bet.participants.some(
-        (p) => p.playerId === player.playerId && p.isWinner,
-      )).length;
-    }
+    // Get pre-calculated side bet wins (performance optimized)
+    const sideBetsWon = playerSideBetWins[player.playerId] || 0;
 
     const sideBetsNetGain = playerSideBetsData ? parseFloat(playerSideBetsData.total) : 0;
     const overallNetGain = playerSkinsData.total + sideBetsNetGain;
