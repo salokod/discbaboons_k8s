@@ -1,5 +1,6 @@
 import { queryOne, queryRows } from '../lib/database.js';
 import skinsCalculateService from './skins.calculate.service.js';
+import sideBetsListService from './sideBets.list.service.js';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -155,7 +156,16 @@ const getLeaderboardService = async (roundId, userId) => {
     }
   }
 
-  // Add position numbers and integrate skins data
+  // Get side bet data
+  let sideBetsData = null;
+  try {
+    sideBetsData = await sideBetsListService(roundId, userId);
+  } catch (error) {
+    // If side bets fetch fails, continue with placeholder data
+    sideBetsData = null;
+  }
+
+  // Add position numbers and integrate skins and side bet data
   const playersWithPositions = leaderboard.map((player, index) => {
     const position = index + 1;
 
@@ -166,6 +176,22 @@ const getLeaderboardService = async (roundId, userId) => {
         skinsWon: 0, totalValue: '0.00', moneyIn: 0, moneyOut: 0, total: 0,
       };
 
+    // Get side bet data for this player
+    const playerSideBetsData = sideBetsData && sideBetsData.playerSummary
+      ? sideBetsData.playerSummary.find((p) => p.playerId === player.playerId)
+      : null;
+
+    // Count actual wins by looking at side bets where this player won
+    let sideBetsWon = 0;
+    if (sideBetsData && sideBetsData.sideBets) {
+      sideBetsWon = sideBetsData.sideBets.filter((bet) => bet.participants.some(
+        (p) => p.playerId === player.playerId && p.isWinner,
+      )).length;
+    }
+
+    const sideBetsNetGain = playerSideBetsData ? parseFloat(playerSideBetsData.total) : 0;
+    const overallNetGain = playerSkinsData.total + sideBetsNetGain;
+
     return {
       ...player,
       position,
@@ -173,6 +199,9 @@ const getLeaderboardService = async (roundId, userId) => {
       moneyIn: playerSkinsData.moneyIn,
       moneyOut: playerSkinsData.moneyOut,
       total: playerSkinsData.total,
+      sideBetsWon,
+      sideBetsNetGain,
+      overallNetGain,
     };
   });
 

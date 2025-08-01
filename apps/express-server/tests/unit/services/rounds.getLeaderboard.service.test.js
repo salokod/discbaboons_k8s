@@ -16,6 +16,11 @@ vi.mock('../../../services/skins.calculate.service.js', () => ({
   default: vi.fn(),
 }));
 
+// Mock the side bets list service
+vi.mock('../../../services/sideBets.list.service.js', () => ({
+  default: vi.fn(),
+}));
+
 describe('rounds.getLeaderboard.service.js', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -155,6 +160,9 @@ describe('rounds.getLeaderboard.service.js', () => {
           moneyIn: 0,
           moneyOut: 0,
           total: 0,
+          sideBetsWon: 0,
+          sideBetsNetGain: 0,
+          overallNetGain: 0,
         },
         {
           playerId: playerId1,
@@ -171,6 +179,9 @@ describe('rounds.getLeaderboard.service.js', () => {
           moneyIn: 0,
           moneyOut: 0,
           total: 0,
+          sideBetsWon: 0,
+          sideBetsNetGain: 0,
+          overallNetGain: 0,
         },
       ],
       roundSettings: {
@@ -415,6 +426,176 @@ describe('rounds.getLeaderboard.service.js', () => {
     expect(result.roundSettings.currentCarryOver).toBe(0);
   });
 
+  test('should integrate side bet data into leaderboard players', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const sideBetsListService = (await import('../../../services/sideBets.list.service.js')).default;
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId1 = chance.guid();
+    const playerId2 = chance.guid();
+
+    // Mock side bets response
+    const mockSideBetsResult = {
+      roundId,
+      sideBets: [
+        {
+          id: chance.guid(),
+          name: 'Test Bet',
+          amount: '10.00',
+          status: 'completed',
+          participants: [
+            { playerId: playerId1, isWinner: true },
+            { playerId: playerId2, isWinner: false },
+          ],
+        },
+      ],
+      playerSummary: [
+        {
+          playerId: playerId1,
+          moneyIn: '10.00',
+          moneyOut: '0.00',
+          total: '10.00',
+          betCount: 1,
+        },
+        {
+          playerId: playerId2,
+          moneyIn: '0.00',
+          moneyOut: '10.00',
+          total: '-10.00',
+          betCount: 1,
+        },
+      ],
+    };
+
+    sideBetsListService.mockResolvedValueOnce(mockSideBetsResult);
+
+    // Mock round without skins
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: false,
+      skins_value: null,
+      hole_count: 9,
+    });
+
+    // Mock players
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId1, username: 'player1', guest_name: null, is_guest: false,
+      },
+      {
+        id: playerId2, username: 'player2', guest_name: null, is_guest: false,
+      },
+    ]);
+
+    // Mock empty scores and pars
+    queryRows.mockResolvedValueOnce([]);
+    queryRows.mockResolvedValueOnce([]);
+
+    const result = await getLeaderboardService(roundId, userId);
+
+    // Verify side bet data is integrated
+    expect(result.players[0]).toMatchObject({
+      sideBetsWon: 1,
+      sideBetsNetGain: 10.00,
+      overallNetGain: 10.00, // No skins, so same as side bet gain
+    });
+    expect(result.players[1]).toMatchObject({
+      sideBetsWon: 0,
+      sideBetsNetGain: -10.00,
+      overallNetGain: -10.00,
+    });
+  });
+
+  test('should combine skins and side bet gains in overallNetGain', async () => {
+    const { queryOne, queryRows } = await import('../../../lib/database.js');
+    const skinsCalculateService = (await import('../../../services/skins.calculate.service.js')).default;
+    const sideBetsListService = (await import('../../../services/sideBets.list.service.js')).default;
+    const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
+
+    const roundId = chance.guid();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const playerId1 = chance.guid();
+
+    // Mock skins response
+    const mockSkinsResult = {
+      roundId,
+      skinsEnabled: true,
+      skinsValue: '5.00',
+      playerSummary: {
+        [playerId1]: {
+          skinsWon: 2,
+          totalValue: '10.00',
+          moneyIn: 10,
+          moneyOut: -3,
+          total: 7, // Net +7 from skins
+        },
+      },
+      totalCarryOver: 0,
+    };
+
+    // Mock side bets response
+    const mockSideBetsResult = {
+      roundId,
+      sideBets: [
+        {
+          id: chance.guid(),
+          name: 'Test Bet',
+          amount: '15.00',
+          status: 'completed',
+          participants: [
+            { playerId: playerId1, isWinner: true },
+          ],
+        },
+      ],
+      playerSummary: [
+        {
+          playerId: playerId1,
+          moneyIn: '15.00',
+          moneyOut: '0.00',
+          total: '15.00', // Net +15 from side bets
+          betCount: 1,
+        },
+      ],
+    };
+
+    skinsCalculateService.mockResolvedValueOnce(mockSkinsResult);
+    sideBetsListService.mockResolvedValueOnce(mockSideBetsResult);
+
+    // Mock round with skins enabled
+    queryOne.mockResolvedValueOnce({
+      id: roundId,
+      created_by_id: userId,
+      skins_enabled: true,
+      skins_value: '5.00',
+      hole_count: 9,
+    });
+
+    // Mock player
+    queryRows.mockResolvedValueOnce([
+      {
+        id: playerId1, username: 'player1', guest_name: null, is_guest: false,
+      },
+    ]);
+
+    // Mock empty scores and pars
+    queryRows.mockResolvedValueOnce([]);
+    queryRows.mockResolvedValueOnce([]);
+
+    const result = await getLeaderboardService(roundId, userId);
+
+    // Verify combined gains
+    expect(result.players[0]).toMatchObject({
+      skinsWon: 2,
+      total: 7, // Skins net gain
+      sideBetsWon: 1,
+      sideBetsNetGain: 15, // Side bet net gain
+      overallNetGain: 22, // 7 + 15 = 22 total
+    });
+  });
+
   test('should cap currentHole at course hole count when round is complete', async () => {
     const { queryOne, queryRows } = await import('../../../lib/database.js');
     const getLeaderboardService = (await import('../../../services/rounds.getLeaderboard.service.js')).default;
@@ -479,6 +660,9 @@ describe('rounds.getLeaderboard.service.js', () => {
       moneyIn: 0,
       moneyOut: 0,
       total: 0,
+      sideBetsWon: 0,
+      sideBetsNetGain: 0,
+      overallNetGain: 0,
     });
   });
 });

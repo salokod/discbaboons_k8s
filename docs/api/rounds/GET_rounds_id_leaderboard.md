@@ -1,6 +1,6 @@
 # GET /api/rounds/:id/leaderboard
 
-Get real-time leaderboard for a round with player rankings, scores, and skins information.
+Get real-time leaderboard for a round with player rankings, scores, skins information, and side bet summaries.
 
 ## Endpoint
 ```
@@ -42,8 +42,12 @@ GET /api/rounds/:id/leaderboard
       "holesCompleted": 6,
       "currentHole": 7,
       "skinsWon": 0,
-      "netGain": "0.00",
-      "netGain": "0.00"
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "total": 0,
+      "sideBetsWon": 1,
+      "sideBetsNetGain": 25.00,
+      "overallNetGain": 25.00
     },
     {
       "playerId": "550e8400-e29b-41d4-a716-446655440001",
@@ -57,7 +61,12 @@ GET /api/rounds/:id/leaderboard
       "holesCompleted": 5,
       "currentHole": 6,
       "skinsWon": 0,
-      "netGain": "0.00"
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "total": 0,
+      "sideBetsWon": 0,
+      "sideBetsNetGain": -15.00,
+      "overallNetGain": -15.00
     }
   ],
   "roundSettings": {
@@ -83,7 +92,12 @@ Each player object contains:
 - `holesCompleted` (number): Number of holes with scores recorded
 - `currentHole` (number): Next hole number to play (highest completed + 1)
 - `skinsWon` (number): Number of skins won (real-time calculation when skins are enabled)
-- `netGain` (string): Net profit/loss from skins game (money won minus total pot contribution)
+- `moneyIn` (number): Money won from skins game
+- `moneyOut` (number): Money owed/paid from skins game
+- `total` (number): Net skins money (moneyIn + moneyOut)
+- `sideBetsWon` (number): Number of side bets won by this player
+- `sideBetsNetGain` (number): Net profit/loss from all side bets (positive = profit, negative = loss)
+- `overallNetGain` (number): Combined net gain from skins and side bets (total + sideBetsNetGain)
 
 #### Round Settings
 - `skinsEnabled` (boolean): Whether skins game is enabled for this round
@@ -162,7 +176,12 @@ curl -X GET \
       "holesCompleted": 0,
       "currentHole": 1,
       "skinsWon": 0,
-      "netGain": "0.00"
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "total": 0,
+      "sideBetsWon": 0,
+      "sideBetsNetGain": 0,
+      "overallNetGain": 0
     }
   ],
   "roundSettings": {
@@ -189,7 +208,12 @@ curl -X GET \
       "holesCompleted": 5,
       "currentHole": 6,
       "skinsWon": 3,
-      "netGain": "-5.00"
+      "moneyIn": 15,
+      "moneyOut": -20,
+      "total": -5,
+      "sideBetsWon": 2,
+      "sideBetsNetGain": 30.00,
+      "overallNetGain": 25.00
     },
     {
       "playerId": "550e8400-e29b-41d4-a716-446655440000",
@@ -203,7 +227,12 @@ curl -X GET \
       "holesCompleted": 5,
       "currentHole": 6,
       "skinsWon": 0,
-      "netGain": "-12.50"
+      "moneyIn": 0,
+      "moneyOut": -12.5,
+      "total": -12.5,
+      "sideBetsWon": 0,
+      "sideBetsNetGain": -20.00,
+      "overallNetGain": -32.50
     }
   ],
   "roundSettings": {
@@ -217,11 +246,11 @@ curl -X GET \
 ## Notes
 
 ### Skins Integration
-This endpoint now includes **real-time skins calculation** when skins are enabled:
+This endpoint includes **real-time skins calculation** when skins are enabled:
 
 - **Real-time Calculation**: Skins are calculated dynamically based on current scores
   - `skinsWon` shows actual skins won by each player
-  - `netGain` displays profit/loss for each player (money won minus total pot contribution)
+  - `moneyIn`/`moneyOut`/`total` display profit/loss for each player
   - `currentCarryOver` displays any skins waiting to be won due to ties
   - Calculations respect the round's starting hole order
   - Carry-over logic automatically accumulates skins from tied holes
@@ -229,6 +258,21 @@ This endpoint now includes **real-time skins calculation** when skins are enable
 - **Graceful Degradation**: If skins calculation encounters issues:
   - Leaderboard continues to function with score data
   - Skins fields default to 0 to prevent disruption
+  - No error is thrown to the user
+
+### Side Bet Integration
+This endpoint includes **real-time side bet summaries** for comprehensive financial tracking:
+
+- **Real-time Calculation**: Side bet data is calculated dynamically based on current bet status
+  - `sideBetsWon` shows number of side bets won by each player
+  - `sideBetsNetGain` displays net profit/loss from all side bets
+  - `overallNetGain` combines skins and side bet gains for total financial picture
+  - Calculations include both completed and active side bets
+  - Winner determination is based on current bet declarations
+
+- **Graceful Degradation**: If side bet calculation encounters issues:
+  - Leaderboard continues to function with score and skins data
+  - Side bet fields default to 0 to prevent disruption
   - No error is thrown to the user
 
 ### Real-time Usage

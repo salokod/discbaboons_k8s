@@ -889,14 +889,18 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
   - [ ] **Bet Types**: "hole" bets resolved during/after specific hole, "round" bets resolved at end
   - [ ] **Frontend Resolution**: Frontend can automatically prompt for winners based on betType timing
 
-- [ ] **Integration Updates** 🎯 **NEXT PRIORITY**
-  - [ ] Update `GET /api/rounds/:id/leaderboard` to include side bet wins summary
-    - [ ] **Approach**: Integrate existing `sideBetsListService` data into leaderboard response
-    - [ ] Add `sideBetsWon` count per player (from `playerSummary.betCount`)
-    - [ ] Add `sideBetsNetGain` financial summary (from `playerSummary.total`) 
-    - [ ] Add `overallNetGain` combining skins + side bets for comprehensive financial view
-    - [ ] Update leaderboard service and documentation
-    - [ ] **Implementation Note**: Use existing financial tracking from list service, no new calculation needed
+- ✅ **Integration Updates** ✅ **COMPLETED**
+  - ✅ Update `GET /api/rounds/:id/leaderboard` to include side bet wins summary
+    - ✅ **Service Integration**: Enhanced `rounds.getLeaderboard.service.js` with `sideBetsListService` integration
+    - ✅ Add `sideBetsWon` count per player (counts actual wins, not total bet participation)
+    - ✅ Add `sideBetsNetGain` financial summary (from `playerSummary.total`) 
+    - ✅ Add `overallNetGain` combining skins + side bets for comprehensive financial view
+    - ✅ **TDD Implementation**: Complete unit test coverage (14 tests) with thin slice approach
+    - ✅ **Integration Testing**: All integration tests passing (7 leaderboard tests)
+    - ✅ **Documentation Updated**: `/docs/api/rounds/GET_rounds_id_leaderboard.md` with new fields
+    - ✅ **Graceful Error Handling**: Continues working if side bet service fails (fallback to 0 values)
+    - ✅ **Real-time Calculation**: Dynamic side bet data based on current bet status and declarations
+    - ✅ **Production Ready**: All linting passed, comprehensive error handling, proper field validation
 
 #### Step 4.3: Betting Analytics
 - [ ] Betting history tracking
@@ -1008,7 +1012,12 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
 ### Scoring  
 - ✅ `POST /api/rounds/:id/scores` - Submit/update scores (batch API, no par field, supports retroactive edits) ✅ **COMPLETED**
 - ✅ `GET /api/rounds/:id/scores` - Get all scores in matrix format (dynamic par lookup) ✅ **COMPLETED**
-- ✅ `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with live skins integration ✅ **COMPLETED**
+- ✅ `GET /api/rounds/:id/leaderboard` - Real-time leaderboard with live skins and side bet integration ✅ **COMPLETED**
+  - **Response:** Player rankings with comprehensive financial tracking including skins and side bet summaries
+  - **Integration:** Real-time calculation of `sideBetsWon`, `sideBetsNetGain`, and `overallNetGain` fields
+  - **Security:** Graceful error handling, participant-only access, complete input validation
+  - **Data:** Dynamic calculation based on current scores, skins results, and side bet declarations
+  - **Documentation:** `/docs/api/rounds/GET_rounds_id_leaderboard.md` - Complete with side bet field examples
 
 ### Betting
 - ✅ `GET /api/rounds/:id/skins` - Get current skins results with carry-over tracking ✅ **COMPLETED**
