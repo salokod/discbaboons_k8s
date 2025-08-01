@@ -902,11 +902,112 @@ do #### Step 4.2: Side Bets **🎯 LIST ENDPOINT IN PROGRESS**
     - ✅ **Real-time Calculation**: Dynamic side bet data based on current bet status and declarations
     - ✅ **Production Ready**: All linting passed, comprehensive error handling, proper field validation
 
-#### Step 4.3: Betting Analytics
-- [ ] Betting history tracking
-- [ ] Win/loss statistics
-- [ ] Payout calculations
-- [ ] Betting leaderboards
+#### Step 4.3: Betting Analytics System 🎯 **COMPREHENSIVE VISION**
+
+**Prerequisites**: Enhanced Side Bet Structure with Categories for Meaningful Analytics
+
+##### **Phase 1: Structured Bet Categories (Week 1)** 🚀 **IN PROGRESS**
+- [ ] **Database Enhancement**: Add `bet_category` column to `side_bets` table
+  - [ ] V26__add_side_bet_categories.sql migration
+  - [ ] Default 'custom' for existing bets, structured categories for new ones
+  - [ ] Background categorization of existing bets using pattern matching
+- [ ] **Category System**: Define standard bet categories for consistency
+  ```javascript
+  const BET_CATEGORIES = [
+    // Distance/accuracy bets
+    'closest_to_pin', 'longest_drive', 'longest_drive_in_fairway', 'most_accurate_drive',
+    'most_fairways_hit', 'most_greens_in_regulation', 'longest_putt_made', 'shortest_missed_putt',
+    
+    // Score-based bets
+    'lowest_score', 'first_birdie', 'first_eagle', 'most_birdies', 'most_pars', 
+    'no_bogeys', 'least_bogeys', 'most_consecutive_pars', 'best_back_nine', 'best_front_nine',
+    'biggest_comeback', 'cleanest_round',
+    
+    // Skill-based bets
+    'fewest_putts', 'most_up_and_downs', 'most_sand_saves', 'most_dramatic_shot',
+    
+    // Fun/quirky bets
+    'first_water_hazard', 'last_to_finish',
+    
+    // Hole-specific bets
+    'hardest_hole_winner', 'par_3_champion', 'par_5_eagle',
+    
+    // Custom category
+    'custom'
+  ];
+  ```
+- [ ] **Enhanced Creation API**: `GET /api/rounds/:id/side-bets/suggestions`
+  - [ ] Popular bets among friends with success rates
+  - [ ] User's historically successful bet categories
+  - [ ] Smart suggestions based on hole type and player history
+- [ ] **Backwards Compatibility**: Existing freeform bets continue working as 'custom'
+- [ ] **Migration Strategy**: Pattern-match existing bet names to assign categories
+
+##### **Phase 2: Analytics Foundation (Week 2)** 
+- [ ] **Analytics Data Pipeline**: Create materialized views and aggregation tables
+  ```sql
+  CREATE MATERIALIZED VIEW betting_analytics AS
+  SELECT player_id, bet_category, DATE_TRUNC('month', created_at) as month,
+         COUNT(*) as total_bets, COUNT(*) FILTER (WHERE is_winner = true) as bets_won,
+         SUM(amount) as total_wagered, SUM(amount) FILTER (WHERE is_winner = true) as total_won
+  FROM side_bet_participants sbp
+  JOIN side_bets sb ON sbp.side_bet_id = sb.id
+  GROUP BY player_id, bet_category, month;
+  ```
+- [ ] **Core Analytics API**: `GET /api/analytics/betting/player/:userId`
+  - [ ] Overall performance (win rate, net profit, total wagered)
+  - [ ] Category breakdown with win rates by bet type  
+  - [ ] Monthly trends and performance history
+  - [ ] Skins vs side bets financial breakdown
+- [ ] **Performance Optimization**: Redis caching for expensive analytics queries
+- [ ] **Background Jobs**: Pre-calculate monthly/weekly stats for faster response
+
+##### **Phase 3: Intelligence & Insights (Week 3)**
+- [ ] **Insights Engine**: `GET /api/analytics/betting/insights/:userId`
+  - [ ] **Strength Detection**: "You win 85% of closest-to-pin bets vs 45% average"
+  - [ ] **Opportunity Identification**: "You avoid long drive bets but win 70% when you try"
+  - [ ] **Pattern Recognition**: "You're 60% more successful on weekend rounds"
+  - [ ] **Behavioral Suggestions**: Focus recommendations based on success patterns
+- [ ] **Comparative Analytics**: `GET /api/analytics/betting/rankings`
+  - [ ] Friend group rankings (profit, win rate, bet frequency)
+  - [ ] Global percentile positioning
+  - [ ] Category-specific leaderboards (best putter, longest driver, etc.)
+- [ ] **Historical Trend Analysis**: Multi-period performance tracking with improvement detection
+
+##### **Phase 4: Gamification & Social (Week 4)**
+- [ ] **Betting Leaderboards**: `GET /api/analytics/betting/leaderboards`
+  - [ ] Overall profit leaders (monthly, all-time)
+  - [ ] Category specialists (putting king, driving champion)
+  - [ ] Win streak tracking and hall of fame
+  - [ ] Friend group competitions and challenges
+- [ ] **Achievement System**: Betting milestone tracking
+  - [ ] "First Win", "Hot Streak" (5+ wins), "Comeback Kid" (recovered from losses)
+  - [ ] Category mastery badges ("Pin Seeker", "Distance Demon")
+  - [ ] Social sharing achievements ("Big Winner", "Consistent Performer")
+- [ ] **Smart Suggestions**: ML-powered bet recommendations
+  - [ ] "Based on your 85% pin accuracy, try more closest-to-pin bets"
+  - [ ] "Your friends love this bet type and you haven't tried it yet"
+  - [ ] Course-specific suggestions based on hole characteristics
+
+##### **Analytics Vision Statement**
+*"Transform casual side betting into strategic, data-driven competition where players discover their strengths, improve their weaknesses, and get addictive insights like: 'You've won $147 this month and rank #2 among friends. Your closest-to-pin bets have 85% win rate - that's your superpower!'"*
+
+**Success Metrics**:
+- Players check analytics 2+ times per week  
+- Analytics users play 40% more rounds
+- 30% of players share monthly stats
+- 80%+ of insights are actionable
+
+**API Endpoints Summary**:
+```
+GET /api/rounds/:id/side-bets/suggestions        # Enhanced bet creation
+GET /api/analytics/betting/player/:userId        # Core player analytics  
+GET /api/analytics/betting/insights/:userId      # Personalized insights
+GET /api/analytics/betting/rankings              # Comparative performance
+GET /api/analytics/betting/leaderboards          # Social competition
+GET /api/analytics/betting/history/:userId       # Detailed bet history
+POST /api/analytics/betting/compare              # Multi-player comparison
+```
 
 ### Phase 5: Advanced Features
 **Target: Week 9-10**
