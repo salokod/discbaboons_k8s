@@ -100,7 +100,27 @@ No request body required.
 - All players must have submitted scores for all holes before completion
 - Once completed, the round status changes from "in_progress" to "completed"
 - The completion timestamp is automatically set to the current time
-- Round completion is reversible (can be reopened later via PUT /api/rounds/:id)
+- Round completion is reversible (soft completion approach)
+
+### Reopening a Completed Round
+
+To reopen a completed round, use the existing update endpoint:
+
+```bash
+PUT /api/rounds/:id
+Content-Type: application/json
+Authorization: Bearer your_auth_token
+
+{
+  "status": "in_progress"
+}
+```
+
+**Reopening Rules:**
+- Any participant in the round can reopen it
+- No time limits on when a round can be reopened
+- The round immediately returns to "in_progress" status
+- All scores and data remain intact
 
 ## Example Usage
 

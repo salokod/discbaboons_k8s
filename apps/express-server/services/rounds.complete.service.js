@@ -3,6 +3,13 @@ import { queryOne } from '../lib/database.js';
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Round completion service
+ *
+ * Note: NotFoundError returns 400 instead of 404 due to the error handler middleware
+ * converting specific error types. This is expected behavior in this codebase.
+ */
+
 const roundsCompleteService = async (roundId, userId) => {
   // Validate required roundId
   if (!roundId) {
@@ -64,6 +71,8 @@ const roundsCompleteService = async (roundId, userId) => {
   }
 
   // Check if all players have completed scoring for all holes
+  // Performance Note: Consider adding index on scores(round_id, player_id, hole_number)
+  // for better performance with large datasets
   const scoreCompletion = await queryOne(
     `WITH player_holes AS (
        SELECT rp.id as player_id, rhp.hole_number
@@ -94,8 +103,12 @@ const roundsCompleteService = async (roundId, userId) => {
   return {
     success: true,
     round: completedRound,
-    // TODO: Add finalLeaderboard, skinsResults, sideBetsResults, summary
-    // Will be implemented incrementally
+    // TODO: Add enhanced completion data in follow-up ticket:
+    // - finalLeaderboard: Final leaderboard with positions and scores
+    // - skinsResults: Skins game results if enabled
+    // - sideBetsResults: All side bet outcomes
+    // - summary: { totalHoles, duration, averageScore, etc. }
+    // Track in issue: "Enhance round completion response with comprehensive data"
   };
 };
 
