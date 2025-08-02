@@ -29,22 +29,40 @@ Based on comprehensive analysis of existing endpoints and user experience requir
 ---
 
 ### 2. Round Completion Endpoint
-**Endpoint**: `POST /api/rounds/:id/complete` or update existing `PUT /api/rounds/:id` to accept `status: "completed"`  
+**Endpoint**: `POST /api/rounds/:id/complete` (dedicated endpoint)  
 **Priority**: High  
-**Estimated Time**: 1 hour  
-**Rationale**: Rounds currently stay "in_progress" forever with no way to mark them complete
+**Estimated Time**: 1.5 hours  
+**Rationale**: Rounds need proper completion workflow with final calculations and easy reopening
 
 #### Requirements:
 - Only allow completion if all players have scores for all holes
 - Validate that round is currently "in_progress"
 - Set `status` to "completed" and update `updated_at`
-- Trigger final calculations for skins and side bets
-- Return comprehensive round summary with final standings
+- Calculate and return final skins and side bet results
+- Return comprehensive completion data for frontend results screen
+
+#### Reopening Support:
+- Existing `PUT /api/rounds/:id` with `status: "in_progress"` handles reopening
+- Any round participant can reopen completed rounds (no time limits)
+- Keep it simple - no money finalization yet (soft completion approach)
+
+#### Response Structure:
+```json
+{
+  "success": true,
+  "round": { "status": "completed", "completed_at": "..." },
+  "finalLeaderboard": [...],
+  "skinsResults": {...},
+  "sideBetsResults": [...],
+  "summary": { "totalHoles": 18, "duration": "2h 30m" }
+}
+```
 
 #### Implementation Notes:
-- Consider using existing `PUT /api/rounds/:id` endpoint with status validation
-- Add business logic to check score completion
-- Could auto-suggest bet winners based on bet categories
+- Use dedicated completion endpoint for clear user intent
+- Leverage existing skins calculation service
+- Keep side bet resolution simple for v1
+- Rich response enables comprehensive results screen
 
 ---
 
