@@ -11,6 +11,15 @@ import {
   cleanupUsers,
 } from '../test-helpers.js';
 
+// Valid US states that pass the courses.submit.service validation
+const VALID_US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+];
+
 const chance = new Chance();
 
 describe('POST /api/courses - Integration', () => {
@@ -44,7 +53,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.company(),
       city: chance.city(),
-      stateProvince: chance.state({ territories: true, full: false }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
     };
@@ -62,7 +71,7 @@ describe('POST /api/courses - Integration', () => {
     const courseData = {
       name: chance.company(),
       city: chance.city(),
-      stateProvince: chance.state({ territories: true, full: false }),
+      stateProvince: chance.pickone(VALID_US_STATES),
       country: 'US',
       holeCount: chance.integer({ min: 9, max: 27 }),
       postalCode: chance.zip(),

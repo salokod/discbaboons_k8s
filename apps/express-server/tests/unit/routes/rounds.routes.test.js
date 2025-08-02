@@ -26,6 +26,7 @@ let sideBetsListController;
 let sideBetsGetController;
 let sideBetsUpdateController;
 let sideBetsCancelController;
+let roundsCompleteController;
 let authenticateToken;
 
 beforeAll(async () => {
@@ -100,6 +101,10 @@ beforeAll(async () => {
 
   sideBetsCancelController = vi.fn((req, res) => {
     res.json({ message: 'side bet cancel controller called' });
+  });
+
+  roundsCompleteController = vi.fn((req, res) => {
+    res.json({ message: 'rounds complete controller called' });
   });
 
   // Mock the auth middleware
@@ -251,6 +256,17 @@ beforeAll(async () => {
     default: vi.fn().mockResolvedValue({ success: true }),
   }));
 
+  vi.doMock('../../../controllers/rounds.complete.controller.js', () => ({
+    default: roundsCompleteController,
+  }));
+
+  vi.doMock('../../../services/rounds.complete.service.js', () => ({
+    default: vi.fn().mockResolvedValue({
+      success: true,
+      round: { id: 'mock-round-id', status: 'completed', completed_at: '2025-01-01T12:00:00Z' },
+    }),
+  }));
+
   // Import the router after mocking
   ({ default: roundsRouter } = await import('../../../routes/rounds.routes.js'));
 });
@@ -275,6 +291,7 @@ describe('rounds routes', () => {
     sideBetsListController.mockClear();
     sideBetsUpdateController.mockClear();
     sideBetsCancelController.mockClear();
+    roundsCompleteController.mockClear();
     authenticateToken.mockClear();
   });
 
@@ -992,6 +1009,42 @@ describe('rounds routes', () => {
     const req = lastCall[0];
     expect(req.params.id).toBe(roundId);
     expect(req.params.betId).toBe(betId);
+    expect(req.user).toEqual({ userId: 1 });
+  });
+
+  test('POST /api/rounds/:id/complete should require authentication and call roundsComplete controller', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    const response = await request(app)
+      .post(`/api/rounds/${roundId}/complete`)
+      .expect(200);
+
+    expect(response.body).toEqual({ message: 'rounds complete controller called' });
+    expect(authenticateToken).toHaveBeenCalled();
+    expect(roundsCompleteController).toHaveBeenCalled();
+  });
+
+  test('POST /api/rounds/:id/complete should pass roundId in params', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/rounds', roundsRouter);
+
+    const roundId = chance.guid();
+
+    await request(app)
+      .post(`/api/rounds/${roundId}/complete`)
+      .expect(200);
+
+    expect(roundsCompleteController).toHaveBeenCalled();
+    const lastCall = roundsCompleteController.mock.calls[
+      roundsCompleteController.mock.calls.length - 1
+    ];
+    const req = lastCall[0];
+    expect(req.params.id).toBe(roundId);
     expect(req.user).toEqual({ userId: 1 });
   });
 });
