@@ -197,16 +197,16 @@ kubectl wait --for=condition=available --timeout=300s deployment/express-deploym
 echo "✅ Express application deployed and ready"
 
 echo ""
-echo -e "${YELLOW}Step 15.5: Loading disc-data.json into disc_master table...${NC}"
+echo -e "${YELLOW}Step 15.5: Loading disc data into disc_master table...${NC}"
 
 # Convert disc-data.json to SQL insert statements and load into Postgres
-if [ -f "disc-data.json" ]; then
-  echo "Parsing disc-data.json and inserting into disc_master..."
+if [ -f "apps/express-server/data/disc-data.json" ]; then
+  echo "Parsing apps/express-server/data/disc-data.json and inserting into disc_master..."
 
   # Generate a temp SQL file
   python3 -c '
 import json
-with open("disc-data.json") as f:
+with open("apps/express-server/data/disc-data.json") as f:
     discs = json.load(f)
 with open("disc_master_seed.sql", "w") as out:
     for d in discs:
@@ -224,17 +224,17 @@ with open("disc_master_seed.sql", "w") as out:
   kubectl cp disc_master_seed.sql $POSTGRES_POD:/tmp/disc_master_seed.sql
   kubectl exec $POSTGRES_POD -- psql -U app_user -d discbaboons_db -f /tmp/disc_master_seed.sql
 
-  echo "✅ disc_master table seeded from disc-data.json"
+  echo "✅ disc_master table seeded from disc data"
 else
-  echo "disc-data.json not found, skipping disc_master seeding."
+  echo "disc-data.json not found in apps/express-server/data/, skipping disc_master seeding."
 fi
 
 echo ""
-echo -e "${YELLOW}Step 15.6: Loading course-data.csv into courses table...${NC}"
+echo -e "${YELLOW}Step 15.6: Loading course data into courses table...${NC}"
 
 # Convert course-data.csv to SQL insert statements and load into Postgres
-if [ -f "course-data.csv" ]; then
-  echo "Parsing course-data.csv and inserting into courses..."
+if [ -f "apps/express-server/data/course-data.csv" ]; then
+  echo "Parsing apps/express-server/data/course-data.csv and inserting into courses..."
 
   # Generate a temp SQL file using dedicated Python script
   python3 scripts/import_courses.py
@@ -244,9 +244,9 @@ if [ -f "course-data.csv" ]; then
   kubectl cp courses_seed.sql $POSTGRES_POD:/tmp/courses_seed.sql
   kubectl exec $POSTGRES_POD -- psql -U app_user -d discbaboons_db -f /tmp/courses_seed.sql
 
-  echo "✅ courses table seeded from course-data.csv"
+  echo "✅ courses table seeded from course data"
 else
-  echo "course-data.csv not found, skipping courses seeding."
+  echo "course-data.csv not found in apps/express-server/data/, skipping courses seeding."
 fi
 
 echo ""

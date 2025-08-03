@@ -10,7 +10,7 @@ def escape_sql_string(value):
 
 def main():
     try:
-        with open("course-data.csv") as f:
+        with open("apps/express-server/data/course-data.csv") as f:
             reader = csv.DictReader(f)
             with open("courses_seed.sql", "w") as out:
                 for row in reader:
