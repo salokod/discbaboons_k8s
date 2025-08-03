@@ -20,9 +20,9 @@
 
 #### Phase 2: TDD Styling (20 min)  
 - [x] TDD Cycle 2.1: Background Color ✅
-- [ ] TDD Cycle 2.2: Text Styling
-- [ ] TDD Cycle 2.3: Layout with Flexbox
-- [ ] **Completion**: Styled component with tested styles
+- [x] TDD Cycle 2.2: Text Styling ✅
+- [x] TDD Cycle 2.3: Layout with Flexbox ✅
+- [x] **Completion**: Styled component with tested styles ✅
 
 #### Phase 3: TDD User Interaction (25 min)
 - [ ] TDD Cycle 3.1: Button Component
