@@ -1,0 +1,24 @@
+{
+  "name": "discbaboons-monorepo",
+  "private": true,
+  "description": "DiscBaboons - Disc Golf App Monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "backend": "npm run dev --workspace=apps/express-server",
+    "mobile": "npm start --workspace=apps/mobile-app",
+    "dev": "concurrently \"npm run backend\" \"npm run mobile\"",
+    "test": "npm run test --workspaces",
+    "verify": "npm run verify --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=9.0.0"
+  }
+}
