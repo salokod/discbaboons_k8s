@@ -1,12 +1,9 @@
-# Kubernetes Learning Journey 🚀
+# Local Development Setup
 
-Learning Kubernetes fundamentals with Kind, building up to a full-stack application with Express.js and PostgreSQL.
+Complete guide for setting up the DiscBaboons development environment locally using Kind Kubernetes.
 
-## 🆕 Starting from Scratch (Complete Setup)
+## Prerequisites Installation
 
-If you're setting up this project for the first time or on a new machine, follow these steps:
-
-### Prerequisites Installation
 ```bash
 # Install required tools
 brew install kind kubectl docker
@@ -20,7 +17,12 @@ docker --version
 open -a Docker
 ```
 
-### Complete Project Setup
+## Complete Project Setup
+
+### First Time Setup
+
+If you're setting up this project for the first time or on a new machine:
+
 ```bash
 # 1. Clone and setup the project
 git clone <your-repo-url>
@@ -79,7 +81,26 @@ curl http://localhost:8080/api/info
 curl http://localhost:8080/api/users
 ```
 
-### Expected Output After Setup
+### Quick Development Environment Deployment
+
+For daily development (recommended approach):
+
+```bash
+# Deploy development environment to local Kind cluster
+./rebuild-apps.sh
+
+# Verify development configuration
+kubectl exec deployment/express-deployment -- env | grep -E '(NODE_ENV|LOG_LEVEL)'
+# Expected: NODE_ENV=development, LOG_LEVEL=debug
+
+# Check replica count (single replica for development)
+kubectl get pods -l app=express
+```
+
+**Note**: Production deployments are handled automatically via CI/CD pipeline to DigitalOcean Kubernetes. The local script only supports development environment deployment.
+
+## Expected Output After Setup
+
 ```bash
 # kubectl get pods should show:
 NAME                                  READY   STATUS    RESTARTS   AGE
@@ -94,7 +115,8 @@ postgres-service   ClusterIP   10.96.xxx.xxx   <none>        5432/TCP   5m
 kubernetes         ClusterIP   10.96.0.1       <none>        443/TCP    10m
 ```
 
-### Test Your Setup
+## Test Your Setup
+
 ```bash
 # Test API endpoints
 curl http://localhost:8080/health
@@ -115,45 +137,9 @@ psql -h localhost -p 5432 -U app_user -d discbaboons_db
 # \q   # Quit
 ```
 
-### Troubleshooting Common Issues
-```bash
-# If pods are not starting:
-kubectl describe pod <pod-name>
-kubectl logs <pod-name> --follow
+## Common Setup Scenarios
 
-# If init containers are stuck:
-kubectl logs <pod-name> -c wait-for-postgres --follow
-kubectl logs <pod-name> -c flyway-migrate --follow
-
-# If you need to reset everything:
-kubectl delete -f manifests/
-kubectl delete pvc postgres-pvc
-# Then re-run the apply commands above
-
-# If Kind cluster is not working:
-kind delete cluster --name discbaboons-learning
-# Then re-run the cluster creation commands above
-```
-
-### Architecture Overview
-After successful setup, you'll have:
-- **Kind Kubernetes cluster** running locally
-- **PostgreSQL database** with persistent storage and V1-V5 migrations applied
-- **Express.js API** with Prisma ORM integration
-- **Health checks** and monitoring endpoints
-- **Complete foreign key relationships** between users and user_profiles tables
-- **Production-ready patterns** with init containers and proper dependency management
-
-## Quick Start
-
-### Prerequisites
-- Docker Desktop
-- Kind: `brew install kind`
-- kubectl: `brew install kubectl`
-
-## Daily Development Workflow
-
-### Option 1: Quick Resume (Cluster Already Running)
+### Scenario 1: Quick Resume (Cluster Already Running)
 ```bash
 # Check if cluster is running
 kubectl get nodes
@@ -166,7 +152,7 @@ kubectl port-forward service/express-service 8080:3000
 # Visit: http://localhost:8080
 ```
 
-### Option 2: Fresh Start (Cluster Stopped/Deleted)
+### Scenario 2: Fresh Start (Cluster Stopped/Deleted)
 ```bash
 # 1. Create cluster
 kind create cluster --config=kind-config.yaml
@@ -187,7 +173,7 @@ kubectl port-forward service/express-service 8080:3000
 # Visit: http://localhost:8080
 ```
 
-### Option 3: App-Only Restart (Cluster Running, Want Fresh Deploy)
+### Scenario 3: App-Only Restart (Cluster Running, Want Fresh Deploy)
 ```bash
 # Delete current deployment
 kubectl delete -f manifests/express-deployment.yaml
@@ -202,4 +188,8 @@ kubectl apply -f manifests/express-service.yaml
 kubectl port-forward service/express-service 8080:3000
 ```
 
-# ... rest of your existing README content ...
+## Next Steps
+
+- Review [Daily Workflows](./workflows.md) for common development tasks
+- Read [Testing Standards](./testing-standards.md) before writing code
+- Check [Troubleshooting](./troubleshooting.md) if you encounter issues
