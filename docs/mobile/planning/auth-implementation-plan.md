@@ -203,6 +203,19 @@ src/
 └── utils/ (ready for helpers)
 ```
 
+### Phase 1.5: Theme System Implementation (PIVOT)
+**Rationale**: Before building UI screens, implement a robust theme system to support:
+- Light theme (default)
+- Dark theme (system preference aware)
+- Blackout theme (high contrast black/white only)
+
+**Implementation Steps:**
+- [ ] Create ThemeContext for theme state management
+- [ ] Refactor colors.js to support theme variants
+- [ ] Create theme-aware hooks (useTheme, useThemeColors)
+- [ ] Update existing components to use theme colors
+- [ ] Add theme switcher component for testing
+
 ### Phase 2: Login Flow (Day 2)
 - [ ] Create LoginScreen with logo
 - [ ] Implement form validation
