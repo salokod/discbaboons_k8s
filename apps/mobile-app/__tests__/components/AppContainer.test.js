@@ -8,10 +8,10 @@ import AppContainer from '../../src/components/AppContainer';
 
 describe('AppContainer component', () => {
   it('should export an AppContainer component', () => {
-    const AppContainer = require('../../src/components/AppContainer');
+    const AppContainerModule = require('../../src/components/AppContainer');
 
-    expect(AppContainer.default).toBeDefined();
-    expect(typeof AppContainer.default).toBe('function');
+    expect(AppContainerModule.default).toBeDefined();
+    expect(typeof AppContainerModule.default).toBe('function');
   });
 
   it('should render a container View', () => {
@@ -24,7 +24,7 @@ describe('AppContainer component', () => {
     const { getByText } = render(
       <AppContainer>
         <Text>Test Content</Text>
-      </AppContainer>
+      </AppContainer>,
     );
 
     expect(getByText('Test Content')).toBeTruthy();

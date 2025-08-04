@@ -7,10 +7,10 @@ import Button from '../../src/components/Button';
 
 describe('Button component', () => {
   it('should export a Button component', () => {
-    const Button = require('../../src/components/Button');
+    const ButtonModule = require('../../src/components/Button');
 
-    expect(Button.default).toBeDefined();
-    expect(typeof Button.default).toBe('function');
+    expect(ButtonModule.default).toBeDefined();
+    expect(typeof ButtonModule.default).toBe('function');
   });
 
   it('should render a TouchableOpacity', () => {

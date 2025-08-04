@@ -6,8 +6,8 @@ import { TextInput } from 'react-native';
 
 function Input({ placeholder, value, onChangeText }) {
   return (
-    <TextInput 
-      testID="input" 
+    <TextInput
+      testID="input"
       placeholder={placeholder}
       value={value}
       onChangeText={onChangeText}

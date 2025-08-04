@@ -7,10 +7,10 @@ import Input from '../../src/components/Input';
 
 describe('Input component', () => {
   it('should export an Input component', () => {
-    const Input = require('../../src/components/Input');
+    const InputModule = require('../../src/components/Input');
 
-    expect(Input.default).toBeDefined();
-    expect(typeof Input.default).toBe('function');
+    expect(InputModule.default).toBeDefined();
+    expect(typeof InputModule.default).toBe('function');
   });
 
   it('should render a TextInput', () => {
