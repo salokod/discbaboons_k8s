@@ -88,6 +88,86 @@ export const spacing = {
 };
 ```
 
+## How to Implement - TDD & Learning Approach
+
+### TDD Methodology for React Native
+1. **Thinnest Possible Slices**: 
+   - Start with "exports expected structure" tests
+   - Add one piece of functionality at a time
+   - Each slice should take 5-10 minutes to implement
+   - Stop after each slice for human validation
+
+2. **Test-First Cycle**:
+   - Write failing test (RED)
+   - Write minimal code to pass (GREEN) 
+   - Explain the design choice and implications (TEACH)
+   - Human runs tests to confirm
+   - Refactor if needed
+   - Repeat
+
+3. **Learning Moments**:
+   - Explain WHY each React Native pattern is used
+   - Discuss cross-platform implications of each choice
+   - Show alternative approaches and trade-offs
+   - Point out production-grade considerations
+
+### Cross-Platform Consistency Strategy
+1. **Custom Components First**: Never rely on default platform styling
+2. **Explicit Styling**: Always define colors, fonts, spacing explicitly
+3. **Platform-Specific Handling**: Use Platform.select() when needed
+4. **Testing on Both**: Verify appearance on iOS and Android simulators
+
+### Production-Grade Standards
+1. **JavaScript ES6+**: Clean imports/exports, modern syntax
+2. **Error Boundaries**: Wrap components that might fail
+3. **Accessibility**: Add accessibilityLabel and accessibilityHint
+4. **Performance**: Use React.memo, useMemo, useCallback appropriately
+5. **Security**: Never store sensitive data in AsyncStorage
+6. **Testing**: Unit tests for logic, integration tests for user flows
+
+### Component Development Pattern
+```javascript
+// 1. Define prop validation with PropTypes
+// 2. Create component with explicit styles
+// 3. Add accessibility props
+// 4. Handle platform differences
+// 5. Export with proper validation
+
+import PropTypes from 'prop-types';
+
+const Button = ({ title, onPress, variant = 'primary', disabled = false }) => {
+  // Implementation
+};
+
+Button.propTypes = {
+  title: PropTypes.string.isRequired,
+  onPress: PropTypes.func.isRequired,
+  variant: PropTypes.oneOf(['primary', 'secondary']),
+  disabled: PropTypes.bool,
+};
+```
+
+### Slice Size Guidelines
+- **Micro-slice**: Export structure, basic props validation
+- **Mini-slice**: Add one style property (color, typography, spacing)
+- **Small-slice**: Add one behavior (onPress, validation, state)
+- **Medium-slice**: Combine 2-3 mini-slices for complete feature
+
+### Teaching Focus Areas
+1. **React Native Fundamentals**: Components, styling, navigation
+2. **Cross-Platform Patterns**: Platform-specific code, consistent UI
+3. **State Management**: Context, hooks, persistence
+4. **Testing Strategies**: Jest, React Native Testing Library
+5. **Performance**: Re-renders, memory, bundle size
+6. **Security**: Token storage, input validation, network requests
+
+### Quality Gates
+- All tests pass before moving to next slice
+- Component renders identically on iOS/Android
+- No accessibility warnings
+- JavaScript linting passes
+- Code follows established patterns
+
 ## Implementation Phases
 
 ### Phase 1: Setup & Infrastructure (Day 1)
