@@ -18,8 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: apps/mobile-app/package-lock.json
           
       - name: 📦 Install dependencies
         working-directory: apps/mobile-app
