@@ -28,7 +28,7 @@ function AppNavigator() {
 
 function RootNavigator() {
   const { isAuthenticated } = useAuth();
-  
+
   return (
     <View testID="navigation-container" style={{ flex: 1 }}>
       {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}

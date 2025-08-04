@@ -38,14 +38,14 @@ describe('AuthContext', () => {
   it('should handle login', () => {
     function TestComponent() {
       const { isAuthenticated, user, login } = useAuth();
-      
+
       const handleLogin = () => {
         login({
           user: { id: 1, username: 'testuser' },
           tokens: { accessToken: 'token123', refreshToken: 'refresh123' },
         });
       };
-      
+
       return (
         <>
           <Text testID="auth-status">{isAuthenticated ? 'true' : 'false'}</Text>
