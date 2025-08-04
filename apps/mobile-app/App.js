@@ -1,44 +1,50 @@
 /**
  * DiscBaboons Mobile App
- * TDD Hello World Tutorial
- *
- * @format
  */
 
-import {
-  StyleSheet, Text, View,
-} from 'react-native';
+import { View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 
-import { useState } from 'react';
-import CustomButton from './CustomButton';
+const AuthStack = createNativeStackNavigator();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-});
+function AuthNavigator() {
+  return (
+    <View testID="auth-navigator">
+      {/* Placeholder for auth screens */}
+    </View>
+  );
+}
+
+function AppNavigator() {
+  return (
+    <View testID="app-navigator">
+      {/* Placeholder for authenticated app screens */}
+    </View>
+  );
+}
+
+function RootNavigator() {
+  const { isAuthenticated } = useAuth();
+  
+  return (
+    <View testID="navigation-container" style={{ flex: 1 }}>
+      {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
+    </View>
+  );
+}
 
 function App() {
-  const [count, setCount] = useState(0);
-
-  const containerStyle = {
-    ...styles.container,
-    backgroundColor: count > 0 ? 'green' : 'blue',
-  };
-
   return (
-    <View testID="app-container" style={containerStyle}>
-      <Text style={styles.text}>Hello World</Text>
-      <Text style={styles.text}>{`Count: ${count}`}</Text>
-      <CustomButton title="Tap me!" onPress={() => { setCount(count + 1); }} />
-    </View>
+    <ThemeProvider>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

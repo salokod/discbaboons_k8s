@@ -18,8 +18,20 @@ App.js
     └── HomeScreen (placeholder for bags list)
 ```
 
+**Implementation Details:**
+- Root navigator checks `isAuthenticated` from AuthContext
+- AuthNavigator: Stack navigator for auth flows
+- AppNavigator: Tab/Stack navigator for authenticated app
+- No manual navigation between Auth/App stacks (automatic based on auth state)
+
 ### 2. State Management
 - **Auth Context**: Global authentication state
+  - `isAuthenticated`: Boolean flag for auth status
+  - `user`: User object with profile data
+  - `tokens`: Object containing accessToken and refreshToken
+  - `login({ user, tokens })`: Function to set authenticated state
+  - `logout()`: Function to clear auth state
+  - `useAuth()`: Hook to access auth state and functions
 - **Token Storage**: Secure storage for JWT & refresh tokens
 - **Auto-refresh**: Handle token refresh transparently
 
