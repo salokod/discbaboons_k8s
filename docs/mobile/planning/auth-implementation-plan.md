@@ -203,6 +203,33 @@ src/
 └── utils/ (ready for helpers)
 ```
 
+### Phase 1.5: Theme System Implementation (PIVOT) ✅ COMPLETE
+**Rationale**: Before building UI screens, implement a robust theme system to support:
+- Light theme (default)
+- Dark theme (system preference aware)
+- Blackout theme (high contrast black/white only)
+
+**Implementation Steps:**
+- [x] Create ThemeContext for theme state management
+- [x] Refactor colors.js to support theme variants
+- [x] Create theme-aware hooks (useTheme, useThemeColors)
+- [x] Update existing components to use theme colors
+- [ ] Add theme switcher component for testing (deferred to later)
+
+**Completed Theme System:**
+- **themes.js**: Defines light, dark, and blackout color palettes
+- **ThemeContext**: Provides theme state and setTheme function
+- **useTheme hook**: Access current theme and change it
+- **useThemeColors hook**: Get current theme's color palette
+- **Updated components**: Button and Input now theme-aware
+- **Backward compatibility**: colors.js wraps light theme for legacy code
+
+**Theme Design Decisions:**
+- Brand colors (orange/dark blue) consistent across all themes
+- Blackout theme uses only black/white (except brand orange)
+- Components dynamically update when theme changes
+- All tests updated to wrap components with ThemeProvider
+
 ### Phase 2: Login Flow (Day 2)
 - [ ] Create LoginScreen with logo
 - [ ] Implement form validation
@@ -282,12 +309,13 @@ src/
 - Test error scenarios
 - Test token expiration
 
-**Phase 1 Testing Achievements:**
-- ✅ 39 tests passing with 100% success rate
+**Phase 1 & 1.5 Testing Achievements:**
+- ✅ 55+ tests passing with 100% success rate
 - ✅ TDD methodology applied to all components
-- ✅ Design system fully tested (colors, typography, spacing)
-- ✅ Base components tested (Button, Input, AppContainer)
-- ✅ Context structure tested and ready
+- ✅ Design system fully tested (colors, typography, spacing, themes)
+- ✅ Base components tested and theme-aware (Button, Input, AppContainer)
+- ✅ Context structure tested (AuthContext, ThemeContext)
+- ✅ Theme system with light, dark, and blackout modes
 
 ## Success Criteria
 - [ ] User can register with valid credentials

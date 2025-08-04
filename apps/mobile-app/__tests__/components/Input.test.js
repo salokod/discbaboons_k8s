@@ -4,6 +4,7 @@
 
 import { render, fireEvent } from '@testing-library/react-native';
 import Input from '../../src/components/Input';
+import { ThemeProvider } from '../../src/context/ThemeContext';
 
 describe('Input component', () => {
   it('should export an Input component', () => {
@@ -14,26 +15,42 @@ describe('Input component', () => {
   });
 
   it('should render a TextInput', () => {
-    const { getByTestId } = render(<Input />);
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <Input />
+      </ThemeProvider>,
+    );
 
     expect(getByTestId('input')).toBeTruthy();
   });
 
   it('should accept placeholder prop', () => {
-    const { getByPlaceholderText } = render(<Input placeholder="Enter username" />);
+    const { getByPlaceholderText } = render(
+      <ThemeProvider>
+        <Input placeholder="Enter username" />
+      </ThemeProvider>,
+    );
 
     expect(getByPlaceholderText('Enter username')).toBeTruthy();
   });
 
   it('should accept value prop', () => {
-    const { getByDisplayValue } = render(<Input value="test123" />);
+    const { getByDisplayValue } = render(
+      <ThemeProvider>
+        <Input value="test123" />
+      </ThemeProvider>,
+    );
 
     expect(getByDisplayValue('test123')).toBeTruthy();
   });
 
   it('should call onChangeText when text changes', () => {
     const onChangeTextMock = jest.fn();
-    const { getByTestId } = render(<Input onChangeText={onChangeTextMock} />);
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <Input onChangeText={onChangeTextMock} />
+      </ThemeProvider>,
+    );
 
     fireEvent.changeText(getByTestId('input'), 'new text');
     expect(onChangeTextMock).toHaveBeenCalledWith('new text');
