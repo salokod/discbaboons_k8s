@@ -1,0 +1,44 @@
+name: Mobile App Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: 📦 Install dependencies
+        working-directory: apps/mobile-app
+        run: npm ci
+        
+      - name: 🧪 Run tests
+        working-directory: apps/mobile-app
+        env:
+          NODE_ENV: test
+        run: |
+          npm run test -- --coverage
+          npm run lint
+          
+      - name: 📊 Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: apps/mobile-app/coverage/
+
+  # Later you can add:
+  # - iOS build job
+  # - Android build job
+  # - Deploy to TestFlight/Play Store Console
