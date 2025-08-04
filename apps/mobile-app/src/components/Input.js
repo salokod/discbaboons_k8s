@@ -8,9 +8,11 @@ import { useThemeColors } from '../context/ThemeContext';
 import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
-function Input({ placeholder, value, onChangeText, secureTextEntry = false }) {
+function Input({
+  placeholder, value, onChangeText, secureTextEntry = false,
+}) {
   const colors = useThemeColors();
-  
+
   const styles = StyleSheet.create({
     input: {
       ...typography.body,
@@ -42,6 +44,13 @@ Input.propTypes = {
   value: PropTypes.string,
   onChangeText: PropTypes.func,
   secureTextEntry: PropTypes.bool,
+};
+
+Input.defaultProps = {
+  placeholder: '',
+  value: '',
+  onChangeText: () => {},
+  secureTextEntry: false,
 };
 
 export default Input;

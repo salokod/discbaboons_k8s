@@ -102,7 +102,7 @@ describe('ThemeContext', () => {
     act(() => {
       getByTestId('switch-blackout').props.onPress();
     });
-    
+
     // Colors should update to blackout theme
     expect(getByTestId('bg-color').children[0]).toBe(themes[THEME_NAMES.BLACKOUT].background);
   });

@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import {
+  createContext, useContext, useState, useMemo,
+} from 'react';
 import PropTypes from 'prop-types';
 import { THEME_NAMES, themes } from '../design-system/themes';
 

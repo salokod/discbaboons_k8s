@@ -10,7 +10,7 @@ import { typography } from '../design-system/typography';
 
 function Button({ title, onPress, variant = 'primary' }) {
   const colors = useThemeColors();
-  
+
   const styles = StyleSheet.create({
     button: {
       paddingVertical: spacing.md,
@@ -39,6 +39,12 @@ Button.propTypes = {
   title: PropTypes.string,
   onPress: PropTypes.func,
   variant: PropTypes.oneOf(['primary', 'secondary']),
+};
+
+Button.defaultProps = {
+  title: '',
+  onPress: () => {},
+  variant: 'primary',
 };
 
 export default Button;

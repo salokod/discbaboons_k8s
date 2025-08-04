@@ -72,7 +72,7 @@ describe('Button component', () => {
     expect(button.props.style).toMatchObject({
       backgroundColor: themes[THEME_NAMES.LIGHT].primary,
     });
-    
+
     // Text should be white on primary
     expect(text.props.style).toMatchObject({
       color: '#FFFFFF',
