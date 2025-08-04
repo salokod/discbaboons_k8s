@@ -48,14 +48,7 @@ jobs:
           
       - name: Install dependencies
         working-directory: apps/express-server
-        run: |
-          # Clean install with proper optional dependencies handling
-          rm -rf node_modules package-lock.json
-          npm install
-          
-          # Alternative: if you want to keep using npm ci, force reinstall rollup
-          # npm ci
-          # npm install @rollup/rollup-linux-x64-gnu --save-optional
+        run: npm ci
         
       - name: Run database migrations
         working-directory: apps/express-server
@@ -101,7 +94,9 @@ jobs:
 
     - name: 📦 Install semantic-release dependencies
       working-directory: apps/express-server
-      run: npm ci
+      run: |
+        npm ci
+        npm install @rollup/rollup-linux-x64-gnu --no-save
 
     - name: ⚙️ Setup kubectl and doctl
       run: |
@@ -215,6 +210,7 @@ jobs:
       run: |
         # Install dependencies if not cached
         npm ci
+        npm install @rollup/rollup-linux-x64-gnu --no-save
         
         # Run semantic-release to get next version and create release
         npx semantic-release --dry-run > semantic-output.txt 2>&1 || true
