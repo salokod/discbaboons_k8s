@@ -48,7 +48,14 @@ jobs:
           
       - name: Install dependencies
         working-directory: apps/express-server
-        run: npm ci
+        run: |
+          # Clean install with proper optional dependencies handling
+          rm -rf node_modules package-lock.json
+          npm install
+          
+          # Alternative: if you want to keep using npm ci, force reinstall rollup
+          # npm ci
+          # npm install @rollup/rollup-linux-x64-gnu --save-optional
         
       - name: Run database migrations
         working-directory: apps/express-server
