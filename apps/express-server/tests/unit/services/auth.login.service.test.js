@@ -153,4 +153,42 @@ describe('LoginService', () => {
       { expiresIn: '14d' },
     );
   });
+
+  test('should convert username to lowercase before database lookup', async () => {
+    const mixedCaseUsername = 'TestUser123';
+    const loginData = {
+      username: mixedCaseUsername,
+      password: chance.string({
+        length: 10, alpha: true, numeric: true, symbols: true,
+      }),
+    };
+
+    const mockUser = {
+      id: chance.integer({ min: 1, max: 1000 }),
+      username: 'testuser123', // Stored as lowercase
+      email: chance.email(),
+      password_hash: chance.hash(),
+      created_at: chance.date().toISOString(),
+    };
+
+    const mockAccessToken = chance.string({ length: 50 });
+    const mockRefreshToken = chance.string({ length: 50 });
+
+    // Set up mocks
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true);
+    vi.mocked(jwt.default.sign)
+      .mockReturnValueOnce(mockAccessToken)
+      .mockReturnValueOnce(mockRefreshToken);
+
+    const result = await loginUser(loginData);
+
+    // Assert that database was queried with lowercase username
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, username, email, password_hash, created_at FROM users WHERE username = $1',
+      ['testuser123'],
+    );
+    expect(result.success).toBe(true);
+    expect(result.user.username).toBe('testuser123');
+  });
 });

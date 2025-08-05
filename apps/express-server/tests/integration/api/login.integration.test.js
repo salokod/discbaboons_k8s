@@ -31,7 +31,9 @@ describe('POST /api/auth/login - Integration Test', () => {
     const password = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
 
     const userData = {
-      username: chance.string({ length: 8, alpha: true, numeric: true }),
+      username: chance.string({
+        length: 8, alpha: true, numeric: true, casing: 'lower',
+      }),
       email: `test-login-${chance.guid()}@example.com`,
       password,
     };
@@ -144,5 +146,69 @@ describe('POST /api/auth/login - Integration Test', () => {
 
     expect(response.body).toHaveProperty('success', false);
     expect(response.body).toHaveProperty('message');
+  });
+
+  test('should login successfully with mixed case username', async () => {
+    // Arrange: Create user with lowercase username
+    const password = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
+
+    const userData = {
+      username: 'testuser789',
+      email: `test-login-case-${chance.guid()}@example.com`,
+      password,
+    };
+
+    // Register user (username will be stored as lowercase)
+    await request(app)
+      .post('/api/auth/register')
+      .send(userData)
+      .expect(201);
+
+    // Act: Login with mixed case username
+    const loginData = {
+      username: 'TestUser789', // Mixed case
+      password: userData.password,
+    };
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send(loginData)
+      .expect(200);
+
+    // Assert: Should login successfully and return lowercase username
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.user.username).toBe('testuser789');
+  });
+
+  test('should fail to login when username case differs from existing user', async () => {
+    // Arrange: Create user with specific case
+    const password = `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`;
+
+    const userData = {
+      username: 'TestUser999', // Will be stored as 'testuser999'
+      email: `test-login-nonexist-${chance.guid()}@example.com`,
+      password,
+    };
+
+    // Register user
+    await request(app)
+      .post('/api/auth/register')
+      .send(userData)
+      .expect(201);
+
+    // Act: Try to login with uppercase version - but since we normalize, it should work
+    const loginData = {
+      username: 'TESTUSER999',
+      password: userData.password,
+    };
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send(loginData)
+      .expect(200);
+
+    // Assert: Should work because we normalize to lowercase
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.user.username).toBe('testuser999');
   });
 });

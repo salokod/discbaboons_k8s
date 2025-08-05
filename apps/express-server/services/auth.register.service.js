@@ -27,6 +27,9 @@ const registerUser = async (userData, dbClient = { queryOne }) => {
     throw error;
   }
 
+  // Convert username to lowercase for consistency
+  const normalizedUsername = userData.username.toLowerCase();
+
   if (!isValidEmail(userData.email)) {
     const error = new Error('Please provide a valid email address');
     error.name = 'ValidationError';
@@ -74,7 +77,7 @@ const registerUser = async (userData, dbClient = { queryOne }) => {
 
   const existingUsername = await dbClient.queryOne(
     'SELECT id, username FROM users WHERE username = $1',
-    [userData.username],
+    [normalizedUsername],
   );
 
   if (existingEmail || existingUsername) {
@@ -91,7 +94,7 @@ const registerUser = async (userData, dbClient = { queryOne }) => {
     `INSERT INTO users (email, username, password_hash, created_at)
      VALUES ($1, $2, $3, $4)
      RETURNING id, email, username, created_at`,
-    [userData.email, userData.username, hashedPassword, new Date()],
+    [userData.email, normalizedUsername, hashedPassword, new Date()],
   );
 
   return {

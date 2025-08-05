@@ -15,10 +15,13 @@ const loginUser = async (loginData) => {
     throw error;
   }
 
+  // Convert username to lowercase for consistency
+  const normalizedUsername = loginData.username.toLowerCase();
+
   // Check if user exists in database
   const user = await queryOne(
     'SELECT id, username, email, password_hash, created_at FROM users WHERE username = $1',
-    [loginData.username],
+    [normalizedUsername],
   );
 
   // If user doesn't exist, throw error

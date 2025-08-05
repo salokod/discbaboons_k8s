@@ -33,7 +33,7 @@ describe('AuthService', () => {
     const createdUser = {
       id: mockId,
       email: userData.email,
-      username: userData.username,
+      username: userData.username.toLowerCase(),
       created_at: mockCreatedAt,
     };
 
@@ -47,7 +47,7 @@ describe('AuthService', () => {
 
     expect(result).toHaveProperty('user');
     expect(result.user).toHaveProperty('email', userData.email);
-    expect(result.user).toHaveProperty('username', userData.username);
+    expect(result.user).toHaveProperty('username', userData.username.toLowerCase());
     expect(result.user).not.toHaveProperty('password'); // Security!
   });
 
@@ -59,7 +59,7 @@ describe('AuthService', () => {
     const createdUser = {
       id: mockId,
       email: userData.email,
-      username: userData.username,
+      username: userData.username.toLowerCase(),
       created_at: mockCreatedAt,
     };
 
@@ -75,7 +75,7 @@ describe('AuthService', () => {
     // Assert - check database insert call
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       'INSERT INTO users (email, username, password_hash, created_at)\n     VALUES ($1, $2, $3, $4)\n     RETURNING id, email, username, created_at',
-      [userData.email, userData.username, expect.any(String), expect.any(Date)],
+      [userData.email, userData.username.toLowerCase(), expect.any(String), expect.any(Date)],
     );
     expect(result.user.id).toBe(mockId);
     expect(result.user).not.toHaveProperty('password_hash');
@@ -90,7 +90,7 @@ describe('AuthService', () => {
     const createdUser = {
       id: chance.integer(),
       email: userData.email,
-      username: userData.username,
+      username: userData.username.toLowerCase(),
       created_at: mockCreatedAt,
     };
 
@@ -104,7 +104,7 @@ describe('AuthService', () => {
 
     // Check that database was called with a hashed password (not plain text)
     const expectedParams = [
-      userData.email, userData.username, expect.not.stringMatching(randomPassword),
+      userData.email, userData.username.toLowerCase(), expect.not.stringMatching(randomPassword),
       expect.any(Date),
     ];
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
@@ -269,5 +269,54 @@ describe('AuthService', () => {
 
     expect(error.name).toBe('ValidationError');
     expect(error.message).toBe('Username must be 4-20 characters');
+  });
+
+  test('should convert username to lowercase before saving to database', async () => {
+    const mixedCaseUsername = 'TestUser123';
+    const userData = createTestRegisterData({ username: mixedCaseUsername });
+    const mockCreatedAt = new Date().toISOString();
+
+    const createdUser = {
+      id: chance.integer(),
+      email: userData.email,
+      username: 'testuser123', // Returned as lowercase
+      created_at: mockCreatedAt,
+    };
+
+    // Mock database calls: no existing email, no existing username, then create user
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce(null) // No existing username
+      .mockResolvedValueOnce(createdUser); // Return created user
+
+    const result = await registerUser(userData);
+
+    // Assert that database was called with lowercase username
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'INSERT INTO users (email, username, password_hash, created_at)\n     VALUES ($1, $2, $3, $4)\n     RETURNING id, email, username, created_at',
+      [userData.email, 'testuser123', expect.any(String), expect.any(Date)],
+    );
+    expect(result.user.username).toBe('testuser123');
+  });
+
+  test('should check for existing username using lowercase', async () => {
+    const mixedCaseUsername = 'TestUser123';
+    const userData = createTestRegisterData({ username: mixedCaseUsername });
+
+    // Mock that email doesn't exist but lowercase username does
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No existing email
+      .mockResolvedValueOnce({
+        id: chance.integer(),
+        username: 'testuser123', // Existing lowercase username
+      }); // Existing username
+
+    await expect(registerUser(userData)).rejects.toThrow('Email or username already registered');
+
+    // Assert that database was queried with lowercase username
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, username FROM users WHERE username = $1',
+      ['testuser123'],
+    );
   });
 });
