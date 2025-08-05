@@ -241,6 +241,120 @@ describe('LoginScreen', () => {
     });
   });
 
+  describe('Tab Interface', () => {
+    it('should display Sign In and Sign Up tabs', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Sign In')).toBeTruthy();
+      expect(getByText('Sign Up')).toBeTruthy();
+    });
+
+    it('should have Sign In tab active by default', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const signInTab = getByTestId('tab-sign-in');
+      const signUpTab = getByTestId('tab-sign-up');
+
+      expect(signInTab.props.style.backgroundColor).toBeDefined();
+      expect(signUpTab.props.style.backgroundColor).not.toEqual(
+        signInTab.props.style.backgroundColor,
+      );
+    });
+
+    it('should switch to Sign Up tab when pressed', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const signUpTab = getByText('Sign Up');
+      fireEvent.press(signUpTab);
+
+      // Should show Create Account button instead of Log In
+      expect(getByText('Create Account')).toBeTruthy();
+    });
+
+    it('should show forgot links only on Sign In tab', () => {
+      const { getByText, queryByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      // Initially on Sign In - should show forgot links
+      expect(queryByText('Forgot username?')).toBeTruthy();
+      expect(queryByText('Forgot password?')).toBeTruthy();
+
+      // Switch to Sign Up
+      const signUpTab = getByText('Sign Up');
+      fireEvent.press(signUpTab);
+
+      // Should hide forgot links
+      expect(queryByText('Forgot username?')).toBeNull();
+      expect(queryByText('Forgot password?')).toBeNull();
+    });
+  });
+
+  describe('Secondary Actions', () => {
+    it('should display forgot password link', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Forgot password?')).toBeTruthy();
+    });
+
+    it('should display forgot username link', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Forgot username?')).toBeTruthy();
+    });
+
+    it('should handle forgot password link press', () => {
+      const mockNavigation = jest.fn();
+
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen onForgotPassword={mockNavigation} />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const forgotPasswordLink = getByText('Forgot password?');
+      fireEvent.press(forgotPasswordLink);
+
+      expect(mockNavigation).toHaveBeenCalled();
+    });
+  });
+
   describe('Form Validation', () => {
     it('should disable login button initially when form is empty', () => {
       const { getByTestId } = render(

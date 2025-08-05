@@ -3,7 +3,7 @@
  */
 
 import {
-  View, StyleSheet, Image, Text,
+  View, StyleSheet, Image, Text, TouchableOpacity,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
@@ -14,12 +14,15 @@ import { typography } from '../design-system/typography';
 import Input from '../components/Input';
 import Button from '../components/Button';
 
-function LoginScreen({ errorMessage = null }) {
+function LoginScreen({
+  errorMessage = null, onForgotPassword, onForgotUsername, onCreateAccount,
+}) {
   const colors = useThemeColors();
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(null);
+  const [activeTab, setActiveTab] = useState('signin');
 
   // Form validation logic
   const isUsernameValid = useMemo(() => username.length >= 4 && username.length <= 20, [username]);
@@ -80,6 +83,46 @@ function LoginScreen({ errorMessage = null }) {
       color: '#FFFFFF',
       textAlign: 'center',
     },
+    tabContainer: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginBottom: spacing.lg,
+      padding: 4,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    activeTab: {
+      backgroundColor: colors.secondary,
+    },
+    inactiveTab: {
+      backgroundColor: 'transparent',
+    },
+    tabText: {
+      ...typography.body,
+      fontWeight: '600',
+    },
+    activeTabText: {
+      color: '#FFFFFF',
+    },
+    inactiveTabText: {
+      color: colors.text,
+    },
+    secondaryActionsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.md,
+    },
+    linkText: {
+      ...typography.body,
+      color: colors.primary,
+      textDecorationLine: 'underline',
+    },
   });
 
   return (
@@ -90,6 +133,41 @@ function LoginScreen({ errorMessage = null }) {
           source={require('../../discbaboon_logo_blue.png')}
           style={styles.logo}
         />
+      </View>
+
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          testID="tab-sign-in"
+          style={[
+            styles.tab,
+            activeTab === 'signin' ? styles.activeTab : styles.inactiveTab,
+          ]}
+          onPress={() => setActiveTab('signin')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'signin' ? styles.activeTabText : styles.inactiveTabText,
+          ]}
+          >
+            Sign In
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          testID="tab-sign-up"
+          style={[
+            styles.tab,
+            activeTab === 'signup' ? styles.activeTab : styles.inactiveTab,
+          ]}
+          onPress={() => setActiveTab('signup')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'signup' ? styles.activeTabText : styles.inactiveTabText,
+          ]}
+          >
+            Sign Up
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.formContainer}>
@@ -116,11 +194,28 @@ function LoginScreen({ errorMessage = null }) {
           secureTextEntry
         />
         <Button
-          title="Log In"
-          onPress={handleLogin}
+          title={activeTab === 'signin' ? 'Log In' : 'Create Account'}
+          onPress={activeTab === 'signin' ? handleLogin : onCreateAccount}
           variant="primary"
           disabled={!isFormValid}
         />
+
+        {activeTab === 'signin' && (
+          <View style={styles.secondaryActionsContainer}>
+            <Text
+              style={styles.linkText}
+              onPress={onForgotUsername}
+            >
+              Forgot username?
+            </Text>
+            <Text
+              style={styles.linkText}
+              onPress={onForgotPassword}
+            >
+              Forgot password?
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -128,10 +223,16 @@ function LoginScreen({ errorMessage = null }) {
 
 LoginScreen.propTypes = {
   errorMessage: PropTypes.string,
+  onForgotPassword: PropTypes.func,
+  onForgotUsername: PropTypes.func,
+  onCreateAccount: PropTypes.func,
 };
 
 LoginScreen.defaultProps = {
   errorMessage: null,
+  onForgotPassword: () => {},
+  onForgotUsername: () => {},
+  onCreateAccount: () => {},
 };
 
 export default LoginScreen;
