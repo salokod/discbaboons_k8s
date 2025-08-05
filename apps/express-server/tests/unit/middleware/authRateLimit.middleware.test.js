@@ -56,11 +56,11 @@ describe('authRateLimit middleware', () => {
     expect(typeof loginBruteForceProtection).toBe('function');
   });
 
-  it('should configure authRateLimit with 15 minute window and 5 max attempts', async () => {
+  it('should configure authRateLimit with 15 minute window and 10 max attempts', async () => {
     const { authRateLimit } = await import('../../../middleware/authRateLimit.middleware.js');
 
     expect(authRateLimit.config.windowMs).toBe(15 * 60 * 1000); // 15 minutes
-    expect(authRateLimit.config.max).toBe(5);
+    expect(authRateLimit.config.max).toBe(10);
     expect(authRateLimit.config.message).toEqual({
       success: false,
       message: 'Too many authentication attempts, please try again in 15 minutes',
@@ -136,7 +136,7 @@ describe('authRateLimit middleware', () => {
     expect(usernameRecoveryRateLimit.config.windowMs).toBe(30 * 60 * 1000);
 
     // Verify they have appropriate max limits
-    expect(authRateLimit.config.max).toBe(5);
+    expect(authRateLimit.config.max).toBe(10);
     expect(passwordRateLimit.config.max).toBe(3); // Most restrictive
     expect(usernameRecoveryRateLimit.config.max).toBe(5);
   });

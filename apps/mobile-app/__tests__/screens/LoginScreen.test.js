@@ -799,4 +799,122 @@ describe('LoginScreen', () => {
       expect(mockHapticService.triggerErrorHaptic).not.toHaveBeenCalled();
     });
   });
+
+  describe('Password Visibility Toggle', () => {
+    it('should show password visibility toggle button', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('password-toggle')).toBeTruthy();
+    });
+
+    it('should toggle password visibility when toggle button is pressed', () => {
+      const {
+        getByTestId, getByPlaceholderText,
+      } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const passwordInput = getByPlaceholderText('Password');
+      const toggleButton = getByTestId('password-toggle');
+
+      // Initially password should be hidden
+      expect(passwordInput.props.secureTextEntry).toBe(true);
+
+      // Press toggle to show password
+      fireEvent.press(toggleButton);
+      expect(passwordInput.props.secureTextEntry).toBe(false);
+
+      // Press toggle to hide password again
+      fireEvent.press(toggleButton);
+      expect(passwordInput.props.secureTextEntry).toBe(true);
+    });
+
+    it('should maintain password toggle state during form validation', () => {
+      const { getByTestId, getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const passwordInput = getByPlaceholderText('Password');
+      const toggleButton = getByTestId('password-toggle');
+
+      // Show password first
+      fireEvent.press(toggleButton);
+      expect(passwordInput.props.secureTextEntry).toBe(false);
+
+      // Enter invalid password (too short) to trigger validation
+      fireEvent.changeText(passwordInput, '123');
+
+      // Toggle state should be maintained after validation
+      expect(passwordInput.props.secureTextEntry).toBe(false);
+    });
+
+    it('should have proper accessibility labels for password toggle', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const toggleButton = getByTestId('password-toggle');
+
+      // Initially should show "Show password"
+      expect(toggleButton.props.accessibilityLabel).toBe('Show password');
+      expect(toggleButton.props.accessibilityHint).toBe('Tap to show password');
+      expect(toggleButton.props.accessibilityRole).toBe('button');
+
+      // After toggle should show "Hide password"
+      fireEvent.press(toggleButton);
+      expect(toggleButton.props.accessibilityLabel).toBe('Hide password');
+      expect(toggleButton.props.accessibilityHint).toBe('Tap to hide password');
+    });
+
+    it('should allow password entry and toggle functionality together', () => {
+      const { getByTestId, getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const passwordInput = getByPlaceholderText('Password');
+      const toggleButton = getByTestId('password-toggle');
+
+      // Enter password while hidden
+      fireEvent.changeText(passwordInput, 'testpassword123');
+      expect(passwordInput.props.value).toBe('testpassword123');
+      expect(passwordInput.props.secureTextEntry).toBe(true);
+
+      // Show password
+      fireEvent.press(toggleButton);
+      expect(passwordInput.props.value).toBe('testpassword123');
+      expect(passwordInput.props.secureTextEntry).toBe(false);
+
+      // Continue typing while visible
+      fireEvent.changeText(passwordInput, 'testpassword123!');
+      expect(passwordInput.props.value).toBe('testpassword123!');
+      expect(passwordInput.props.secureTextEntry).toBe(false);
+
+      // Hide password again
+      fireEvent.press(toggleButton);
+      expect(passwordInput.props.value).toBe('testpassword123!');
+      expect(passwordInput.props.secureTextEntry).toBe(true);
+    });
+  });
 });
