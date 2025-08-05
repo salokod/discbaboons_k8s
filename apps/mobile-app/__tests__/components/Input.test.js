@@ -303,4 +303,220 @@ describe('Input component', () => {
       expect(input.props.secureTextEntry).toBe(true);
     });
   });
+
+  describe('Password Visibility Toggle', () => {
+    it('should not show toggle button when showPasswordToggle is false', () => {
+      const { queryByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle={false}
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      expect(queryByTestId('password-toggle')).toBeNull();
+    });
+
+    it('should not show toggle button when secureTextEntry is false', () => {
+      const { queryByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Text"
+            secureTextEntry={false}
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      expect(queryByTestId('password-toggle')).toBeNull();
+    });
+
+    it('should show toggle button when both showPasswordToggle and secureTextEntry are true', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('password-toggle')).toBeTruthy();
+    });
+
+    it('should start with password hidden (secureTextEntry true)', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.secureTextEntry).toBe(true);
+    });
+
+    it('should show eye icon when password is hidden', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const toggleButton = getByTestId('password-toggle');
+      expect(toggleButton).toBeTruthy();
+    });
+
+    it('should toggle password visibility when toggle button is pressed', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      const toggleButton = getByTestId('password-toggle');
+
+      // Initially hidden
+      expect(input.props.secureTextEntry).toBe(true);
+
+      // Press toggle to show password
+      fireEvent.press(toggleButton);
+      expect(input.props.secureTextEntry).toBe(false);
+
+      // Press toggle to hide password again
+      fireEvent.press(toggleButton);
+      expect(input.props.secureTextEntry).toBe(true);
+    });
+
+    it('should have proper accessibility labels for password toggle', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const toggleButton = getByTestId('password-toggle');
+
+      // Initially should show "Show password"
+      expect(toggleButton.props.accessibilityLabel).toBe('Show password');
+      expect(toggleButton.props.accessibilityHint).toBe('Tap to show password');
+      expect(toggleButton.props.accessibilityRole).toBe('button');
+
+      // After toggle should show "Hide password"
+      fireEvent.press(toggleButton);
+      expect(toggleButton.props.accessibilityLabel).toBe('Hide password');
+      expect(toggleButton.props.accessibilityHint).toBe('Tap to hide password');
+    });
+
+    it('should maintain text input functionality when password toggle is enabled', () => {
+      const onChangeTextMock = jest.fn();
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={onChangeTextMock}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+
+      // Text input should still work
+      fireEvent.changeText(input, 'test123');
+      expect(onChangeTextMock).toHaveBeenCalledWith('test123');
+
+      // Toggle visibility and test again
+      const toggleButton = getByTestId('password-toggle');
+      fireEvent.press(toggleButton);
+
+      fireEvent.changeText(input, 'newpassword');
+      expect(onChangeTextMock).toHaveBeenCalledWith('newpassword');
+    });
+
+    it('should have proper padding when password toggle is enabled', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      // Should have extra right padding for the eye icon
+      expect(input.props.style.paddingRight).toBe(64); // spacing.xl * 2
+    });
+
+    it('should not have extra padding when password toggle is disabled', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle={false}
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      // Should have normal padding
+      expect(input.props.style.paddingRight).toBe(16); // spacing.md
+    });
+
+    it('should work with different theme colors', () => {
+      // This test ensures the toggle button respects theme colors
+      const { getByTestId } = render(
+        <ThemeProvider initialTheme="dark">
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const toggleButton = getByTestId('password-toggle');
+      expect(toggleButton).toBeTruthy();
+
+      // Toggle should still function in dark theme
+      const input = getByTestId('input');
+      expect(input.props.secureTextEntry).toBe(true);
+
+      fireEvent.press(toggleButton);
+      expect(input.props.secureTextEntry).toBe(false);
+    });
+  });
 });

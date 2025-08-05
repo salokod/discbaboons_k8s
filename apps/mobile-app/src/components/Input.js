@@ -2,8 +2,12 @@
  * Input Component
  */
 
-import { TextInput, StyleSheet, Platform } from 'react-native';
+import {
+  TextInput, StyleSheet, Platform, View, TouchableOpacity,
+} from 'react-native';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
+import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../context/ThemeContext';
 import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
@@ -11,10 +15,22 @@ import { typography } from '../design-system/typography';
 function Input({
   placeholder, value, onChangeText, secureTextEntry = false, accessibilityLabel, accessibilityHint,
   autoCapitalize = 'sentences', autoCorrect = true, spellCheck = true, textContentType,
+  showPasswordToggle = false,
 }) {
   const colors = useThemeColors();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  // Determine if password should be hidden
+  const shouldHidePassword = secureTextEntry && !isPasswordVisible;
+
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible(!isPasswordVisible);
+  };
 
   const styles = StyleSheet.create({
+    container: {
+      position: 'relative',
+    },
     input: {
       ...typography.body,
       paddingVertical: Platform.select({
@@ -22,6 +38,7 @@ function Input({
         android: spacing.lg,
       }),
       paddingHorizontal: spacing.md,
+      paddingRight: showPasswordToggle ? spacing.xl * 2 : spacing.md, // Extra space for eye icon
       borderWidth: Platform.select({
         ios: 1,
         android: 0,
@@ -49,9 +66,20 @@ function Input({
         },
       }),
     },
+    eyeButton: {
+      position: 'absolute',
+      right: spacing.md,
+      top: '50%',
+      transform: [{ translateY: -12 }], // Center the 24px icon
+      padding: spacing.xs,
+      justifyContent: 'center',
+      alignItems: 'center',
+      minWidth: 24,
+      minHeight: 24,
+    },
   });
 
-  return (
+  const inputComponent = (
     <TextInput
       testID="input"
       style={styles.input}
@@ -59,7 +87,7 @@ function Input({
       placeholderTextColor={colors.textLight}
       value={value}
       onChangeText={onChangeText}
-      secureTextEntry={secureTextEntry}
+      secureTextEntry={shouldHidePassword}
       accessibilityLabel={accessibilityLabel || placeholder}
       accessibilityHint={accessibilityHint || (secureTextEntry ? 'Password input field' : 'Text input field')}
       autoCapitalize={autoCapitalize}
@@ -68,6 +96,30 @@ function Input({
       textContentType={textContentType}
     />
   );
+
+  if (showPasswordToggle && secureTextEntry) {
+    return (
+      <View style={styles.container}>
+        {inputComponent}
+        <TouchableOpacity
+          testID="password-toggle"
+          style={styles.eyeButton}
+          onPress={togglePasswordVisibility}
+          accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
+          accessibilityHint={isPasswordVisible ? 'Tap to hide password' : 'Tap to show password'}
+          accessibilityRole="button"
+        >
+          <Icon
+            name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
+            color={colors.textLight}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return inputComponent;
 }
 
 Input.propTypes = {
@@ -81,6 +133,7 @@ Input.propTypes = {
   autoCorrect: PropTypes.bool,
   spellCheck: PropTypes.bool,
   textContentType: PropTypes.string,
+  showPasswordToggle: PropTypes.bool,
 };
 
 Input.defaultProps = {
@@ -93,6 +146,7 @@ Input.defaultProps = {
   autoCorrect: true,
   spellCheck: true,
   textContentType: undefined,
+  showPasswordToggle: false,
 };
 
 export default Input;
