@@ -14,6 +14,14 @@ process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-key-for-mobile-integra
 // eslint-disable-next-line no-underscore-dangle
 global.__DEV__ = false;
 
+// Mock React Native Platform for node environment
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: (obj) => obj.ios || obj.default,
+  },
+}));
+
 // Mock database environment variables to prevent connection errors during testing
 process.env.POSTGRES_USER = 'test';
 process.env.POSTGRES_PASSWORD = 'test';

@@ -351,6 +351,7 @@ function LoginScreen({
                   if (loginError) setLoginError(null);
                 }}
                 secureTextEntry
+                showPasswordToggle
                 textContentType="password"
               />
             </View>

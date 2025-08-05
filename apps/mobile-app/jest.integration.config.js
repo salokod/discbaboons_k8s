@@ -11,6 +11,12 @@ module.exports = {
   transform: {
     '^.+\\.(js|jsx)$': 'babel-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons)/)',
+  ],
+  moduleNameMapper: {
+    '^@react-native-vector-icons/(.*)$': '<rootDir>/__mocks__/@react-native-vector-icons/$1.js',
+  },
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/**/*.test.{js,jsx}',
