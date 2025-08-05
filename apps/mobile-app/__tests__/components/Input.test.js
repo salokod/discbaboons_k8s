@@ -189,4 +189,118 @@ describe('Input component', () => {
       expect(input.props.accessibilityHint).toBe('Enter your DiscBaboons username');
     });
   });
+
+  describe('Keyboard Configuration', () => {
+    it('should have default keyboard settings', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input placeholder="Test" onChangeText={() => {}} />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.autoCapitalize).toBe('sentences');
+      expect(input.props.autoCorrect).toBe(true);
+      expect(input.props.spellCheck).toBe(true);
+      expect(input.props.textContentType).toBeUndefined();
+    });
+
+    it('should accept custom autoCapitalize setting', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Username"
+            autoCapitalize="none"
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.autoCapitalize).toBe('none');
+    });
+
+    it('should accept autoCorrect disabled', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Username"
+            autoCorrect={false}
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.autoCorrect).toBe(false);
+    });
+
+    it('should accept spellCheck disabled', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Username"
+            spellCheck={false}
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.spellCheck).toBe(false);
+    });
+
+    it('should accept textContentType setting', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Username"
+            textContentType="username"
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.textContentType).toBe('username');
+    });
+
+    it('should configure all keyboard settings for username input', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Username"
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            textContentType="username"
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.autoCapitalize).toBe('none');
+      expect(input.props.autoCorrect).toBe(false);
+      expect(input.props.spellCheck).toBe(false);
+      expect(input.props.textContentType).toBe('username');
+    });
+
+    it('should configure textContentType for password input', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            textContentType="password"
+            onChangeText={() => {}}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.textContentType).toBe('password');
+      expect(input.props.secureTextEntry).toBe(true);
+    });
+  });
 });

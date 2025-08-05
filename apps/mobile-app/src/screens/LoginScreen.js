@@ -331,6 +331,10 @@ function LoginScreen({
                   setUsername(text);
                   if (loginError) setLoginError(null);
                 }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                textContentType="username"
               />
               <Input
                 placeholder="Password"
@@ -340,6 +344,7 @@ function LoginScreen({
                   if (loginError) setLoginError(null);
                 }}
                 secureTextEntry
+                textContentType="password"
               />
             </View>
 

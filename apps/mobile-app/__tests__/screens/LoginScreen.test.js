@@ -651,4 +651,57 @@ describe('LoginScreen', () => {
       expect(getByTestIdAndroid('tab-sign-in')).toBeTruthy();
     });
   });
+
+  describe('Input Keyboard Configuration', () => {
+    it('should configure username input for optimal typing experience', () => {
+      const { getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const usernameInput = getByPlaceholderText('Username');
+      expect(usernameInput.props.autoCapitalize).toBe('none');
+      expect(usernameInput.props.autoCorrect).toBe(false);
+      expect(usernameInput.props.spellCheck).toBe(false);
+      expect(usernameInput.props.textContentType).toBe('username');
+    });
+
+    it('should configure password input with textContentType', () => {
+      const { getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const passwordInput = getByPlaceholderText('Password');
+      expect(passwordInput.props.textContentType).toBe('password');
+      expect(passwordInput.props.secureTextEntry).toBe(true);
+    });
+
+    it('should allow username input with mixed case typing', () => {
+      const { getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const usernameInput = getByPlaceholderText('Username');
+
+      // Simulate typing mixed case username
+      fireEvent.changeText(usernameInput, 'TestUser');
+
+      // Input should preserve the case as typed
+      expect(usernameInput.props.value).toBe('TestUser');
+
+      // But autoCapitalize should be 'none' to prevent auto-capitalization
+      expect(usernameInput.props.autoCapitalize).toBe('none');
+    });
+  });
 });

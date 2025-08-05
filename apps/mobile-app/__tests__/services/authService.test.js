@@ -85,6 +85,87 @@ describe('AuthService Functions', () => {
       );
     });
 
+    it('should convert username to lowercase before sending', async () => {
+      const mockResponse = {
+        success: true,
+        user: { id: 123, username: 'testuser' },
+        tokens: { accessToken: 'token', refreshToken: 'refresh' },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await login('TestUser', 'password123');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            username: 'testuser', // Should be lowercased
+            password: 'password123',
+          }),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+
+    it('should trim and lowercase username with mixed case and spaces', async () => {
+      const mockResponse = {
+        success: true,
+        user: { id: 123, username: 'testuser' },
+        tokens: { accessToken: 'token', refreshToken: 'refresh' },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await login('  TestUser  ', 'password123');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            username: 'testuser', // Should be trimmed and lowercased
+            password: 'password123',
+          }),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+
+    it('should handle uppercase username', async () => {
+      const mockResponse = {
+        success: true,
+        user: { id: 123, username: 'testuser' },
+        tokens: { accessToken: 'token', refreshToken: 'refresh' },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await login('TESTUSER', 'password123');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            username: 'testuser', // Should be lowercased
+            password: 'password123',
+          }),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+
     it('should throw error for 401 unauthorized', async () => {
       fetch.mockResolvedValueOnce({
         ok: false,

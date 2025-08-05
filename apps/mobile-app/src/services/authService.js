@@ -24,7 +24,7 @@ export async function login(username, password) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        username: username.trim(),
+        username: username.trim().toLowerCase(),
         password,
       }),
       signal: controller.signal,

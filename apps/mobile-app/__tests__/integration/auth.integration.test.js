@@ -15,6 +15,10 @@ const chance = new Chance();
 // Mock fetch globally for all tests
 global.fetch = jest.fn();
 
+// Mock __DEV__ for React Native environment config
+// eslint-disable-next-line no-underscore-dangle
+global.__DEV__ = false;
+
 describe('Auth API Integration Tests', () => {
   beforeEach(() => {
     // Reset fetch mock before each test
@@ -227,6 +231,93 @@ describe('Auth API Integration Tests', () => {
       expect(testUser.password).toMatch(/[A-Z]/); // uppercase
       expect(testUser.password).toMatch(/[0-9]/); // number
       expect(testUser.password).toMatch(/[!@#$%^&*]/); // special char
+    });
+  });
+
+  describe('Username Normalization Integration', () => {
+    test('should send lowercase username regardless of user input case', async () => {
+      // Mock successful API response
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          user: {
+            id: 123,
+            username: 'testuser', // Backend stores as lowercase
+            email: 'test@example.com',
+            created_at: '2024-01-15T10:30:00.000Z',
+          },
+          tokens: {
+            accessToken: 'mock-token',
+            refreshToken: 'mock-refresh',
+          },
+        }),
+      });
+
+      // Simulate user typing mixed case username
+      const userTypedUsername = 'TestUser';
+      const password = 'SecurePass123!';
+
+      // Act: Make API call with authService (which lowercases username)
+      const { login } = require('../../src/services/authService');
+      await login(userTypedUsername, password);
+
+      // Assert: Verify API was called with lowercase username
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/login'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: 'testuser', // Should be lowercase
+            password: 'SecurePass123!', // Password unchanged
+          }),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+
+    test('should handle mixed case with spaces correctly', async () => {
+      // Mock successful API response
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          user: {
+            id: 456,
+            username: 'anotheruser',
+            email: 'another@example.com',
+            created_at: '2024-01-15T10:30:00.000Z',
+          },
+          tokens: {
+            accessToken: 'mock-token-2',
+            refreshToken: 'mock-refresh-2',
+          },
+        }),
+      });
+
+      // Simulate user typing with extra spaces and mixed case
+      const userTypedUsername = '  AnotherUser  ';
+      const password = 'SecurePass456!';
+
+      // Act: Make API call
+      const { login } = require('../../src/services/authService');
+      await login(userTypedUsername, password);
+
+      // Assert: Verify API was called with trimmed and lowercase username
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/login'),
+        expect.objectContaining({
+          body: JSON.stringify({
+            username: 'anotheruser', // Should be trimmed and lowercase
+            password: 'SecurePass456!',
+          }),
+        }),
+      );
     });
   });
 });
