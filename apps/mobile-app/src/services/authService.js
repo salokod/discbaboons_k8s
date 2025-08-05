@@ -86,16 +86,20 @@ export async function login(username, password) {
     const data = await response.json();
 
     if (!response.ok) {
-      // Handle different error types based on API documentation
+      // Handle different error types based on backend error responses
       if (response.status === 401) {
+        // Backend returns "Invalid username or password" for security
         throw new Error(data.message || 'Invalid username or password');
       }
       if (response.status === 400) {
+        // Backend ValidationError messages (Username/Password required)
         throw new Error(data.message || 'Please check your username and password');
       }
       if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
         throw new Error('Something went wrong. Please try again.');
       }
+      // Other network or connection errors
       throw new Error(data.message || 'Unable to connect. Please check your internet.');
     }
 
