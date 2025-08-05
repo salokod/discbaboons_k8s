@@ -6,6 +6,54 @@
 import { API_BASE_URL } from '../config/environment';
 
 /**
+ * Validate username format before sending to API
+ * @param {string} username - Username to validate
+ * @throws {Error} Validation error if username is invalid
+ */
+function validateUsername(username) {
+  if (!username || typeof username !== 'string') {
+    throw new Error('Username is required');
+  }
+
+  const trimmedUsername = username.trim();
+  if (trimmedUsername.length === 0) {
+    throw new Error('Username cannot be empty');
+  }
+
+  if (trimmedUsername.length < 4) {
+    throw new Error('Username must be at least 4 characters');
+  }
+
+  if (trimmedUsername.length > 20) {
+    throw new Error('Username must be no more than 20 characters');
+  }
+
+  // Check for valid characters (alphanumeric only)
+  if (!/^[a-zA-Z0-9]+$/.test(trimmedUsername)) {
+    throw new Error('Username can only contain letters and numbers');
+  }
+}
+
+/**
+ * Validate password format before sending to API
+ * @param {string} password - Password to validate
+ * @throws {Error} Validation error if password is invalid
+ */
+function validatePassword(password) {
+  if (!password || typeof password !== 'string') {
+    throw new Error('Password is required');
+  }
+
+  if (password.length < 8) {
+    throw new Error('Password must be at least 8 characters');
+  }
+
+  if (password.length > 32) {
+    throw new Error('Password must be no more than 32 characters');
+  }
+}
+
+/**
  * Login user with username and password
  * @param {string} username - User's username
  * @param {string} password - User's password
@@ -13,6 +61,9 @@ import { API_BASE_URL } from '../config/environment';
  * @throws {Error} Login failed error with message
  */
 export async function login(username, password) {
+  // Validate inputs before making API call
+  validateUsername(username);
+  validatePassword(password);
   // Create an AbortController for timeout handling
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -64,16 +115,19 @@ export async function login(username, password) {
 }
 
 /**
- * Handle network errors and timeouts
+ * Handle network errors and timeouts with enhanced messaging
  * @param {Error} error - Network error
  * @returns {string} User-friendly error message
  */
 export function handleNetworkError(error) {
   if (error.name === 'TypeError' && error.message.includes('fetch')) {
-    return 'Unable to connect. Please check your internet.';
+    return 'Unable to connect to server. Please check your internet connection and try again.';
   }
   if (error.name === 'AbortError') {
-    return 'Request timed out. Please try again.';
+    return 'Request timed out after 30 seconds. Please check your connection and try again.';
   }
-  return error.message || 'Something went wrong. Please try again.';
+  if (error.message && error.message.includes('Network request failed')) {
+    return 'Network error occurred. Please check your internet connection.';
+  }
+  return error.message || 'Something went wrong. Please try again later.';
 }

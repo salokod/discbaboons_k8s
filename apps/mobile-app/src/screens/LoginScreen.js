@@ -14,6 +14,7 @@ import { typography } from '../design-system/typography';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { login as authLogin, handleNetworkError } from '../services/authService';
+import { triggerSuccessHaptic, triggerErrorHaptic } from '../services/hapticService';
 
 function LoginScreen({
   errorMessage = null,
@@ -51,9 +52,15 @@ function LoginScreen({
       // Call real API
       const { user, tokens } = await authLogin(username, password);
 
+      // Trigger success haptic feedback
+      triggerSuccessHaptic();
+
       // Successful login - update auth context
       login({ user, tokens });
     } catch (error) {
+      // Trigger error haptic feedback
+      triggerErrorHaptic();
+
       // Handle login errors
       const errorMsg = handleNetworkError(error);
       setLoginError(errorMsg);
