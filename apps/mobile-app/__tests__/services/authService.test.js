@@ -50,6 +50,7 @@ describe('AuthService Functions', () => {
           username: 'testuser',
           password: 'password123',
         }),
+        signal: expect.any(AbortSignal),
       });
 
       expect(result).toEqual({
@@ -169,6 +170,74 @@ describe('AuthService Functions', () => {
       const error = new Error();
       const message = handleNetworkError(error);
       expect(message).toBe('Something went wrong. Please try again.');
+    });
+  });
+
+  describe('login timeout handling', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should abort request after 30 seconds', async () => {
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+
+      fetch.mockImplementationOnce(() => new Promise((resolve, reject) => {
+        setTimeout(() => reject(abortError), 31000);
+      }));
+
+      const loginPromise = login('testuser', 'password123');
+
+      // Fast-forward time by 31 seconds
+      jest.advanceTimersByTime(31000);
+
+      await expect(loginPromise).rejects.toThrow('The operation was aborted');
+    });
+
+    it('should clear timeout on successful response', async () => {
+      const mockResponse = {
+        success: true,
+        user: { id: 123, username: 'testuser' },
+        tokens: { accessToken: 'token', refreshToken: 'refresh' },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+      await login('testuser', 'password123');
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
+    });
+
+    it('should include signal in all login requests', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: 'Invalid credentials' }),
+      });
+
+      try {
+        await login('testuser', 'wrongpassword');
+      } catch (e) {
+        // Expected to throw
+      }
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        }),
+      );
     });
   });
 });

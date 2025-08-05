@@ -9,7 +9,7 @@ import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
 function Input({
-  placeholder, value, onChangeText, secureTextEntry = false,
+  placeholder, value, onChangeText, secureTextEntry = false, accessibilityLabel, accessibilityHint,
 }) {
   const colors = useThemeColors();
 
@@ -59,6 +59,8 @@ function Input({
       value={value}
       onChangeText={onChangeText}
       secureTextEntry={secureTextEntry}
+      accessibilityLabel={accessibilityLabel || placeholder}
+      accessibilityHint={accessibilityHint || (secureTextEntry ? 'Password input field' : 'Text input field')}
     />
   );
 }
@@ -66,15 +68,18 @@ function Input({
 Input.propTypes = {
   placeholder: PropTypes.string,
   value: PropTypes.string,
-  onChangeText: PropTypes.func,
+  onChangeText: PropTypes.func.isRequired,
   secureTextEntry: PropTypes.bool,
+  accessibilityLabel: PropTypes.string,
+  accessibilityHint: PropTypes.string,
 };
 
 Input.defaultProps = {
   placeholder: '',
   value: '',
-  onChangeText: () => {},
   secureTextEntry: false,
+  accessibilityLabel: undefined,
+  accessibilityHint: undefined,
 };
 
 export default Input;
