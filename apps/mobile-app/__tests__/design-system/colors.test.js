@@ -35,8 +35,8 @@ describe('colors design system', () => {
   it('should have neutral and text colors', () => {
     const { colors } = require('../../src/design-system/colors');
 
-    expect(colors.background).toBe('#FFFFFF');
-    expect(colors.surface).toBe('#F5F5F5');
+    expect(colors.background).toBe('#FAFBFC');
+    expect(colors.surface).toBe('#FFFFFF');
     expect(colors.text).toBe('#212121');
     expect(colors.textLight).toBe('#757575');
     expect(colors.border).toBe('#E0E0E0');

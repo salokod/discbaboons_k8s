@@ -55,4 +55,69 @@ describe('Input component', () => {
     fireEvent.changeText(getByTestId('input'), 'new text');
     expect(onChangeTextMock).toHaveBeenCalledWith('new text');
   });
+
+  describe('Platform-Specific Styling', () => {
+    const originalPlatform = require('react-native').Platform.OS;
+    const originalSelect = require('react-native').Platform.select;
+
+    afterEach(() => {
+      require('react-native').Platform.OS = originalPlatform;
+      require('react-native').Platform.select = originalSelect;
+    });
+
+    it('should apply iOS-specific border styling', () => {
+      require('react-native').Platform.OS = 'ios';
+      require('react-native').Platform.select = (obj) => obj.ios;
+
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.style.borderWidth).toBe(1);
+      expect(input.props.style.borderRadius).toBe(8);
+    });
+
+    it('should apply Android-specific styling', () => {
+      require('react-native').Platform.OS = 'android';
+      require('react-native').Platform.select = (obj) => obj.android;
+
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.style.borderWidth).toBe(0);
+      expect(input.props.style.borderRadius).toBe(12);
+      expect(input.props.style.elevation).toBe(1);
+    });
+
+    it('should render consistently across platforms', () => {
+      // Test iOS
+      require('react-native').Platform.OS = 'ios';
+      require('react-native').Platform.select = (obj) => obj.ios;
+      const { getByTestId: getByTestIdIOS } = render(
+        <ThemeProvider>
+          <Input placeholder="Test iOS" />
+        </ThemeProvider>,
+      );
+
+      // Test Android
+      require('react-native').Platform.OS = 'android';
+      require('react-native').Platform.select = (obj) => obj.android;
+      const { getByTestId: getByTestIdAndroid } = render(
+        <ThemeProvider>
+          <Input placeholder="Test Android" />
+        </ThemeProvider>,
+      );
+
+      // Both should have the same functional behavior
+      expect(getByTestIdIOS('input').props.placeholder).toBe('Test iOS');
+      expect(getByTestIdAndroid('input').props.placeholder).toBe('Test Android');
+    });
+  });
 });

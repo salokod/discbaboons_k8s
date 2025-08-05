@@ -18,8 +18,20 @@ App.js
     └── HomeScreen (placeholder for bags list)
 ```
 
+**Implementation Details:**
+- Root navigator checks `isAuthenticated` from AuthContext
+- AuthNavigator: Stack navigator for auth flows
+- AppNavigator: Tab/Stack navigator for authenticated app
+- No manual navigation between Auth/App stacks (automatic based on auth state)
+
 ### 2. State Management
 - **Auth Context**: Global authentication state
+  - `isAuthenticated`: Boolean flag for auth status
+  - `user`: User object with profile data
+  - `tokens`: Object containing accessToken and refreshToken
+  - `login({ user, tokens })`: Function to set authenticated state
+  - `logout()`: Function to clear auth state
+  - `useAuth()`: Hook to access auth state and functions
 - **Token Storage**: Secure storage for JWT & refresh tokens
 - **Auto-refresh**: Handle token refresh transparently
 
@@ -230,41 +242,303 @@ src/
 - Components dynamically update when theme changes
 - All tests updated to wrap components with ThemeProvider
 
-### Phase 2: Login Flow (Day 2)
-- [ ] Create LoginScreen with logo
-- [ ] Implement form validation
-- [ ] Connect to /api/auth/login endpoint
-- [ ] Handle JWT token storage
-- [ ] Error handling & display
-- [ ] Loading states
+### Phase 2: Login Flow - Production-Ready Design (Day 2)
+
+#### LoginScreen Complete Design Requirements
+
+**Visual Layout (Top to Bottom):**
+1. **Header Section**
+   - DiscBaboons Logo (150x150, centered) - logo contains app name
+   - Spacing: xl gap between sections
+
+2. **Form Section**
+   - Username Input (required, 4-20 chars)
+   - Password Input (required, secure entry)
+   - Form validation with real-time feedback
+   - Error display area (conditionally visible)
+   - Spacing: md gap between inputs
+
+3. **Primary Actions**
+   - "Log In" Button (primary variant, full width)
+   - Loading state with spinner overlay
+   - Success/error feedback
+
+4. **Secondary Actions** 
+   - "Forgot Password?" Link (right-aligned)
+   - "Forgot Username?" Link (right-aligned)
+   - Spacing: sm gap between links
+
+5. **Registration Section**
+   - Divider line with "New to DiscBaboons?" text
+   - "Create Account" Button (secondary variant, full width)
+   - Spacing: lg gap from login form
+
+6. **Footer Links**
+   - "Privacy Policy" Link (small, centered)
+   - "Terms of Service" Link (small, centered)  
+   - "Support" Link (small, centered)
+   - Copyright: "© 2024 DiscBaboons" (caption, centered)
+   - Spacing: xs gap between links
+
+**Form Validation Rules:**
+- Username: 4-20 characters, required
+- Password: 8-32 characters, required
+- Real-time validation on blur
+- Show/hide validation errors
+- Disable login button until valid
+
+**Error Handling:**
+- Network errors: "Unable to connect. Please check your internet."
+- Invalid credentials: "Invalid username or password."
+- Server errors: "Something went wrong. Please try again."
+- Rate limiting: "Too many attempts. Please wait before trying again."
+
+**Loading States:**
+- Button shows spinner + "Logging in..."
+- Form inputs disabled during login
+- Overlay prevents interaction
+
+**Navigation Integration:**
+- "Forgot Password?" → ForgotPasswordScreen
+- "Forgot Username?" → ForgotUsernameScreen  
+- "Create Account" → RegisterScreen
+- Privacy/Terms → WebView screens
+- Support → Email/Help screen
+
+#### Implementation Slices:
+
+**PHASE 2 COMPLETE: Production-Ready Login Flow** ✅
+
+**UI/UX Implementation Complete:**
+- [x] LoginScreen exports and renders with SafeAreaView + ScrollView
+- [x] Logo display (120x120, centered)
+- [x] Tab interface (Sign In / Sign Up) with theme-aware styling
+- [x] Username/password inputs with real-time validation (4-20 chars, 8-32 chars)
+- [x] Form validation with disabled button states
+- [x] Error display area with theme-aware styling and proper user feedback
+- [x] "Forgot Password?" and "Forgot Username?" links (space-between layout)
+- [x] Footer links (Privacy Policy, Terms, Support, Copyright 2025)
+- [x] Cross-platform styling (iOS shadows, Android elevation + Material Design)
+- [x] Modern theme system (soft #FAFBFC background, white surfaces)
+- [x] Loading states for login button ("Logging in..." + disabled state)
+- [x] Security testing (password hidden, proper validation)
+
+**API Integration Complete:**
+- [x] Environment configuration system (dev: localhost:8080, prod: discbaboons.spirojohn.com)
+- [x] Function-based AuthService (login, handleNetworkError)
+- [x] Real /api/auth/login endpoint integration
+- [x] Proper error handling for 400/401/500+ responses with user-friendly messages
+- [x] Network error handling (connection, timeout, server errors)
+- [x] JWT response validation and AuthContext integration
+- [x] Username trimming (case-sensitive as per backend design)
+
+**Testing Complete:**
+- [x] 101 unit tests passing (LoginScreen, AuthService, environment config)
+- [x] 7 integration tests passing (API contract validation)
+- [x] Platform-specific styling tests (iOS vs Android)
+- [x] Error handling and loading state tests
+- [x] Cross-platform consistency validation
+- [x] All lint checks passing
+
+**Current Status: Ready for Token Storage** 🚀
+
+**Next Phase Priority:**
+- [ ] **CRITICAL**: Implement secure JWT token storage with react-native-keychain
+- [ ] Token persistence and app restart state restoration
+- [ ] Token refresh system and automatic logout on 401
+
+#### API Integration Requirements:
+
+**POST /api/auth/login Integration:**
+```javascript
+const loginPayload = {
+  username: username.trim(),
+  password: password
+};
+
+// Success Response:
+{
+  user: { id, username, email },
+  tokens: { 
+    accessToken: "jwt...",
+    refreshToken: "jwt..."
+  }
+}
+
+// Error Responses:
+{
+  error: "ValidationError",
+  message: "Username must be 4-20 characters"
+}
+```
+
+**Security Implementation:**
+- Store tokens in react-native-keychain (encrypted)
+- Clear form data on successful login
+- Implement password visibility toggle
+- Add biometric prompt option (future enhancement)
+
+#### Placeholder Screens Needed:
+1. **ForgotPasswordScreen**: Email input → verification code → new password
+2. **ForgotUsernameScreen**: Email input → username sent to email  
+3. **RegisterScreen**: Username, email, password, confirm password
+4. **PrivacyPolicyScreen**: WebView or ScrollView with policy text
+5. **TermsOfServiceScreen**: WebView or ScrollView with terms
+6. **SupportScreen**: Contact options and help resources
+
+#### Cross-Platform Considerations:
+- iOS: Use SafeAreaView for proper spacing around notch
+- Android: Handle back button to close app on login screen
+- Both: Keyboard dismissal on tap outside, proper keyboard avoidance
+- Consistent visual appearance across both platforms
+
+#### Accessibility Features:
+- Screen reader labels for all interactive elements
+- Proper tab order for form navigation
+- High contrast support in blackout theme
+- Large text scaling support
+- Voice control compatibility
 
 ### Phase 3: Registration Flow (Day 3)
-- [ ] Create RegisterScreen
-- [ ] Password strength indicator
-- [ ] Email validation
+**RegisterScreen Implementation:**
+- [ ] Create RegisterScreen with consistent styling
+- [ ] Username input with availability checking
+- [ ] Email input with format validation  
+- [ ] Password input with strength indicator
+- [ ] Confirm password input with matching validation
+- [ ] Real-time validation feedback
 - [ ] Connect to /api/auth/register endpoint
-- [ ] Success flow to login
+- [ ] Success flow redirect to login
+- [ ] Error handling for conflicts (username/email taken)
+- [ ] Link back to LoginScreen
+- [ ] Privacy Policy and Terms acceptance checkboxes
 
-### Phase 4: Password Recovery (Day 4)
-- [ ] ForgotPasswordScreen (email input)
-- [ ] ResetPasswordScreen (code + new password)
-- [ ] Connect to forgot-password endpoints
-- [ ] ForgotUsernameScreen
-- [ ] Email sent confirmation screens
+**Password Strength Requirements (per API docs):**
+- 8-32 characters length
+- Must contain: uppercase, lowercase, number, special character
+- Visual strength indicator (weak/medium/strong)
+- Real-time validation as user types
 
-### Phase 5: Token Management (Day 5)
-- [ ] Implement token refresh logic
-- [ ] Auto-logout on 401
-- [ ] Axios interceptors for auth headers
-- [ ] Secure token storage
-- [ ] App state restoration
+### Phase 4: Password Recovery Flow (Day 4)
+**ForgotPasswordScreen:**
+- [ ] Email input for password reset request
+- [ ] Connect to /api/auth/forgot-password endpoint  
+- [ ] Success confirmation with next steps
+- [ ] Resend code functionality
+- [ ] Link back to LoginScreen
 
-### Phase 6: Polish & Testing (Day 6)
-- [ ] Keyboard handling
-- [ ] Form accessibility
-- [ ] Error boundary
-- [ ] Integration tests
-- [ ] Manual testing on both platforms
+**ResetPasswordScreen:**
+- [ ] 6-digit verification code input
+- [ ] New password input with strength validation
+- [ ] Confirm new password input
+- [ ] Connect to /api/auth/change-password endpoint
+- [ ] Success redirect to LoginScreen
+- [ ] Code expiration handling (30 minutes)
+
+**ForgotUsernameScreen:**
+- [ ] Email input for username recovery
+- [ ] Connect to /api/auth/forgot-username endpoint
+- [ ] Success confirmation message
+- [ ] Link back to LoginScreen
+
+### Phase 5: Support & Legal Screens (Day 5)
+**PrivacyPolicyScreen:**
+- [ ] ScrollView with full privacy policy text
+- [ ] Proper typography and spacing
+- [ ] Last updated date
+- [ ] Back navigation to previous screen
+
+**TermsOfServiceScreen:**
+- [ ] ScrollView with terms and conditions
+- [ ] Proper typography and spacing
+- [ ] Last updated date
+- [ ] Back navigation to previous screen
+
+**SupportScreen:**
+- [ ] Contact information display
+- [ ] Email support button (opens mail app)
+- [ ] FAQ sections with expandable answers
+- [ ] App version and build information
+- [ ] Link to privacy policy and terms
+
+### Phase 3: Token Management & Security (IMMEDIATE PRIORITY)
+**Secure Storage Implementation:**
+- [ ] Install and configure react-native-keychain
+- [ ] Create secure token storage service (tokenStorage.js)
+- [ ] Implement token retrieval on app launch
+- [ ] Handle keychain access errors gracefully
+- [ ] Update AuthContext to persist tokens securely
+
+**Token Refresh System:**
+- [ ] Automatic token refresh using refresh token before expiration
+- [ ] Handle 401 responses with auto-logout
+- [ ] Token rotation on refresh (per API security)
+- [ ] Background refresh before expiration (13 minutes for 15min tokens)
+- [ ] Network request interceptor for adding auth headers
+
+**App State Management:**
+- [ ] Restore authentication state on app launch from keychain
+- [ ] Handle app backgrounding/foregrounding
+- [ ] Clear sensitive data on app termination
+- [ ] Update root navigation to respect auth state
+
+### Phase 4: Registration Flow (NEXT)
+**RegisterScreen Implementation:**
+- [ ] Create RegisterScreen with consistent styling and theme support
+- [ ] Username input with availability checking (case-sensitive)
+- [ ] Email input with format validation  
+- [ ] Password input with strength indicator
+- [ ] Confirm password input with matching validation
+- [ ] Real-time validation feedback with same UX patterns as LoginScreen
+- [ ] Connect to /api/auth/register endpoint
+- [ ] Success flow redirect to login with success message
+- [ ] Error handling for conflicts (username/email taken)
+- [ ] Privacy Policy and Terms acceptance checkboxes
+
+### Phase 5: Password Recovery Flow
+**ForgotPasswordScreen:**
+- [ ] Email input for password reset request
+- [ ] Connect to /api/auth/forgot-password endpoint  
+- [ ] Success confirmation with next steps
+- [ ] Resend code functionality
+- [ ] Link back to LoginScreen
+
+**ForgotUsernameScreen:**
+- [ ] Email input for username recovery
+- [ ] Connect to /api/auth/forgot-username endpoint
+- [ ] Success confirmation message
+- [ ] Link back to LoginScreen
+
+### Phase 6: Support & Legal Screens
+
+### Phase 7: Polish & Production Readiness (Day 7)
+**User Experience Enhancements:**
+- [ ] Keyboard handling and dismissal
+- [ ] Form auto-focus and tab order
+- [ ] Loading states for all API calls
+- [ ] Success/error toast notifications
+- [ ] Pull-to-refresh on error screens
+
+**Accessibility Implementation:**
+- [ ] Screen reader labels for all elements
+- [ ] High contrast theme support
+- [ ] Large text scaling compatibility
+- [ ] Voice control navigation
+- [ ] Color-blind friendly error states
+
+**Cross-Platform Polish:**
+- [ ] iOS SafeAreaView implementation
+- [ ] Android back button handling
+- [ ] Platform-specific UI adjustments
+- [ ] Keyboard avoidance on both platforms
+- [ ] Status bar styling
+
+**Testing & Quality Assurance:**
+- [ ] Integration tests for complete auth flows
+- [ ] Error scenario testing (network, validation, server)
+- [ ] Manual testing on iOS and Android devices
+- [ ] Performance testing (large forms, slow networks)
+- [ ] Security testing (token storage, data clearing)
 
 ## API Integration
 

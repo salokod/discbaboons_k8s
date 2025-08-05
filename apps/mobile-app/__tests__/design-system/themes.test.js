@@ -31,7 +31,7 @@ describe('Themes', () => {
   });
 
   it('should have theme-specific background colors', () => {
-    expect(themes[THEME_NAMES.LIGHT].background).toBe('#FFFFFF');
+    expect(themes[THEME_NAMES.LIGHT].background).toBe('#FAFBFC');
     expect(themes[THEME_NAMES.DARK].background).toBe('#121212');
     expect(themes[THEME_NAMES.BLACKOUT].background).toBe('#000000');
   });
@@ -43,7 +43,7 @@ describe('Themes', () => {
   });
 
   it('should have theme-specific surface colors', () => {
-    expect(themes[THEME_NAMES.LIGHT].surface).toBe('#F5F5F5');
+    expect(themes[THEME_NAMES.LIGHT].surface).toBe('#FFFFFF');
     expect(themes[THEME_NAMES.DARK].surface).toBe('#1E1E1E');
     expect(themes[THEME_NAMES.BLACKOUT].surface).toBe('#000000');
   });

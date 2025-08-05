@@ -1,44 +1,54 @@
 /**
  * DiscBaboons Mobile App
- * TDD Hello World Tutorial
- *
- * @format
  */
 
-import {
-  StyleSheet, Text, View,
-} from 'react-native';
-
-import { useState } from 'react';
-import CustomButton from './CustomButton';
+import { View, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider } from './src/context/ThemeContext';
+import LoginScreen from './src/screens/LoginScreen';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
   },
 });
 
-function App() {
-  const [count, setCount] = useState(0);
+function AuthNavigator() {
+  return (
+    <View testID="auth-navigator" style={styles.container}>
+      <LoginScreen />
+    </View>
+  );
+}
 
-  const containerStyle = {
-    ...styles.container,
-    backgroundColor: count > 0 ? 'green' : 'blue',
-  };
+function AppNavigator() {
+  return (
+    <View testID="app-navigator">
+      {/* Placeholder for authenticated app screens */}
+    </View>
+  );
+}
+
+function RootNavigator() {
+  const { isAuthenticated } = useAuth();
 
   return (
-    <View testID="app-container" style={containerStyle}>
-      <Text style={styles.text}>Hello World</Text>
-      <Text style={styles.text}>{`Count: ${count}`}</Text>
-      <CustomButton title="Tap me!" onPress={() => { setCount(count + 1); }} />
+    <View testID="navigation-container" style={styles.container}>
+      {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
     </View>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
