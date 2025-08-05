@@ -29,7 +29,9 @@ describe('POST /api/auth/register - Integration Test', () => {
   test('should successfully register a new user', async () => {
     // Arrange: Define new user data using Chance
     const newUser = {
-      username: chance.string({ length: 8, alpha: true, numeric: true }),
+      username: chance.string({
+        length: 8, alpha: true, numeric: true, casing: 'lower',
+      }),
       email: `test-register-${chance.guid()}@example.com`,
       password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
     };
@@ -145,6 +147,60 @@ describe('POST /api/auth/register - Integration Test', () => {
 
     expect(response.body).toHaveProperty('success', false);
     expect(response.body).toHaveProperty('message');
+    expect(response.body.message).toContain('already registered');
+  });
+
+  test('should convert username to lowercase when registering', async () => {
+    // Arrange: Create user with mixed case username
+    const mixedCaseUsername = 'TestUser123';
+    const newUser = {
+      username: mixedCaseUsername,
+      email: `test-register-lowercase-${chance.guid()}@example.com`,
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+    };
+
+    // Act: Register user
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send(newUser)
+      .expect(201);
+
+    // Assert: Response should contain lowercase username
+    expect(response.body.user.username).toBe('testuser123');
+
+    // Verify database contains lowercase username
+    const userInDb = await queryOne('SELECT username FROM users WHERE email = $1', [newUser.email]);
+    expect(userInDb.username).toBe('testuser123');
+  });
+
+  test('should prevent duplicate registration with mixed case username', async () => {
+    // Arrange: Register user with lowercase username first
+    const baseUsername = 'testuser456';
+    const firstUser = {
+      username: baseUsername,
+      email: `test-register-first-${chance.guid()}@example.com`,
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+    };
+
+    await request(app)
+      .post('/api/auth/register')
+      .send(firstUser)
+      .expect(201);
+
+    // Try to register with mixed case version of same username
+    const mixedCaseUser = {
+      username: 'TestUser456', // Same username but mixed case
+      email: `test-register-second-${chance.guid()}@example.com`,
+      password: `${chance.string({ length: 6, pool: 'abcdefghijklmnopqrstuvwxyz' })}${chance.string({ length: 1, pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' })}${chance.integer({ min: 0, max: 9 })}${chance.pick(['!', '@', '#', '$', '%', '^', '&', '*'])}`,
+    };
+
+    // Act & Assert: Should fail with duplicate error
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send(mixedCaseUser)
+      .expect(409);
+
+    expect(response.body).toHaveProperty('success', false);
     expect(response.body.message).toContain('already registered');
   });
 });
