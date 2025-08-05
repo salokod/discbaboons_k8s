@@ -2,19 +2,24 @@
  * LoginScreen
  */
 
-import { View, StyleSheet, Image } from 'react-native';
+import {
+  View, StyleSheet, Image, Text,
+} from 'react-native';
 import { useState, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useThemeColors } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { spacing } from '../design-system/spacing';
+import { typography } from '../design-system/typography';
 import Input from '../components/Input';
 import Button from '../components/Button';
 
-function LoginScreen() {
+function LoginScreen({ errorMessage = null }) {
   const colors = useThemeColors();
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(null);
 
   // Form validation logic
   const isUsernameValid = useMemo(() => username.length >= 4 && username.length <= 20, [username]);
@@ -27,8 +32,17 @@ function LoginScreen() {
   );
 
   const handleLogin = () => {
+    // Clear any previous errors
+    setLoginError(null);
+
     // TODO: Replace with actual API call
-    // For now, mock successful login
+    // For demo purposes, show error for invalid test credentials
+    if (username === 'demo' && password === 'wrongpass') {
+      setLoginError('Invalid username or password');
+      return;
+    }
+
+    // Mock successful login
     login({
       user: { username },
       tokens: { access: 'mock-jwt-token' },
@@ -54,6 +68,18 @@ function LoginScreen() {
     formContainer: {
       gap: spacing.md,
     },
+    errorContainer: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.error,
+      borderRadius: 8,
+      marginBottom: spacing.md,
+    },
+    errorText: {
+      ...typography.body,
+      color: '#FFFFFF',
+      textAlign: 'center',
+    },
   });
 
   return (
@@ -67,15 +93,26 @@ function LoginScreen() {
       </View>
 
       <View style={styles.formContainer}>
+        {(errorMessage || loginError) && (
+          <View testID="error-message" style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage || loginError}</Text>
+          </View>
+        )}
         <Input
           placeholder="Username"
           value={username}
-          onChangeText={setUsername}
+          onChangeText={(text) => {
+            setUsername(text);
+            if (loginError) setLoginError(null);
+          }}
         />
         <Input
           placeholder="Password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (loginError) setLoginError(null);
+          }}
           secureTextEntry
         />
         <Button
@@ -88,5 +125,13 @@ function LoginScreen() {
     </View>
   );
 }
+
+LoginScreen.propTypes = {
+  errorMessage: PropTypes.string,
+};
+
+LoginScreen.defaultProps = {
+  errorMessage: null,
+};
 
 export default LoginScreen;

@@ -196,6 +196,51 @@ describe('LoginScreen', () => {
     });
   });
 
+  describe('Error Display', () => {
+    it('should not display error message initially', () => {
+      const { queryByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(queryByTestId('error-message')).toBeNull();
+    });
+
+    it('should display error message with theme-aware styling', () => {
+      const { getByTestId, getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen errorMessage="Invalid username or password" />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const errorMessage = getByTestId('error-message');
+      expect(errorMessage).toBeTruthy();
+
+      const errorText = getByText('Invalid username or password');
+      expect(errorText).toBeTruthy();
+
+      // Verify theme-aware styling (error background color)
+      expect(errorMessage.props.style.backgroundColor).toBeDefined();
+    });
+
+    it('should hide error message when errorMessage prop is null', () => {
+      const { queryByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen errorMessage={null} />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(queryByTestId('error-message')).toBeNull();
+    });
+  });
+
   describe('Form Validation', () => {
     it('should disable login button initially when form is empty', () => {
       const { getByTestId } = render(
