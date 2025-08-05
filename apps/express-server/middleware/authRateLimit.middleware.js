@@ -24,7 +24,7 @@ const createRateLimitHandler = (rateLimitType) => (req, res, _next) => {
 // Rate limiting for authentication endpoints
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: 10, // Limit each IP to 10 requests per windowMs
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again in 15 minutes',
