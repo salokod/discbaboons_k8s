@@ -14,6 +14,12 @@ jest.mock('../../src/services/authService', () => ({
   handleNetworkError: jest.fn((error) => error.message || 'Something went wrong. Please try again.'),
 }));
 
+// Mock the HapticService functions
+jest.mock('../../src/services/hapticService', () => ({
+  triggerSuccessHaptic: jest.fn(),
+  triggerErrorHaptic: jest.fn(),
+}));
+
 describe('LoginScreen', () => {
   it('should export a LoginScreen component', () => {
     const LoginScreenModule = require('../../src/screens/LoginScreen');
@@ -649,6 +655,148 @@ describe('LoginScreen', () => {
       expect(getByTestIdAndroid('logo-image')).toBeTruthy();
       expect(getByTestIdIOS('tab-sign-in')).toBeTruthy();
       expect(getByTestIdAndroid('tab-sign-in')).toBeTruthy();
+    });
+  });
+
+  describe('Input Keyboard Configuration', () => {
+    it('should configure username input for optimal typing experience', () => {
+      const { getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const usernameInput = getByPlaceholderText('Username');
+      expect(usernameInput.props.autoCapitalize).toBe('none');
+      expect(usernameInput.props.autoCorrect).toBe(false);
+      expect(usernameInput.props.spellCheck).toBe(false);
+      expect(usernameInput.props.textContentType).toBe('username');
+    });
+
+    it('should configure password input with textContentType', () => {
+      const { getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const passwordInput = getByPlaceholderText('Password');
+      expect(passwordInput.props.textContentType).toBe('password');
+      expect(passwordInput.props.secureTextEntry).toBe(true);
+    });
+
+    it('should allow username input with mixed case typing', () => {
+      const { getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const usernameInput = getByPlaceholderText('Username');
+
+      // Simulate typing mixed case username
+      fireEvent.changeText(usernameInput, 'TestUser');
+
+      // Input should preserve the case as typed
+      expect(usernameInput.props.value).toBe('TestUser');
+
+      // But autoCapitalize should be 'none' to prevent auto-capitalization
+      expect(usernameInput.props.autoCapitalize).toBe('none');
+    });
+  });
+
+  describe('Haptic Feedback Integration', () => {
+    let mockAuthService;
+    let mockHapticService;
+
+    beforeEach(() => {
+      mockAuthService = require('../../src/services/authService');
+      mockHapticService = require('../../src/services/hapticService');
+
+      // Clear all previous mock calls
+      mockAuthService.login.mockClear();
+      mockHapticService.triggerSuccessHaptic.mockClear();
+      mockHapticService.triggerErrorHaptic.mockClear();
+    });
+
+    it('should trigger success haptic on successful login', async () => {
+      const mockLoginResponse = {
+        user: { id: 1, username: 'testuser' },
+        tokens: { accessToken: 'token', refreshToken: 'refresh' },
+      };
+
+      mockAuthService.login.mockResolvedValueOnce(mockLoginResponse);
+
+      const { getByText, getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      // Fill in form
+      fireEvent.changeText(getByPlaceholderText('Username'), 'testuser');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
+
+      // Submit form
+      const loginButton = getByText('Log In');
+      fireEvent.press(loginButton);
+
+      // Wait for async operation
+      await waitFor(() => {
+        expect(mockHapticService.triggerSuccessHaptic).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should trigger error haptic on failed login', async () => {
+      const mockError = new Error('Invalid credentials');
+      mockAuthService.login.mockRejectedValueOnce(mockError);
+      mockAuthService.handleNetworkError.mockReturnValueOnce('Invalid username or password');
+
+      const { getByText, getByPlaceholderText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      // Fill in form
+      fireEvent.changeText(getByPlaceholderText('Username'), 'wronguser');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'wrongpass');
+
+      // Submit form
+      const loginButton = getByText('Log In');
+      fireEvent.press(loginButton);
+
+      // Wait for async operation
+      await waitFor(() => {
+        expect(mockHapticService.triggerErrorHaptic).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should not trigger haptic feedback when form is invalid', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      // Try to submit with empty form (button should be disabled)
+      getByText('Log In');
+
+      // Button should be disabled, so no haptic feedback should occur
+      expect(mockHapticService.triggerSuccessHaptic).not.toHaveBeenCalled();
+      expect(mockHapticService.triggerErrorHaptic).not.toHaveBeenCalled();
     });
   });
 });

@@ -376,6 +376,7 @@ const loginPayload = {
 - Store tokens in react-native-keychain (encrypted)
 - Clear form data on successful login
 - Implement password visibility toggle
+- **SHOULD**: Add network timeout handling with AbortController (30s timeout)
 - Add biometric prompt option (future enhancement)
 
 #### Placeholder Screens Needed:
@@ -394,6 +395,7 @@ const loginPayload = {
 
 #### Accessibility Features:
 - Screen reader labels for all interactive elements
+- **MUST**: Add accessibilityLabel and accessibilityHint to all Input components
 - Proper tab order for form navigation
 - High contrast support in blackout theme
 - Large text scaling support
@@ -511,7 +513,25 @@ const loginPayload = {
 
 ### Phase 6: Support & Legal Screens
 
-### Phase 7: Polish & Production Readiness (Day 7)
+### Phase 7: Biometric Authentication (Future Enhancement)
+**Biometric Login Implementation:**
+- [ ] Install react-native-biometrics or react-native-touch-id
+- [ ] Check device biometric capabilities (Face ID, Touch ID, Fingerprint)
+- [ ] Prompt user to enable biometric login after successful password login
+- [ ] Store encrypted token with biometric protection
+- [ ] Add "Login with Face ID/Touch ID" option on login screen
+- [ ] Handle biometric failures with fallback to password
+- [ ] Settings screen toggle to enable/disable biometric login
+- [ ] Clear biometric data on logout
+- [ ] Test on devices with and without biometric hardware
+
+**Platform-Specific Implementation:**
+- iOS: Face ID requires NSFaceIDUsageDescription in Info.plist
+- iOS: Touch ID requires NSFaceIDUsageDescription 
+- Android: Fingerprint requires USE_FINGERPRINT permission
+- Both: Graceful degradation when biometrics unavailable
+
+### Phase 8: Polish & Production Readiness
 **User Experience Enhancements:**
 - [ ] Keyboard handling and dismissal
 - [ ] Form auto-focus and tab order
@@ -608,4 +628,4 @@ const loginPayload = {
 2. Create bags list screen
 3. Add profile/settings screen
 4. Implement logout functionality
-5. Add biometric authentication (optional)
+5. Add biometric authentication (Face ID/Touch ID on iOS, Fingerprint on Android)

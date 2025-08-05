@@ -9,7 +9,8 @@ import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
 function Input({
-  placeholder, value, onChangeText, secureTextEntry = false,
+  placeholder, value, onChangeText, secureTextEntry = false, accessibilityLabel, accessibilityHint,
+  autoCapitalize = 'sentences', autoCorrect = true, spellCheck = true, textContentType,
 }) {
   const colors = useThemeColors();
 
@@ -59,6 +60,12 @@ function Input({
       value={value}
       onChangeText={onChangeText}
       secureTextEntry={secureTextEntry}
+      accessibilityLabel={accessibilityLabel || placeholder}
+      accessibilityHint={accessibilityHint || (secureTextEntry ? 'Password input field' : 'Text input field')}
+      autoCapitalize={autoCapitalize}
+      autoCorrect={autoCorrect}
+      spellCheck={spellCheck}
+      textContentType={textContentType}
     />
   );
 }
@@ -66,15 +73,26 @@ function Input({
 Input.propTypes = {
   placeholder: PropTypes.string,
   value: PropTypes.string,
-  onChangeText: PropTypes.func,
+  onChangeText: PropTypes.func.isRequired,
   secureTextEntry: PropTypes.bool,
+  accessibilityLabel: PropTypes.string,
+  accessibilityHint: PropTypes.string,
+  autoCapitalize: PropTypes.oneOf(['none', 'sentences', 'words', 'characters']),
+  autoCorrect: PropTypes.bool,
+  spellCheck: PropTypes.bool,
+  textContentType: PropTypes.string,
 };
 
 Input.defaultProps = {
   placeholder: '',
   value: '',
-  onChangeText: () => {},
   secureTextEntry: false,
+  accessibilityLabel: undefined,
+  accessibilityHint: undefined,
+  autoCapitalize: 'sentences',
+  autoCorrect: true,
+  spellCheck: true,
+  textContentType: undefined,
 };
 
 export default Input;
