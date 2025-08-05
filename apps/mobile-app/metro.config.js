@@ -18,6 +18,14 @@ const config = {
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(workspaceRoot, 'node_modules'),
     ],
+    // Fix for RCTDeviceEventEmitter resolution issue
+    alias: {
+      'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
+    },
+    platforms: ['ios', 'android', 'native', 'web'],
+    // Explicitly resolve the problematic module
+    resolverMainFields: ['react-native', 'browser', 'main'],
+    disableHierarchicalLookup: false,
   },
 };
 
