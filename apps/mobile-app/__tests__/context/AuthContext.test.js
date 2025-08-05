@@ -8,10 +8,10 @@ import { AuthProvider, useAuth } from '../../src/context/AuthContext';
 
 describe('AuthContext', () => {
   it('should export AuthContext and AuthProvider', () => {
-    const { AuthContext, AuthProvider } = require('../../src/context/AuthContext');
+    const { AuthContext, AuthProvider: AuthProviderExport } = require('../../src/context/AuthContext');
 
     expect(AuthContext).toBeDefined();
-    expect(AuthProvider).toBeDefined();
+    expect(AuthProviderExport).toBeDefined();
   });
 
   it('should provide default auth state', () => {

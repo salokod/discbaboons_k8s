@@ -36,6 +36,9 @@ describe('App', () => {
     expect(getByTestId('auth-navigator')).toBeTruthy();
   });
 
+  // Integration test: LoginScreen rendering is tested in LoginScreen.test.js
+  // Navigation integration will be tested through user interactions
+
   // TODO: Test authenticated state through integration tests when we have LoginScreen
   // We'll test the auth flow by actually logging in through the UI
 });

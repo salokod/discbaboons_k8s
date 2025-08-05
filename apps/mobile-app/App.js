@@ -2,18 +2,22 @@
  * DiscBaboons Mobile App
  */
 
-import { View } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import LoginScreen from './src/screens/LoginScreen';
 
-const AuthStack = createNativeStackNavigator();
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
 
 function AuthNavigator() {
   return (
-    <View testID="auth-navigator">
-      {/* Placeholder for auth screens */}
+    <View testID="auth-navigator" style={styles.container}>
+      <LoginScreen />
     </View>
   );
 }
@@ -30,7 +34,7 @@ function RootNavigator() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <View testID="navigation-container" style={{ flex: 1 }}>
+    <View testID="navigation-container" style={styles.container}>
       {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
     </View>
   );
