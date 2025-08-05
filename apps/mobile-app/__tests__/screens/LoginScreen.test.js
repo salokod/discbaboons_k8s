@@ -3,10 +3,16 @@
  */
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ThemeProvider } from '../../src/context/ThemeContext';
 import { AuthProvider } from '../../src/context/AuthContext';
 import LoginScreen from '../../src/screens/LoginScreen';
+
+// Mock the AuthService functions
+jest.mock('../../src/services/authService', () => ({
+  login: jest.fn(),
+  handleNetworkError: jest.fn((error) => error.message || 'Something went wrong. Please try again.'),
+}));
 
 describe('LoginScreen', () => {
   it('should export a LoginScreen component', () => {
@@ -102,7 +108,15 @@ describe('LoginScreen', () => {
     expect(usernameInput.props.secureTextEntry).toBeFalsy();
   });
 
-  it('should call login function when valid form is submitted', () => {
+  it('should call login function when valid form is submitted', async () => {
+    // Mock successful API response
+    const { login: authLogin } = require('../../src/services/authService');
+    const mockApiResponse = {
+      user: { id: 123, username: 'testuser' },
+      tokens: { accessToken: 'token123', refreshToken: 'refresh123' },
+    };
+    authLogin.mockResolvedValueOnce(mockApiResponse);
+
     // Create a mock login function to track calls
     const mockLogin = jest.fn();
 
@@ -142,39 +156,25 @@ describe('LoginScreen', () => {
     const loginButton = getByText('Log In');
     fireEvent.press(loginButton);
 
-    // Verify login was called with expected user data
-    expect(mockLogin).toHaveBeenCalledWith({
-      user: { username: 'testuser' },
-      tokens: { access: 'mock-jwt-token' },
+    // Wait for async operation
+    await waitFor(() => {
+      expect(authLogin).toHaveBeenCalledWith('testuser', 'validpass123');
+      expect(mockLogin).toHaveBeenCalledWith(mockApiResponse);
     });
   });
 
-  it('should authenticate user when login button is pressed', () => {
-    // Create a mock login function to track calls
-    const mockLogin = jest.fn();
+  it('should show loading state during login', async () => {
+    // Mock API call that takes time
+    const { login: authLogin } = require('../../src/services/authService');
+    authLogin.mockImplementation(() => new Promise((resolve) => {
+      setTimeout(resolve, 100);
+    }));
 
-    // Create a custom AuthProvider that provides our mock login function
-    function TestAuthProvider({ children }) {
-      const contextValue = {
-        isAuthenticated: false,
-        user: null,
-        tokens: null,
-        login: mockLogin,
-        logout: jest.fn(),
-      };
-
-      return React.createElement(
-        require('../../src/context/AuthContext').AuthContext.Provider,
-        { value: contextValue },
-        children,
-      );
-    }
-
-    const { getByText, getByPlaceholderText } = render(
+    const { getByText, getByPlaceholderText, getByTestId } = render(
       <ThemeProvider>
-        <TestAuthProvider>
+        <AuthProvider>
           <LoginScreen />
-        </TestAuthProvider>
+        </AuthProvider>
       </ThemeProvider>,
     );
 
@@ -183,16 +183,50 @@ describe('LoginScreen', () => {
     const passwordInput = getByPlaceholderText('Password');
 
     fireEvent.changeText(usernameInput, 'testuser');
-    fireEvent.changeText(passwordInput, 'testpass');
+    fireEvent.changeText(passwordInput, 'validpass123');
 
     // Press login button
     const loginButton = getByText('Log In');
     fireEvent.press(loginButton);
 
-    // Verify login was called with user data
-    expect(mockLogin).toHaveBeenCalledWith({
-      user: { username: 'testuser' },
-      tokens: { access: 'mock-jwt-token' },
+    // Should show loading state
+    expect(getByText('Logging in...')).toBeTruthy();
+
+    // Button should be disabled during loading (check the actual button element)
+    const buttonElement = getByTestId('button');
+    expect(buttonElement.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('should handle login errors', async () => {
+    // Mock API error
+    const { login: authLogin, handleNetworkError } = require('../../src/services/authService');
+    const error = new Error('Invalid username or password');
+    authLogin.mockRejectedValueOnce(error);
+    handleNetworkError.mockReturnValueOnce('Invalid username or password');
+
+    const { getByText, getByPlaceholderText, getByTestId } = render(
+      <ThemeProvider>
+        <AuthProvider>
+          <LoginScreen />
+        </AuthProvider>
+      </ThemeProvider>,
+    );
+
+    // Fill in form data
+    const usernameInput = getByPlaceholderText('Username');
+    const passwordInput = getByPlaceholderText('Password');
+
+    fireEvent.changeText(usernameInput, 'testuser');
+    fireEvent.changeText(passwordInput, 'wrongpass');
+
+    // Press login button
+    const loginButton = getByText('Log In');
+    fireEvent.press(loginButton);
+
+    // Wait for error to show
+    await waitFor(() => {
+      expect(getByTestId('error-message')).toBeTruthy();
+      expect(getByText('Invalid username or password')).toBeTruthy();
     });
   });
 

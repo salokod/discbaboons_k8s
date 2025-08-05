@@ -13,6 +13,7 @@ import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import { login as authLogin, handleNetworkError } from '../services/authService';
 
 function LoginScreen({
   errorMessage = null,
@@ -29,6 +30,7 @@ function LoginScreen({
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(null);
   const [activeTab, setActiveTab] = useState('signin');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Form validation logic
   const isUsernameValid = useMemo(() => username.length >= 4 && username.length <= 20, [username]);
@@ -40,22 +42,24 @@ function LoginScreen({
     [isUsernameValid, isPasswordValid],
   );
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     // Clear any previous errors
     setLoginError(null);
+    setIsLoading(true);
 
-    // TODO: Replace with actual API call
-    // For demo purposes, show error for invalid test credentials
-    if (username === 'demo' && password === 'wrongpass') {
-      setLoginError('Invalid username or password');
-      return;
+    try {
+      // Call real API
+      const { user, tokens } = await authLogin(username, password);
+
+      // Successful login - update auth context
+      login({ user, tokens });
+    } catch (error) {
+      // Handle login errors
+      const errorMsg = handleNetworkError(error);
+      setLoginError(errorMsg);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Mock successful login
-    login({
-      user: { username },
-      tokens: { access: 'mock-jwt-token' },
-    });
   };
 
   const styles = StyleSheet.create({
@@ -341,10 +345,16 @@ function LoginScreen({
 
             <View style={styles.buttonContainer}>
               <Button
-                title={activeTab === 'signin' ? 'Log In' : 'Create Account'}
+                title={
+                  (() => {
+                    if (isLoading && activeTab === 'signin') return 'Logging in...';
+                    if (activeTab === 'signin') return 'Log In';
+                    return 'Create Account';
+                  })()
+                }
                 onPress={activeTab === 'signin' ? handleLogin : onCreateAccount}
                 variant="primary"
-                disabled={!isFormValid}
+                disabled={!isFormValid || isLoading}
               />
             </View>
 
