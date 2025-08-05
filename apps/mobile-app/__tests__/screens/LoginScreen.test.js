@@ -312,6 +312,73 @@ describe('LoginScreen', () => {
     });
   });
 
+  describe('Footer Links', () => {
+    it('should display Privacy Policy link', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Privacy Policy')).toBeTruthy();
+    });
+
+    it('should display Terms of Service link', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Terms of Service')).toBeTruthy();
+    });
+
+    it('should display Support link', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Support')).toBeTruthy();
+    });
+
+    it('should display copyright text', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      expect(getByText('© 2025 DiscBaboons')).toBeTruthy();
+    });
+
+    it('should handle privacy policy link press', () => {
+      const mockOnPrivacyPolicy = jest.fn();
+
+      const { getByText } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen onPrivacyPolicy={mockOnPrivacyPolicy} />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const privacyLink = getByText('Privacy Policy');
+      fireEvent.press(privacyLink);
+
+      expect(mockOnPrivacyPolicy).toHaveBeenCalled();
+    });
+  });
+
   describe('Secondary Actions', () => {
     it('should display forgot password link', () => {
       const { getByText } = render(
@@ -468,6 +535,86 @@ describe('LoginScreen', () => {
       fireEvent.changeText(passwordInput, 'validPassword123!'); // 17 chars (8-32 range)
 
       expect(loginButton.props.accessibilityState?.disabled).toBe(false);
+    });
+  });
+
+  describe('Platform-Specific Styling', () => {
+    const originalPlatform = require('react-native').Platform.OS;
+    const originalSelect = require('react-native').Platform.select;
+
+    afterEach(() => {
+      require('react-native').Platform.OS = originalPlatform;
+      require('react-native').Platform.select = originalSelect;
+    });
+
+    it('should apply iOS-specific styles', () => {
+      require('react-native').Platform.OS = 'ios';
+      require('react-native').Platform.select = (obj) => obj.ios;
+
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const loginScreen = getByTestId('login-screen');
+      expect(loginScreen).toBeTruthy();
+
+      // iOS should use SafeAreaView without extra padding
+      expect(loginScreen.props.style.paddingTop).toBeUndefined();
+    });
+
+    it('should apply Android-specific styles', () => {
+      require('react-native').Platform.OS = 'android';
+      require('react-native').Platform.select = (obj) => obj.android;
+
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      const loginScreen = getByTestId('login-screen');
+      expect(loginScreen).toBeTruthy();
+
+      // Android should have StatusBar padding
+      expect(loginScreen.props.style.paddingTop).toBe(40);
+    });
+
+    it('should render consistently across platforms', () => {
+      // Test iOS
+      require('react-native').Platform.OS = 'ios';
+      require('react-native').Platform.select = (obj) => obj.ios;
+      const { getByTestId: getByTestIdIOS } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      // Test Android
+      require('react-native').Platform.OS = 'android';
+      require('react-native').Platform.select = (obj) => obj.android;
+      const { getByTestId: getByTestIdAndroid } = render(
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginScreen />
+          </AuthProvider>
+        </ThemeProvider>,
+      );
+
+      // Both should have all the same functional elements
+      expect(getByTestIdIOS('login-screen')).toBeTruthy();
+      expect(getByTestIdAndroid('login-screen')).toBeTruthy();
+      expect(getByTestIdIOS('logo-image')).toBeTruthy();
+      expect(getByTestIdAndroid('logo-image')).toBeTruthy();
+      expect(getByTestIdIOS('tab-sign-in')).toBeTruthy();
+      expect(getByTestIdAndroid('tab-sign-in')).toBeTruthy();
     });
   });
 });

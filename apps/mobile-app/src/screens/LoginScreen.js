@@ -3,7 +3,7 @@
  */
 
 import {
-  View, StyleSheet, Image, Text, TouchableOpacity,
+  View, StyleSheet, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Platform,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
@@ -15,7 +15,13 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 
 function LoginScreen({
-  errorMessage = null, onForgotPassword, onForgotUsername, onCreateAccount,
+  errorMessage = null,
+  onForgotPassword,
+  onForgotUsername,
+  onCreateAccount,
+  onPrivacyPolicy,
+  onTermsOfService,
+  onSupport,
 }) {
   const colors = useThemeColors();
   const { login } = useAuth();
@@ -53,59 +59,101 @@ function LoginScreen({
   };
 
   const styles = StyleSheet.create({
-    container: {
+    safeArea: {
       flex: 1,
       backgroundColor: colors.background,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl,
+      ...Platform.select({
+        android: {
+          paddingTop: 40, // StatusBar height + extra spacing for Android
+        },
+      }),
     },
-    logoContainer: {
+    container: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: Platform.select({
+        ios: spacing.lg,
+        android: spacing.xl,
+      }),
+    },
+    headerSection: {
       alignItems: 'center',
-      marginBottom: spacing.xl,
+      paddingTop: Platform.select({
+        ios: spacing.xl,
+        android: spacing.xl,
+      }),
+      paddingBottom: spacing.xl,
     },
     logo: {
-      width: 150,
-      height: 150,
+      width: 120,
+      height: 120,
       resizeMode: 'contain',
     },
-    formContainer: {
-      gap: spacing.md,
-    },
-    errorContainer: {
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      backgroundColor: colors.error,
-      borderRadius: 8,
-      marginBottom: spacing.md,
-    },
-    errorText: {
-      ...typography.body,
-      color: '#FFFFFF',
-      textAlign: 'center',
+    contentSection: {
+      flex: 1,
+      minHeight: Platform.select({
+        ios: 400,
+        android: 450,
+      }),
     },
     tabContainer: {
       flexDirection: 'row',
       backgroundColor: colors.surface,
       borderRadius: 12,
-      marginBottom: spacing.lg,
+      marginBottom: spacing.xl,
       padding: 4,
+      ...Platform.select({
+        android: {
+          elevation: 2,
+        },
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+        },
+      }),
     },
     tab: {
       flex: 1,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
+      paddingVertical: Platform.select({
+        ios: spacing.md,
+        android: spacing.lg,
+      }),
+      paddingHorizontal: spacing.lg,
       borderRadius: 8,
       alignItems: 'center',
     },
     activeTab: {
       backgroundColor: colors.secondary,
+      ...Platform.select({
+        android: {
+          elevation: 1,
+        },
+        ios: {
+          shadowColor: colors.secondary,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.2,
+          shadowRadius: 1,
+        },
+      }),
     },
     inactiveTab: {
       backgroundColor: 'transparent',
     },
     tabText: {
       ...typography.body,
-      fontWeight: '600',
+      fontWeight: Platform.select({
+        ios: '600',
+        android: 'bold',
+      }),
+      fontSize: Platform.select({
+        ios: typography.body.fontSize,
+        android: typography.body.fontSize + 1,
+      }),
     },
     activeTabText: {
       color: '#FFFFFF',
@@ -113,111 +161,228 @@ function LoginScreen({
     inactiveTabText: {
       color: colors.text,
     },
+    formContainer: {
+      gap: spacing.lg,
+    },
+    inputGroup: {
+      gap: Platform.select({
+        ios: spacing.md,
+        android: spacing.lg,
+      }),
+    },
+    errorContainer: {
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.error,
+      borderRadius: 12,
+      marginBottom: spacing.md,
+      ...Platform.select({
+        android: {
+          elevation: 2,
+        },
+        ios: {
+          shadowColor: colors.error,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        },
+      }),
+    },
+    errorText: {
+      ...typography.body,
+      color: '#FFFFFF',
+      textAlign: 'center',
+      fontSize: Platform.select({
+        ios: typography.body.fontSize,
+        android: typography.body.fontSize + 1,
+      }),
+    },
+    buttonContainer: {
+      marginTop: Platform.select({
+        ios: spacing.sm,
+        android: spacing.md,
+      }),
+    },
     secondaryActionsContainer: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      marginTop: spacing.md,
+      marginTop: spacing.lg,
+      paddingHorizontal: Platform.select({
+        ios: 0,
+        android: spacing.xs,
+      }),
     },
     linkText: {
       ...typography.body,
       color: colors.primary,
       textDecorationLine: 'underline',
+      fontSize: Platform.select({
+        ios: typography.body.fontSize,
+        android: typography.body.fontSize + 1,
+      }),
+    },
+    footerSection: {
+      paddingTop: spacing.xl,
+      paddingBottom: Platform.select({
+        ios: spacing.lg,
+        android: spacing.xl,
+      }),
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    footerLinksContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: Platform.select({
+        ios: spacing.lg,
+        android: spacing.md,
+      }),
+      marginBottom: spacing.md,
+    },
+    footerLinkText: {
+      ...typography.caption,
+      color: colors.primary,
+      textDecorationLine: 'underline',
+      fontSize: Platform.select({
+        ios: typography.caption.fontSize,
+        android: typography.caption.fontSize + 1,
+      }),
+    },
+    copyrightText: {
+      ...typography.caption,
+      color: colors.textLight,
+      textAlign: 'center',
+      fontSize: Platform.select({
+        ios: typography.caption.fontSize,
+        android: typography.caption.fontSize + 1,
+      }),
     },
   });
 
   return (
-    <View testID="login-screen" style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image
-          testID="logo-image"
-          source={require('../../discbaboon_logo_blue.png')}
-          style={styles.logo}
-        />
-      </View>
+    <SafeAreaView testID="login-screen" style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.headerSection}>
+          <Image
+            testID="logo-image"
+            source={require('../../discbaboon_logo_blue.png')}
+            style={styles.logo}
+          />
+        </View>
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          testID="tab-sign-in"
-          style={[
-            styles.tab,
-            activeTab === 'signin' ? styles.activeTab : styles.inactiveTab,
-          ]}
-          onPress={() => setActiveTab('signin')}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'signin' ? styles.activeTabText : styles.inactiveTabText,
-          ]}
-          >
-            Sign In
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          testID="tab-sign-up"
-          style={[
-            styles.tab,
-            activeTab === 'signup' ? styles.activeTab : styles.inactiveTab,
-          ]}
-          onPress={() => setActiveTab('signup')}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'signup' ? styles.activeTabText : styles.inactiveTabText,
-          ]}
-          >
-            Sign Up
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.formContainer}>
-        {(errorMessage || loginError) && (
-          <View testID="error-message" style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMessage || loginError}</Text>
-          </View>
-        )}
-        <Input
-          placeholder="Username"
-          value={username}
-          onChangeText={(text) => {
-            setUsername(text);
-            if (loginError) setLoginError(null);
-          }}
-        />
-        <Input
-          placeholder="Password"
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (loginError) setLoginError(null);
-          }}
-          secureTextEntry
-        />
-        <Button
-          title={activeTab === 'signin' ? 'Log In' : 'Create Account'}
-          onPress={activeTab === 'signin' ? handleLogin : onCreateAccount}
-          variant="primary"
-          disabled={!isFormValid}
-        />
-
-        {activeTab === 'signin' && (
-          <View style={styles.secondaryActionsContainer}>
-            <Text
-              style={styles.linkText}
-              onPress={onForgotUsername}
+        <View style={styles.contentSection}>
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              testID="tab-sign-in"
+              style={[
+                styles.tab,
+                activeTab === 'signin' ? styles.activeTab : styles.inactiveTab,
+              ]}
+              onPress={() => setActiveTab('signin')}
             >
-              Forgot username?
-            </Text>
-            <Text
-              style={styles.linkText}
-              onPress={onForgotPassword}
+              <Text style={[
+                styles.tabText,
+                activeTab === 'signin' ? styles.activeTabText : styles.inactiveTabText,
+              ]}
+              >
+                Sign In
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="tab-sign-up"
+              style={[
+                styles.tab,
+                activeTab === 'signup' ? styles.activeTab : styles.inactiveTab,
+              ]}
+              onPress={() => setActiveTab('signup')}
             >
-              Forgot password?
+              <Text style={[
+                styles.tabText,
+                activeTab === 'signup' ? styles.activeTabText : styles.inactiveTabText,
+              ]}
+              >
+                Sign Up
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.formContainer}>
+            {(errorMessage || loginError) && (
+              <View testID="error-message" style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMessage || loginError}</Text>
+              </View>
+            )}
+
+            <View style={styles.inputGroup}>
+              <Input
+                placeholder="Username"
+                value={username}
+                onChangeText={(text) => {
+                  setUsername(text);
+                  if (loginError) setLoginError(null);
+                }}
+              />
+              <Input
+                placeholder="Password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (loginError) setLoginError(null);
+                }}
+                secureTextEntry
+              />
+            </View>
+
+            <View style={styles.buttonContainer}>
+              <Button
+                title={activeTab === 'signin' ? 'Log In' : 'Create Account'}
+                onPress={activeTab === 'signin' ? handleLogin : onCreateAccount}
+                variant="primary"
+                disabled={!isFormValid}
+              />
+            </View>
+
+            {activeTab === 'signin' && (
+              <View style={styles.secondaryActionsContainer}>
+                <Text
+                  style={styles.linkText}
+                  onPress={onForgotUsername}
+                >
+                  Forgot username?
+                </Text>
+                <Text
+                  style={styles.linkText}
+                  onPress={onForgotPassword}
+                >
+                  Forgot password?
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.footerSection}>
+          <View style={styles.footerLinksContainer}>
+            <Text style={styles.footerLinkText} onPress={onPrivacyPolicy}>
+              Privacy Policy
+            </Text>
+            <Text style={styles.footerLinkText} onPress={onTermsOfService}>
+              Terms of Service
+            </Text>
+            <Text style={styles.footerLinkText} onPress={onSupport}>
+              Support
             </Text>
           </View>
-        )}
-      </View>
-    </View>
+          <Text style={styles.copyrightText}>© 2025 DiscBaboons</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -226,6 +391,9 @@ LoginScreen.propTypes = {
   onForgotPassword: PropTypes.func,
   onForgotUsername: PropTypes.func,
   onCreateAccount: PropTypes.func,
+  onPrivacyPolicy: PropTypes.func,
+  onTermsOfService: PropTypes.func,
+  onSupport: PropTypes.func,
 };
 
 LoginScreen.defaultProps = {
@@ -233,6 +401,9 @@ LoginScreen.defaultProps = {
   onForgotPassword: () => {},
   onForgotUsername: () => {},
   onCreateAccount: () => {},
+  onPrivacyPolicy: () => {},
+  onTermsOfService: () => {},
+  onSupport: () => {},
 };
 
 export default LoginScreen;

@@ -2,7 +2,7 @@
  * Input Component
  */
 
-import { TextInput, StyleSheet } from 'react-native';
+import { TextInput, StyleSheet, Platform } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../context/ThemeContext';
 import { spacing } from '../design-system/spacing';
@@ -16,13 +16,37 @@ function Input({
   const styles = StyleSheet.create({
     input: {
       ...typography.body,
-      paddingVertical: spacing.md,
+      paddingVertical: Platform.select({
+        ios: spacing.md,
+        android: spacing.lg,
+      }),
       paddingHorizontal: spacing.md,
-      borderWidth: 1,
+      borderWidth: Platform.select({
+        ios: 1,
+        android: 0,
+      }),
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: Platform.select({
+        ios: 8,
+        android: 12,
+      }),
       backgroundColor: colors.surface,
       color: colors.text,
+      fontSize: Platform.select({
+        ios: typography.body.fontSize,
+        android: typography.body.fontSize + 1,
+      }),
+      ...Platform.select({
+        android: {
+          elevation: 1,
+        },
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 1,
+        },
+      }),
     },
   });
 
