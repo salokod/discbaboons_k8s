@@ -22,8 +22,8 @@ export const themes = {
   [THEME_NAMES.LIGHT]: {
     ...brandColors,
     ...semanticColors,
-    background: '#FFFFFF',
-    surface: '#F5F5F5',
+    background: '#FAFBFC', // Very soft, warm off-white background
+    surface: '#FFFFFF', // Pure white for cards/inputs
     text: '#212121',
     textLight: '#757575',
     border: '#E0E0E0',
