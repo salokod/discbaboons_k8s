@@ -524,6 +524,29 @@ const loginPayload = {
 - Modern UX pattern expected in mobile apps
 - Accessibility support for password entry
 
+### Phase 3.5: Password Visibility Toggle ✅ COMPLETE
+**LoginScreen Password Visibility:**
+- [x] Add password visibility toggle (eye icon) to password input field
+- [x] Icon state: 👁️ (show password) ↔️ 🙈 (hide password) 
+- [x] Toggle secureTextEntry property on TextInput
+- [x] Position icon inside password input field (right side)
+- [x] Maintain theme-aware styling (light/dark/blackout themes)
+- [x] Add accessibility labels for screen readers
+- [x] Include in existing LoginScreen tests
+
+**Implementation Details:**
+- Use existing Input component with new `showPasswordToggle` prop
+- Add TouchableOpacity with eye icon inside input container
+- Toggle between secureTextEntry true/false on press
+- Maintain existing validation and error handling
+- Apply same pattern to RegisterScreen when implemented
+
+**User Experience Goals:**
+- Help users verify password input accuracy
+- Reduce login failures from typos
+- Modern UX pattern expected in mobile apps
+- Accessibility support for password entry
+
 ### Phase 4: Registration Flow (NEXT)
 **RegisterScreen Implementation:**
 - [ ] Create RegisterScreen with consistent styling and theme support
