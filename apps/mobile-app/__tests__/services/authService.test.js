@@ -2,7 +2,7 @@
  * AuthService Tests
  */
 
-import { login, handleNetworkError } from '../../src/services/authService';
+import { login, handleNetworkError, forgotPassword } from '../../src/services/authService';
 
 // Mock the environment config
 jest.mock('../../src/config/environment', () => ({
@@ -26,6 +26,7 @@ global.clearTimeout = jest.fn();
 
 describe('AuthService Functions', () => {
   beforeEach(() => {
+    jest.resetAllMocks();
     fetch.mockClear();
     global.setTimeout.mockClear();
     global.clearTimeout.mockClear();
@@ -362,6 +363,73 @@ describe('AuthService Functions', () => {
       const error = new Error('Network request failed');
       const message = handleNetworkError(error);
       expect(message).toBe('Network error occurred. Please check your internet connection.');
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('should export a forgotPassword function', () => {
+      expect(typeof forgotPassword).toBe('function');
+    });
+
+    it('should successfully send password reset request', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Reset instructions sent to your email',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await forgotPassword('testuser');
+
+      expect(fetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/auth/forgot-password',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            usernameOrEmail: 'testuser',
+          }),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle validation errors', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Username or email is required',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => mockResponse,
+      });
+
+      await expect(forgotPassword('')).rejects.toThrow('Username or email is required');
+    });
+
+    it('should handle user not found errors', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'User not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => mockResponse,
+      });
+
+      await expect(forgotPassword('nonexistentuser')).rejects.toThrow('User not found');
     });
   });
 });

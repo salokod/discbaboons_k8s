@@ -14,6 +14,12 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+// Mock the HapticService functions
+jest.mock('../src/services/hapticService', () => ({
+  triggerSuccessHaptic: jest.fn(),
+  triggerErrorHaptic: jest.fn(),
+}));
+
 jest.mock('@react-navigation/native-stack', () => ({
   createNativeStackNavigator: () => ({
     Navigator: ({ children }) => children,

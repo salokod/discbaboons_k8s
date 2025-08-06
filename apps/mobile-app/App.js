@@ -4,9 +4,11 @@
 
 import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import LoginScreen from './src/screens/LoginScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 
 const styles = StyleSheet.create({
   container: {
@@ -14,10 +16,19 @@ const styles = StyleSheet.create({
   },
 });
 
+const AuthStack = createNativeStackNavigator();
+
+function LoginScreenWithNavigation({ navigation, route }) {
+  return <LoginScreen navigation={navigation} route={route} onForgotPassword={() => navigation.navigate('ForgotPassword')} />;
+}
+
 function AuthNavigator() {
   return (
     <View testID="auth-navigator" style={styles.container}>
-      <LoginScreen />
+      <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+        <AuthStack.Screen name="Login" component={LoginScreenWithNavigation} />
+        <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      </AuthStack.Navigator>
     </View>
   );
 }

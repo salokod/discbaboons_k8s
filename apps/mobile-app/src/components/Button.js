@@ -24,7 +24,7 @@ function Button({
 
   const getTextColor = () => {
     if (disabled) {
-      return colors.surface; // Light text on disabled buttons
+      return '#FFFFFF'; // White text on disabled buttons for contrast
     }
     return variant === 'primary' ? '#FFFFFF' : colors.text;
   };

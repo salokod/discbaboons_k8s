@@ -207,3 +207,56 @@ export function handleNetworkError(error) {
   }
   return error.message || 'Something went wrong. Please try again later.';
 }
+
+/**
+ * Send password reset request to the backend
+ * @param {string} usernameOrEmail - Username or email for password reset
+ * @returns {Promise<object>} Success response from API
+ * @throws {Error} Network or validation errors
+ */
+export async function forgotPassword(usernameOrEmail) {
+  // Basic validation
+  if (!usernameOrEmail || typeof usernameOrEmail !== 'string' || !usernameOrEmail.trim()) {
+    throw new Error('Username or email is required');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 30000);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        usernameOrEmail: usernameOrEmail.trim(),
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 400) {
+        throw new Error(data.message || 'Username or email is required');
+      }
+      if (response.status === 404) {
+        throw new Error(data.message || 'User not found');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to process request. Please try again.');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}

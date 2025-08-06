@@ -604,15 +604,56 @@ const loginPayload = {
 - **Reduced User Friction**: Clear visual indicators eliminate guesswork about form requirements
 - **Cross-Platform Consistency**: Identical professional experience on both iOS and Android devices
 
-### Phase 5: Password Recovery Flow
-**ForgotPasswordScreen:**
-- [ ] Email input for password reset request
-- [ ] Connect to /api/auth/forgot-password endpoint  
-- [ ] Success confirmation with next steps
-- [ ] Resend code functionality
-- [ ] Link back to LoginScreen
+### Phase 5: Password Recovery Flow - Banking-App Quality UX
 
-**ForgotUsernameScreen:**
+**Design Philosophy:**
+Seamless, security-focused password recovery that feels like a premium banking application. Users should experience a guided, confidence-inspiring flow with clear security messaging and professional micro-interactions.
+
+**Core UX Principles:**
+1. **Security Transparency**: Clear messaging about what's happening and why
+2. **Seamless Flow**: No manual navigation between screens - automatic progression
+3. **Smart Input Detection**: Flexible username/email input with intelligent validation
+4. **Professional Loading States**: Security-themed animations and messaging
+5. **Error Recovery**: Helpful guidance when things go wrong
+
+**ForgotPasswordScreen Implementation:**
+- [ ] **Smart Input Field**: Flexible username/email input that detects format and validates appropriately
+- [ ] **Security-Focused Messaging**: "We'll help you regain secure access to your account" with lock icons
+- [ ] **Professional Loading States**: "Sending secure reset instructions..." with security animations
+- [ ] **Seamless Auto-Navigation**: Automatically transitions to ResetPasswordScreen after successful request
+- [ ] **Connect to /api/auth/forgot-password endpoint**: Backend integration with proper error handling
+- [ ] **Professional Error Handling**: User-friendly messages for network errors, rate limiting, invalid emails
+
+**ResetPasswordScreen Implementation:**
+- [ ] **Combined Interface**: Single screen with both 6-digit code entry AND new password fields
+- [ ] **Smart Code Input**: Auto-formatting, auto-advance between digits, paste support
+- [ ] **Real-time Password Validation**: Individual requirement indicators (length, uppercase, lowercase, number, special char)
+- [ ] **Security Messaging**: "Enter the 6-digit code sent to your email" with clear instructions
+- [ ] **Resend Functionality**: 60-second cooldown with countdown timer and professional retry experience
+- [ ] **Connect to /api/auth/change-password endpoint**: Complete backend integration
+- [ ] **Success Flow**: Automatic redirect to LoginScreen with success message and pre-filled username
+
+**Advanced UX Features:**
+- [ ] **Code Expiration Handling**: Clear messaging when codes expire (30 minutes)
+- [ ] **Network Error Recovery**: Offline detection with retry mechanisms
+- [ ] **Form State Persistence**: Remember email/username during the flow
+- [ ] **Accessibility Excellence**: Full screen reader support, keyboard navigation
+- [ ] **Cross-Platform Polish**: Identical professional experience on iOS and Android
+
+**Professional Micro-Interactions:**
+- [ ] **Loading Animations**: Security-themed spinners and progress indicators
+- [ ] **Success Feedback**: Green check animations and haptic feedback
+- [ ] **Error States**: Gentle error animations without jarring transitions
+- [ ] **Code Input Animation**: Smooth transitions between code digits
+- [ ] **Form Validation**: Real-time visual feedback for all inputs
+
+**Security & Trust Building:**
+- [ ] **Clear Security Messaging**: Explain each step and why it's secure
+- [ ] **Professional Visual Design**: Use consistent brand colors and professional typography
+- [ ] **Confidence-Building Copy**: "Your account security is our priority" messaging
+- [ ] **Transparent Process**: Show exactly what's happening at each step
+
+**ForgotUsernameScreen (Simple Implementation):**
 - [ ] Email input for username recovery
 - [ ] Connect to /api/auth/forgot-username endpoint
 - [ ] Success confirmation message
