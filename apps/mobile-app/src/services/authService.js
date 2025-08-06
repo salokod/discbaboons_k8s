@@ -119,6 +119,78 @@ export async function login(username, password) {
 }
 
 /**
+ * Register user with username, email and password
+ * @param {string} username - User's username
+ * @param {string} email - User's email
+ * @param {string} password - User's password
+ * @returns {Promise<{success: boolean, user: Object}>} Registration result
+ * @throws {Error} Registration failed error with message
+ */
+export async function register(username, email, password) {
+  // Validate inputs before making API call
+  validateUsername(username);
+  validatePassword(password);
+
+  if (!email || typeof email !== 'string') {
+    throw new Error('Email is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: username.trim().toLowerCase(),
+        email: email.trim(),
+        password,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 409) {
+        // Backend returns conflict for existing username/email
+        throw new Error(data.message || 'Username or email already exists');
+      }
+      if (response.status === 400) {
+        // Backend ValidationError messages
+        throw new Error(data.message || 'Please check your registration details');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      success: data.success,
+      user: data.user,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
  * Handle network errors and timeouts with enhanced messaging
  * @param {Error} error - Network error
  * @returns {string} User-friendly error message

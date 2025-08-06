@@ -4,8 +4,9 @@
 
 import {
   View, StyleSheet, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Platform,
+  TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import { login as authLogin, handleNetworkError } from '../services/authService';
 import { triggerSuccessHaptic, triggerErrorHaptic } from '../services/hapticService';
+import RegisterScreen from './RegisterScreen';
 
 function LoginScreen({
   errorMessage = null,
@@ -32,6 +34,11 @@ function LoginScreen({
   const [loginError, setLoginError] = useState(null);
   const [activeTab, setActiveTab] = useState('signin');
   const [isLoading, setIsLoading] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(null);
+
+  // Refs for auto-focus flow
+  const usernameInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
 
   // Form validation logic
   const isUsernameValid = useMemo(() => username.length >= 4 && username.length <= 20, [username]);
@@ -67,6 +74,20 @@ function LoginScreen({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRegistrationSuccess = (registeredUsername) => {
+    // Set success message with username
+    setRegistrationSuccess(registeredUsername);
+
+    // Switch to Sign In tab
+    setActiveTab('signin');
+
+    // Pre-fill the username field
+    setUsername(registeredUsername);
+
+    // Clear any login errors
+    setLoginError(null);
   };
 
   const styles = StyleSheet.create({
@@ -181,6 +202,33 @@ function LoginScreen({
         android: spacing.lg,
       }),
     },
+    successContainer: {
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.success,
+      borderRadius: 12,
+      marginBottom: spacing.md,
+      ...Platform.select({
+        android: {
+          elevation: 2,
+        },
+        ios: {
+          shadowColor: colors.success,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        },
+      }),
+    },
+    successText: {
+      ...typography.body,
+      color: '#FFFFFF',
+      textAlign: 'center',
+      fontSize: Platform.select({
+        ios: typography.body.fontSize,
+        android: typography.body.fontSize + 1,
+      }),
+    },
     errorContainer: {
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
@@ -273,138 +321,169 @@ function LoginScreen({
 
   return (
     <SafeAreaView testID="login-screen" style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.headerSection}>
-          <Image
-            testID="logo-image"
-            source={require('../../discbaboon_logo_blue.png')}
-            style={styles.logo}
-          />
-        </View>
-
-        <View style={styles.contentSection}>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              testID="tab-sign-in"
-              style={[
-                styles.tab,
-                activeTab === 'signin' ? styles.activeTab : styles.inactiveTab,
-              ]}
-              onPress={() => setActiveTab('signin')}
-            >
-              <Text style={[
-                styles.tabText,
-                activeTab === 'signin' ? styles.activeTabText : styles.inactiveTabText,
-              ]}
-              >
-                Sign In
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="tab-sign-up"
-              style={[
-                styles.tab,
-                activeTab === 'signup' ? styles.activeTab : styles.inactiveTab,
-              ]}
-              onPress={() => setActiveTab('signup')}
-            >
-              <Text style={[
-                styles.tabText,
-                activeTab === 'signup' ? styles.activeTabText : styles.inactiveTabText,
-              ]}
-              >
-                Sign Up
-              </Text>
-            </TouchableOpacity>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.headerSection}>
+            <Image
+              testID="logo-image"
+              source={require('../../discbaboon_logo_blue.png')}
+              style={styles.logo}
+            />
           </View>
 
-          <View style={styles.formContainer}>
-            {(errorMessage || loginError) && (
-              <View testID="error-message" style={styles.errorContainer}>
-                <Text style={styles.errorText}>{errorMessage || loginError}</Text>
-              </View>
-            )}
-
-            <View style={styles.inputGroup}>
-              <Input
-                placeholder="Username"
-                value={username}
-                onChangeText={(text) => {
-                  setUsername(text);
-                  if (loginError) setLoginError(null);
+          <View style={styles.contentSection}>
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                testID="tab-sign-in"
+                style={[
+                  styles.tab,
+                  activeTab === 'signin' ? styles.activeTab : styles.inactiveTab,
+                ]}
+                onPress={() => {
+                  setActiveTab('signin');
+                  if (registrationSuccess) setRegistrationSuccess(null);
                 }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                spellCheck={false}
-                textContentType="username"
-              />
-              <Input
-                placeholder="Password"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (loginError) setLoginError(null);
+              >
+                <Text style={[
+                  styles.tabText,
+                  activeTab === 'signin' ? styles.activeTabText : styles.inactiveTabText,
+                ]}
+                >
+                  Sign In
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="tab-sign-up"
+                style={[
+                  styles.tab,
+                  activeTab === 'signup' ? styles.activeTab : styles.inactiveTab,
+                ]}
+                onPress={() => {
+                  setActiveTab('signup');
+                  if (registrationSuccess) setRegistrationSuccess(null);
                 }}
-                secureTextEntry
-                showPasswordToggle
-                textContentType="password"
-              />
+              >
+                <Text style={[
+                  styles.tabText,
+                  activeTab === 'signup' ? styles.activeTabText : styles.inactiveTabText,
+                ]}
+                >
+                  Sign Up
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.buttonContainer}>
-              <Button
-                title={
-                  (() => {
-                    if (isLoading && activeTab === 'signin') return 'Logging in...';
-                    if (activeTab === 'signin') return 'Log In';
-                    return 'Create Account';
-                  })()
-                }
-                onPress={activeTab === 'signin' ? handleLogin : onCreateAccount}
-                variant="primary"
-                disabled={!isFormValid || isLoading}
-              />
-            </View>
+            {activeTab === 'signup' ? (
+              <RegisterScreen onRegistrationSuccess={handleRegistrationSuccess} />
+            ) : (
+              <View style={styles.formContainer}>
+                {registrationSuccess && (
+                <View testID="registration-success-message" style={styles.successContainer}>
+                  <Text style={styles.successText}>
+                    Account created successfully! Please sign in below.
+                  </Text>
+                </View>
+                )}
 
-            {activeTab === 'signin' && (
-              <View style={styles.secondaryActionsContainer}>
-                <Text
-                  style={styles.linkText}
-                  onPress={onForgotUsername}
-                >
-                  Forgot username?
-                </Text>
-                <Text
-                  style={styles.linkText}
-                  onPress={onForgotPassword}
-                >
-                  Forgot password?
-                </Text>
+                {(errorMessage || loginError) && (
+                <View testID="error-message" style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{errorMessage || loginError}</Text>
+                </View>
+                )}
+
+                <View style={styles.inputGroup}>
+                  <Input
+                    ref={usernameInputRef}
+                    placeholder="Username"
+                    value={username}
+                    onChangeText={(text) => {
+                      setUsername(text);
+                      if (loginError) setLoginError(null);
+                      if (registrationSuccess) setRegistrationSuccess(null);
+                    }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    textContentType="username"
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                  />
+                  <Input
+                    ref={passwordInputRef}
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (loginError) setLoginError(null);
+                    }}
+                    secureTextEntry
+                    showPasswordToggle
+                    textContentType="password"
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (isFormValid) {
+                        handleLogin();
+                      }
+                    }}
+                  />
+                </View>
+
+                <View style={styles.buttonContainer}>
+                  <Button
+                    title={
+                    (() => {
+                      if (isLoading && activeTab === 'signin') return 'Logging in...';
+                      if (activeTab === 'signin') return 'Log In';
+                      return 'Create Account';
+                    })()
+                  }
+                    onPress={activeTab === 'signin' ? handleLogin : onCreateAccount}
+                    variant="primary"
+                    disabled={!isFormValid || isLoading}
+                  />
+                </View>
+
+                {activeTab === 'signin' && (
+                <View style={styles.secondaryActionsContainer}>
+                  <Text
+                    style={styles.linkText}
+                    onPress={onForgotUsername}
+                  >
+                    Forgot username?
+                  </Text>
+                  <Text
+                    style={styles.linkText}
+                    onPress={onForgotPassword}
+                  >
+                    Forgot password?
+                  </Text>
+                </View>
+                )}
               </View>
             )}
           </View>
-        </View>
 
-        <View style={styles.footerSection}>
-          <View style={styles.footerLinksContainer}>
-            <Text style={styles.footerLinkText} onPress={onPrivacyPolicy}>
-              Privacy Policy
-            </Text>
-            <Text style={styles.footerLinkText} onPress={onTermsOfService}>
-              Terms of Service
-            </Text>
-            <Text style={styles.footerLinkText} onPress={onSupport}>
-              Support
-            </Text>
+          <View style={styles.footerSection}>
+            <View style={styles.footerLinksContainer}>
+              <Text style={styles.footerLinkText} onPress={onPrivacyPolicy}>
+                Privacy Policy
+              </Text>
+              <Text style={styles.footerLinkText} onPress={onTermsOfService}>
+                Terms of Service
+              </Text>
+              <Text style={styles.footerLinkText} onPress={onSupport}>
+                Support
+              </Text>
+            </View>
+            <Text style={styles.copyrightText}>© 2025 DiscBaboons</Text>
           </View>
-          <Text style={styles.copyrightText}>© 2025 DiscBaboons</Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }

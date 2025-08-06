@@ -2,6 +2,7 @@
  * Input Component Tests
  */
 
+import { useRef } from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import Input from '../../src/components/Input';
 import { ThemeProvider } from '../../src/context/ThemeContext';
@@ -11,7 +12,8 @@ describe('Input component', () => {
     const InputModule = require('../../src/components/Input');
 
     expect(InputModule.default).toBeDefined();
-    expect(typeof InputModule.default).toBe('function');
+    // forwardRef creates an object, not a function
+    expect(typeof InputModule.default).toBe('object');
   });
 
   it('should render a TextInput', () => {
@@ -517,6 +519,89 @@ describe('Input component', () => {
 
       fireEvent.press(toggleButton);
       expect(input.props.secureTextEntry).toBe(false);
+    });
+  });
+
+  describe('Auto-focus functionality', () => {
+    it('should support returnKeyType prop', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Test input"
+            onChangeText={jest.fn()}
+            returnKeyType="next"
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      expect(input.props.returnKeyType).toBe('next');
+    });
+
+    it('should call onSubmitEditing when return key is pressed', () => {
+      const mockSubmitEditing = jest.fn();
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Test input"
+            onChangeText={jest.fn()}
+            onSubmitEditing={mockSubmitEditing}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      fireEvent(input, 'submitEditing');
+      expect(mockSubmitEditing).toHaveBeenCalled();
+    });
+
+    it('should support ref forwarding', () => {
+      function TestComponent() {
+        const inputRef = useRef(null);
+        return (
+          <ThemeProvider>
+            <Input
+              ref={inputRef}
+              placeholder="Test input"
+              onChangeText={jest.fn()}
+            />
+          </ThemeProvider>
+        );
+      }
+
+      const { getByTestId } = render(<TestComponent />);
+      const input = getByTestId('input');
+      expect(input).toBeTruthy();
+    });
+
+    it('should work with password toggle and auto-focus together', () => {
+      const mockSubmitEditing = jest.fn();
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <Input
+            placeholder="Password"
+            secureTextEntry
+            showPasswordToggle
+            returnKeyType="done"
+            onSubmitEditing={mockSubmitEditing}
+            onChangeText={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      const input = getByTestId('input');
+      const toggleButton = getByTestId('password-toggle');
+
+      // Should have return key type
+      expect(input.props.returnKeyType).toBe('done');
+
+      // Toggle should still work
+      fireEvent.press(toggleButton);
+      expect(input.props.secureTextEntry).toBe(false);
+
+      // Submit editing should work
+      fireEvent(input, 'submitEditing');
+      expect(mockSubmitEditing).toHaveBeenCalled();
     });
   });
 });
