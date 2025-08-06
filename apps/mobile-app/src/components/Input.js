@@ -5,18 +5,18 @@
 import {
   TextInput, StyleSheet, Platform, View, TouchableOpacity,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../context/ThemeContext';
 import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
-function Input({
+const Input = forwardRef(({
   placeholder, value, onChangeText, secureTextEntry = false, accessibilityLabel, accessibilityHint,
   autoCapitalize = 'sentences', autoCorrect = true, spellCheck = true, textContentType,
-  showPasswordToggle = false,
-}) {
+  showPasswordToggle = false, returnKeyType = 'default', onSubmitEditing,
+}, ref) => {
   const colors = useThemeColors();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -81,6 +81,7 @@ function Input({
 
   const inputComponent = (
     <TextInput
+      ref={ref}
       testID="input"
       style={styles.input}
       placeholder={placeholder}
@@ -94,6 +95,8 @@ function Input({
       autoCorrect={autoCorrect}
       spellCheck={spellCheck}
       textContentType={textContentType}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={onSubmitEditing}
     />
   );
 
@@ -120,7 +123,7 @@ function Input({
   }
 
   return inputComponent;
-}
+});
 
 Input.propTypes = {
   placeholder: PropTypes.string,
@@ -134,6 +137,8 @@ Input.propTypes = {
   spellCheck: PropTypes.bool,
   textContentType: PropTypes.string,
   showPasswordToggle: PropTypes.bool,
+  returnKeyType: PropTypes.oneOf(['default', 'go', 'google', 'join', 'next', 'route', 'search', 'send', 'yahoo', 'done', 'emergency-call']),
+  onSubmitEditing: PropTypes.func,
 };
 
 Input.defaultProps = {
@@ -147,6 +152,8 @@ Input.defaultProps = {
   spellCheck: true,
   textContentType: undefined,
   showPasswordToggle: false,
+  returnKeyType: 'default',
+  onSubmitEditing: undefined,
 };
 
 export default Input;

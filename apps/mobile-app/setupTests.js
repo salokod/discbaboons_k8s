@@ -9,13 +9,19 @@
 // eslint-disable-next-line no-underscore-dangle
 global.__DEV__ = false;
 
-// Mock console to reduce noise in tests (optional)
-// global.console = {
-//   ...console,
-//   // Uncomment below to suppress console logs during tests
-//   // log: jest.fn(),
-//   // debug: jest.fn(),
-//   // info: jest.fn(),
-//   // warn: jest.fn(),
-//   // error: jest.fn(),
-// };
+// Mock console to reduce noise in tests
+// eslint-disable-next-line no-console
+const originalError = console.error;
+// eslint-disable-next-line no-console
+console.error = (...args) => {
+  // Suppress act() warnings which are common in React Native testing
+  // These warnings don't affect test results and create noise
+  if (
+    typeof args[0] === 'string'
+    && (args[0].includes('inside a test was not wrapped in act')
+     || (args[0].includes('An update to') && args[0].includes('inside a test was not wrapped in act')))
+  ) {
+    return;
+  }
+  originalError.call(console, ...args);
+};

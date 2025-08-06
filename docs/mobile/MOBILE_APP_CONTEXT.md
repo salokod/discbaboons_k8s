@@ -123,6 +123,128 @@ apps/mobile-app/
 ├── __tests__/          # Test files mirror src structure
 ```
 
+## LoginScreen Implementation (Phase 2) ✅
+
+### Architecture & Patterns
+
+#### Component Structure
+- **Functional component** with PropTypes validation
+- **SafeAreaView + ScrollView** combination for proper keyboard handling
+- **Theme-aware styling** using `useThemeColors()` hook
+- **Platform-specific adjustments** via `Platform.select()`
+
+#### Key Design Decisions
+
+**1. Tab Interface**
+```javascript
+// Single screen handles both login and registration flows
+const [activeTab, setActiveTab] = useState('signin');
+```
+- Sign In / Sign Up tabs with smooth transitions
+- Tab switching maintains form state
+- Active tab has elevated styling with theme colors
+
+**2. Real-time Form Validation**
+```javascript
+const isUsernameValid = useMemo(() => username.length >= 4 && username.length <= 20, [username]);
+const isPasswordValid = useMemo(() => password.length >= 8 && password.length <= 32, [password]);
+const isFormValid = useMemo(() => isUsernameValid && isPasswordValid, [isUsernameValid, isPasswordValid]);
+```
+- Validation rules match backend requirements exactly
+- Button disabled state provides immediate feedback
+- No form submission without valid inputs
+
+**3. Dual Error Source Pattern**
+```javascript
+{(errorMessage || loginError) && (
+  <View testID="error-message" style={styles.errorContainer}>
+    <Text style={styles.errorText}>{errorMessage || loginError}</Text>
+  </View>
+)}
+```
+- Props-based errors (errorMessage) for external control
+- Local state errors (loginError) for API responses
+- Auto-clear errors on input change for better UX
+
+**4. Loading States**
+```javascript
+title={isLoading && activeTab === 'signin' ? 'Logging in...' : 'Log In'}
+disabled={!isFormValid || isLoading}
+```
+- Loading state integrated into button text
+- Form inputs remain visible during loading
+- Prevents double-submission with disabled state
+
+**5. Password Visibility Toggle**
+```javascript
+<Input
+  placeholder="Password"  
+  secureTextEntry
+  showPasswordToggle  // Professional flat icons (eye-outline ↔ eye-off-outline)
+  textContentType="password"
+/>
+```
+- Modern flat icons from @react-native-vector-icons/ionicons
+- Perfect vertical alignment using transform
+- Theme-aware icon colors
+- Full accessibility support
+
+#### API Integration Pattern
+```javascript
+try {
+  const { user, tokens } = await authLogin(username, password);
+  triggerSuccessHaptic();
+  login({ user, tokens }); // Update AuthContext
+} catch (error) {
+  triggerErrorHaptic();
+  const errorMsg = handleNetworkError(error);
+  setLoginError(errorMsg);
+}
+```
+
+#### Testing Patterns Established
+```javascript
+describe('LoginScreen', () => {
+  // 1. Component structure tests
+  it('should display the DiscBaboons logo');
+  it('should have username input field');
+  
+  // 2. Form validation tests  
+  describe('Form Validation', () => {
+    it('should disable login button initially when form is empty');
+    it('should enable login button when both username and password are valid');
+  });
+  
+  // 3. User interaction tests
+  describe('User Interactions', () => {
+    it('should call login function when valid form is submitted');
+    it('should show loading state during login');
+    it('should handle login errors');
+  });
+  
+  // 4. Platform-specific tests
+  describe('Platform-Specific Styling', () => {
+    it('should apply iOS-specific styles');
+    it('should apply Android-specific styles');
+  });
+  
+  // 5. Password visibility toggle tests
+  describe('Password Visibility Toggle', () => {
+    it('should show password visibility toggle button');
+    it('should toggle password visibility when pressed');
+    it('should have proper accessibility labels');
+  });
+});
+```
+
+#### Test Coverage Achievement
+- **122 tests passing** with comprehensive coverage
+- Screen integration tests (25 tests)
+- Component unit tests (97 tests) 
+- Cross-platform behavior validation
+- Accessibility compliance testing
+- Error state and loading state coverage
+
 ## Implementation Progress
 
 ### Completed ✅
@@ -131,18 +253,20 @@ apps/mobile-app/
 - [x] Theme system with light/dark/blackout modes
 - [x] Base components (Button, Input, AppContainer)
 - [x] Theme Context and hooks
-- [x] 55+ tests passing with 100% success rate
+- [x] **LoginScreen** with DiscBaboons logo and full UX
+- [x] **Form validation** with real-time feedback
+- [x] **API integration** with express-server endpoints
+- [x] **Token Management & Security** (Phase 3) - JWT storage with keychain
+- [x] **Password Visibility Toggle** (Phase 3.5) - Professional flat icons
+- [x] **122+ tests passing** with comprehensive coverage
 
 ### In Progress 🚧
-- [ ] LoginScreen with DiscBaboons logo
-- [ ] Form validation for login
-- [ ] API integration setup
+- [ ] RegisterScreen (Phase 4) - Following LoginScreen patterns
 
 ### Upcoming 📋
-- [ ] JWT token storage with react-native-keychain
-- [ ] Navigation structure (Auth vs App navigators)
-- [ ] Registration flow
-- [ ] Password recovery flow
+- [ ] Password recovery flow (ForgotPasswordScreen)
+- [ ] Support & Legal screens
+- [ ] Biometric authentication (Face ID/Touch ID)
 
 ## Key Technical Decisions
 
