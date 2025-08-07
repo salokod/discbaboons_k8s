@@ -2,7 +2,9 @@
  * ForgotPasswordScreen - Password Recovery Flow
  */
 
-import { useState } from 'react';
+import {
+  useState, useCallback, useMemo, useRef, useEffect,
+} from 'react';
 import {
   SafeAreaView, Platform, StyleSheet, View, Text, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
@@ -15,7 +17,7 @@ import { spacing } from '../design-system/spacing';
 import { forgotPassword, handleNetworkError } from '../services/authService';
 import { triggerSuccessHaptic, triggerErrorHaptic } from '../services/hapticService';
 
-const styles = StyleSheet.create({
+const staticStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Platform.select({
@@ -89,15 +91,29 @@ function ForgotPasswordScreen({ navigation }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Email validation regex
-  const isValidEmail = (emailAddress) => {
+  // Ref for cleanup
+  const timeoutRef = useRef(null);
+
+  // Memoized email validation function
+  const isValidEmail = useCallback((emailAddress) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(emailAddress.trim());
-  };
+  }, []);
 
-  const isFormValid = email.trim().length > 0 && isValidEmail(email.trim());
+  // Memoized form validation
+  const isFormValid = useMemo(
+    () => email.trim().length > 0 && isValidEmail(email.trim()),
+    [email, isValidEmail],
+  );
 
-  const handleSubmit = async () => {
+  // Cleanup timeout on unmount
+  useEffect(() => () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  }, []);
+
+  const handleSubmit = useCallback(async () => {
     if (!isFormValid || isLoading) {
       return;
     }
@@ -116,7 +132,7 @@ function ForgotPasswordScreen({ navigation }) {
       triggerSuccessHaptic();
 
       // Auto-navigate to ResetPasswordScreen after a brief delay
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         if (navigation) {
           navigation.navigate('ResetPassword', {
             email,
@@ -131,33 +147,62 @@ function ForgotPasswordScreen({ navigation }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isFormValid, isLoading, email, navigation]);
 
-  const handleBackToLogin = () => {
+  const handleBackToLogin = useCallback(() => {
     if (navigation) {
       navigation.goBack();
     }
-  };
+  }, [navigation]);
 
-  const dismissKeyboard = () => {
+  const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
-  };
+  }, []);
+
+  // Memoize styles to prevent recreation
+  const styles = useMemo(() => ({
+    ...staticStyles,
+    title: {
+      ...staticStyles.title,
+      color: colors.text,
+    },
+    securityMessage: {
+      ...staticStyles.securityMessage,
+      color: colors.textLight,
+    },
+    successSection: {
+      ...staticStyles.successSection,
+      backgroundColor: `${colors.success}15`,
+    },
+    successText: {
+      ...staticStyles.successText,
+      color: colors.success,
+    },
+    errorSection: {
+      ...staticStyles.errorSection,
+      backgroundColor: `${colors.error}15`,
+    },
+    errorText: {
+      ...staticStyles.errorText,
+      color: colors.error,
+    },
+  }), [colors]);
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="forgot-password-screen">
+    <SafeAreaView style={staticStyles.safeArea} testID="forgot-password-screen">
       <AppContainer>
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
-          <View style={styles.content}>
-            <View style={styles.headerSection}>
-              <Text style={[styles.title, { color: colors.text }]}>
+          <View style={staticStyles.content}>
+            <View style={staticStyles.headerSection}>
+              <Text style={styles.title}>
                 Reset Password
               </Text>
-              <Text style={[styles.securityMessage, { color: colors.textLight }]}>
+              <Text style={styles.securityMessage}>
                 Enter your email address to receive a reset code
               </Text>
             </View>
 
-            <View style={styles.formSection}>
+            <View style={staticStyles.formSection}>
               <Input
                 placeholder="Email Address"
                 value={email}
@@ -169,18 +214,17 @@ function ForgotPasswordScreen({ navigation }) {
                 keyboardType="email-address"
                 returnKeyType="done"
                 onSubmitEditing={handleSubmit}
+                accessibilityLabel="Email address input"
+                accessibilityHint="Enter your email address to receive password reset instructions"
               />
             </View>
 
             {successMessage ? (
               <View
-                style={[
-                  styles.successSection,
-                  { backgroundColor: `${colors.success}15` },
-                ]}
+                style={styles.successSection}
                 testID="success-message"
               >
-                <Text style={[styles.successText, { color: colors.success }]}>
+                <Text style={styles.successText}>
                   {successMessage}
                 </Text>
               </View>
@@ -188,32 +232,33 @@ function ForgotPasswordScreen({ navigation }) {
 
             {errorMessage ? (
               <View
-                style={[
-                  styles.errorSection,
-                  { backgroundColor: `${colors.error}15` },
-                ]}
+                style={styles.errorSection}
                 testID="error-message"
               >
-                <Text style={[styles.errorText, { color: colors.error }]}>
+                <Text style={styles.errorText}>
                   {errorMessage}
                 </Text>
               </View>
             ) : null}
 
             {!successMessage ? (
-              <View style={styles.buttonSection}>
+              <View style={staticStyles.buttonSection}>
                 <Button
                   title={isLoading ? 'Sending secure reset instructions...' : 'Send Reset Instructions'}
                   onPress={handleSubmit}
                   disabled={!isFormValid || isLoading}
+                  accessibilityLabel="Send reset instructions button"
+                  accessibilityHint="Tap to send password reset instructions to your email address"
                 />
               </View>
             ) : (
-              <View style={styles.backButtonSection}>
+              <View style={staticStyles.backButtonSection}>
                 <Button
                   title="Back to Login"
                   onPress={handleBackToLogin}
                   variant="secondary"
+                  accessibilityLabel="Back to login button"
+                  accessibilityHint="Return to the login screen"
                 />
               </View>
             )}
@@ -223,5 +268,8 @@ function ForgotPasswordScreen({ navigation }) {
     </SafeAreaView>
   );
 }
+
+// Add display name for React DevTools
+ForgotPasswordScreen.displayName = 'ForgotPasswordScreen';
 
 export default ForgotPasswordScreen;

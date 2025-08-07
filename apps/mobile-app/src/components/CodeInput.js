@@ -2,7 +2,9 @@
  * CodeInput - 6-digit verification code input with auto-advance
  */
 
-import { useState, useRef, useEffect } from 'react';
+import {
+  useState, useRef, useEffect, memo,
+} from 'react';
 import {
   View, TextInput, StyleSheet, Platform,
 } from 'react-native';
@@ -13,7 +15,7 @@ import { typography } from '../design-system/typography';
 const CODE_LENGTH = 6;
 
 function CodeInput({
-  value, onChangeText, onComplete, autoFocus = false,
+  value, onChangeText, onComplete, autoFocus = false, accessibilityLabel,
 }) {
   const colors = useThemeColors();
   const [digits, setDigits] = useState(Array(CODE_LENGTH).fill(''));
@@ -169,6 +171,9 @@ function CodeInput({
           keyboardType="default"
           autoCapitalize="characters"
           selectTextOnFocus
+          accessibilityLabel={accessibilityLabel || `Verification code digit ${index + 1} of ${CODE_LENGTH}`}
+          accessibilityHint={`Enter digit ${index + 1} of your ${CODE_LENGTH}-digit verification code. Only numbers and letters A through F are allowed.`}
+          accessibilityRole="text"
           testID={`code-input-${index}`}
         />
       ))}
@@ -181,6 +186,7 @@ CodeInput.propTypes = {
   onChangeText: PropTypes.func,
   onComplete: PropTypes.func,
   autoFocus: PropTypes.bool,
+  accessibilityLabel: PropTypes.string,
 };
 
 CodeInput.defaultProps = {
@@ -188,6 +194,10 @@ CodeInput.defaultProps = {
   onChangeText: () => {},
   onComplete: null,
   autoFocus: false,
+  accessibilityLabel: undefined,
 };
 
-export default CodeInput;
+// Add display name for React DevTools
+CodeInput.displayName = 'CodeInput';
+
+export default memo(CodeInput);

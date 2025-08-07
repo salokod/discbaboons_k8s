@@ -142,7 +142,7 @@ function LoginScreen({
           elevation: 2,
         },
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.black,
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.1,
           shadowRadius: 2,
@@ -188,7 +188,7 @@ function LoginScreen({
       }),
     },
     activeTabText: {
-      color: '#FFFFFF',
+      color: colors.white,
     },
     inactiveTabText: {
       color: colors.text,
@@ -222,7 +222,7 @@ function LoginScreen({
     },
     successText: {
       ...typography.body,
-      color: '#FFFFFF',
+      color: colors.white,
       textAlign: 'center',
       fontSize: Platform.select({
         ios: typography.body.fontSize,
@@ -249,7 +249,7 @@ function LoginScreen({
     },
     errorText: {
       ...typography.body,
-      color: '#FFFFFF',
+      color: colors.white,
       textAlign: 'center',
       fontSize: Platform.select({
         ios: typography.body.fontSize,

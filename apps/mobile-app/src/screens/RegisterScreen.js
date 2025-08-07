@@ -219,7 +219,7 @@ function RegisterScreen({ onRegistrationSuccess }) {
     },
     requirementTextSuccess: {
       ...typography.caption,
-      color: '#FFFFFF',
+      color: colors.white,
       fontSize: Platform.select({
         ios: typography.caption.fontSize - 1,
         android: typography.caption.fontSize,
@@ -275,7 +275,7 @@ function RegisterScreen({ onRegistrationSuccess }) {
     },
     errorText: {
       ...typography.body,
-      color: '#FFFFFF',
+      color: colors.white,
       textAlign: 'center',
       fontSize: Platform.select({
         ios: typography.body.fontSize,

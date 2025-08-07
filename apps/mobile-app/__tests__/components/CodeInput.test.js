@@ -17,7 +17,9 @@ describe('CodeInput component', () => {
     const CodeInputModule = require('../../src/components/CodeInput');
 
     expect(CodeInputModule.default).toBeDefined();
-    expect(typeof CodeInputModule.default).toBe('function');
+    // React.memo returns an object, not a function
+    expect(typeof CodeInputModule.default).toBe('object');
+    expect(CodeInputModule.default.$$typeof).toBeDefined();
   });
 
   it('should render 6 individual digit inputs', () => {
@@ -140,5 +142,74 @@ describe('CodeInput component', () => {
     expect(getByTestId('code-input-3').props.value).toBe('5');
     expect(getByTestId('code-input-4').props.value).toBe('D');
     expect(getByTestId('code-input-5').props.value).toBe('6');
+  });
+
+  describe('Platform-Specific Styling', () => {
+    it('should use platform-specific styling properties', () => {
+      const { getByTestId } = renderWithTheme(
+        <CodeInput />,
+      );
+
+      const firstInput = getByTestId('code-input-0');
+      const styles = firstInput.props.style;
+
+      // Check that platform-specific properties exist
+      // borderRadius should be either 8 (iOS) or 12 (Android)
+      // borderWidth should be either 1 (iOS) or 2 (Android)
+      const flattenedStyle = Array.isArray(styles) ? Object.assign({}, ...styles) : styles;
+
+      expect([8, 12]).toContain(flattenedStyle.borderRadius);
+      expect([1, 2]).toContain(flattenedStyle.borderWidth);
+    });
+
+    it('should render consistently across both platforms', () => {
+      const { getByTestId } = renderWithTheme(
+        <CodeInput value="123ABC" />,
+      );
+
+      // Verify all 6 inputs exist and have values regardless of platform
+      for (let i = 0; i < 6; i += 1) {
+        const input = getByTestId(`code-input-${i}`);
+        expect(input).toBeTruthy();
+        expect(input.props.value).toBe('123ABC'[i]);
+      }
+    });
+
+    it('should have consistent keyboard behavior across platforms', () => {
+      const { getByTestId } = renderWithTheme(
+        <CodeInput />,
+      );
+
+      // Test that keyboard configuration is consistent
+      for (let i = 0; i < 6; i += 1) {
+        const input = getByTestId(`code-input-${i}`);
+        expect(input.props.keyboardType).toBe('default');
+        expect(input.props.autoCapitalize).toBe('characters');
+        expect(input.props.selectTextOnFocus).toBe(true);
+      }
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have proper testID for all inputs', () => {
+      const { getByTestId } = renderWithTheme(
+        <CodeInput />,
+      );
+
+      for (let i = 0; i < 6; i += 1) {
+        expect(getByTestId(`code-input-${i}`)).toBeTruthy();
+      }
+    });
+
+    it('should support keyboard configuration', () => {
+      const { getByTestId } = renderWithTheme(
+        <CodeInput />,
+      );
+
+      const firstInput = getByTestId('code-input-0');
+      expect(firstInput.props.keyboardType).toBe('default');
+      expect(firstInput.props.autoCapitalize).toBe('characters');
+      expect(firstInput.props.selectTextOnFocus).toBe(true);
+    });
   });
 });

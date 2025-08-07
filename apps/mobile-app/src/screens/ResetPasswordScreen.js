@@ -2,7 +2,9 @@
  * ResetPasswordScreen - Enter verification code and new password
  */
 
-import { useState, useEffect } from 'react';
+import {
+  useState, useEffect, useRef, useCallback, useMemo,
+} from 'react';
 import {
   SafeAreaView,
   Platform,
@@ -21,9 +23,9 @@ import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
 import { triggerSuccessHaptic, triggerErrorHaptic } from '../services/hapticService';
-import { resetPassword, resendPasswordResetCode } from '../services/authService';
+import { resetPassword, resendPasswordResetCode, handleNetworkError } from '../services/authService';
 
-const styles = StyleSheet.create({
+const staticStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Platform.select({
@@ -87,6 +89,32 @@ const styles = StyleSheet.create({
   resendButtonDisabled: {
     opacity: 0.5,
   },
+  errorSection: {
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  errorText: {
+    ...typography.body,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  successSection: {
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  successText: {
+    ...typography.body,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });
 
 function ResetPasswordScreen({ navigation, route }) {
@@ -97,9 +125,14 @@ function ResetPasswordScreen({ navigation, route }) {
   const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isResendLoading, setIsResendLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Get email from navigation params
   const { email } = route?.params || {};
+
+  // Refs for cleanup
+  const timeoutRefs = useRef([]);
 
   // Cooldown timer effect
   useEffect(() => {
@@ -116,35 +149,59 @@ function ResetPasswordScreen({ navigation, route }) {
     };
   }, [resendCooldown]);
 
-  const isFormValid = verificationCode.trim().length === 6
-    && newPassword.length >= 8
-    && newPassword === confirmPassword;
+  // Cleanup timeouts on unmount
+  useEffect(() => () => {
+    timeoutRefs.current.forEach((timeoutId) => {
+      if (timeoutId) clearTimeout(timeoutId);
+    });
+  }, []);
 
-  const handleSubmit = async () => {
+  // Memoized form validation to prevent unnecessary recalculation
+  const isFormValid = useMemo(() => verificationCode.trim().length === 6
+      && newPassword.length >= 8
+      && newPassword === confirmPassword, [verificationCode, newPassword, confirmPassword]);
+
+  const handleSubmit = useCallback(async () => {
     if (!isFormValid || isLoading) {
       return;
     }
 
+    setErrorMessage(''); // Clear previous errors
+    setSuccessMessage(''); // Clear previous success
     setIsLoading(true);
 
     try {
       await resetPassword(verificationCode, newPassword, email || '');
 
+      // Clear sensitive data from state
+      setVerificationCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      setSuccessMessage('Password updated successfully! Redirecting to login...');
       triggerSuccessHaptic();
-      navigation.navigate('Login');
+
+      // Navigate to login after brief success message
+      const timeoutId = setTimeout(() => {
+        navigation.navigate('Login');
+      }, 2000);
+      timeoutRefs.current.push(timeoutId);
     } catch (error) {
+      setErrorMessage(
+        handleNetworkError(error),
+      );
       triggerErrorHaptic();
-      // TODO: Add error state display
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isFormValid, isLoading, verificationCode, newPassword, email, navigation]);
 
-  const handleResendCode = async () => {
+  const handleResendCode = useCallback(async () => {
     if (resendCooldown > 0 || isResendLoading) {
       return;
     }
 
+    setErrorMessage(''); // Clear previous errors
     setIsResendLoading(true);
 
     try {
@@ -152,47 +209,98 @@ function ResetPasswordScreen({ navigation, route }) {
 
       // Start 60-second cooldown
       setResendCooldown(60);
+      setSuccessMessage('New verification code sent to your email!');
       triggerSuccessHaptic();
+
+      // Clear success message after 3 seconds
+      const timeoutId = setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
+      timeoutRefs.current.push(timeoutId);
     } catch (error) {
+      setErrorMessage(
+        handleNetworkError(error),
+      );
       triggerErrorHaptic();
-      // TODO: Add error state display
     } finally {
       setIsResendLoading(false);
     }
-  };
+  }, [resendCooldown, isResendLoading, email]);
 
-  const dismissKeyboard = () => {
+  const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
-  };
+  }, []);
+
+  // Memoize styles to prevent recreation
+  const styles = useMemo(() => ({
+    ...staticStyles,
+    title: {
+      ...staticStyles.title,
+      color: colors.text,
+    },
+    instructions: {
+      ...staticStyles.instructions,
+      color: colors.textLight,
+    },
+    inputLabel: {
+      ...staticStyles.inputLabel,
+      color: colors.text,
+    },
+    resendText: {
+      ...staticStyles.resendText,
+      color: colors.textLight,
+    },
+    resendButtonText: {
+      ...staticStyles.resendButtonText,
+      color: colors.primary,
+    },
+    successSection: {
+      ...staticStyles.successSection,
+      backgroundColor: `${colors.success}15`,
+    },
+    successText: {
+      ...staticStyles.successText,
+      color: colors.success,
+    },
+    errorSection: {
+      ...staticStyles.errorSection,
+      backgroundColor: `${colors.error}15`,
+    },
+    errorText: {
+      ...staticStyles.errorText,
+      color: colors.error,
+    },
+  }), [colors]);
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="reset-password-screen">
+    <SafeAreaView style={staticStyles.safeArea} testID="reset-password-screen">
       <AppContainer>
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
-          <View style={styles.content}>
-            <View style={styles.headerSection}>
-              <Text style={[styles.title, { color: colors.text }]}>
+          <View style={staticStyles.content}>
+            <View style={staticStyles.headerSection}>
+              <Text style={styles.title}>
                 Create New Password
               </Text>
-              <Text style={[styles.instructions, { color: colors.textLight }]}>
+              <Text style={styles.instructions}>
                 {email ? `Enter the 6-digit code sent to ${email} and create your new password` : 'Enter your verification code and create a new password'}
               </Text>
             </View>
 
-            <View style={styles.formSection}>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
+            <View style={staticStyles.formSection}>
+              <View style={staticStyles.inputGroup}>
+                <Text style={styles.inputLabel}>
                   Verification Code
                 </Text>
                 <CodeInput
                   value={verificationCode}
                   onChangeText={setVerificationCode}
                   autoFocus
+                  accessibilityLabel="Verification code input"
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
+              <View style={staticStyles.inputGroup}>
+                <Text style={styles.inputLabel}>
                   New Password
                 </Text>
                 <Input
@@ -203,11 +311,13 @@ function ResetPasswordScreen({ navigation, route }) {
                   showPasswordToggle
                   textContentType="newPassword"
                   returnKeyType="next"
+                  accessibilityLabel="New password input"
+                  accessibilityHint="Enter your new password. Must be at least 8 characters long"
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
+              <View style={staticStyles.inputGroup}>
+                <Text style={styles.inputLabel}>
                   Confirm Password
                 </Text>
                 <Input
@@ -219,23 +329,50 @@ function ResetPasswordScreen({ navigation, route }) {
                   textContentType="newPassword"
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit}
+                  accessibilityLabel="Confirm password input"
+                  accessibilityHint="Re-enter your new password to confirm it matches"
                 />
               </View>
             </View>
 
-            <View style={styles.resendSection}>
-              <Text style={[styles.resendText, { color: colors.textLight }]}>
+            {successMessage ? (
+              <View
+                style={styles.successSection}
+                testID="success-message"
+              >
+                <Text style={styles.successText}>
+                  {successMessage}
+                </Text>
+              </View>
+            ) : null}
+
+            {errorMessage ? (
+              <View
+                style={styles.errorSection}
+                testID="error-message"
+              >
+                <Text style={styles.errorText}>
+                  {errorMessage}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={staticStyles.resendSection}>
+              <Text style={styles.resendText}>
                 Didn&apos;t receive the code?
               </Text>
               <TouchableOpacity
                 style={[
-                  styles.resendButton,
-                  (resendCooldown > 0 || isResendLoading) && styles.resendButtonDisabled,
+                  staticStyles.resendButton,
+                  (resendCooldown > 0 || isResendLoading) && staticStyles.resendButtonDisabled,
                 ]}
                 onPress={handleResendCode}
                 disabled={resendCooldown > 0 || isResendLoading}
+                accessibilityLabel="Resend verification code button"
+                accessibilityHint="Request a new verification code to be sent to your email"
+                accessibilityState={{ disabled: resendCooldown > 0 || isResendLoading }}
               >
-                <Text style={[styles.resendButtonText, { color: colors.primary }]}>
+                <Text style={styles.resendButtonText}>
                   {(() => {
                     if (isResendLoading) {
                       return 'Sending...';
@@ -249,11 +386,13 @@ function ResetPasswordScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.buttonSection}>
+            <View style={staticStyles.buttonSection}>
               <Button
                 title={isLoading ? 'Updating password...' : 'Update Password'}
                 onPress={handleSubmit}
                 disabled={!isFormValid || isLoading}
+                accessibilityLabel="Update password button"
+                accessibilityHint="Confirm password reset with the verification code and new password"
               />
             </View>
           </View>
@@ -262,5 +401,8 @@ function ResetPasswordScreen({ navigation, route }) {
     </SafeAreaView>
   );
 }
+
+// Add display name for React DevTools
+ResetPasswordScreen.displayName = 'ResetPasswordScreen';
 
 export default ResetPasswordScreen;
