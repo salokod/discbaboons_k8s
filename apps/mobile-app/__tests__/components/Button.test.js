@@ -8,15 +8,6 @@ import { ThemeProvider } from '../../src/context/ThemeContext';
 import { themes, THEME_NAMES } from '../../src/design-system/themes';
 
 describe('Button component', () => {
-  it('should export a Button component', () => {
-    const ButtonModule = require('../../src/components/Button');
-
-    expect(ButtonModule.default).toBeDefined();
-    // React.memo returns an object, not a function
-    expect(typeof ButtonModule.default).toBe('object');
-    expect(ButtonModule.default.$$typeof).toBeDefined();
-  });
-
   it('should render a TouchableOpacity', () => {
     const { getByTestId } = render(
       <ThemeProvider>

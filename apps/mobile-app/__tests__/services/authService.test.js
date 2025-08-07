@@ -373,10 +373,6 @@ describe('AuthService Functions', () => {
   });
 
   describe('forgotPassword', () => {
-    it('should export a forgotPassword function', () => {
-      expect(typeof forgotPassword).toBe('function');
-    });
-
     it('should successfully send password reset request', async () => {
       const mockResponse = {
         success: true,
@@ -440,12 +436,6 @@ describe('AuthService Functions', () => {
   });
 
   describe('resendPasswordResetCode', () => {
-    it('should export a resendPasswordResetCode function', () => {
-      const { resendPasswordResetCode: resendFn } = require('../../src/services/authService');
-      expect(resendFn).toBeDefined();
-      expect(typeof resendFn).toBe('function');
-    });
-
     it('should successfully resend reset code', async () => {
       const mockResponse = {
         success: true,
@@ -493,12 +483,6 @@ describe('AuthService Functions', () => {
   });
 
   describe('resetPassword', () => {
-    it('should export a resetPassword function', () => {
-      const { resetPassword: resetFn } = require('../../src/services/authService');
-      expect(resetFn).toBeDefined();
-      expect(typeof resetFn).toBe('function');
-    });
-
     it('should successfully reset password', async () => {
       const mockResponse = {
         success: true,

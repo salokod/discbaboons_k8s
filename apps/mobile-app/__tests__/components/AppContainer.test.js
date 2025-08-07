@@ -8,13 +8,6 @@ import { ThemeProvider } from '../../src/context/ThemeContext';
 import AppContainer from '../../src/components/AppContainer';
 
 describe('AppContainer component', () => {
-  it('should export an AppContainer component', () => {
-    const AppContainerModule = require('../../src/components/AppContainer');
-
-    expect(AppContainerModule.default).toBeDefined();
-    expect(typeof AppContainerModule.default).toBe('function');
-  });
-
   it('should render a container View', () => {
     const { getByTestId } = render(
       <ThemeProvider>

@@ -4,7 +4,7 @@ module.exports = {
     '<rootDir>/__tests__/integration/',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons|react-error-boundary)/)',
   ],
   setupFilesAfterEnv: [
     '<rootDir>/setupTests.js',

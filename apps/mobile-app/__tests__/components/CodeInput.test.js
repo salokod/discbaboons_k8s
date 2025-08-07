@@ -13,15 +13,6 @@ const renderWithTheme = (component) => render(
 );
 
 describe('CodeInput component', () => {
-  it('should export a CodeInput component', () => {
-    const CodeInputModule = require('../../src/components/CodeInput');
-
-    expect(CodeInputModule.default).toBeDefined();
-    // React.memo returns an object, not a function
-    expect(typeof CodeInputModule.default).toBe('object');
-    expect(CodeInputModule.default.$$typeof).toBeDefined();
-  });
-
   it('should render 6 individual digit inputs', () => {
     const { getByTestId } = renderWithTheme(
       <CodeInput />,

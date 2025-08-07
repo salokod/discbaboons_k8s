@@ -275,6 +275,7 @@ describe('LoginScreen', () => {
 3. **No UI library** - Building custom components for full control
 4. **StyleSheet.create** - For performance over inline styles
 5. **Theme-aware from start** - All components built with theme support
+6. **Functional Components Only** - No class components, use hooks for all logic including error boundaries
 
 ## API Integration Plans
 
