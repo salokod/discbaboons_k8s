@@ -225,15 +225,19 @@ export async function forgotPassword(usernameOrEmail) {
     controller.abort();
   }, 30000);
 
+  // Detect if input is email or username
+  const isEmail = usernameOrEmail.trim().includes('@');
+  const requestBody = isEmail
+    ? { email: usernameOrEmail.trim() }
+    : { username: usernameOrEmail.trim() };
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        usernameOrEmail: usernameOrEmail.trim(),
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -252,6 +256,127 @@ export async function forgotPassword(usernameOrEmail) {
         throw new Error('Something went wrong. Please try again.');
       }
       throw new Error(data.message || 'Unable to process request. Please try again.');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Resend password reset verification code
+ */
+export async function resendPasswordResetCode(usernameOrEmail) {
+  if (!usernameOrEmail || typeof usernameOrEmail !== 'string' || !usernameOrEmail.trim()) {
+    throw new Error('Username or email is required');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 30000);
+
+  // Detect if input is email or username
+  const isEmail = usernameOrEmail.trim().includes('@');
+  const requestBody = isEmail
+    ? { email: usernameOrEmail.trim() }
+    : { username: usernameOrEmail.trim() };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid request');
+      }
+      if (response.status === 429) {
+        throw new Error(data.message || 'Too many requests. Please wait before resending.');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to resend code. Please try again.');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Reset password with verification code
+ */
+export async function resetPassword(verificationCode, newPassword, usernameOrEmail) {
+  if (!verificationCode || typeof verificationCode !== 'string' || verificationCode.trim().length !== 6) {
+    throw new Error('Valid 6-digit verification code is required');
+  }
+
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters long');
+  }
+
+  if (!usernameOrEmail || typeof usernameOrEmail !== 'string' || !usernameOrEmail.trim()) {
+    throw new Error('Username or email is required');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 30000);
+
+  // Detect if input is email or username and prepare request body
+  const isEmail = usernameOrEmail.trim().includes('@');
+  const requestBody = {
+    resetCode: verificationCode.trim(),
+    newPassword,
+    ...(isEmail
+      ? { email: usernameOrEmail.trim() }
+      : { username: usernameOrEmail.trim() }),
+  };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid verification code or password');
+      }
+      if (response.status === 401) {
+        throw new Error(data.message || 'Invalid or expired verification code');
+      }
+      if (response.status === 429) {
+        throw new Error(data.message || 'Too many attempts. Please try again later.');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to reset password. Please try again.');
     }
 
     return data;

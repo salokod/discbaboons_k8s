@@ -67,14 +67,14 @@ describe('authRateLimit middleware', () => {
     });
   });
 
-  it('should configure passwordRateLimit with 1 hour window and 3 max attempts', async () => {
+  it('should configure passwordRateLimit with 30 minute window and 10 max attempts', async () => {
     const { passwordRateLimit } = await import('../../../middleware/authRateLimit.middleware.js');
 
-    expect(passwordRateLimit.config.windowMs).toBe(60 * 60 * 1000); // 1 hour
-    expect(passwordRateLimit.config.max).toBe(3);
+    expect(passwordRateLimit.config.windowMs).toBe(30 * 60 * 1000); // 30 minutes
+    expect(passwordRateLimit.config.max).toBe(10);
     expect(passwordRateLimit.config.message).toEqual({
       success: false,
-      message: 'Too many password reset attempts, please try again in 1 hour',
+      message: 'Too many password reset attempts, please try again in 30 minutes',
     });
   });
 
@@ -132,12 +132,12 @@ describe('authRateLimit middleware', () => {
 
     // Verify they have different window times
     expect(authRateLimit.config.windowMs).toBe(15 * 60 * 1000);
-    expect(passwordRateLimit.config.windowMs).toBe(60 * 60 * 1000);
+    expect(passwordRateLimit.config.windowMs).toBe(30 * 60 * 1000);
     expect(usernameRecoveryRateLimit.config.windowMs).toBe(30 * 60 * 1000);
 
     // Verify they have appropriate max limits
     expect(authRateLimit.config.max).toBe(10);
-    expect(passwordRateLimit.config.max).toBe(3); // Most restrictive
+    expect(passwordRateLimit.config.max).toBe(10);
     expect(usernameRecoveryRateLimit.config.max).toBe(5);
   });
 

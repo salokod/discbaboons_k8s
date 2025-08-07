@@ -25,26 +25,31 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xxl * 1.5,
+    paddingHorizontal: spacing.md,
   },
   title: {
-    ...typography.h2,
-    marginBottom: spacing.md,
+    ...typography.h1,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   securityMessage: {
     ...typography.body,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
+    paddingHorizontal: spacing.sm,
   },
   formSection: {
     marginBottom: spacing.xl,
   },
   buttonSection: {
-    marginBottom: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
   },
   errorSection: {
     marginBottom: spacing.md,
@@ -79,12 +84,18 @@ const styles = StyleSheet.create({
 
 function ForgotPasswordScreen({ navigation }) {
   const colors = useThemeColors();
-  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const isFormValid = usernameOrEmail.trim().length > 0;
+  // Email validation regex
+  const isValidEmail = (emailAddress) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(emailAddress.trim());
+  };
+
+  const isFormValid = email.trim().length > 0 && isValidEmail(email.trim());
 
   const handleSubmit = async () => {
     if (!isFormValid || isLoading) {
@@ -96,13 +107,22 @@ function ForgotPasswordScreen({ navigation }) {
     setIsLoading(true);
 
     try {
-      const result = await forgotPassword(usernameOrEmail);
+      const result = await forgotPassword(email);
 
       // Show success message and trigger success haptic
       setSuccessMessage(
         result.message || 'Reset instructions sent! Check your email for next steps.',
       );
       triggerSuccessHaptic();
+
+      // Auto-navigate to ResetPasswordScreen after a brief delay
+      setTimeout(() => {
+        if (navigation) {
+          navigation.navigate('ResetPassword', {
+            email,
+          });
+        }
+      }, 2000);
     } catch (error) {
       setErrorMessage(
         handleNetworkError(error),
@@ -133,19 +153,20 @@ function ForgotPasswordScreen({ navigation }) {
                 Reset Password
               </Text>
               <Text style={[styles.securityMessage, { color: colors.textLight }]}>
-                We&apos;ll help you regain secure access to your account
+                Enter your email address to receive a reset code
               </Text>
             </View>
 
             <View style={styles.formSection}>
               <Input
-                placeholder="Username or Email"
-                value={usernameOrEmail}
-                onChangeText={setUsernameOrEmail}
+                placeholder="Email Address"
+                value={email}
+                onChangeText={setEmail}
                 autoCapitalize="none"
                 autoCorrect={false}
                 spellCheck={false}
                 textContentType="emailAddress"
+                keyboardType="email-address"
                 returnKeyType="done"
                 onSubmitEditing={handleSubmit}
               />

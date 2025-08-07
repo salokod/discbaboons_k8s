@@ -7,7 +7,7 @@ import { useThemeColors } from '../context/ThemeContext';
 
 function AppContainer({ children }) {
   const colors = useThemeColors();
-  
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,

@@ -2,7 +2,13 @@
  * AuthService Tests
  */
 
-import { login, handleNetworkError, forgotPassword } from '../../src/services/authService';
+import {
+  login,
+  handleNetworkError,
+  forgotPassword,
+  resendPasswordResetCode,
+  resetPassword,
+} from '../../src/services/authService';
 
 // Mock the environment config
 jest.mock('../../src/config/environment', () => ({
@@ -393,7 +399,7 @@ describe('AuthService Functions', () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            usernameOrEmail: 'testuser',
+            username: 'testuser',
           }),
           signal: expect.any(AbortSignal),
         }),
@@ -430,6 +436,125 @@ describe('AuthService Functions', () => {
       });
 
       await expect(forgotPassword('nonexistentuser')).rejects.toThrow('User not found');
+    });
+  });
+
+  describe('resendPasswordResetCode', () => {
+    it('should export a resendPasswordResetCode function', () => {
+      const { resendPasswordResetCode: resendFn } = require('../../src/services/authService');
+      expect(resendFn).toBeDefined();
+      expect(typeof resendFn).toBe('function');
+    });
+
+    it('should successfully resend reset code', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Verification code resent successfully',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await resendPasswordResetCode('user@example.com');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/forgot-password'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: 'user@example.com',
+          }),
+        }),
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle rate limiting errors', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Too many requests. Please wait before resending.',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => mockResponse,
+      });
+
+      await expect(resendPasswordResetCode('user@example.com')).rejects.toThrow('Too many requests. Please wait before resending.');
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should export a resetPassword function', () => {
+      const { resetPassword: resetFn } = require('../../src/services/authService');
+      expect(resetFn).toBeDefined();
+      expect(typeof resetFn).toBe('function');
+    });
+
+    it('should successfully reset password', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Password reset successfully',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await resetPassword('123456', 'newpassword123', 'user@example.com');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/change-password'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resetCode: '123456',
+            newPassword: 'newpassword123',
+            email: 'user@example.com',
+          }),
+        }),
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should validate verification code', async () => {
+      await expect(resetPassword('12345', 'newpassword123', 'user@example.com')).rejects.toThrow('Valid 6-digit verification code is required');
+      await expect(resetPassword('1234567', 'newpassword123', 'user@example.com')).rejects.toThrow('Valid 6-digit verification code is required');
+      await expect(resetPassword('', 'newpassword123', 'user@example.com')).rejects.toThrow('Valid 6-digit verification code is required');
+    });
+
+    it('should validate new password', async () => {
+      await expect(resetPassword('123456', 'short', 'user@example.com')).rejects.toThrow('Password must be at least 8 characters long');
+      await expect(resetPassword('123456', '', 'user@example.com')).rejects.toThrow('Password must be at least 8 characters long');
+    });
+
+    it('should handle invalid or expired verification code', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Invalid or expired verification code',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => mockResponse,
+      });
+
+      await expect(resetPassword('123456', 'newpassword123', 'user@example.com')).rejects.toThrow('Invalid or expired verification code');
     });
   });
 });

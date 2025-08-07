@@ -48,7 +48,7 @@ describe('ForgotPasswordScreen', () => {
     );
 
     expect(getByText('Reset Password')).toBeTruthy();
-    expect(getByText("We'll help you regain secure access to your account")).toBeTruthy();
+    expect(getByText('Enter your email address to receive a reset code')).toBeTruthy();
   });
 
   it('should accept navigation props', () => {
@@ -73,7 +73,7 @@ describe('ForgotPasswordScreen', () => {
       </ThemeProvider>,
     );
 
-    expect(getByPlaceholderText('Username or Email')).toBeTruthy();
+    expect(getByPlaceholderText('Email Address')).toBeTruthy();
   });
 
   it('should have submit button', () => {
@@ -97,6 +97,31 @@ describe('ForgotPasswordScreen', () => {
     expect(submitButton.props.accessibilityState?.disabled).toBe(true);
   });
 
+  it('should disable submit button when email is invalid', () => {
+    const { getByPlaceholderText, getByTestId } = render(
+      <ThemeProvider>
+        <ForgotPasswordScreen />
+      </ThemeProvider>,
+    );
+
+    const input = getByPlaceholderText('Email Address');
+    const submitButton = getByTestId('button');
+
+    // Test invalid email formats
+    fireEvent.changeText(input, 'invalid-email');
+    expect(submitButton.props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.changeText(input, 'user@');
+    expect(submitButton.props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.changeText(input, '@domain.com');
+    expect(submitButton.props.accessibilityState?.disabled).toBe(true);
+
+    // Test valid email - button should be enabled
+    fireEvent.changeText(input, 'user@domain.com');
+    expect(submitButton.props.accessibilityState?.disabled).toBe(false);
+  });
+
   it('should show security-focused loading state when submitting', () => {
     const { getByPlaceholderText, getByText, queryByText } = render(
       <ThemeProvider>
@@ -104,8 +129,8 @@ describe('ForgotPasswordScreen', () => {
       </ThemeProvider>,
     );
 
-    const input = getByPlaceholderText('Username or Email');
-    fireEvent.changeText(input, 'testuser');
+    const input = getByPlaceholderText('Email Address');
+    fireEvent.changeText(input, 'test@example.com');
 
     // Initially should not show loading text
     expect(queryByText('Sending secure reset instructions...')).toBeNull();
