@@ -39,11 +39,11 @@ const authRateLimit = rateLimit({
 
 // More restrictive rate limiting for password-related endpoints
 const passwordRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // Limit each IP to 3 password attempts per hour
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  max: 10, // Limit each IP to 10 password attempts per 30 minutes
   message: {
     success: false,
-    message: 'Too many password reset attempts, please try again in 1 hour',
+    message: 'Too many password reset attempts, please try again in 30 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,

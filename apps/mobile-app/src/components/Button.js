@@ -2,6 +2,7 @@
  * Button Component
  */
 
+import { memo } from 'react';
 import {
   TouchableOpacity, Text, StyleSheet, Platform,
 } from 'react-native';
@@ -11,7 +12,7 @@ import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
 function Button({
-  title, onPress, variant = 'primary', disabled = false,
+  title, onPress, variant = 'primary', disabled = false, accessibilityLabel, accessibilityHint,
 }) {
   const colors = useThemeColors();
 
@@ -24,9 +25,9 @@ function Button({
 
   const getTextColor = () => {
     if (disabled) {
-      return colors.surface; // Light text on disabled buttons
+      return colors.white; // White text on disabled buttons for contrast
     }
-    return variant === 'primary' ? '#FFFFFF' : colors.text;
+    return variant === 'primary' ? colors.textOnPrimary : colors.text;
   };
 
   const styles = StyleSheet.create({
@@ -50,7 +51,7 @@ function Button({
           elevation: disabled ? 0 : 2,
         },
         ios: {
-          shadowColor: disabled ? 'transparent' : '#000',
+          shadowColor: disabled ? 'transparent' : colors.black,
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.1,
           shadowRadius: 2,
@@ -78,6 +79,8 @@ function Button({
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       accessibilityState={{ disabled }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
     >
       <Text testID="button-text" style={styles.text}>{title}</Text>
     </TouchableOpacity>
@@ -89,6 +92,8 @@ Button.propTypes = {
   onPress: PropTypes.func,
   variant: PropTypes.oneOf(['primary', 'secondary']),
   disabled: PropTypes.bool,
+  accessibilityLabel: PropTypes.string,
+  accessibilityHint: PropTypes.string,
 };
 
 Button.defaultProps = {
@@ -96,6 +101,11 @@ Button.defaultProps = {
   onPress: () => {},
   variant: 'primary',
   disabled: false,
+  accessibilityLabel: undefined,
+  accessibilityHint: undefined,
 };
 
-export default Button;
+// Add display name for React DevTools
+Button.displayName = 'Button';
+
+export default memo(Button);

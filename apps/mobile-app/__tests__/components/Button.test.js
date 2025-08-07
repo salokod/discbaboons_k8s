@@ -12,7 +12,9 @@ describe('Button component', () => {
     const ButtonModule = require('../../src/components/Button');
 
     expect(ButtonModule.default).toBeDefined();
-    expect(typeof ButtonModule.default).toBe('function');
+    // React.memo returns an object, not a function
+    expect(typeof ButtonModule.default).toBe('object');
+    expect(ButtonModule.default.$$typeof).toBeDefined();
   });
 
   it('should render a TouchableOpacity', () => {
@@ -75,7 +77,7 @@ describe('Button component', () => {
 
     // Text should be white on primary
     expect(text.props.style).toMatchObject({
-      color: '#FFFFFF',
+      color: themes[THEME_NAMES.LIGHT].textOnPrimary,
     });
   });
 

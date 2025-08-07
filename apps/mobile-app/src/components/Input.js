@@ -59,7 +59,7 @@ const Input = forwardRef(({
           elevation: 1,
         },
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.black,
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.05,
           shadowRadius: 1,

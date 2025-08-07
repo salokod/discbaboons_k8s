@@ -17,6 +17,8 @@ import Button from '../components/Button';
 import { register as authRegister, handleNetworkError } from '../services/authService';
 import { triggerSuccessHaptic, triggerErrorHaptic } from '../services/hapticService';
 
+const { isValidEmail } = require('../utils/validation');
+
 function RegisterScreen({ onRegistrationSuccess }) {
   const colors = useThemeColors();
   const [username, setUsername] = useState('');
@@ -47,11 +49,7 @@ function RegisterScreen({ onRegistrationSuccess }) {
   // Form validation logic
   const isUsernameValid = useMemo(() => username.length >= 4 && username.length <= 20, [username]);
 
-  const isEmailValid = useMemo(() => {
-    // Basic email validation: must have @ and domain with .
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }, [email]);
+  const isEmailValid = useMemo(() => isValidEmail(email), [email]);
 
   // Individual password requirement checks
   const passwordRequirements = useMemo(() => {
@@ -219,7 +217,7 @@ function RegisterScreen({ onRegistrationSuccess }) {
     },
     requirementTextSuccess: {
       ...typography.caption,
-      color: '#FFFFFF',
+      color: colors.white,
       fontSize: Platform.select({
         ios: typography.caption.fontSize - 1,
         android: typography.caption.fontSize,
@@ -275,7 +273,7 @@ function RegisterScreen({ onRegistrationSuccess }) {
     },
     errorText: {
       ...typography.body,
-      color: '#FFFFFF',
+      color: colors.white,
       textAlign: 'center',
       fontSize: Platform.select({
         ios: typography.body.fontSize,

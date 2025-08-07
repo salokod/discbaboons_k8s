@@ -26,7 +26,11 @@ export const themes = {
     surface: '#FFFFFF', // Pure white for cards/inputs
     text: '#212121',
     textLight: '#757575',
+    textOnPrimary: '#FFFFFF', // White text on primary buttons
     border: '#E0E0E0',
+    // Standard colors
+    white: '#FFFFFF',
+    black: '#000000',
   },
   [THEME_NAMES.DARK]: {
     ...brandColors,
@@ -35,7 +39,11 @@ export const themes = {
     surface: '#1E1E1E',
     text: '#FFFFFF',
     textLight: '#B0B0B0',
+    textOnPrimary: '#FFFFFF', // White text on primary buttons
     border: '#424242',
+    // Standard colors
+    white: '#FFFFFF',
+    black: '#000000',
   },
   [THEME_NAMES.BLACKOUT]: {
     ...brandColors,
@@ -43,7 +51,11 @@ export const themes = {
     surface: '#000000',
     text: '#FFFFFF',
     textLight: '#FFFFFF',
+    textOnPrimary: '#000000', // Black text on primary in blackout for contrast
     border: '#FFFFFF',
+    // Standard colors
+    white: '#FFFFFF',
+    black: '#000000',
     // All semantic colors become white in blackout
     success: '#FFFFFF',
     error: '#FFFFFF',

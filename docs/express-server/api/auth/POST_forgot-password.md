@@ -45,7 +45,7 @@ No authentication required.
 #### 400 Bad Request - Validation Error
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Username or email is required"
 }
 ```
