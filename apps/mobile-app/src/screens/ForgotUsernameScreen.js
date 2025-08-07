@@ -8,6 +8,7 @@ import {
 import {
   SafeAreaView, Platform, StyleSheet, View, Text, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import AppContainer from '../components/AppContainer';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -169,6 +170,8 @@ function ForgotUsernameScreen({ navigation }) {
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
+                accessibilityLabel="Email address input field"
+                accessibilityHint="Enter your email to recover your username"
               />
             </View>
 
@@ -183,6 +186,8 @@ function ForgotUsernameScreen({ navigation }) {
                 title={isLoading ? 'Sending username recovery instructions...' : 'Send Username'}
                 onPress={handleEmailSubmit}
                 disabled={!isEmailValid || isLoading}
+                accessibilityLabel="Send username recovery email"
+                accessibilityHint="Tap to send username recovery instructions to your email"
               />
             </View>
 
@@ -208,5 +213,12 @@ function ForgotUsernameScreen({ navigation }) {
     </TouchableWithoutFeedback>
   );
 }
+
+ForgotUsernameScreen.propTypes = {
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    goBack: PropTypes.func.isRequired,
+  }).isRequired,
+};
 
 export default ForgotUsernameScreen;
