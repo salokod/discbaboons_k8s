@@ -5,6 +5,8 @@
 
 import { API_BASE_URL } from '../config/environment';
 
+const { isValidEmail } = require('../utils/validation');
+
 /**
  * Validate username format before sending to API
  * @param {string} username - Username to validate
@@ -225,11 +227,12 @@ export async function forgotPassword(usernameOrEmail) {
     controller.abort();
   }, 30000);
 
-  // Detect if input is email or username
-  const isEmail = usernameOrEmail.trim().includes('@');
+  // Detect if input is email or username using proper validation
+  const trimmedInput = usernameOrEmail.trim();
+  const isEmail = isValidEmail(trimmedInput);
   const requestBody = isEmail
-    ? { email: usernameOrEmail.trim() }
-    : { username: usernameOrEmail.trim() };
+    ? { email: trimmedInput }
+    : { username: trimmedInput };
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
@@ -278,11 +281,12 @@ export async function resendPasswordResetCode(usernameOrEmail) {
     controller.abort();
   }, 30000);
 
-  // Detect if input is email or username
-  const isEmail = usernameOrEmail.trim().includes('@');
+  // Detect if input is email or username using proper validation
+  const trimmedInput = usernameOrEmail.trim();
+  const isEmail = isValidEmail(trimmedInput);
   const requestBody = isEmail
-    ? { email: usernameOrEmail.trim() }
-    : { username: usernameOrEmail.trim() };
+    ? { email: trimmedInput }
+    : { username: trimmedInput };
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
@@ -339,14 +343,15 @@ export async function resetPassword(verificationCode, newPassword, usernameOrEma
     controller.abort();
   }, 30000);
 
-  // Detect if input is email or username and prepare request body
-  const isEmail = usernameOrEmail.trim().includes('@');
+  // Detect if input is email or username using proper validation
+  const trimmedInput = usernameOrEmail.trim();
+  const isEmail = isValidEmail(trimmedInput);
   const requestBody = {
     resetCode: verificationCode.trim(),
     newPassword,
     ...(isEmail
-      ? { email: usernameOrEmail.trim() }
-      : { username: usernameOrEmail.trim() }),
+      ? { email: trimmedInput }
+      : { username: trimmedInput }),
   };
 
   try {

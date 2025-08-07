@@ -556,5 +556,85 @@ describe('AuthService Functions', () => {
 
       await expect(resetPassword('123456', 'newpassword123', 'user@example.com')).rejects.toThrow('Invalid or expired verification code');
     });
+
+    it('should correctly identify valid email and send as email parameter', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Success',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await resetPassword('ABC123', 'password123', 'user@example.com');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/change-password'),
+        expect.objectContaining({
+          body: JSON.stringify({
+            resetCode: 'ABC123',
+            newPassword: 'password123',
+            email: 'user@example.com', // Should be sent as email
+          }),
+        }),
+      );
+    });
+
+    it('should reject malformed email inputs and send as username parameter', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Success',
+      };
+
+      // Test malformed input that contains @ but is NOT a valid email
+      // Previous vulnerable code using includes('@') would incorrectly send this as email
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await resetPassword('ABC123', 'password123', 'user@');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/change-password'),
+        expect.objectContaining({
+          body: JSON.stringify({
+            resetCode: 'ABC123',
+            newPassword: 'password123',
+            username: 'user@', // Should be sent as username, not email
+          }),
+        }),
+      );
+    });
+
+    it('should handle username without @ symbol correctly', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Success',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await resetPassword('ABC123', 'password123', 'testuser');
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/change-password'),
+        expect.objectContaining({
+          body: JSON.stringify({
+            resetCode: 'ABC123',
+            newPassword: 'password123',
+            username: 'testuser', // Should be sent as username
+          }),
+        }),
+      );
+    });
   });
 });

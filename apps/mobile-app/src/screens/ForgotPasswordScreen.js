@@ -17,6 +17,8 @@ import { spacing } from '../design-system/spacing';
 import { forgotPassword, handleNetworkError } from '../services/authService';
 import { triggerSuccessHaptic, triggerErrorHaptic } from '../services/hapticService';
 
+const { isValidEmail } = require('../utils/validation');
+
 const staticStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -94,16 +96,12 @@ function ForgotPasswordScreen({ navigation }) {
   // Ref for cleanup
   const timeoutRef = useRef(null);
 
-  // Memoized email validation function
-  const isValidEmail = useCallback((emailAddress) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(emailAddress.trim());
-  }, []);
+  // Email validation is now imported from shared utility
 
   // Memoized form validation
   const isFormValid = useMemo(
     () => email.trim().length > 0 && isValidEmail(email.trim()),
-    [email, isValidEmail],
+    [email],
   );
 
   // Cleanup timeout on unmount

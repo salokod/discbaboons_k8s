@@ -55,7 +55,7 @@ The new password must meet the same requirements as registration:
 #### 400 Bad Request - Validation Error
 ```json
 {
-  "error": "ValidationError",
+  "success": false,
   "message": "Reset code, new password, and username or email are required"
 }
 ```
