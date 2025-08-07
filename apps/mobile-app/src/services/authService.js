@@ -390,3 +390,65 @@ export async function resetPassword(verificationCode, newPassword, usernameOrEma
     throw error;
   }
 }
+
+/**
+ * Request username recovery email
+ * @param {string} email - Email address for username recovery
+ * @returns {Promise<Object>} Success response from server
+ * @throws {Error} Network error, validation error, or API error
+ */
+export async function forgotUsername(email) {
+  // Client-side validation
+  if (!email || typeof email !== 'string') {
+    throw new Error('Email is required');
+  }
+
+  const trimmedEmail = email.trim();
+  if (trimmedEmail.length === 0) {
+    throw new Error('Email cannot be empty');
+  }
+
+  if (!isValidEmail(trimmedEmail)) {
+    throw new Error('Invalid email format');
+  }
+
+  // Set up request timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-username`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: trimmedEmail,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle specific error responses
+      if (response.status === 400 && data.error === 'ValidationError') {
+        throw new Error(data.message);
+      }
+      if (response.status === 429) {
+        throw new Error('Too many attempts. Please wait before trying again.');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to send username recovery email. Please try again.');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}

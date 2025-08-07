@@ -10,6 +10,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ForgotUsernameScreen from './src/screens/ForgotUsernameScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 
 // Wrapped screen components to avoid inline definitions
@@ -18,6 +19,15 @@ function WrappedForgotPasswordScreen(props) {
     <ErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <ForgotPasswordScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedForgotUsernameScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <ForgotUsernameScreen {...props} />
     </ErrorBoundary>
   );
 }
@@ -42,7 +52,12 @@ const AuthStack = createNativeStackNavigator();
 function LoginScreenWithNavigation({ navigation, route }) {
   return (
     <ErrorBoundary>
-      <LoginScreen navigation={navigation} route={route} onForgotPassword={() => navigation.navigate('ForgotPassword')} />
+      <LoginScreen
+        navigation={navigation}
+        route={route}
+        onForgotPassword={() => navigation.navigate('ForgotPassword')}
+        onForgotUsername={() => navigation.navigate('ForgotUsername')}
+      />
     </ErrorBoundary>
   );
 }
@@ -56,6 +71,10 @@ function AuthNavigator() {
           <AuthStack.Screen
             name="ForgotPassword"
             component={WrappedForgotPasswordScreen}
+          />
+          <AuthStack.Screen
+            name="ForgotUsername"
+            component={WrappedForgotUsernameScreen}
           />
           <AuthStack.Screen
             name="ResetPassword"

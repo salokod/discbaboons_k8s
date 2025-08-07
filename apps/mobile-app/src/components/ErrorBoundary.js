@@ -1,12 +1,14 @@
 /**
  * ErrorBoundary - Catch and handle React errors gracefully
+ * Converted to functional component using react-error-boundary
  */
 
-import React from 'react';
+import { useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
 } from 'react-native';
 import PropTypes from 'prop-types';
+import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
 import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
@@ -91,18 +93,8 @@ ErrorFallback.defaultProps = {
   error: null,
 };
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
+function ErrorBoundary({ children, fallback }) {
+  const handleError = (error, errorInfo) => {
     // Log error to console in development
     if (__DEV__) {
       // eslint-disable-next-line no-console
@@ -111,25 +103,23 @@ class ErrorBoundary extends React.Component {
 
     // In production, you might want to log this to a crash reporting service
     // Example: crashReporting.recordError(error, errorInfo);
-  }
-
-  handleReset = () => {
-    this.setState({ hasError: false, error: null });
   };
 
-  render() {
-    const { hasError, error } = this.state;
-    const { children, fallback } = this.props;
-
-    if (hasError) {
-      if (fallback) {
-        return fallback(error, this.handleReset);
-      }
-      return <ErrorFallback error={error} resetError={this.handleReset} />;
+  const FallbackComponent = useMemo(() => {
+    if (fallback) {
+      return ({ error, resetErrorBoundary }) => fallback(error, resetErrorBoundary);
     }
+    return ErrorFallback;
+  }, [fallback]);
 
-    return children;
-  }
+  return (
+    <ReactErrorBoundary
+      FallbackComponent={FallbackComponent}
+      onError={handleError}
+    >
+      {children}
+    </ReactErrorBoundary>
+  );
 }
 
 ErrorBoundary.propTypes = {
