@@ -28,8 +28,8 @@ describe('EmptyBagsScreen', () => {
       </ThemeProvider>,
     );
 
-    expect(getByText('Start Your Collection')).toBeTruthy();
-    expect(getByText('Create your first bag to organize your discs by course, skill level, or favorites')).toBeTruthy();
+    expect(getByText('Organize Your Disc Golf Collection')).toBeTruthy();
+    expect(getByText('Keep track of all your discs, bags, and home collection. Create bags like \'Home Collection\', \'Tournament Bag\', or \'Glow Round\' to organize your discs however you like.')).toBeTruthy();
   });
 
   it('should display create first bag button', () => {

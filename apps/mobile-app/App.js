@@ -16,6 +16,7 @@ import SupportScreen from './src/screens/SupportScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 import BagsListScreen from './src/screens/bags/BagsListScreen';
+import CreateBagScreen from './src/screens/bags/CreateBagScreen';
 
 // Wrapped screen components to avoid inline definitions
 function WrappedForgotPasswordScreen(props) {
@@ -143,13 +144,30 @@ function WrappedBagsListScreen(props) {
   );
 }
 
+function WrappedCreateBagScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <CreateBagScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
 function AppNavigator() {
   return (
     <View testID="app-navigator" style={styles.container}>
       <ErrorBoundary>
         <AppStack.Navigator screenOptions={{ headerShown: false }}>
           <AppStack.Screen name="BagsList" component={WrappedBagsListScreen} />
-          {/* TODO: Add more bag management screens */}
+          <AppStack.Screen
+            name="CreateBag"
+            component={WrappedCreateBagScreen}
+            options={{
+              presentation: 'modal',
+              headerShown: true,
+              title: 'Create Bag',
+            }}
+          />
         </AppStack.Navigator>
       </ErrorBoundary>
     </View>

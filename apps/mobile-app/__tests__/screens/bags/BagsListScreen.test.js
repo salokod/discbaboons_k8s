@@ -29,7 +29,7 @@ describe('BagsListScreen', () => {
       </ThemeProvider>,
     );
 
-    expect(getByText('Start Your Collection')).toBeTruthy();
+    expect(getByText('Organize Your Disc Golf Collection')).toBeTruthy();
     expect(getByText('Create First Bag')).toBeTruthy();
   });
 });

@@ -9,7 +9,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import AppContainer from '../../components/AppContainer';
 import EmptyState from '../../design-system/components/EmptyState';
 
-function EmptyBagsScreen({ onCreateFirstBag }) {
+function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
   const colors = useThemeColors();
 
   const styles = StyleSheet.create({
@@ -19,14 +19,19 @@ function EmptyBagsScreen({ onCreateFirstBag }) {
     },
   });
 
+  const handleCreateFirstBag = () => {
+    navigation?.navigate('CreateBag');
+    onCreateFirstBag?.();
+  };
+
   return (
     <SafeAreaView testID="empty-bags-screen" style={styles.container}>
       <AppContainer>
         <EmptyState
-          title="Start Your Collection"
-          subtitle="Create your first bag to organize your discs by course, skill level, or favorites"
+          title="Organize Your Disc Golf Collection"
+          subtitle="Keep track of all your discs, bags, and home collection. Create bags like 'Home Collection', 'Tournament Bag', or 'Glow Round' to organize your discs however you like."
           actionLabel="Create First Bag"
-          onAction={onCreateFirstBag}
+          onAction={handleCreateFirstBag}
         />
       </AppContainer>
     </SafeAreaView>
@@ -34,10 +39,14 @@ function EmptyBagsScreen({ onCreateFirstBag }) {
 }
 
 EmptyBagsScreen.propTypes = {
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func,
+  }),
   onCreateFirstBag: PropTypes.func,
 };
 
 EmptyBagsScreen.defaultProps = {
+  navigation: null,
   onCreateFirstBag: () => {},
 };
 
