@@ -4,7 +4,7 @@
 
 import { memo, useState, useRef } from 'react';
 import {
-  SafeAreaView, StyleSheet, Text, View, ScrollView, Platform, TouchableWithoutFeedback, Keyboard,
+  SafeAreaView, StyleSheet, Text, View, ScrollView, Platform, TouchableWithoutFeedback, Keyboard, Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -14,6 +14,7 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
+import { createBag } from '../../services/bagService';
 
 const PRIVACY_OPTIONS = [
   {
@@ -32,6 +33,7 @@ function CreateBagScreen({ navigation, onCreateBag }) {
   const [bagName, setBagName] = useState('');
   const [description, setDescription] = useState('');
   const [privacy, setPrivacy] = useState('private');
+  const [isCreating, setIsCreating] = useState(false);
 
   // Refs for auto-focus flow
   const bagNameInputRef = useRef(null);
@@ -138,15 +140,36 @@ function CreateBagScreen({ navigation, onCreateBag }) {
     },
   });
 
-  const handleCreateBag = () => {
+  const handleCreateBag = async () => {
+    if (isCreating) return; // Prevent double submissions
+
     const bagData = {
       name: bagName.trim(),
       description: description.trim(),
       privacy,
     };
-    onCreateBag?.(bagData);
-    // Navigate back to bags list after creation
-    navigation?.goBack();
+
+    setIsCreating(true);
+
+    try {
+      // Call the API service to create the bag
+      const createdBag = await createBag(bagData);
+      
+      // Call the optional callback prop with the created bag data
+      onCreateBag?.(createdBag);
+      
+      // Navigate back to bags list after successful creation
+      navigation?.goBack();
+    } catch (error) {
+      // Show user-friendly error message
+      Alert.alert(
+        'Unable to Create Bag',
+        error.message || 'Something went wrong. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const isValid = bagName.trim().length > 0;
@@ -264,10 +287,11 @@ function CreateBagScreen({ navigation, onCreateBag }) {
             {/* Create Button */}
             <View style={styles.buttonContainer}>
               <Button
-                title="Create Bag"
+                title={isCreating ? "Creating..." : "Create Bag"}
                 onPress={handleCreateBag}
-                disabled={!isValid}
+                disabled={!isValid || isCreating}
                 variant="primary"
+                loading={isCreating}
               />
             </View>
           </ScrollView>
