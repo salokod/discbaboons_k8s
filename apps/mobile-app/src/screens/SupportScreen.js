@@ -197,7 +197,7 @@ Thank you for your time!`;
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Common Questions</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Common Questions</Text>
             <Text style={styles.sectionText}>
               <Text style={styles.boldText}>
                 Account Issues:
@@ -225,7 +225,7 @@ Thank you for your time!`;
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About DiscBaboons</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">About DiscBaboons</Text>
             <Text style={styles.sectionText}>
               DiscBaboons is a disc golf tracking app designed by players, for players. Track your rounds,
               manage your bag, connect with friends, and improve your game.
@@ -261,7 +261,6 @@ Thank you for your time!`;
 SupportScreen.propTypes = {
   navigation: PropTypes.shape({
     goBack: PropTypes.func.isRequired,
-    navigate: PropTypes.func.isRequired,
   }).isRequired,
 };
 

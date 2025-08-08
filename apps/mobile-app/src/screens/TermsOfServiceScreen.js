@@ -162,14 +162,14 @@ function TermsOfServiceScreen({ navigation }) {
           </Text>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Acceptance of Terms</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Acceptance of Terms</Text>
             <Text style={styles.sectionText}>
               By using the DiscBaboons mobile application, you agree to be bound by these Terms of Service. If you do not agree to these Terms, do not use the App.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About DiscBaboons</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">About DiscBaboons</Text>
             <Text style={styles.sectionText}>
               DiscBaboons is a disc golf tracking application operated by the developer as a solo
               development project. The App provides disc golf players with tools to track rounds, scores,
@@ -182,7 +182,7 @@ function TermsOfServiceScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Eligibility</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Eligibility</Text>
             <Text style={styles.bulletPoint}>• You must be at least 13 years old to use the App</Text>
             <Text style={styles.bulletPoint}>• You must provide accurate registration information</Text>
             <Text style={styles.bulletPoint}>• You are responsible for maintaining account security</Text>
@@ -190,7 +190,7 @@ function TermsOfServiceScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Permitted Use</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Permitted Use</Text>
             <Text style={styles.bulletPoint}>• Track your disc golf rounds and statistics</Text>
             <Text style={styles.bulletPoint}>• Manage your disc collection and report lost discs</Text>
             <Text style={styles.bulletPoint}>• Connect with friends and share game information</Text>
@@ -199,7 +199,7 @@ function TermsOfServiceScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Prohibited Activities</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Prohibited Activities</Text>
             <Text style={styles.bulletPoint}>• Use the App for commercial gambling or illegal betting</Text>
             <Text style={styles.bulletPoint}>• Share false information or impersonate others</Text>
             <Text style={styles.bulletPoint}>• Attempt to hack, reverse engineer, or compromise the App</Text>
@@ -218,35 +218,35 @@ function TermsOfServiceScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Solo Operation Limitations</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Solo Operation Limitations</Text>
             <Text style={styles.sectionText}>
               DiscBaboons is operated by a single developer with limited resources. We strive for reliable service but cannot guarantee 100% uptime. Updates and bug fixes may take longer than larger services, and customer support is provided on a best-effort basis.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Disclaimers and Limitations</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Disclaimers and Limitations</Text>
             <Text style={styles.sectionText}>
               The App is provided &quot;as is&quot; without warranties of any kind. We do not guarantee accuracy of course information or statistics. To the maximum extent permitted by law, our total liability shall not exceed $50 or the amount you paid to use the App.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Termination</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Account Termination</Text>
             <Text style={styles.sectionText}>
               You may delete your account at any time through App settings. We may suspend or terminate your account if you violate these Terms, use the App for illegal activities, engage in harassment, or attempt to compromise security.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Geographic Limitations</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Geographic Limitations</Text>
             <Text style={styles.sectionText}>
               DiscBaboons is available only in Canada and the United States. Use outside these regions is prohibited and may result in account termination. Users are responsible for compliance with local laws.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact Information</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Contact Information</Text>
             <Text style={styles.sectionText}>
               For questions about these Terms of Service:
             </Text>

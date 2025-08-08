@@ -139,7 +139,7 @@ function PrivacyPolicyScreen({ navigation }) {
           </Text>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About DiscBaboons</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">About DiscBaboons</Text>
             <Text style={styles.sectionText}>
               DiscBaboons is a disc golf tracking application operated as a solo development project by
               the developer. This app helps disc golf players track their rounds, scores, disc collections,
@@ -150,7 +150,7 @@ function PrivacyPolicyScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Information We Collect</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Information We Collect</Text>
             <Text style={styles.sectionText}>
               <Text style={styles.boldText}>Information You Provide:</Text>
             </Text>
@@ -171,21 +171,21 @@ function PrivacyPolicyScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>How We Use Your Information</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">How We Use Your Information</Text>
             <Text style={styles.sectionText}>
               We use your information solely to provide the disc golf tracking service, authenticate your account securely, enable social features with friends, track game statistics, and maintain app security.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Data Security</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Data Security</Text>
             <Text style={styles.sectionText}>
               All passwords are encrypted using industry-standard bcrypt hashing. Authentication tokens are stored securely using device keychain services. Data transmission uses HTTPS encryption, and database access is restricted and monitored.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sharing Your Information</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Sharing Your Information</Text>
             <Text style={styles.sectionText}>
               <Text style={styles.boldText}>We do not sell, rent, or trade your personal information.</Text>
               {'\n\n'}
@@ -195,7 +195,7 @@ function PrivacyPolicyScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Rights</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Your Rights</Text>
             <Text style={styles.bulletPoint}>• Access and download your account data</Text>
             <Text style={styles.bulletPoint}>• Update incorrect information in your profile</Text>
             <Text style={styles.bulletPoint}>• Delete your account and associated data</Text>
@@ -204,14 +204,14 @@ function PrivacyPolicyScreen({ navigation }) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Solo Operation Notice</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Solo Operation Notice</Text>
             <Text style={styles.sectionText}>
               DiscBaboons is operated by a single developer. While we maintain professional security standards and follow industry best practices, users should understand this is not a large corporation with extensive resources. We are committed to protecting your privacy within the constraints of a solo operation.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact Us</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Contact Us</Text>
             <Text style={styles.sectionText}>
               For privacy questions, concerns, or requests:
             </Text>
