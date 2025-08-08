@@ -364,12 +364,48 @@ expect(usernameInput.props.secureTextEntry).toBeFalsy();
 2. **🟡 IMPORTANT**: Input validation, state exposure, clipboard protection
 3. **🟢 BENEFICIAL**: Biometrics, screenshot protection, background behavior
 
-## Next Steps
+## Next Steps After Auth ✅ COMPLETE
 
-1. Create LoginScreen using established patterns
-2. Implement form validation
-3. Set up API service layer
-4. Implement secure token storage
+~~1. Create LoginScreen using established patterns~~ ✅
+~~2. Implement form validation~~ ✅  
+~~3. Set up API service layer~~ ✅
+~~4. Implement secure token storage~~ ✅
+
+## Next Phase: Bag and Disc Management System
+
+### **Design System Evolution - Bag Management Components**
+
+#### **Extending Design System** (`src/design-system/components/`)
+New reusable components that extend the existing foundation:
+- **Card.js**: Base card component using existing theme system
+- **FilterChip.js**: Selection chips using Button component patterns
+- **SearchBar.js**: Search input extending Input component  
+- **BottomSheet.js**: Modal container with theme-aware styling
+- **EmptyState.js**: Onboarding states using typography constants
+- **LoadingSpinner.js**: Consistent loading using theme colors
+- **ActionBar.js**: Bottom action bar using Button composition
+
+#### **Component Composition Philosophy**
+- **Build UP, not OUT**: Extend existing Button/Input/AppContainer components
+- **Theme Integration**: All components use `useThemeColors()` hook
+- **Testing Consistency**: Follow established ThemeProvider wrapper pattern
+- **Reusability First**: Design components for use across multiple features
+
+#### **Bag Management Architecture**
+```
+Screens use Design System components:
+BagsListScreen → uses Card, EmptyState, SearchBar
+BagDetailScreen → uses Card, FilterChip, ActionBar
+DiscSearchScreen → uses SearchBar, FilterChip, LoadingSpinner
+MoveBagsModal → uses BottomSheet, Card
+```
+
+#### **Implementation Strategy**
+1. **Phase 1**: Extend design system with base components (Card, FilterChip, etc.)
+2. **Phase 2**: Build bag management screens using composition patterns
+3. **Phase 3**: Implement disc search and filtering using established API patterns
+4. **Phase 4**: Add multi-select and bulk operations using consistent state management
+5. **Phase 5**: Polish with animations and micro-interactions
 
 ---
 
