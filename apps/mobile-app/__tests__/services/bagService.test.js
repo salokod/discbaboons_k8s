@@ -21,7 +21,7 @@ jest.mock('../../src/services/tokenStorage', () => ({
 global.fetch = jest.fn();
 
 // Mock timers globally
-global.setTimeout = jest.fn((fn, delay) => {
+global.setTimeout = jest.fn(() => {
   const id = Math.random();
   return id;
 });
@@ -72,7 +72,7 @@ describe('BagService Functions', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-access-token',
+          Authorization: 'Bearer mock-access-token',
         },
         body: JSON.stringify({
           name: 'Tournament Bag',
@@ -186,7 +186,7 @@ describe('BagService Functions', () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-access-token',
+          Authorization: 'Bearer mock-access-token',
         },
         signal: expect.any(AbortSignal),
       });
@@ -221,7 +221,7 @@ describe('BagService Functions', () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-access-token',
+          Authorization: 'Bearer mock-access-token',
         },
         signal: expect.any(AbortSignal),
       });
@@ -259,7 +259,7 @@ describe('BagService Functions', () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-access-token',
+          Authorization: 'Bearer mock-access-token',
         },
         body: JSON.stringify({
           name: 'Updated Tournament Bag',
@@ -314,7 +314,7 @@ describe('BagService Functions', () => {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-access-token',
+          Authorization: 'Bearer mock-access-token',
         },
         signal: expect.any(AbortSignal),
       });

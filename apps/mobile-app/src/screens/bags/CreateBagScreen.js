@@ -4,7 +4,15 @@
 
 import { memo, useState, useRef } from 'react';
 import {
-  SafeAreaView, StyleSheet, Text, View, ScrollView, Platform, TouchableWithoutFeedback, Keyboard, Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -154,10 +162,10 @@ function CreateBagScreen({ navigation, onCreateBag }) {
     try {
       // Call the API service to create the bag
       const createdBag = await createBag(bagData);
-      
+
       // Call the optional callback prop with the created bag data
       onCreateBag?.(createdBag);
-      
+
       // Navigate back to bags list after successful creation
       navigation?.goBack();
     } catch (error) {
@@ -165,7 +173,7 @@ function CreateBagScreen({ navigation, onCreateBag }) {
       Alert.alert(
         'Unable to Create Bag',
         error.message || 'Something went wrong. Please try again.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     } finally {
       setIsCreating(false);
@@ -287,7 +295,7 @@ function CreateBagScreen({ navigation, onCreateBag }) {
             {/* Create Button */}
             <View style={styles.buttonContainer}>
               <Button
-                title={isCreating ? "Creating..." : "Create Bag"}
+                title={isCreating ? 'Creating...' : 'Create Bag'}
                 onPress={handleCreateBag}
                 disabled={!isValid || isCreating}
                 variant="primary"

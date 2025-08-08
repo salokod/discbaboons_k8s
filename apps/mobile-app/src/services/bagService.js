@@ -68,7 +68,7 @@ async function getAuthHeaders() {
 
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${tokens.accessToken}`,
+    Authorization: `Bearer ${tokens.accessToken}`,
   };
 }
 
@@ -90,7 +90,7 @@ export async function getBags(params = {}) {
     // Build query parameters (API supports limit, offset, include_lost)
     const queryParams = new URLSearchParams();
     if (params.limit) queryParams.set('limit', params.limit.toString());
-    if (params.offset) queryParams.set('offset', params.offset.toString());
+    if (params.offset !== undefined) queryParams.set('offset', params.offset.toString());
     if (params.include_lost) queryParams.set('include_lost', params.include_lost.toString());
 
     const queryString = queryParams.toString();
@@ -176,7 +176,7 @@ export async function createBag(bagData) {
   try {
     // Get auth headers with access token
     const headers = await getAuthHeaders();
-    
+
     // Convert privacy string to API boolean flags
     const privacyFlags = convertPrivacyToFlags(privacy);
 
@@ -206,7 +206,7 @@ export async function createBag(bagData) {
         throw new Error(data.message || 'Please check your bag information');
       }
       if (response.status === 409) {
-        // Backend returns conflict for duplicate bag name  
+        // Backend returns conflict for duplicate bag name
         throw new Error(data.message || 'You already have a bag with this name');
       }
       if (response.status === 429) {
