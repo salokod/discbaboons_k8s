@@ -12,6 +12,9 @@ import LoginScreen from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ForgotUsernameScreen from './src/screens/ForgotUsernameScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
+import SupportScreen from './src/screens/SupportScreen';
+import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 
 // Wrapped screen components to avoid inline definitions
 function WrappedForgotPasswordScreen(props) {
@@ -41,6 +44,33 @@ function WrappedResetPasswordScreen(props) {
   );
 }
 
+function WrappedSupportScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <SupportScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedPrivacyPolicyScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <PrivacyPolicyScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedTermsOfServiceScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <TermsOfServiceScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -57,6 +87,9 @@ function LoginScreenWithNavigation({ navigation, route }) {
         route={route}
         onForgotPassword={() => navigation.navigate('ForgotPassword')}
         onForgotUsername={() => navigation.navigate('ForgotUsername')}
+        onPrivacyPolicy={() => navigation.navigate('PrivacyPolicy')}
+        onTermsOfService={() => navigation.navigate('TermsOfService')}
+        onSupport={() => navigation.navigate('Support')}
       />
     </ErrorBoundary>
   );
@@ -79,6 +112,18 @@ function AuthNavigator() {
           <AuthStack.Screen
             name="ResetPassword"
             component={WrappedResetPasswordScreen}
+          />
+          <AuthStack.Screen
+            name="Support"
+            component={WrappedSupportScreen}
+          />
+          <AuthStack.Screen
+            name="PrivacyPolicy"
+            component={WrappedPrivacyPolicyScreen}
+          />
+          <AuthStack.Screen
+            name="TermsOfService"
+            component={WrappedTermsOfServiceScreen}
           />
         </AuthStack.Navigator>
       </ErrorBoundary>
