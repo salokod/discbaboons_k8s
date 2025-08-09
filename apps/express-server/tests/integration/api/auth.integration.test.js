@@ -80,6 +80,7 @@ describe('Auth Integration Tests', () => {
         id: registerResponse.body.user.id,
         email: userData.email,
         username: userData.username,
+        is_admin: false, // New users should not be admin by default
       },
       tokens: {
         accessToken: expect.any(String),

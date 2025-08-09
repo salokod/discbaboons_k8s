@@ -112,6 +112,7 @@ describe('LoginService', () => {
       email: chance.email(),
       password_hash: chance.hash(),
       created_at: chance.date().toISOString(),
+      is_admin: false,
     };
 
     const mockAccessToken = chance.string({ length: 50 });
@@ -135,6 +136,7 @@ describe('LoginService', () => {
         username: mockUser.username,
         email: mockUser.email,
         created_at: mockUser.created_at,
+        is_admin: mockUser.is_admin,
       },
       tokens: {
         accessToken: mockAccessToken,
@@ -143,7 +145,7 @@ describe('LoginService', () => {
     });
 
     expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
-      { userId: mockUser.id, username: mockUser.username },
+      { userId: mockUser.id, username: mockUser.username, isAdmin: mockUser.is_admin },
       jwtSecret,
       { expiresIn: '15m' },
     );
@@ -169,6 +171,7 @@ describe('LoginService', () => {
       email: chance.email(),
       password_hash: chance.hash(),
       created_at: chance.date().toISOString(),
+      is_admin: false,
     };
 
     const mockAccessToken = chance.string({ length: 50 });
@@ -183,12 +186,170 @@ describe('LoginService', () => {
 
     const result = await loginUser(loginData);
 
-    // Assert that database was queried with lowercase username
+    // Assert that database was queried with lowercase username and includes is_admin field
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT id, username, email, password_hash, created_at FROM users WHERE username = $1',
+      'SELECT id, username, email, password_hash, created_at, is_admin FROM users WHERE username = $1',
       ['testuser123'],
     );
     expect(result.success).toBe(true);
     expect(result.user.username).toBe('testuser123');
+  });
+
+  test('should successfully login admin user with is_admin true', async () => {
+    const jwtSecret = chance.string({ length: 32 });
+    const jwtRefreshSecret = chance.string({ length: 32 });
+
+    process.env.JWT_SECRET = jwtSecret;
+    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
+
+    const loginData = {
+      username: chance.string({ length: 8, alpha: true }),
+      password: chance.string({
+        length: 10, alpha: true, numeric: true, symbols: true,
+      }),
+    };
+
+    const mockAdminUser = {
+      id: chance.integer({ min: 1, max: 1000 }),
+      username: loginData.username,
+      email: chance.email(),
+      password_hash: chance.hash(),
+      created_at: chance.date().toISOString(),
+      is_admin: true,
+    };
+
+    const mockAccessToken = chance.string({ length: 50 });
+    const mockRefreshToken = chance.string({ length: 50 });
+
+    // Set up mocks
+    mockDatabase.queryOne.mockResolvedValue(mockAdminUser);
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true);
+
+    vi.mocked(jwt.default.sign)
+      .mockReturnValueOnce(mockAccessToken)
+      .mockReturnValueOnce(mockRefreshToken);
+
+    const result = await loginUser(loginData);
+
+    expect(result).toEqual({
+      success: true,
+      user: {
+        id: mockAdminUser.id,
+        username: mockAdminUser.username,
+        email: mockAdminUser.email,
+        created_at: mockAdminUser.created_at,
+        is_admin: true,
+      },
+      tokens: {
+        accessToken: mockAccessToken,
+        refreshToken: mockRefreshToken,
+      },
+    });
+
+    // Verify JWT tokens include isAdmin field
+    expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
+      { userId: mockAdminUser.id, username: mockAdminUser.username, isAdmin: true },
+      jwtSecret,
+      { expiresIn: '15m' },
+    );
+    expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
+      { userId: mockAdminUser.id },
+      jwtRefreshSecret,
+      { expiresIn: '14d' },
+    );
+  });
+
+  test('should successfully login regular user with is_admin false', async () => {
+    const jwtSecret = chance.string({ length: 32 });
+    const jwtRefreshSecret = chance.string({ length: 32 });
+
+    process.env.JWT_SECRET = jwtSecret;
+    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
+
+    const loginData = {
+      username: chance.string({ length: 8, alpha: true }),
+      password: chance.string({
+        length: 10, alpha: true, numeric: true, symbols: true,
+      }),
+    };
+
+    const mockRegularUser = {
+      id: chance.integer({ min: 1, max: 1000 }),
+      username: loginData.username,
+      email: chance.email(),
+      password_hash: chance.hash(),
+      created_at: chance.date().toISOString(),
+      is_admin: false,
+    };
+
+    const mockAccessToken = chance.string({ length: 50 });
+    const mockRefreshToken = chance.string({ length: 50 });
+
+    // Set up mocks
+    mockDatabase.queryOne.mockResolvedValue(mockRegularUser);
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true);
+
+    vi.mocked(jwt.default.sign)
+      .mockReturnValueOnce(mockAccessToken)
+      .mockReturnValueOnce(mockRefreshToken);
+
+    const result = await loginUser(loginData);
+
+    expect(result).toEqual({
+      success: true,
+      user: {
+        id: mockRegularUser.id,
+        username: mockRegularUser.username,
+        email: mockRegularUser.email,
+        created_at: mockRegularUser.created_at,
+        is_admin: false,
+      },
+      tokens: {
+        accessToken: mockAccessToken,
+        refreshToken: mockRefreshToken,
+      },
+    });
+
+    // Verify JWT tokens include isAdmin field as false
+    expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
+      { userId: mockRegularUser.id, username: mockRegularUser.username, isAdmin: false },
+      jwtSecret,
+      { expiresIn: '15m' },
+    );
+    expect(vi.mocked(jwt.default.sign)).toHaveBeenCalledWith(
+      { userId: mockRegularUser.id },
+      jwtRefreshSecret,
+      { expiresIn: '14d' },
+    );
+  });
+
+  test('should query database with is_admin field in SELECT statement', async () => {
+    const loginData = {
+      username: chance.string({ length: 8, alpha: true }),
+      password: chance.string({
+        length: 10, alpha: true, numeric: true, symbols: true,
+      }),
+    };
+
+    const mockUser = {
+      id: chance.integer({ min: 1, max: 1000 }),
+      username: loginData.username,
+      email: chance.email(),
+      password_hash: chance.hash(),
+      created_at: chance.date().toISOString(),
+      is_admin: chance.bool(),
+    };
+
+    mockDatabase.queryOne.mockResolvedValue(mockUser);
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true);
+    vi.mocked(jwt.default.sign).mockReturnValue(chance.string({ length: 50 }));
+
+    await loginUser(loginData);
+
+    // Assert that database query includes is_admin field
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, username, email, password_hash, created_at, is_admin FROM users WHERE username = $1',
+      [loginData.username.toLowerCase()],
+    );
   });
 });
