@@ -3,19 +3,65 @@
  */
 
 import { memo } from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import {
+  SafeAreaView, StyleSheet, View, Text, Alert, Platform,
+} from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
+// import { useAuth } from '../../context/AuthContext';
+import { spacing } from '../../design-system/spacing';
+import { typography } from '../../design-system/typography';
 import AppContainer from '../../components/AppContainer';
 import EmptyState from '../../design-system/components/EmptyState';
+import Button from '../../components/Button';
+import { getTokens } from '../../services/tokenStorage';
 
 function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
   const colors = useThemeColors();
+  // Access to auth context for future use
+  // const { isAuthenticated, user } = useAuth();
+
+  // Debug function to check auth status
+  const checkAuthAndNavigate = async (screenName) => {
+    try {
+      const tokens = await getTokens();
+      if (!tokens || !tokens.accessToken) {
+        Alert.alert('Authentication Error', 'No access token found. Please log in again.');
+        return;
+      }
+      navigation?.navigate(screenName);
+    } catch (error) {
+      Alert.alert('Authentication Error', `Error checking authentication: ${error.message}`);
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    discSection: {
+      marginTop: spacing.xl,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: Platform.select({
+        ios: spacing.lg,
+        android: spacing.xl, // Extra bottom padding for Android
+      }),
+    },
+    discSectionTitle: {
+      ...typography.h3,
+      color: colors.text,
+      marginBottom: spacing.md,
+      textAlign: 'center',
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    button: {
+      flex: 1,
+      marginHorizontal: spacing.xs, // Use margin instead of gap for better compatibility
     },
   });
 
@@ -33,6 +79,28 @@ function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
           actionLabel="Create First Bag"
           onAction={handleCreateFirstBag}
         />
+
+        <View style={styles.discSection}>
+          <Text style={styles.discSectionTitle}>Disc Database</Text>
+
+          <View style={styles.buttonRow}>
+            <Button
+              title="Search Discs"
+              onPress={() => checkAuthAndNavigate('DiscSearchScreen')}
+              style={styles.button}
+              variant="secondary"
+            />
+            <Button
+              title="Submit New Disc"
+              onPress={() => checkAuthAndNavigate('SubmitDiscScreen')}
+              style={styles.button}
+              variant="secondary"
+            />
+          </View>
+
+          {/* TODO: Show admin button only if user is admin
+              - requires backend to return is_admin flag */}
+        </View>
       </AppContainer>
     </SafeAreaView>
   );

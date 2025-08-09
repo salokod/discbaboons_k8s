@@ -2,7 +2,9 @@
  * SearchBar Component
  */
 
-import { memo } from 'react';
+import {
+  memo, useMemo, useRef, useState,
+} from 'react';
 import {
   View, TextInput, StyleSheet, Platform, TouchableOpacity,
 } from 'react-native';
@@ -14,12 +16,25 @@ import { typography } from '../typography';
 
 function SearchBar({
   placeholder = 'Search...',
-  value = '',
+  value,
   onChangeText,
   onClear,
+  onSubmitEditing,
   disabled = false,
 }) {
   const colors = useThemeColors();
+  const inputRef = useRef(null);
+  const isControlled = value !== undefined;
+  const [internalValue, setInternalValue] = useState('');
+
+  const handleTextChange = (text) => {
+    if (!isControlled) {
+      setInternalValue(text);
+    }
+    if (onChangeText) {
+      onChangeText(text);
+    }
+  };
 
   const handleClear = () => {
     if (onClear) {
@@ -28,9 +43,19 @@ function SearchBar({
     if (onChangeText) {
       onChangeText('');
     }
+    // For uncontrolled mode, clear the input and internal state
+    if (!isControlled) {
+      setInternalValue('');
+      if (inputRef.current) {
+        inputRef.current.clear();
+      }
+    }
   };
 
-  const styles = StyleSheet.create({
+  const displayValue = isControlled ? value : internalValue;
+
+  // Memoize styles to prevent component recreation
+  const styles = useMemo(() => StyleSheet.create({
     container: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -62,7 +87,7 @@ function SearchBar({
       marginLeft: spacing.sm,
       padding: spacing.xs,
     },
-  });
+  }), [colors, disabled]);
 
   return (
     <View testID="search-bar" style={styles.container}>
@@ -73,21 +98,23 @@ function SearchBar({
         style={styles.searchIcon}
       />
       <TextInput
+        ref={inputRef}
         testID="search-input"
         style={styles.input}
         placeholder={placeholder}
         placeholderTextColor={colors.textLight}
-        value={value}
-        onChangeText={onChangeText}
+        value={isControlled ? value : internalValue}
+        onChangeText={handleTextChange}
+        onSubmitEditing={onSubmitEditing}
         editable={!disabled}
         accessibilityLabel={`Search input: ${placeholder}`}
-        accessibilityHint="Type to search"
+        accessibilityHint="Type to search or press enter"
         autoCapitalize="none"
         autoCorrect={false}
         spellCheck={false}
         returnKeyType="search"
       />
-      {value && value.length > 0 && (
+      {displayValue && displayValue.length > 0 && (
         <TouchableOpacity
           testID="search-clear-button"
           style={styles.clearButton}
@@ -112,6 +139,7 @@ SearchBar.propTypes = {
   value: PropTypes.string,
   onChangeText: PropTypes.func,
   onClear: PropTypes.func,
+  onSubmitEditing: PropTypes.func,
   disabled: PropTypes.bool,
 };
 
@@ -120,6 +148,7 @@ SearchBar.defaultProps = {
   value: '',
   onChangeText: () => {},
   onClear: undefined,
+  onSubmitEditing: undefined,
   disabled: false,
 };
 

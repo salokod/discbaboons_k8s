@@ -6,28 +6,23 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }
     speed, glide, turn, fade, approved, limit = '50', offset = '0',
   } = filters;
 
+  // Updated regex to handle comma-separated ranges for multi-select
   const numRangeRegex = /^-?\d+(-?-?\d+)?$/;
+  const multiRangeRegex = /^(-?\d+(-?-?\d+)?,?\s*)+$/;
 
-  if (speed && !numRangeRegex.test(speed)) {
-    const error = new Error('Invalid filter value');
-    error.name = 'ValidationError';
-    throw error;
-  }
-  if (glide && !numRangeRegex.test(glide)) {
-    const error = new Error('Invalid filter value');
-    error.name = 'ValidationError';
-    throw error;
-  }
-  if (turn && !numRangeRegex.test(turn)) {
-    const error = new Error('Invalid filter value');
-    error.name = 'ValidationError';
-    throw error;
-  }
-  if (fade && !numRangeRegex.test(fade)) {
-    const error = new Error('Invalid filter value');
-    error.name = 'ValidationError';
-    throw error;
-  }
+  // Validate flight number filters (allow single range or comma-separated ranges)
+  const validateFlightFilter = (value, fieldName) => {
+    if (value && !numRangeRegex.test(value) && !multiRangeRegex.test(value)) {
+      const error = new Error(`Invalid ${fieldName} filter value`);
+      error.name = 'ValidationError';
+      throw error;
+    }
+  };
+
+  validateFlightFilter(speed, 'speed');
+  validateFlightFilter(glide, 'glide');
+  validateFlightFilter(turn, 'turn');
+  validateFlightFilter(fade, 'fade');
   if (limit && (Number.isNaN(Number(limit)) || Number(limit) < 0)) {
     const error = new Error('Invalid limit');
     error.name = 'ValidationError';
@@ -43,9 +38,33 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }
   if (typeof brand === 'string') brand = brand.trim();
   if (typeof model === 'string') model = model.trim();
 
-  // Helper to parse range or single value
+  // Helper to parse range or single value, now supports comma-separated ranges
   function parseRange(val) {
     if (!val) return undefined;
+
+    // Handle comma-separated ranges for multi-select
+    if (val.includes(',')) {
+      const ranges = val.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
+      const conditions = [];
+
+      ranges.forEach((range) => {
+        if (/^-?\d+$/.test(range)) {
+          // Single number
+          conditions.push({ type: 'exact', value: Number(range) });
+        } else {
+          const match = range.match(/^(-?\d+)-(-?\d+)$/);
+          if (match) {
+            const min = Number(match[1]);
+            const max = Number(match[2]);
+            conditions.push({ type: 'range', gte: min, lte: max });
+          }
+        }
+      });
+
+      return conditions.length > 0 ? { type: 'multi', conditions } : undefined;
+    }
+
+    // Single range or value (existing logic)
     if (/^-?\d+$/.test(val)) {
       return Number(val);
     }
@@ -63,11 +82,39 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }
   const params = [];
   let paramIndex = 1;
 
-  // Brand filter (exact match)
+  // Brand filter (supports multiple brands with OR logic)
   if (brand) {
-    whereConditions.push(`brand = $${paramIndex}`);
-    params.push(brand);
-    paramIndex += 1;
+    // Brand mapping for common short names to full database names
+    const brandMapping = {
+      'Axiom': 'Axiom Discs',
+      // Add more mappings here as needed
+    };
+    
+    // Function to map brand names
+    const mapBrandName = (brandName) => brandMapping[brandName] || brandName;
+    
+    // Handle comma-separated brands for OR logic
+    if (brand.includes(',')) {
+      const brands = brand.split(',')
+        .map((b) => b.trim())
+        .filter((b) => b.length > 0)
+        .map(mapBrandName); // Apply brand mapping
+      if (brands.length > 0) {
+        const brandPlaceholders = brands.map(() => {
+          const placeholder = `$${paramIndex}`;
+          paramIndex += 1;
+          return placeholder;
+        }).join(', ');
+        whereConditions.push(`brand IN (${brandPlaceholders})`);
+        params.push(...brands);
+      }
+    } else {
+      // Single brand exact match with mapping
+      const mappedBrand = mapBrandName(brand);
+      whereConditions.push(`brand = $${paramIndex}`);
+      params.push(mappedBrand);
+      paramIndex += 1;
+    }
   }
 
   // Model filter (case-insensitive partial match)
@@ -77,61 +124,44 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }
     paramIndex += 1;
   }
 
-  // Speed filter (single value or range)
-  if (speed) {
-    const speedRange = parseRange(speed);
-    if (typeof speedRange === 'number') {
-      whereConditions.push(`speed = $${paramIndex}`);
-      params.push(speedRange);
+  // Helper function to build flight number filter conditions
+  function buildFlightFilter(fieldName, filterValue) {
+    if (!filterValue) return;
+
+    const range = parseRange(filterValue);
+    if (typeof range === 'number') {
+      whereConditions.push(`${fieldName} = $${paramIndex}`);
+      params.push(range);
       paramIndex += 1;
-    } else if (speedRange && speedRange.gte !== undefined && speedRange.lte !== undefined) {
-      whereConditions.push(`speed >= $${paramIndex} AND speed <= $${paramIndex + 1}`);
-      params.push(speedRange.gte, speedRange.lte);
+    } else if (range && range.gte !== undefined && range.lte !== undefined) {
+      whereConditions.push(`${fieldName} >= $${paramIndex} AND ${fieldName} <= $${paramIndex + 1}`);
+      params.push(range.gte, range.lte);
       paramIndex += 2;
+    } else if (range && range.type === 'multi') {
+      // Handle multiple ranges with OR logic
+      const orConditions = [];
+      range.conditions.forEach((condition) => {
+        if (condition.type === 'exact') {
+          orConditions.push(`${fieldName} = $${paramIndex}`);
+          params.push(condition.value);
+          paramIndex += 1;
+        } else if (condition.type === 'range') {
+          orConditions.push(`(${fieldName} >= $${paramIndex} AND ${fieldName} <= $${paramIndex + 1})`);
+          params.push(condition.gte, condition.lte);
+          paramIndex += 2;
+        }
+      });
+      if (orConditions.length > 0) {
+        whereConditions.push(`(${orConditions.join(' OR ')})`);
+      }
     }
   }
 
-  // Glide filter (single value or range)
-  if (glide) {
-    const glideRange = parseRange(glide);
-    if (typeof glideRange === 'number') {
-      whereConditions.push(`glide = $${paramIndex}`);
-      params.push(glideRange);
-      paramIndex += 1;
-    } else if (glideRange && glideRange.gte !== undefined && glideRange.lte !== undefined) {
-      whereConditions.push(`glide >= $${paramIndex} AND glide <= $${paramIndex + 1}`);
-      params.push(glideRange.gte, glideRange.lte);
-      paramIndex += 2;
-    }
-  }
-
-  // Turn filter (single value or range)
-  if (turn) {
-    const turnRange = parseRange(turn);
-    if (typeof turnRange === 'number') {
-      whereConditions.push(`turn = $${paramIndex}`);
-      params.push(turnRange);
-      paramIndex += 1;
-    } else if (turnRange && turnRange.gte !== undefined && turnRange.lte !== undefined) {
-      whereConditions.push(`turn >= $${paramIndex} AND turn <= $${paramIndex + 1}`);
-      params.push(turnRange.gte, turnRange.lte);
-      paramIndex += 2;
-    }
-  }
-
-  // Fade filter (single value or range)
-  if (fade) {
-    const fadeRange = parseRange(fade);
-    if (typeof fadeRange === 'number') {
-      whereConditions.push(`fade = $${paramIndex}`);
-      params.push(fadeRange);
-      paramIndex += 1;
-    } else if (fadeRange && fadeRange.gte !== undefined && fadeRange.lte !== undefined) {
-      whereConditions.push(`fade >= $${paramIndex} AND fade <= $${paramIndex + 1}`);
-      params.push(fadeRange.gte, fadeRange.lte);
-      paramIndex += 2;
-    }
-  }
+  // Apply flight number filters
+  buildFlightFilter('speed', speed);
+  buildFlightFilter('glide', glide);
+  buildFlightFilter('turn', turn);
+  buildFlightFilter('fade', fade);
 
   // Approved filter
   if (typeof approved !== 'undefined') {

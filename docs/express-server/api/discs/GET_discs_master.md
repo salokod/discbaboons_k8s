@@ -24,26 +24,37 @@ GET /api/discs/master
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `brand` | string | No | - | Exact brand name match |
+| `brand` | string | No | - | Single brand name OR comma-separated brands (e.g., "Innova" or "Innova,Discraft,MVP") |
 | `model` | string | No | - | Partial model name match (case-insensitive) |
-| `speed` | string | No | - | Speed value or range (e.g., "9" or "8-10") |
-| `glide` | string | No | - | Glide value or range (e.g., "5" or "4-6") |
-| `turn` | string | No | - | Turn value or range (e.g., "-1" or "-2-0") |
-| `fade` | string | No | - | Fade value or range (e.g., "2" or "1-3") |
+| `speed` | string | No | - | Single value, range, or comma-separated values/ranges (e.g., "9", "8-10", or "1-4,10-15") |
+| `glide` | string | No | - | Single value, range, or comma-separated values/ranges (e.g., "5", "4-6", or "1-3,6-7") |
+| `turn` | string | No | - | Single value, range, or comma-separated values/ranges (e.g., "-1", "-2-0", or "-5--1,1-2") |
+| `fade` | string | No | - | Single value, range, or comma-separated values/ranges (e.g., "2", "1-3", or "0-1,4-5") |
 | `approved` | boolean | No | true | Filter by approval status |
 | `limit` | integer | No | 50 | Number of results to return (max 100) |
 | `offset` | integer | No | 0 | Number of results to skip (min 0) |
 
-### Flight Number Ranges
-Flight numbers support both single values and ranges:
+### Multi-Select Filters
+All brand and flight number filters now support multi-select with OR logic:
+
+#### Brand Multi-Select
+- **Single Brand**: `brand=Innova` (exact match)
+- **Multiple Brands**: `brand=Innova,Discraft,MVP` (OR logic - shows discs from ANY of these brands)
+
+#### Flight Number Multi-Select
+Flight numbers support single values, ranges, and comma-separated combinations:
 - **Single Value**: `speed=9` (exact match)
 - **Range**: `speed=8-10` (inclusive range from 8 to 10)
+- **Multiple Values**: `speed=5,7,9` (OR logic - shows discs with speed 5, 7, OR 9)
+- **Multiple Ranges**: `speed=1-4,10-15` (OR logic - shows discs with speed 1-4 OR 10-15)
+- **Mixed**: `speed=5,10-12` (OR logic - shows discs with speed 5 OR 10-12)
 - **Negative Values**: `turn=-2` or `turn=-3--1` (range from -3 to -1)
+- **Negative Multi**: `turn=-5--1,0-0,1-2` (OR logic - overstable, stable, OR understable)
 
 ### Filter Types
-- **Brand**: Exact match (case-sensitive)
+- **Brand**: Exact match (case-sensitive) with multi-select OR logic
 - **Model**: Partial match using ILIKE (case-insensitive)
-- **Flight Numbers**: Single value or range matching
+- **Flight Numbers**: Single value, range, or multi-select with OR logic
 - **Approved**: Boolean filter (defaults to true for normal users)
 
 ## Response
@@ -225,6 +236,30 @@ curl -X GET "http://localhost:3000/api/discs/master?brand=Innova&speed=9-11&mode
 ### Get Pending Discs (Admin Only)
 ```bash
 curl -X GET "http://localhost:3000/api/discs/master?approved=false" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Multi-Select Brand Filter
+```bash
+curl -X GET "http://localhost:3000/api/discs/master?brand=Innova,Discraft,MVP" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Multi-Select Speed Ranges (Putters and Drivers)
+```bash
+curl -X GET "http://localhost:3000/api/discs/master?speed=1-4,10-15" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Multi-Select Turn Values (Overstable, Stable, Understable)
+```bash
+curl -X GET "http://localhost:3000/api/discs/master?turn=-5--1,0-0,1-2" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Complex Multi-Select Combination
+```bash
+curl -X GET "http://localhost:3000/api/discs/master?brand=Innova,Discraft&speed=1-4,10-15&glide=4-5&turn=-1,0,1" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 

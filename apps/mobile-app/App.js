@@ -6,7 +6,7 @@ import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { ThemeProvider } from './src/context/ThemeContext';
+import { ThemeProvider, useThemeColors } from './src/context/ThemeContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -17,6 +17,9 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 import BagsListScreen from './src/screens/bags/BagsListScreen';
 import CreateBagScreen from './src/screens/bags/CreateBagScreen';
+import DiscSearchScreen from './src/screens/discs/DiscSearchScreen';
+import SubmitDiscScreen from './src/screens/discs/SubmitDiscScreen';
+import AdminDiscScreen from './src/screens/discs/AdminDiscScreen';
 
 // Wrapped screen components to avoid inline definitions
 function WrappedForgotPasswordScreen(props) {
@@ -153,12 +156,64 @@ function WrappedCreateBagScreen(props) {
   );
 }
 
+function WrappedDiscSearchScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <DiscSearchScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedSubmitDiscScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <SubmitDiscScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedAdminDiscScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AdminDiscScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
 function AppNavigator() {
+  const colors = useThemeColors();
+
   return (
     <View testID="app-navigator" style={styles.container}>
       <ErrorBoundary>
-        <AppStack.Navigator screenOptions={{ headerShown: false }}>
-          <AppStack.Screen name="BagsList" component={WrappedBagsListScreen} />
+        <AppStack.Navigator
+          screenOptions={{
+            headerShown: false,
+            headerStyle: {
+              backgroundColor: colors.surface,
+            },
+            headerTitleStyle: {
+              fontSize: 18,
+              fontWeight: '600',
+              color: colors.text,
+            },
+            headerBackTitleStyle: {
+              fontSize: 16,
+              color: colors.primary,
+            },
+            headerTintColor: colors.primary,
+          }}
+        >
+          <AppStack.Screen
+            name="BagsList"
+            component={WrappedBagsListScreen}
+            options={{
+              title: 'My Bags',
+            }}
+          />
           <AppStack.Screen
             name="CreateBag"
             component={WrappedCreateBagScreen}
@@ -166,6 +221,33 @@ function AppNavigator() {
               presentation: 'modal',
               headerShown: true,
               title: 'Create Bag',
+            }}
+          />
+          <AppStack.Screen
+            name="DiscSearchScreen"
+            component={WrappedDiscSearchScreen}
+            options={{
+              headerShown: true,
+              title: 'Disc Search',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="SubmitDiscScreen"
+            component={WrappedSubmitDiscScreen}
+            options={{
+              presentation: 'modal',
+              headerShown: true,
+              title: 'Submit New Disc',
+            }}
+          />
+          <AppStack.Screen
+            name="AdminDiscScreen"
+            component={WrappedAdminDiscScreen}
+            options={{
+              headerShown: true,
+              title: 'Admin - Pending Discs',
+              headerBackTitle: 'Back',
             }}
           />
         </AppStack.Navigator>
