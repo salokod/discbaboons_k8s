@@ -552,23 +552,7 @@ Response: { "success": true, "message": "Disc submission denied" }
 - Simple approval workflow with confirmation modals and success feedback
 - Complete integration with GET /api/discs/pending and PATCH /api/discs/:id/approve
 
-#### **🚀 Phase 3.9: Disc Denial System - NEXT**
-- Backend PATCH /api/discs/:id/deny endpoint with admin authorization
-- Frontend deny button with confirmation modal and optional reason field
-- Complete approve OR deny workflow for full admin moderation control
-- Visual distinction between approve (green) and deny (red) actions
-
-**Admin Integration Goals:**
-- ✅ **Secure Backend**: Admin endpoints with proper authentication
-- ✅ **Efficient Tokens**: Admin status in JWT for performance  
-- ✅ **Mobile Context**: AuthContext provides admin state with token refresh support
-- ✅ **Role-based UI**: Admin features visible only to admin users
-- ✅ **Professional UX**: DiscSearchScreen design consistency for familiar user experience
-- 🎯 **Complete Moderation**: Approve AND deny workflow for full admin control (Phase 3.9)  
-- 🚀 **Professional Tools**: Disc moderation with CreateBagScreen UX consistency
-- 🚀 **Complete Workflow**: From login to disc approval in seamless flow
-
-### **Phase 4: Bag Detail & Disc Display** 
+#### **🚀 Phase 4: Bag Detail & Disc Display - NEXT** 
 **TDD Focus**: List rendering, sorting, filtering performance
 - [ ] **BagDetailScreen**: Individual bag view with disc list using established screen patterns
 - [ ] **DiscRow component**: Full-width disc info using typography + spacing from design system
@@ -581,7 +565,37 @@ Response: { "success": true, "message": "Disc submission denied" }
 
 **Learning Focus**: FlatList optimization, sort/filter state management, component composition patterns
 
-### **Phase 5: Multi-Select & Bulk Operations (Day 5)**
+#### **Phase 3.9: Disc Denial System - AFTER BAG DETAIL**
+**TDD Focus**: Complete moderation workflow, backend/frontend disc rejection with user feedback
+
+**Backend Implementation:**
+- [ ] **PATCH /api/discs/:id/deny endpoint**: Admin-only endpoint to reject pending disc submissions
+- [ ] **Denial reasons**: Optional reason field for admin feedback to users
+- [ ] **Permanent removal**: Denied discs are soft-deleted and hidden from pending queue
+- [ ] **Audit logging**: Track admin denial actions with timestamps and reasons
+- [ ] **Rate limiting**: Same admin operation limits as approval endpoint (50/hour)
+- [ ] **Error handling**: 403 for non-admin, 404 for non-existent disc, 409 if already processed
+
+**Frontend Implementation:**
+- [ ] **Deny button**: Add "Deny & Remove" button alongside "Approve & Publish" in AdminDiscScreen
+- [ ] **Denial confirmation modal**: Professional confirmation dialog with optional reason field
+- [ ] **Immediate UI feedback**: Remove denied disc from pending list with smooth animation
+- [ ] **Dual-action workflow**: Approve OR deny options for complete admin moderation control
+- [ ] **discService.denyDisc()**: New service method following existing API patterns
+- [ ] **Visual differentiation**: Clear visual distinction between approve (green) and deny (red) actions
+- [ ] **Loading states**: "Denying..." button state with disabled interactions during API call
+
+**Admin Integration Goals:**
+- ✅ **Secure Backend**: Admin endpoints with proper authentication
+- ✅ **Efficient Tokens**: Admin status in JWT for performance  
+- ✅ **Mobile Context**: AuthContext provides admin state with token refresh support
+- ✅ **Role-based UI**: Admin features visible only to admin users
+- ✅ **Professional UX**: DiscSearchScreen design consistency for familiar user experience
+- 🎯 **Complete Moderation**: Approve AND deny workflow for full admin control (Phase 3.9)  
+- 🚀 **Professional Tools**: Disc moderation with CreateBagScreen UX consistency
+- 🚀 **Complete Workflow**: From login to disc approval in seamless flow
+
+### **Phase 5: Multi-Select & Bulk Operations**
 **TDD Focus**: Complex state management, bulk API calls
 - [ ] **Design System**: Create BottomSheet + ActionBar components
 - [ ] Multi-select mode activation following iOS Photos app patterns
@@ -592,7 +606,7 @@ Response: { "success": true, "message": "Disc submission denied" }
 
 **Learning Focus**: Complex state patterns, modal presentations, design system composition
 
-### **Phase 6: Add Discs to Bags (Day 6)**
+### **Phase 6: Add Discs to Bags**
 **TDD Focus**: Disc customization, API integration
 - [ ] Add disc from search results using existing Button + navigation patterns
 - [ ] Custom properties form using existing Input + FilterChip components
