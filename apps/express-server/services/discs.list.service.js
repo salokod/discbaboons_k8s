@@ -86,13 +86,13 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }
   if (brand) {
     // Brand mapping for common short names to full database names
     const brandMapping = {
-      'Axiom': 'Axiom Discs',
+      Axiom: 'Axiom Discs',
       // Add more mappings here as needed
     };
-    
+
     // Function to map brand names
     const mapBrandName = (brandName) => brandMapping[brandName] || brandName;
-    
+
     // Handle comma-separated brands for OR logic
     if (brand.includes(',')) {
       const brands = brand.split(',')
