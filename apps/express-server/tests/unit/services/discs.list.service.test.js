@@ -21,19 +21,19 @@ describe('listDiscsService', () => {
   });
 
   test('should throw ValidationError if speed is not a number or range', async () => {
-    await expect(listDiscsService({ speed: 'fast' })).rejects.toThrow('Invalid filter value');
+    await expect(listDiscsService({ speed: 'fast' })).rejects.toThrow('Invalid speed filter value');
   });
 
   test('should throw ValidationError if glide is not a number or range', async () => {
-    await expect(listDiscsService({ glide: 'floaty' })).rejects.toThrow('Invalid filter value');
+    await expect(listDiscsService({ glide: 'floaty' })).rejects.toThrow('Invalid glide filter value');
   });
 
   test('should throw ValidationError if turn is not a number or range', async () => {
-    await expect(listDiscsService({ turn: 'sideways' })).rejects.toThrow('Invalid filter value');
+    await expect(listDiscsService({ turn: 'sideways' })).rejects.toThrow('Invalid turn filter value');
   });
 
   test('should throw ValidationError if fade is not a number or range', async () => {
-    await expect(listDiscsService({ fade: 'sharp' })).rejects.toThrow('Invalid filter value');
+    await expect(listDiscsService({ fade: 'sharp' })).rejects.toThrow('Invalid fade filter value');
   });
 
   test('should call database with correct filters for single values', async () => {
@@ -308,5 +308,119 @@ describe('listDiscsService', () => {
     const result = await listDiscsService({ limit: '10', offset: '20' }, mockDatabase);
 
     expect(result.hasMore).toBe(false);
+  });
+
+  // Multi-select brand tests
+  test('should handle comma-separated brands with OR logic', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ brand: 'Innova,Discraft,MVP' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE brand IN ($1, $2, $3) AND approved = $4 ORDER BY brand ASC, model ASC LIMIT $5 OFFSET $6',
+      ['Innova', 'Discraft', 'MVP', true, 50, 0],
+    );
+  });
+
+  test('should handle comma-separated brands with extra spaces', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ brand: ' Innova , Discraft , MVP ' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE brand IN ($1, $2, $3) AND approved = $4 ORDER BY brand ASC, model ASC LIMIT $5 OFFSET $6',
+      ['Innova', 'Discraft', 'MVP', true, 50, 0],
+    );
+  });
+
+  test('should handle single brand in comma format', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ brand: 'Innova,' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE brand IN ($1) AND approved = $2 ORDER BY brand ASC, model ASC LIMIT $3 OFFSET $4',
+      ['Innova', true, 50, 0],
+    );
+  });
+
+  // Multi-select flight number tests
+  test('should handle comma-separated speed ranges with OR logic', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ speed: '1-4,10-15' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE ((speed >= $1 AND speed <= $2) OR (speed >= $3 AND speed <= $4)) AND approved = $5 ORDER BY brand ASC, model ASC LIMIT $6 OFFSET $7',
+      [1, 4, 10, 15, true, 50, 0],
+    );
+  });
+
+  test('should handle mixed single values and ranges for speed', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ speed: '5,10-12' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE (speed = $1 OR (speed >= $2 AND speed <= $3)) AND approved = $4 ORDER BY brand ASC, model ASC LIMIT $5 OFFSET $6',
+      [5, 10, 12, true, 50, 0],
+    );
+  });
+
+  test('should handle multiple single speed values', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ speed: '5,7,9' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE (speed = $1 OR speed = $2 OR speed = $3) AND approved = $4 ORDER BY brand ASC, model ASC LIMIT $5 OFFSET $6',
+      [5, 7, 9, true, 50, 0],
+    );
+  });
+
+  test('should handle comma-separated glide ranges', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ glide: '1-3,6-7' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE ((glide >= $1 AND glide <= $2) OR (glide >= $3 AND glide <= $4)) AND approved = $5 ORDER BY brand ASC, model ASC LIMIT $6 OFFSET $7',
+      [1, 3, 6, 7, true, 50, 0],
+    );
+  });
+
+  test('should handle comma-separated turn ranges with negative values', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ turn: '-5--1,0-0,1-2' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE ((turn >= $1 AND turn <= $2) OR (turn >= $3 AND turn <= $4) OR (turn >= $5 AND turn <= $6)) AND approved = $7 ORDER BY brand ASC, model ASC LIMIT $8 OFFSET $9',
+      [-5, -1, 0, 0, 1, 2, true, 50, 0],
+    );
+  });
+
+  test('should handle comma-separated fade ranges', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ fade: '0-1,4-5' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE ((fade >= $1 AND fade <= $2) OR (fade >= $3 AND fade <= $4)) AND approved = $5 ORDER BY brand ASC, model ASC LIMIT $6 OFFSET $7',
+      [0, 1, 4, 5, true, 50, 0],
+    );
+  });
+
+  test('should throw ValidationError for invalid comma-separated ranges', async () => {
+    await expect(listDiscsService({ speed: '1-4,invalid,10-15' })).rejects.toThrow('Invalid speed filter value');
+    await expect(listDiscsService({ glide: 'low,high' })).rejects.toThrow('Invalid glide filter value');
+    await expect(listDiscsService({ turn: '1-2,abc-def' })).rejects.toThrow('Invalid turn filter value');
+    await expect(listDiscsService({ fade: '0-1,2-' })).rejects.toThrow('Invalid fade filter value');
+  });
+
+  test('should handle complex multi-select combination', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({
+      brand: 'Innova,Discraft',
+      speed: '1-4,10-15',
+      glide: '4-5',
+      turn: '-1,0,1',
+    }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE brand IN ($1, $2)'),
+      expect.arrayContaining(['Innova', 'Discraft', 1, 4, 10, 15, 4, 5, -1, 0, 1]),
+    );
   });
 });

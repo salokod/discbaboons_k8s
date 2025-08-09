@@ -146,4 +146,101 @@ describe('discmasterListController', () => {
     });
     expect(next).not.toHaveBeenCalled();
   });
+
+  test('should handle multi-select brand query', async () => {
+    req.query = { brand: 'Innova,Discraft,MVP' };
+    const serviceResult = {
+      discs: [
+        { id: 1, brand: 'Innova', model: 'Destroyer' },
+        { id: 2, brand: 'Discraft', model: 'Zone' },
+        { id: 3, brand: 'MVP', model: 'Tesla' },
+      ],
+      total: 3,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
+    listDiscsService.mockResolvedValue(serviceResult);
+
+    await discmasterListController(req, res, next);
+
+    expect(listDiscsService).toHaveBeenCalledWith({ brand: 'Innova,Discraft,MVP' });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('should handle multi-select flight number ranges', async () => {
+    req.query = { speed: '1-4,10-15', glide: '4-5,6-7' };
+    const serviceResult = {
+      discs: [
+        {
+          id: 1, brand: 'Innova', model: 'Aviar', speed: 2, glide: 4,
+        },
+        {
+          id: 2, brand: 'Innova', model: 'Destroyer', speed: 12, glide: 6,
+        },
+      ],
+      total: 2,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
+    listDiscsService.mockResolvedValue(serviceResult);
+
+    await discmasterListController(req, res, next);
+
+    expect(listDiscsService).toHaveBeenCalledWith({ speed: '1-4,10-15', glide: '4-5,6-7' });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('should handle complex multi-select combination', async () => {
+    req.query = {
+      brand: 'Innova,Discraft',
+      speed: '1-4,10-15',
+      turn: '-1,0,1',
+      model: 'destroyer',
+    };
+    const serviceResult = {
+      discs: [{ id: 1, brand: 'Innova', model: 'Destroyer' }],
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    };
+    listDiscsService.mockResolvedValue(serviceResult);
+
+    await discmasterListController(req, res, next);
+
+    expect(listDiscsService).toHaveBeenCalledWith(req.query);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      discs: serviceResult.discs,
+      pagination: {
+        total: serviceResult.total,
+        limit: serviceResult.limit,
+        offset: serviceResult.offset,
+        hasMore: serviceResult.hasMore,
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
 });

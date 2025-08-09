@@ -90,7 +90,42 @@ export function AuthProvider({ children }) {
 
         // Check if access token is expired
         if (isTokenExpired(storedTokens.accessToken)) {
-          // Clear expired tokens
+          // Try to refresh with refresh token instead of logging out
+          if (storedTokens.refreshToken) {
+            try {
+              const newTokens = await refreshAccessToken(storedTokens.refreshToken);
+
+              // Store new tokens
+              await storeTokens(newTokens);
+
+              // Update state with refreshed tokens
+              const payload = decodeJWTPayload(newTokens.accessToken);
+              if (payload) {
+                const userData = {
+                  id: payload.userId,
+                  username: payload.username,
+                  email: payload.email,
+                };
+
+                setUser(userData);
+                setTokens(newTokens);
+                setIsAuthenticated(true);
+
+                // Set up token refresh timer
+                const timerId = setupTokenRefreshTimer(
+                  newTokens.accessToken,
+                  () => handleTokenRefresh(newTokens.refreshToken),
+                );
+                setRefreshTimer(timerId);
+                setIsLoading(false);
+                return;
+              }
+            } catch (refreshError) {
+              // Refresh failed, clear tokens and continue to logout
+            }
+          }
+
+          // Clear expired tokens if refresh failed or no refresh token
           await clearTokens();
           setIsLoading(false);
           return;
