@@ -36,6 +36,7 @@ const authenticateToken = (req, res, next) => {
     req.user = {
       userId: decoded.userId,
       username: decoded.username,
+      isAdmin: decoded.isAdmin || false,
     };
 
     return next();

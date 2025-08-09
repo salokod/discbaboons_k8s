@@ -37,3 +37,11 @@ beforeAll(async () => {
 afterAll(async () => {
   // Cleanup complete
 });
+
+// Add a test to satisfy Jest requirement
+describe('Integration Test Setup', () => {
+  it('should configure test environment correctly', () => {
+    expect(process.env.NODE_ENV).toBe('test');
+    expect(process.env.JWT_SECRET).toBeDefined();
+  });
+});

@@ -37,7 +37,8 @@ No authentication required (uses refresh token).
 
 #### Token Details
 - **New Access Token**: JWT with 15-minute expiration
-  - Contains: `userId`, `username`
+  - Contains: `userId`, `username`, `isAdmin`
+  - Uses current user data from database (admin status may have changed)
 - **New Refresh Token**: JWT with 14-day expiration (rotated)
   - Contains: `userId`
   - **Important**: Old refresh token is invalidated
@@ -61,16 +62,19 @@ No authentication required (uses refresh token).
 
 ### Key Features
 - Refresh token validation and verification
-- New access token generation
+- New access token generation with current user data
 - Token rotation (new refresh token issued)
 - JWT secret verification
 - Input validation
+- Database lookup for current admin status
 
 ### Security Features
 - **Token Rotation**: Each refresh operation generates a new refresh token
 - **Expiration Handling**: Validates token expiration
 - **Secret Verification**: Uses separate JWT refresh secret
 - **Input Validation**: Validates refresh token presence and format
+- **User Validation**: Ensures user account still exists (prevents deleted account token usage)
+- **Current Data**: Always uses current database values for admin status and username
 
 ### Token Lifecycle
 1. User logs in → receives access + refresh tokens
@@ -95,7 +99,22 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 # Use the new access token immediately
 curl -X GET http://localhost:3000/api/profile \
   -H "Authorization: Bearer NEW_ACCESS_TOKEN"
+
+# Admin users can access admin endpoints with refreshed tokens
+curl -X GET http://localhost:3000/api/discs/pending \
+  -H "Authorization: Bearer NEW_ACCESS_TOKEN"
 ```
+
+### Important Notes
+
+#### Admin Status Refresh
+- The refresh endpoint queries the database for current user information
+- If a user's admin status changes, it will be reflected in the new access token
+- This ensures admin permissions are always up-to-date after token refresh
+
+#### Account Deletion Protection
+- If a user account is deleted, the refresh token becomes invalid
+- This prevents orphaned tokens from being used after account deletion
 
 ### Invalid/Expired Refresh Token
 ```bash

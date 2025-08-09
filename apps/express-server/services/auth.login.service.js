@@ -20,7 +20,7 @@ const loginUser = async (loginData) => {
 
   // Check if user exists in database
   const user = await queryOne(
-    'SELECT id, username, email, password_hash, created_at FROM users WHERE username = $1',
+    'SELECT id, username, email, password_hash, created_at, is_admin FROM users WHERE username = $1',
     [normalizedUsername],
   );
 
@@ -42,7 +42,7 @@ const loginUser = async (loginData) => {
 
   // Generate JWT tokens
   const accessToken = jwt.sign(
-    { userId: user.id, username: user.username },
+    { userId: user.id, username: user.username, isAdmin: user.is_admin },
     process.env.JWT_SECRET,
     { expiresIn: '15m' },
   );
@@ -61,6 +61,7 @@ const loginUser = async (loginData) => {
       username: user.username,
       email: user.email,
       created_at: user.created_at,
+      is_admin: user.is_admin,
     },
     tokens: {
       accessToken,

@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { queryOne } from '../lib/database.js';
 
 const refreshToken = async (refreshData) => {
   // Validate input - refresh token is required
@@ -19,16 +20,29 @@ const refreshToken = async (refreshData) => {
     throw validationError;
   }
 
-  // Generate new access token
+  // Get current user information from database (including admin status)
+  const user = await queryOne(
+    'SELECT id, username, is_admin FROM users WHERE id = $1',
+    [decoded.userId],
+  );
+
+  // If user doesn't exist (deleted account), invalidate token
+  if (!user) {
+    const error = new Error('Invalid or expired refresh token');
+    error.name = 'ValidationError';
+    throw error;
+  }
+
+  // Generate new access token with current user data
   const newAccessToken = jwt.sign(
-    { userId: decoded.userId, username: decoded.username },
+    { userId: user.id, username: user.username, isAdmin: user.is_admin },
     process.env.JWT_SECRET,
     { expiresIn: '15m' },
   );
 
   // Generate new refresh token (rotating refresh tokens)
   const newRefreshToken = jwt.sign(
-    { userId: decoded.userId },
+    { userId: user.id },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: '14d' },
   );

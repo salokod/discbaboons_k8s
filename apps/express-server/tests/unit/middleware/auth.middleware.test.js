@@ -93,6 +93,7 @@ describe('AuthMiddleware', () => {
     const validToken = chance.string();
     const userId = chance.integer({ min: 1, max: 1000 });
     const username = chance.word();
+    const isAdmin = chance.bool();
 
     req.headers.authorization = `Bearer ${validToken}`;
 
@@ -102,6 +103,7 @@ describe('AuthMiddleware', () => {
     jwt.default.verify.mockReturnValue({
       userId,
       username,
+      isAdmin,
     });
 
     authenticateToken(req, res, next);
@@ -113,6 +115,7 @@ describe('AuthMiddleware', () => {
     expect(req.user).toEqual({
       userId,
       username,
+      isAdmin,
     });
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
@@ -165,5 +168,101 @@ describe('AuthMiddleware', () => {
       }),
     );
     expect(next).not.toHaveBeenCalled();
+  });
+
+  test('should set isAdmin to false when missing from JWT token', async () => {
+    const validToken = chance.string();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const username = chance.word();
+
+    req.headers.authorization = `Bearer ${validToken}`;
+
+    const jwt = await import('jsonwebtoken');
+
+    // Mock JWT verify to return decoded payload without isAdmin field
+    jwt.default.verify.mockReturnValue({
+      userId,
+      username,
+      // isAdmin is missing
+    });
+
+    authenticateToken(req, res, next);
+
+    expect(jwt.default.verify).toHaveBeenCalledWith(
+      validToken,
+      process.env.JWT_SECRET,
+    );
+    expect(req.user).toEqual({
+      userId,
+      username,
+      isAdmin: false, // Should default to false
+    });
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
+  test('should correctly handle admin user token', async () => {
+    const validToken = chance.string();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const username = chance.word();
+
+    req.headers.authorization = `Bearer ${validToken}`;
+
+    const jwt = await import('jsonwebtoken');
+
+    // Mock JWT verify to return admin user payload
+    jwt.default.verify.mockReturnValue({
+      userId,
+      username,
+      isAdmin: true,
+    });
+
+    authenticateToken(req, res, next);
+
+    expect(jwt.default.verify).toHaveBeenCalledWith(
+      validToken,
+      process.env.JWT_SECRET,
+    );
+    expect(req.user).toEqual({
+      userId,
+      username,
+      isAdmin: true,
+    });
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
+  test('should correctly handle regular user token', async () => {
+    const validToken = chance.string();
+    const userId = chance.integer({ min: 1, max: 1000 });
+    const username = chance.word();
+
+    req.headers.authorization = `Bearer ${validToken}`;
+
+    const jwt = await import('jsonwebtoken');
+
+    // Mock JWT verify to return regular user payload
+    jwt.default.verify.mockReturnValue({
+      userId,
+      username,
+      isAdmin: false,
+    });
+
+    authenticateToken(req, res, next);
+
+    expect(jwt.default.verify).toHaveBeenCalledWith(
+      validToken,
+      process.env.JWT_SECRET,
+    );
+    expect(req.user).toEqual({
+      userId,
+      username,
+      isAdmin: false,
+    });
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 });
