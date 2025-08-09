@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
-// import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { spacing } from '../../design-system/spacing';
 import { typography } from '../../design-system/typography';
 import AppContainer from '../../components/AppContainer';
@@ -18,8 +18,7 @@ import { getTokens } from '../../services/tokenStorage';
 
 function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
   const colors = useThemeColors();
-  // Access to auth context for future use
-  // const { isAuthenticated, user } = useAuth();
+  const { user } = useAuth();
 
   // Debug function to check auth status
   const checkAuthAndNavigate = async (screenName) => {
@@ -98,8 +97,15 @@ function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
             />
           </View>
 
-          {/* TODO: Show admin button only if user is admin
-              - requires backend to return is_admin flag */}
+          {/* Admin Section - Only visible to admin users */}
+          {user?.isAdmin && (
+            <Button
+              title="Admin: Approve Discs"
+              onPress={() => checkAuthAndNavigate('AdminDiscScreen')}
+              style={styles.button}
+              variant="primary"
+            />
+          )}
         </View>
       </AppContainer>
     </SafeAreaView>

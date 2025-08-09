@@ -62,8 +62,23 @@ export function AuthProvider({ children }) {
     try {
       const newTokens = await refreshAccessToken(currentRefreshToken);
 
-      // Update state with new tokens
+      // Extract user data from new access token
+      const parts = newTokens.accessToken.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Invalid access token format');
+      }
+
+      const payload = JSON.parse(atob(parts[1]));
+      const userData = {
+        id: payload.userId,
+        username: payload.username,
+        email: payload.email,
+        isAdmin: payload.isAdmin || false,
+      };
+
+      // Update state with new tokens AND user data
       setTokens(newTokens);
+      setUser(userData);
 
       // Set up new refresh timer
       const timerId = setupTokenRefreshTimer(
@@ -105,6 +120,7 @@ export function AuthProvider({ children }) {
                   id: payload.userId,
                   username: payload.username,
                   email: payload.email,
+                  isAdmin: payload.isAdmin || false,
                 };
 
                 setUser(userData);
@@ -144,6 +160,7 @@ export function AuthProvider({ children }) {
           id: payload.userId,
           username: payload.username,
           email: payload.email,
+          isAdmin: payload.isAdmin || false,
         };
 
         setUser(userData);

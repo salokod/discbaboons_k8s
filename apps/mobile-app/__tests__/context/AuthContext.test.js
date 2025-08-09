@@ -146,6 +146,7 @@ describe('AuthContext', () => {
         userId: storedUser.id,
         username: storedUser.username,
         email: storedUser.email,
+        isAdmin: false,
         exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
       };
 
@@ -407,6 +408,195 @@ describe('AuthContext', () => {
       // Should be logged out after refresh failure
       expect(getByTestId('auth-status').children[0]).toBe('false');
       expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+    });
+  });
+
+  describe('Admin Flag Support', () => {
+    it('should extract isAdmin from JWT token payload for regular users', async () => {
+      const storedTokens = {
+        accessToken: 'stored-access-token',
+        refreshToken: 'stored-refresh-token',
+      };
+
+      const regularUser = {
+        id: 1,
+        username: 'regularuser',
+        email: 'regular@example.com',
+      };
+
+      // Override default mocks for this test
+      mockTokenStorage.getTokens.mockReset();
+      mockTokenRefresh.isTokenExpired.mockReset();
+
+      mockTokenStorage.getTokens.mockResolvedValueOnce(storedTokens);
+      mockTokenRefresh.isTokenExpired.mockReturnValueOnce(false);
+      mockTokenRefresh.setupTokenRefreshTimer.mockReturnValueOnce(12345);
+
+      // Mock JWT payload for regular user (no isAdmin field)
+      const mockPayload = {
+        userId: regularUser.id,
+        username: regularUser.username,
+        email: regularUser.email,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      };
+
+      const mockJWTToken = `header.${btoa(JSON.stringify(mockPayload))}.signature`;
+      storedTokens.accessToken = mockJWTToken;
+
+      global.atob = jest.fn().mockReturnValue(JSON.stringify(mockPayload));
+
+      function TestComponent() {
+        const { user, isLoading } = useAuth();
+        return (
+          <>
+            <Text testID="loading">{isLoading ? 'true' : 'false'}</Text>
+            <Text testID="username">{user?.username || 'none'}</Text>
+            <Text testID="isAdmin">{user?.isAdmin ? 'true' : 'false'}</Text>
+          </>
+        );
+      }
+
+      const { getByTestId } = render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
+
+      // Wait for token restoration
+      await waitFor(() => {
+        expect(getByTestId('loading').children[0]).toBe('false');
+      });
+
+      expect(getByTestId('username').children[0]).toBe('regularuser');
+      expect(getByTestId('isAdmin').children[0]).toBe('false');
+    });
+
+    it('should extract isAdmin from JWT token payload for admin users', async () => {
+      const storedTokens = {
+        accessToken: 'stored-access-token',
+        refreshToken: 'stored-refresh-token',
+      };
+
+      const adminUser = {
+        id: 2,
+        username: 'adminuser',
+        email: 'admin@example.com',
+      };
+
+      // Override default mocks for this test
+      mockTokenStorage.getTokens.mockReset();
+      mockTokenRefresh.isTokenExpired.mockReset();
+
+      mockTokenStorage.getTokens.mockResolvedValueOnce(storedTokens);
+      mockTokenRefresh.isTokenExpired.mockReturnValueOnce(false);
+      mockTokenRefresh.setupTokenRefreshTimer.mockReturnValueOnce(12345);
+
+      // Mock JWT payload for admin user (with isAdmin: true)
+      const mockPayload = {
+        userId: adminUser.id,
+        username: adminUser.username,
+        email: adminUser.email,
+        isAdmin: true,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      };
+
+      const mockJWTToken = `header.${btoa(JSON.stringify(mockPayload))}.signature`;
+      storedTokens.accessToken = mockJWTToken;
+
+      global.atob = jest.fn().mockReturnValue(JSON.stringify(mockPayload));
+
+      function TestComponent() {
+        const { user, isLoading } = useAuth();
+        return (
+          <>
+            <Text testID="loading">{isLoading ? 'true' : 'false'}</Text>
+            <Text testID="username">{user?.username || 'none'}</Text>
+            <Text testID="isAdmin">{user?.isAdmin ? 'true' : 'false'}</Text>
+          </>
+        );
+      }
+
+      const { getByTestId } = render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
+
+      // Wait for token restoration
+      await waitFor(() => {
+        expect(getByTestId('loading').children[0]).toBe('false');
+      });
+
+      expect(getByTestId('username').children[0]).toBe('adminuser');
+      expect(getByTestId('isAdmin').children[0]).toBe('true');
+    });
+
+    it('should handle token refresh and preserve admin status', async () => {
+      const initialTokens = {
+        accessToken: 'initial-access-token',
+        refreshToken: 'initial-refresh-token',
+      };
+
+      const newTokens = {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      };
+
+      // Override default mocks
+      mockTokenStorage.getTokens.mockReset();
+      mockTokenRefresh.isTokenExpired.mockReset();
+
+      mockTokenStorage.getTokens.mockResolvedValueOnce(initialTokens);
+      mockTokenRefresh.isTokenExpired.mockReturnValueOnce(true); // Token is expired
+      mockTokenRefresh.refreshAccessToken.mockResolvedValueOnce(newTokens);
+      mockTokenStorage.storeTokens.mockResolvedValueOnce(true);
+      mockTokenRefresh.setupTokenRefreshTimer.mockReturnValueOnce(12345);
+
+      // Mock JWT payload for admin user - should be preserved after refresh
+      const mockPayload = {
+        userId: 2,
+        username: 'adminuser',
+        email: 'admin@example.com',
+        isAdmin: true,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      };
+
+      // Mock both initial and refreshed token payloads
+      global.atob = jest.fn()
+        .mockReturnValueOnce(JSON.stringify(mockPayload)) // Initial token decode
+        .mockReturnValueOnce(JSON.stringify(mockPayload)); // Refreshed token decode
+
+      // Mock the new token structure
+      newTokens.accessToken = `header.${btoa(JSON.stringify(mockPayload))}.signature`;
+
+      function TestComponent() {
+        const { user, isLoading, isAuthenticated } = useAuth();
+        return (
+          <>
+            <Text testID="loading">{isLoading ? 'true' : 'false'}</Text>
+            <Text testID="auth-status">{isAuthenticated ? 'true' : 'false'}</Text>
+            <Text testID="username">{user?.username || 'none'}</Text>
+            <Text testID="isAdmin">{user?.isAdmin ? 'true' : 'false'}</Text>
+          </>
+        );
+      }
+
+      const { getByTestId } = render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
+
+      // Wait for token refresh to complete
+      await waitFor(() => {
+        expect(getByTestId('loading').children[0]).toBe('false');
+      });
+
+      // Should be authenticated with admin privileges preserved
+      expect(getByTestId('auth-status').children[0]).toBe('true');
+      expect(getByTestId('username').children[0]).toBe('adminuser');
+      expect(getByTestId('isAdmin').children[0]).toBe('true');
+      expect(mockTokenRefresh.refreshAccessToken).toHaveBeenCalledWith('initial-refresh-token');
     });
   });
 });
