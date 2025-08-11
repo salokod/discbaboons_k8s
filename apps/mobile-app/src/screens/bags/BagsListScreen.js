@@ -2,7 +2,9 @@
  * BagsListScreen Component
  */
 
-import { memo, useState, useEffect, useCallback } from 'react';
+import {
+  memo, useState, useEffect, useCallback,
+} from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -17,7 +19,6 @@ import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
-import AppContainer from '../../components/AppContainer';
 import EmptyBagsScreen from './EmptyBagsScreen';
 import BagCard from '../../components/bags/BagCard';
 import { getBags } from '../../services/bagService';
@@ -27,7 +28,6 @@ function BagsListScreen({ navigation }) {
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
 
   // Load bags from API
   const loadBags = useCallback(async (isRefreshing = false) => {
@@ -37,11 +37,10 @@ function BagsListScreen({ navigation }) {
       } else {
         setLoading(true);
       }
-      setError(null);
       const response = await getBags();
       setBags(response.bags || []);
     } catch (err) {
-      setError(err.message || 'Failed to load bags');
+      // Error handling could be added here if needed
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -141,7 +140,10 @@ function BagsListScreen({ navigation }) {
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Your Bags</Text>
       <Text style={styles.bagCount}>
-        {bags.length} bag{bags.length !== 1 ? 's' : ''}
+        {bags.length}
+        {' '}
+        bag
+        {bags.length !== 1 ? 's' : ''}
       </Text>
     </View>
   );
@@ -162,16 +164,16 @@ function BagsListScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
-        refreshControl={
+        refreshControl={(
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor={colors.primary}
           />
-        }
+        )}
       />
-      <TouchableOpacity 
-        style={styles.createButton} 
+      <TouchableOpacity
+        style={styles.createButton}
         onPress={() => navigation?.navigate('CreateBag')}
       >
         <Text style={styles.createButtonText}>+</Text>

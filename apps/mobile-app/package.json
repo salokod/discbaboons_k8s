@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "start": "react-native start",
-    "test": "jest --verbose",
+    "test": "jest --verbose --forceExit",
     "test:integration": "NODE_ENV=test jest --config=jest.integration.config.js",
     "test:integration:watch": "NODE_ENV=test jest --config=jest.integration.config.js --watch",
     "test:all": "npm run test && npm run test:integration",

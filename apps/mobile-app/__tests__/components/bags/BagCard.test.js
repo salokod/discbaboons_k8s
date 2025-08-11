@@ -11,7 +11,7 @@ const mockBag = {
   name: 'Course Bag',
   description: 'My favorite discs for the local course',
   privacy: 'private',
-  discCount: 12,
+  disc_count: 12,
 };
 
 describe('BagCard', () => {

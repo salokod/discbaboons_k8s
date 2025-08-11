@@ -57,24 +57,27 @@ POST /api/bags/:id/discs
 ### Success (201 Created)
 ```json
 {
-  "id": "660e8400-e29b-41d4-a716-446655440000",
-  "user_id": 123,
-  "bag_id": "550e8400-e29b-41d4-a716-446655440000",
-  "disc_id": "770e8400-e29b-41d4-a716-446655440000",
-  "notes": "My favorite fairway driver",
-  "weight": "175.0",
-  "condition": "good",
-  "plastic_type": "Champion",
-  "color": "Red",
-  "speed": 9,
-  "glide": 5,
-  "turn": -1,
-  "fade": 2,
-  "brand": "Innova",
-  "model": "Thunderbird",
-  "is_lost": false,
-  "added_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-15T10:30:00.000Z"
+  "success": true,
+  "bag_content": {
+    "id": "660e8400-e29b-41d4-a716-446655440000",
+    "user_id": 123,
+    "bag_id": "550e8400-e29b-41d4-a716-446655440000",
+    "disc_id": "770e8400-e29b-41d4-a716-446655440000",
+    "notes": "My favorite fairway driver",
+    "weight": "175.0",
+    "condition": "good",
+    "plastic_type": "Champion",
+    "color": "Red",
+    "speed": 9,
+    "glide": 5,
+    "turn": -1,
+    "fade": 2,
+    "brand": "Innova",
+    "model": "Thunderbird",
+    "is_lost": false,
+    "added_at": "2024-01-15T10:30:00.000Z",
+    "updated_at": "2024-01-15T10:30:00.000Z"
+  }
 }
 ```
 

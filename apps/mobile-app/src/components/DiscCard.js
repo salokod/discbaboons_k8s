@@ -1,7 +1,6 @@
 /**
- * DiscRow Component
- * Displays a single disc in a bag with flight numbers
- * Following CreateBagScreen design patterns with professional polish
+ * DiscCard Component
+ * Reusable disc display with flight path visualization
  */
 
 import { memo } from 'react';
@@ -13,49 +12,40 @@ import {
   Dimensions,
 } from 'react-native';
 import PropTypes from 'prop-types';
-import { useThemeColors } from '../../context/ThemeContext';
-import { typography } from '../../design-system/typography';
-import { spacing } from '../../design-system/spacing';
-import Card from '../../design-system/components/Card';
-import FlightPathVisualization from './FlightPathVisualization';
+import { useThemeColors } from '../context/ThemeContext';
+import { typography } from '../design-system/typography';
+import { spacing } from '../design-system/spacing';
+import Card from '../design-system/components/Card';
+import FlightPathVisualization from './bags/FlightPathVisualization';
 
-function DiscRow({ disc }) {
+function DiscCard({ disc, showCustomInfo = true, style }) {
   const colors = useThemeColors();
   const { width: screenWidth } = Dimensions.get('window');
   const isSmallDevice = screenWidth < 375;
 
   const styles = StyleSheet.create({
-    discCard: {
-      marginBottom: spacing.xs,
+    container: {
+      marginBottom: spacing.md,
     },
-    discContent: {
+    content: {
       flexDirection: 'row',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.md,
       alignItems: 'stretch',
-      minHeight: 80,
+      minHeight: 120,
     },
     leftContent: {
       flex: 1,
-      marginRight: spacing.sm,
+      marginRight: spacing.lg,
       justifyContent: 'space-between',
     },
     rightContent: {
       alignItems: 'center',
       justifyContent: 'center',
-      minWidth: 75,
+      minWidth: 80,
     },
     discHeader: {
-      marginBottom: 2,
-    },
-    colorCircle: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: spacing.xs,
-      backgroundColor: colors.textLight, // default color if no disc color
-      borderWidth: 1,
-      borderColor: colors.border,
+      marginBottom: spacing.sm,
     },
     discNameBrandContainer: {
       flex: 1,
@@ -64,31 +54,31 @@ function DiscRow({ disc }) {
       ...typography.h3,
       color: colors.text,
       fontWeight: '700',
-      fontSize: isSmallDevice ? 17 : 19,
-      marginBottom: 1,
+      fontSize: isSmallDevice ? 16 : 18,
+      marginBottom: 2,
     },
     discBrand: {
       ...typography.body2,
       color: colors.textLight,
       fontWeight: '500',
-      fontSize: isSmallDevice ? 13 : 15,
+      fontSize: isSmallDevice ? 12 : 14,
       fontStyle: 'italic',
     },
     flightNumbers: {
       flexDirection: 'row',
-      gap: spacing.xs,
+      gap: spacing.sm,
       alignItems: 'center',
     },
     flightNumber: {
-      width: isSmallDevice ? 38 : 42,
-      height: isSmallDevice ? 38 : 42,
+      width: isSmallDevice ? 36 : 40,
+      height: isSmallDevice ? 36 : 40,
       borderRadius: Platform.select({
         ios: 8,
         android: 10,
       }),
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1.5,
+      borderWidth: 2,
     },
     speedNumber: {
       backgroundColor: `${colors.error}15`,
@@ -109,8 +99,8 @@ function DiscRow({ disc }) {
     flightLabel: {
       ...typography.captionSmall,
       fontWeight: '700',
-      fontSize: isSmallDevice ? 10 : 11,
-      lineHeight: 11,
+      fontSize: isSmallDevice ? 9 : 10,
+      lineHeight: 10,
     },
     speedLabel: {
       color: colors.error,
@@ -127,7 +117,7 @@ function DiscRow({ disc }) {
     flightNumberText: {
       ...typography.body,
       fontWeight: '800',
-      fontSize: isSmallDevice ? 15 : 17,
+      fontSize: isSmallDevice ? 14 : 16,
       lineHeight: 18,
     },
     speedText: {
@@ -145,17 +135,10 @@ function DiscRow({ disc }) {
     customInfo: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 3,
-      paddingTop: 3,
+      marginTop: spacing.xs,
+      paddingTop: spacing.xs,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-    },
-    colorIndicator: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: spacing.xs,
-      backgroundColor: colors.textLight,
     },
     customText: {
       ...typography.caption,
@@ -164,20 +147,23 @@ function DiscRow({ disc }) {
     },
   });
 
-  // Use custom values if provided, otherwise fall back to disc_master values
+  // Use provided values or defaults
   const displayDisc = {
-    model: disc.model || disc.disc_master?.model || 'Unknown Disc',
-    brand: disc.brand || disc.disc_master?.brand || 'Unknown Brand',
-    speed: disc.speed || disc.disc_master?.speed || 0,
-    glide: disc.glide || disc.disc_master?.glide || 0,
-    turn: disc.turn || disc.disc_master?.turn || 0,
-    fade: disc.fade || disc.disc_master?.fade || 0,
+    model: disc?.model || 'Unknown Disc',
+    brand: disc?.brand || 'Unknown Brand',
+    speed: disc?.speed || 0,
+    glide: disc?.glide || 0,
+    turn: disc?.turn || 0,
+    fade: disc?.fade || 0,
+    color: disc?.color,
+    weight: disc?.weight,
+    condition: disc?.condition,
   };
 
   return (
-    <View style={styles.discCard}>
+    <View style={[styles.container, style]}>
       <Card>
-        <View style={styles.discContent}>
+        <View style={styles.content}>
           {/* Left Content - Disc Info */}
           <View style={styles.leftContent}>
             <View style={styles.discHeader}>
@@ -214,10 +200,11 @@ function DiscRow({ disc }) {
               </View>
             </View>
 
-            {(disc.color || disc.weight || disc.condition) && (
+            {showCustomInfo
+            && (displayDisc.color || displayDisc.weight || displayDisc.condition) && (
               <View style={styles.customInfo}>
                 <Text style={styles.customText}>
-                  {[disc.color, disc.weight && `${disc.weight}g`, disc.condition]
+                  {[displayDisc.color, displayDisc.weight && `${displayDisc.weight}g`, displayDisc.condition]
                     .filter(Boolean)
                     .join(' • ')}
                 </Text>
@@ -232,7 +219,7 @@ function DiscRow({ disc }) {
               glide={displayDisc.glide}
               turn={displayDisc.turn}
               fade={displayDisc.fade}
-              width={isSmallDevice ? 65 : 75}
+              width={isSmallDevice ? 70 : 80}
               height={isSmallDevice ? 90 : 100}
             />
           </View>
@@ -242,29 +229,26 @@ function DiscRow({ disc }) {
   );
 }
 
-DiscRow.propTypes = {
+DiscCard.propTypes = {
   disc: PropTypes.shape({
-    id: PropTypes.string,
     model: PropTypes.string,
     brand: PropTypes.string,
     speed: PropTypes.number,
     glide: PropTypes.number,
     turn: PropTypes.number,
     fade: PropTypes.number,
-    color: PropTypes.string,
-    weight: PropTypes.string,
-    condition: PropTypes.string,
-    disc_master: PropTypes.shape({
-      model: PropTypes.string,
-      brand: PropTypes.string,
-      speed: PropTypes.number,
-      glide: PropTypes.number,
-      turn: PropTypes.number,
-      fade: PropTypes.number,
-    }),
-  }).isRequired,
+  }),
 };
 
-DiscRow.displayName = 'DiscRow';
+DiscCard.defaultProps = {
+  disc: {
+    model: 'Unknown',
+    brand: 'Unknown',
+    speed: 0,
+    glide: 0,
+    turn: 0,
+    fade: 0,
+  },
+};
 
-export default memo(DiscRow);
+export default memo(DiscCard);

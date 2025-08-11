@@ -62,9 +62,14 @@ function convertPrivacyToFlags(privacy) {
  */
 async function getAuthHeaders() {
   const tokens = await getTokens();
+  console.log('Retrieved tokens for API call:', tokens ? 'tokens found' : 'no tokens');
+
   if (!tokens || !tokens.accessToken) {
+    console.error('No access token available for API request');
     throw new Error('Authentication required. Please log in again.');
   }
+
+  console.log('Using access token for API call:', 'token exists');
 
   return {
     'Content-Type': 'application/json',
@@ -394,13 +399,24 @@ export async function getBag(bagId, options = {}) {
       throw new Error(data.message || 'Unable to connect. Please check your internet.');
     }
 
-    // API returns direct bag object (not wrapped in success envelope)
-    // Validate response format matches API documentation
-    if (!data || !data.id || !data.name || !Array.isArray(data.bag_contents)) {
+    // API actually returns {success: true, bag: {...}} format
+    if (!data || !data.success || !data.bag) {
       throw new Error('Invalid response from server');
     }
 
-    return data;
+    const bagData = data.bag;
+
+    // Validate essential fields
+    if (!bagData.id) {
+      throw new Error('Invalid bag data from server');
+    }
+
+    // Ensure bag_contents is always an array (even if empty)
+    if (!bagData.bag_contents) {
+      bagData.bag_contents = [];
+    }
+
+    return bagData;
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller
@@ -411,7 +427,7 @@ export async function getBag(bagId, options = {}) {
  * Add a disc to a bag
  * @param {string} bagId - Bag ID to add disc to
  * @param {Object} discData - Disc data including disc_id and optional custom properties
- * @returns {Promise<Object>} Added disc data
+ * @returns {Promise<Object>} Added bag content data
  * @throws {Error} Add disc failed error with message
  */
 export async function addDiscToBag(bagId, discData) {
@@ -448,6 +464,14 @@ export async function addDiscToBag(bagId, discData) {
     const data = await response.json();
 
     if (!response.ok) {
+      // Enhanced error logging for debugging
+      console.error('Add disc API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+        url: `${API_BASE_URL}/api/bags/${bagId}/discs`,
+      });
+
       // Handle different error types based on backend error responses
       if (response.status === 401) {
         // Authentication required
@@ -473,12 +497,19 @@ export async function addDiscToBag(bagId, discData) {
       throw new Error(data.message || 'Unable to connect. Please check your internet.');
     }
 
-    // Validate response format matches API documentation
-    if (!data.id || !data.disc_id) {
+    // API returns success wrapper: { success: true, bag_content: {...} }
+    if (!data || !data.success || !data.bag_content) {
       throw new Error('Invalid response from server');
     }
 
-    return data;
+    const bagContent = data.bag_content;
+
+    // Validate essential fields of the bag content
+    if (!bagContent.id || !bagContent.disc_id) {
+      throw new Error('Invalid bag content data from server');
+    }
+
+    return bagContent;
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller

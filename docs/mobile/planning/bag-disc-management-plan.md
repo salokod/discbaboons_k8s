@@ -552,18 +552,47 @@ Response: { "success": true, "message": "Disc submission denied" }
 - Simple approval workflow with confirmation modals and success feedback
 - Complete integration with GET /api/discs/pending and PATCH /api/discs/:id/approve
 
-#### **🚀 Phase 4: Bag Detail & Disc Display - NEXT** 
-**TDD Focus**: List rendering, sorting, filtering performance
-- [ ] **BagDetailScreen**: Individual bag view with disc list using established screen patterns
-- [ ] **DiscRow component**: Full-width disc info using typography + spacing from design system
-- [ ] **Disc display format**: `DiscName (Brand) | Speed Glide Turn Fade | Color●`
-- [ ] **Sort/Filter UI**: Collapsible filter bar using existing FilterChip + SearchBar components
-- [ ] **Sort options**: Speed (default), Brand, Model, Recently Added with FilterChip arrays
-- [ ] **DiscColorIndicator**: 16px colored circle with long-press tooltip for plastic type
+#### **🚀 Phase 4: Enhanced Bag Detail & Disc Management - CURRENT FOCUS**
+**TDD Focus**: Complete bag management experience with CreateBagScreen design consistency
 
-**Components Already Built**: ✅ Card, ✅ FilterChip, ✅ SearchBar (ready for composition)
+**Vision**: Transform bag detail into the central hub of the disc golf experience - where users spend 80% of their time managing their collection, preparing for rounds, and discovering new discs. This screen evolves from simple list view to comprehensive disc golf workflow center.
 
-**Learning Focus**: FlatList optimization, sort/filter state management, component composition patterns
+**Phase 4.1: Foundation & Bug Fixes** ✅
+- [x] **Fix getBag API validation**: Handle direct object response (not wrapped in success envelope)
+- [x] **Fix BagsListScreen data extraction**: Handle `{bags: [...], pagination: {...}}` response format  
+- [x] **Fix BagCard API format**: Handle `is_public`, `is_friends_visible`, `disc_count` from API
+- [x] **Navigation integration**: Proper BagDetail screen navigation from both CreateBag and BagsList
+
+**Phase 4.2: Enhanced Bag Detail Experience**
+- [ ] **CreateBagScreen design consistency**: Apply same visual hierarchy, spacing, and professional feel
+- [ ] **Action-rich header**: Bag name, description, disc count, plus Edit/Share/Export actions
+- [ ] **Contextual CTAs**: "Add Your First Disc", "Find Course-Specific Discs", "Complete Your Bag" messaging
+- [ ] **Quick actions bar**: Add Disc, Sort, Filter, Select buttons with CreateBagScreen button styling
+- [ ] **Professional empty state**: Hero experience matching EmptyBagsScreen with course-specific guidance
+
+**Phase 4.3: Advanced Disc Display & Organization**
+- [ ] **Enhanced DiscRow component**: Beautiful cards with flight number badges like AdminDiscScreen
+- [ ] **Smart sorting**: Speed (default), Recently Added, Most Used, Condition, Brand with visual indicators
+- [ ] **Contextual filtering**: By flight numbers, disc type (putter/mid/fairway/driver), condition, lost status
+- [ ] **Disc condition visual**: Color-coded condition indicators (New=green, Good=blue, Worn=orange, Beat-in=red)
+- [ ] **Professional statistics**: "You throw 14 discs regularly" insights with data visualization
+
+**Phase 4.4: Disc Management Actions**
+- [ ] **Add disc workflow**: Search master database → Customize → Add to bag (seamless DiscSearchScreen integration)
+- [ ] **Edit disc properties**: Weight, condition, plastic type, custom notes with professional form UX
+- [ ] **Mark as lost workflow**: Professional confirmation with course/date details for future reference
+- [ ] **Multi-select operations**: Move to different bag, mark multiple as lost, export selection
+- [ ] **Swipe actions**: Quick edit, move, mark lost, duplicate following iOS patterns
+
+**Components Already Built**: ✅ Card, ✅ FilterChip, ✅ SearchBar, ✅ Button, ✅ Input (ready for composition)
+
+**CreateBagScreen Design Integration**:
+- **Section headers with icons**: Following privacy section pattern for disc organization
+- **Professional spacing**: Same padding, margins, and visual hierarchy as CreateBag
+- **Theme consistency**: All components adapt to light, dark, and blackout themes
+- **Modal presentations**: Bottom sheets for actions following established patterns
+
+**Learning Focus**: Complex FlatList optimization, multi-level state management, design system composition, workflow UX patterns
 
 #### **Phase 3.9: Disc Denial System - AFTER BAG DETAIL**
 **TDD Focus**: Complete moderation workflow, backend/frontend disc rejection with user feedback
@@ -717,20 +746,88 @@ __tests__/integration/
 - [ ] Color indicators have text alternatives
 - [ ] Touch targets meet minimum size requirements (44px)
 
-## Future Enhancements
+## Complete DiscBaboons App Vision: From Bags to Community
 
-### **Phase 7: Advanced Features**
-- [ ] Bag sharing with friends
-- [ ] Disc recommendations based on course/conditions
-- [ ] Statistics and analytics (most-used discs, etc.)
-- [ ] Export bag contents to various formats
-- [ ] Photo integration for disc condition documentation
+### **Long-term Vision: The Disc Golf Lifestyle App**
 
-### **Phase 8: Social Features**
-- [ ] Public bag browsing and cloning
-- [ ] Friend activity feeds
-- [ ] Disc trading marketplace integration
-- [ ] Community-driven disc reviews and ratings
+**Core Philosophy**: Transform bag management from simple storage into the foundation of complete disc golf lifestyle - connecting collection management with social play, course strategy, and community engagement.
+
+### **Phase 5: Social Integration & Friends System**
+**Vision**: Your bag becomes a social profile - share setups, get recommendations, discover new players
+- [ ] **Friends & Following**: Connect with local players, see their bag setups and recent rounds
+- [ ] **Bag Sharing**: "Show me your woods bag" - share specific bag configurations for different courses  
+- [ ] **Social Validation**: "12 players use this same Thunderbird setup" - community-driven confidence
+- [ ] **Friend Recommendations**: "Mike who you play with uses a Teebird here" - contextual disc suggestions
+- [ ] **Bag Evolution Stories**: "See how Sarah's bag changed over 2024" - progression narratives
+
+**CreateBagScreen Design Evolution**: Social features integrate seamlessly with existing professional UX - privacy settings expand to include friend visibility, sharing controls, and community participation levels.
+
+### **Phase 6: Intelligent Round Preparation**
+**Vision**: Bag management becomes round strategy - AI-powered course analysis meets personal disc preferences
+- [ ] **Course-Specific Bag Recommendations**: "For DeLaveaga, most players carry 3 overstable drivers" 
+- [ ] **Weather Integration**: "High wind today - consider more stable discs" with automatic bag adjustments
+- [ ] **Round Planning**: "Hole 7 is 420ft with OB right - your Thunderbird is perfect" pre-round strategy
+- [ ] **Performance Tracking**: "Your Firebird averages 15ft closer to pin than your Destroyer on this hole"
+- [ ] **Bag Optimization**: "Remove 2 similar mids, add a utility disc" - data-driven bag refinement
+
+### **Phase 7: Advanced Analytics & Insights**
+**Vision**: Every throw becomes data - transform bag management with performance insights
+- [ ] **Disc Performance Analytics**: Heat maps showing which discs perform best on specific hole types
+- [ ] **Bag Usage Patterns**: "You throw 8 discs regularly, consider leaving 6 at home" efficiency insights
+- [ ] **Progression Tracking**: "Your arm speed increased - time for more stable discs" growth guidance
+- [ ] **Community Benchmarking**: "Advanced players your rating average 23 discs" comparative insights
+- [ ] **Predictive Recommendations**: "Players who bag your setup also love the Sexton Firebird"
+
+### **Phase 8: Tournament & Event Integration**
+**Vision**: Competition preparation becomes seamless - from bag management to event participation
+- [ ] **Tournament Bag Validation**: "Your bag meets PDGA regulations for Amateur worlds" compliance checking
+- [ ] **Event-Specific Prep**: "For this tournament, 78% of players carry backup putters" preparation insights
+- [ ] **Live Round Tracking**: Real-time bag usage during tournament rounds with performance correlation
+- [ ] **Post-Round Analysis**: "You threw 12 discs today, Thunderbird was money on hole 15" immediate feedback
+- [ ] **Champion Bag Insights**: "See what Paul McBeth bagged for this course in 2023" pro inspiration
+
+### **Phase 9: Market Intelligence & Gear Evolution**
+**Vision**: Bag management meets marketplace - smart buying, selling, and trading recommendations
+- [ ] **Market Value Tracking**: "Your Champion Thunderbird is worth $23 today" collection valuation
+- [ ] **Upgrade Recommendations**: "New Discraft ESP plastic performs 8% better than your current" improvement suggestions
+- [ ] **Trading Optimization**: "Trade your unused Wraith for a Teebird - 5 local offers available" smart exchanges
+- [ ] **Collection Curation**: "You have 4 similar understable drivers - consider consolidating" efficiency guidance
+- [ ] **Investment Insights**: "Limited edition Sexton Firebirds appreciate 15% annually" collector intelligence
+
+### **Phase 10: Comprehensive Lifestyle Integration**
+**Vision**: DiscBaboons becomes the complete disc golf lifestyle platform
+- [ ] **Course Discovery**: "New course 12 minutes away - your bag setup is perfect" exploration encouragement
+- [ ] **Weather-Based Suggestions**: "Perfect wind conditions for your understable drivers today" playing prompts
+- [ ] **Social Coordination**: "3 friends are playing Morley today - join them?" community facilitation
+- [ ] **Skill Development**: "Practice these 5 shots to improve your bag utilization" targeted improvement
+- [ ] **Lifestyle Optimization**: Complete disc golf life management from gear to social to performance
+
+### **Design Evolution Strategy**
+
+**Consistency Through Growth**: Every new feature builds on the CreateBagScreen professional foundation
+- **Visual Language**: Section headers with icons, card-based layouts, professional spacing maintained across all features
+- **Theme System**: Light/dark/blackout themes scale seamlessly from bags to tournament tracking to social feeds
+- **Navigation Patterns**: Bottom tab evolution from Bags/Discs/Search to Bags/Friends/Rounds/Profile/Explore
+- **Component Composition**: FilterChip, Card, Button, SearchBar components evolve into complex social and analytics interfaces
+- **Professional Polish**: The same attention to spacing, typography, and user flow extends to every feature addition
+
+**User Journey Evolution**:
+1. **Month 1**: "I need to organize my discs" → Excellent bag management
+2. **Month 3**: "I want to play better" → Course-specific recommendations  
+3. **Month 6**: "I want to improve faster" → Performance analytics and insights
+4. **Month 12**: "I want to be part of the community" → Full social and tournament integration
+5. **Year 2+**: "This is my disc golf lifestyle platform" → Complete ecosystem integration
+
+### **Technical Architecture Scaling**
+
+**Progressive Enhancement**: Each phase builds on established patterns while adding complexity
+- **State Management**: Evolves from simple bag state to complex social, analytics, and real-time tournament data
+- **API Integration**: Scales from basic CRUD operations to real-time social feeds and external tournament APIs  
+- **Component System**: Design system components become the foundation for complex feature sets
+- **Testing Strategy**: TDD methodology scales to handle complex user workflows and data relationships
+- **Performance**: FlatList optimizations learned in bag management apply to friends feeds and tournament results
+
+**Vision Summary**: DiscBaboons starts as excellent bag management and evolves into the comprehensive disc golf lifestyle platform - where every feature feels natural, professional, and essential to the disc golf experience. The CreateBagScreen's professional polish becomes the DNA of every feature we add.
 
 ## Learning Opportunities
 

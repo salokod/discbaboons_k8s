@@ -16,6 +16,6 @@ describe('typography design system', () => {
     expect(typography.h1).toEqual({ fontSize: 32, fontWeight: 'bold' });
     expect(typography.h2).toEqual({ fontSize: 24, fontWeight: 'bold' });
     expect(typography.body).toEqual({ fontSize: 16, fontWeight: 'normal' });
-    expect(typography.caption).toEqual({ fontSize: 14, fontWeight: 'normal' });
+    expect(typography.caption).toEqual({ fontSize: 12, fontWeight: 'normal' });
   });
 });

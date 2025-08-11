@@ -21,6 +21,7 @@ import BagDetailScreen from './src/screens/bags/BagDetailScreen';
 import DiscSearchScreen from './src/screens/discs/DiscSearchScreen';
 import SubmitDiscScreen from './src/screens/discs/SubmitDiscScreen';
 import AdminDiscScreen from './src/screens/discs/AdminDiscScreen';
+import AddDiscToBagScreen from './src/screens/discs/AddDiscToBagScreen';
 
 // Wrapped screen components to avoid inline definitions
 function WrappedForgotPasswordScreen(props) {
@@ -193,6 +194,15 @@ function WrappedAdminDiscScreen(props) {
   );
 }
 
+function WrappedAddDiscToBagScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AddDiscToBagScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
 function AppNavigator() {
   const colors = useThemeColors();
 
@@ -265,6 +275,15 @@ function AppNavigator() {
             options={{
               headerShown: true,
               title: 'Admin - Pending Discs',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="AddDiscToBagScreen"
+            component={WrappedAddDiscToBagScreen}
+            options={{
+              headerShown: true,
+              title: 'Add to Bag',
               headerBackTitle: 'Back',
             }}
           />

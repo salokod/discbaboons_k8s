@@ -3,7 +3,7 @@
  */
 
 import {
-  getBags, createBag, updateBag, deleteBag,
+  getBags, getBag, createBag, updateBag, deleteBag, addDiscToBag,
 } from '../../src/services/bagService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -228,6 +228,134 @@ describe('BagService Functions', () => {
     });
   });
 
+  describe('getBag', () => {
+    it('should successfully get a bag with proper API response format', async () => {
+      // This is the actual format the API returns (based on user's Bruno test)
+      const mockResponse = {
+        success: true,
+        bag: {
+          id: '812ec400-2da5-432f-988b-dcac7167a4d0',
+          user_id: 4,
+          name: 'Squatch',
+          description: 'Main',
+          is_public: false,
+          is_friends_visible: true,
+          created_at: '2025-08-09T12:30:52.802Z',
+          updated_at: '2025-08-09T12:30:52.802Z',
+          bag_contents: [],
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getBag('812ec400-2da5-432f-988b-dcac7167a4d0');
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/812ec400-2da5-432f-988b-dcac7167a4d0', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        signal: expect.any(AbortSignal),
+      });
+
+      // Should return just the bag data (unwrapped from success envelope)
+      expect(result).toEqual(mockResponse.bag);
+    });
+
+    it('should handle bag with include_lost parameter', async () => {
+      const mockResponse = {
+        success: true,
+        bag: {
+          id: 'test-bag',
+          name: 'Test Bag',
+          bag_contents: [
+            {
+              id: 'content-1',
+              is_lost: true,
+              model: 'Thunderbird',
+            },
+          ],
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getBag('test-bag', { include_lost: true });
+
+      expect(fetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/bags/test-bag?include_lost=true',
+        expect.objectContaining({
+          method: 'GET',
+        }),
+      );
+
+      expect(result).toEqual(mockResponse.bag);
+    });
+
+    it('should handle bag with null bag_contents', async () => {
+      const mockResponse = {
+        success: true,
+        bag: {
+          id: 'empty-bag',
+          name: 'Empty Bag',
+          bag_contents: null, // API might return null instead of []
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getBag('empty-bag');
+
+      // Should convert null to empty array
+      expect(result.bag_contents).toEqual([]);
+    });
+
+    it('should throw error for invalid response format', async () => {
+      const invalidResponse = {
+        // Missing success field and bag field
+        data: { id: 'test' },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => invalidResponse,
+      });
+
+      await expect(getBag('test-bag')).rejects.toThrow('Invalid response from server');
+    });
+
+    it('should throw error when bagId is missing', async () => {
+      await expect(getBag()).rejects.toThrow('Bag ID is required');
+      await expect(getBag('')).rejects.toThrow('Bag ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle 404 error for bag not found', async () => {
+      const errorResponse = {
+        error: 'NotFoundError',
+        message: 'Bag not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      await expect(getBag('nonexistent-bag')).rejects.toThrow('Bag not found');
+    });
+  });
+
   describe('updateBag', () => {
     it('should successfully update a bag', async () => {
       const mockResponse = {
@@ -340,6 +468,111 @@ describe('BagService Functions', () => {
       });
 
       await expect(deleteBag('123')).rejects.toThrow('Cannot delete bag that contains discs');
+    });
+  });
+
+  describe('addDiscToBag', () => {
+    it('should successfully add a disc to a bag', async () => {
+      const mockBagContent = {
+        id: '660e8400-e29b-41d4-a716-446655440000',
+        user_id: 123,
+        bag_id: '550e8400-e29b-41d4-a716-446655440000',
+        disc_id: '770e8400-e29b-41d4-a716-446655440000',
+        notes: null,
+        weight: null,
+        condition: null,
+        plastic_type: null,
+        color: null,
+        speed: 9,
+        glide: 5,
+        turn: -1,
+        fade: 2,
+        brand: 'Innova',
+        model: 'Thunderbird',
+        is_lost: false,
+        added_at: '2024-01-15T10:30:00.000Z',
+        updated_at: '2024-01-15T10:30:00.000Z',
+      };
+
+      const mockResponse = {
+        success: true,
+        bag_content: mockBagContent,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => mockResponse,
+      });
+
+      const discData = {
+        disc_id: '770e8400-e29b-41d4-a716-446655440000',
+      };
+
+      const result = await addDiscToBag('550e8400-e29b-41d4-a716-446655440000', discData);
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/550e8400-e29b-41d4-a716-446655440000/discs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify(discData),
+        signal: expect.any(AbortSignal),
+      });
+
+      expect(result).toEqual(mockBagContent);
+    });
+
+    it('should throw error when bagId is missing', async () => {
+      const discData = { disc_id: 'test-disc-id' };
+      await expect(addDiscToBag('', discData)).rejects.toThrow('Bag ID is required');
+      await expect(addDiscToBag(null, discData)).rejects.toThrow('Bag ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when discData is missing', async () => {
+      await expect(addDiscToBag('test-bag', null)).rejects.toThrow('Disc data is required');
+      await expect(addDiscToBag('test-bag', {})).rejects.toThrow('Disc ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when disc_id is missing from discData', async () => {
+      const discData = { notes: 'test notes' };
+      await expect(addDiscToBag('test-bag', discData)).rejects.toThrow('Disc ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle 403 authorization error', async () => {
+      const errorResponse = {
+        error: 'AuthorizationError',
+        message: 'Bag not found or access denied',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => errorResponse,
+      });
+
+      const discData = { disc_id: 'test-disc-id' };
+      await expect(addDiscToBag('test-bag', discData)).rejects.toThrow('Bag not found or access denied');
+    });
+
+    it('should handle 404 disc not found error', async () => {
+      const errorResponse = {
+        error: 'NotFoundError',
+        message: 'Disc not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      const discData = { disc_id: 'nonexistent-disc-id' };
+      await expect(addDiscToBag('test-bag', discData)).rejects.toThrow('Disc not found');
     });
   });
 

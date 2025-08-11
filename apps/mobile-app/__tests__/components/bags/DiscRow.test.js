@@ -56,9 +56,7 @@ describe('DiscRow', () => {
       </ThemeProvider>,
     );
 
-    expect(getByText((content) => content.includes('Red'))).toBeDefined();
-    expect(getByText((content) => content.includes('175g'))).toBeDefined();
-    expect(getByText((content) => content.includes('good'))).toBeDefined();
+    expect(getByText('Red • 175g • good')).toBeDefined();
   });
 
   it('should use disc_master fallback when custom values are missing', () => {
