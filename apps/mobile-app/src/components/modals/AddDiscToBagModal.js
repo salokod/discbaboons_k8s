@@ -212,6 +212,25 @@ function AddDiscToBagModal({
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
+
+    // Dynamic styles for inline replacements
+    scrollContainer: {
+      flex: 1,
+    },
+    scrollContentContainer: {
+      flexGrow: 1,
+    },
+    formSectionWithBackground: {
+      backgroundColor: colors.background,
+    },
+    sectionDescription: {
+      ...typography.caption,
+      color: colors.textLight,
+      marginBottom: spacing.sm,
+    },
+    buttonFlex: {
+      flex: 1,
+    },
   });
 
   const conditions = ['new', 'good', 'worn', 'beat-in'];
@@ -229,7 +248,10 @@ function AddDiscToBagModal({
 
   const handleConfirm = useCallback(() => {
     if (!disc || !disc.id) {
-      console.error('No disc selected for adding to bag');
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('No disc selected for adding to bag');
+      }
       return;
     }
 
@@ -276,8 +298,8 @@ function AddDiscToBagModal({
           </View>
 
           <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ flexGrow: 1 }}
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContentContainer}
             showsVerticalScrollIndicator
             bounces={false}
           >
@@ -313,14 +335,9 @@ function AddDiscToBagModal({
               </View>
 
               {/* Custom Properties Form */}
-              <View style={[styles.formSection, { backgroundColor: colors.background }]}>
+              <View style={[styles.formSection, styles.formSectionWithBackground]}>
                 <Text style={styles.sectionTitle}>Customize Your Disc</Text>
-                <Text style={{
-                  ...typography.caption,
-                  color: colors.textLight,
-                  marginBottom: spacing.sm,
-                }}
-                >
+                <Text style={styles.sectionDescription}>
                   Add custom properties to personalize this disc in your bag
                 </Text>
 
@@ -406,13 +423,13 @@ function AddDiscToBagModal({
               title="Cancel"
               variant="secondary"
               onPress={onClose}
-              style={{ flex: 1 }}
+              style={styles.buttonFlex}
             />
             <Button
               title="Add to Bag"
               variant="primary"
               onPress={handleConfirm}
-              style={{ flex: 1 }}
+              style={styles.buttonFlex}
             />
           </View>
         </View>

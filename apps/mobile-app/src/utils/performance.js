@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Performance monitoring utilities for development
  */
@@ -10,13 +11,11 @@ const isDev = __DEV__;
 export const performanceTimer = {
   start: (label) => {
     if (isDev && console.time) {
-      // eslint-disable-next-line no-console
       console.time(label);
     }
   },
   end: (label) => {
     if (isDev && console.timeEnd) {
-      // eslint-disable-next-line no-console
       console.timeEnd(label);
     }
   },

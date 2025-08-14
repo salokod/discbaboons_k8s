@@ -302,9 +302,11 @@ function DiscSearchScreen({ navigation, route }) {
 
   // Navigate to add disc screen
   const handleAddDiscToBag = useCallback((disc) => {
-    console.log('Navigating to add disc screen for disc:', disc);
     if (!disc || !disc.id) {
-      console.error('Invalid disc object passed to handleAddDiscToBag:', disc);
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('Invalid disc object passed to handleAddDiscToBag:', disc);
+      }
       return;
     }
 

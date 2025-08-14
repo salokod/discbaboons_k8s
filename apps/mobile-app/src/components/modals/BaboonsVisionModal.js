@@ -3,7 +3,7 @@
  * Modal that displays scatter plot visualization of disc flight characteristics
  */
 
-import { memo, useState } from 'react';
+import { memo, useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -28,11 +28,20 @@ function BaboonsVisionModal({ bag }) {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
   // Chart dimensions - full screen with minimal padding, more vertical space
-  const chartWidth = screenWidth - spacing.md;
-  const chartHeight = screenHeight * 0.85;
-  const padding = 25; // Reduced padding for more chart space
-  const plotWidth = chartWidth - padding * 2;
-  const plotHeight = chartHeight - padding * 2;
+  const chartDimensions = useMemo(() => {
+    const chartWidth = screenWidth - spacing.md;
+    const chartHeight = screenHeight * 0.85;
+    const padding = 25; // Reduced padding for more chart space
+    const plotWidth = chartWidth - padding * 2;
+    const plotHeight = chartHeight - padding * 2;
+    return {
+      chartWidth, chartHeight, padding, plotWidth, plotHeight,
+    };
+  }, [screenWidth, screenHeight]);
+
+  const {
+    chartWidth, chartHeight, padding, plotWidth, plotHeight,
+  } = chartDimensions;
 
   // Function to get label dimensions and truncate text if needed
   const getLabelDimensions = (text) => {
@@ -59,6 +68,210 @@ function BaboonsVisionModal({ bag }) {
 
     return { width, fontSize, displayText };
   };
+
+  // Dynamic styles that depend on calculations
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    backgroundLogo: {
+      position: 'absolute',
+      width: Math.min(plotWidth, plotHeight) * 1.0,
+      height: Math.min(plotWidth, plotHeight) * 1.0,
+      left: chartWidth / 2 - (Math.min(plotWidth, plotHeight) * 0.5),
+      top: chartHeight / 2 - (Math.min(plotWidth, plotHeight) * 0.5),
+      opacity: 0.05,
+      resizeMode: 'contain',
+    },
+    scrollViewContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+    },
+    popupOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    popupBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    bottomSheet: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xl,
+      maxHeight: '70%',
+    },
+    dragHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+      marginBottom: spacing.md,
+    },
+    popupHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    popupHeaderTextContainer: {
+      flex: 1,
+    },
+    popupTitle: {
+      ...typography.h2,
+      color: colors.text,
+      fontWeight: '700',
+    },
+    popupSubtitle: {
+      ...typography.caption,
+      color: colors.textLight,
+      marginTop: 2,
+    },
+    popupCloseButton: {
+      padding: spacing.sm,
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    popupScrollContent: {
+      paddingBottom: spacing.md,
+    },
+    discCard: {
+      backgroundColor: colors.surface,
+      borderRadius: Platform.select({
+        ios: 12,
+        android: 16,
+      }),
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    discCardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    discCardTextContainer: {
+      flex: 1,
+    },
+    discCardTitle: {
+      ...typography.h3,
+      color: colors.text,
+      fontWeight: '700',
+      fontSize: 16,
+    },
+    discCardBrand: {
+      ...typography.caption,
+      color: colors.textLight,
+      fontStyle: 'italic',
+      fontSize: 12,
+    },
+    discColorIndicator: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    flightNumbersContainer: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    flightNumberBox: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    speedBox: {
+      backgroundColor: `${colors.error}15`,
+      borderColor: colors.error,
+    },
+    glideBox: {
+      backgroundColor: `${colors.primary}15`,
+      borderColor: colors.primary,
+    },
+    turnBox: {
+      backgroundColor: `${colors.warning}15`,
+      borderColor: colors.warning,
+    },
+    fadeBox: {
+      backgroundColor: `${colors.success}15`,
+      borderColor: colors.success,
+    },
+    flightNumberLabel: {
+      ...typography.caption,
+      fontSize: 10,
+    },
+    speedLabel: {
+      color: colors.error,
+    },
+    glideLabel: {
+      color: colors.primary,
+    },
+    turnLabel: {
+      color: colors.warning,
+    },
+    fadeLabel: {
+      color: colors.success,
+    },
+    flightNumberValue: {
+      ...typography.bodyBold,
+    },
+    speedValue: {
+      color: colors.error,
+    },
+    glideValue: {
+      color: colors.primary,
+    },
+    turnValue: {
+      color: colors.warning,
+    },
+    fadeValue: {
+      color: colors.success,
+    },
+    gridLineOpacity: {
+      opacity: 0.2,
+    },
+    speedAxisLabel: {
+      left: 10,
+      fontSize: 11,
+      fontWeight: '400',
+      opacity: 0.4,
+    },
+    stabilityAxisLabel: {
+      bottom: 20,
+      fontSize: 11,
+      fontWeight: '400',
+      opacity: 0.4,
+    },
+    stabilityAxisLabelZero: {
+      bottom: 20,
+      fontSize: 11,
+      fontWeight: '600',
+      opacity: 0.6,
+    },
+  }), [colors, chartWidth, chartHeight, plotWidth, plotHeight]);
 
   const styles = StyleSheet.create({
     modalOverlay: {
@@ -425,7 +638,7 @@ function BaboonsVisionModal({ bag }) {
             <ScrollView
               style={styles.modalContent}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+              contentContainerStyle={dynamicStyles.scrollViewContent}
             >
 
               <View style={styles.chartContainer}>
@@ -433,15 +646,7 @@ function BaboonsVisionModal({ bag }) {
                   {/* Background Logo */}
                   <Image
                     source={require('../../../discbaboon_logo_blue.png')}
-                    style={{
-                      position: 'absolute',
-                      width: Math.min(plotWidth, plotHeight) * 1.0,
-                      height: Math.min(plotWidth, plotHeight) * 1.0,
-                      left: chartWidth / 2 - (Math.min(plotWidth, plotHeight) * 0.5),
-                      top: chartHeight / 2 - (Math.min(plotWidth, plotHeight) * 0.5),
-                      opacity: 0.05,
-                      resizeMode: 'contain',
-                    }}
+                    style={dynamicStyles.backgroundLogo}
                   />
 
                   {/* Axes */}
@@ -460,9 +665,9 @@ function BaboonsVisionModal({ bag }) {
                       style={[
                         styles.gridLine,
                         styles.verticalGridLine,
+                        dynamicStyles.gridLineOpacity,
                         {
                           left: padding + ((6 - 0) / 11) * plotWidth,
-                          opacity: 0.2,
                         },
                       ]}
                     />
@@ -471,9 +676,9 @@ function BaboonsVisionModal({ bag }) {
                       style={[
                         styles.gridLine,
                         styles.horizontalGridLine,
+                        dynamicStyles.gridLineOpacity,
                         {
                           bottom: padding,
-                          opacity: 0.2,
                         },
                       ]}
                     />
@@ -484,13 +689,10 @@ function BaboonsVisionModal({ bag }) {
                         key={`speed-label-${speed}`}
                         style={[
                           styles.axisLabel,
+                          dynamicStyles.speedAxisLabel,
                           {
-                            left: 10,
                             bottom: padding + ((speed) / 15) * plotHeight - 8,
-                            fontSize: 11,
-                            fontWeight: '400',
                             color: colors.textLight,
-                            opacity: 0.4,
                           },
                         ]}
                       >
@@ -505,13 +707,12 @@ function BaboonsVisionModal({ bag }) {
                         key={`stability-label-${stability}`}
                         style={[
                           styles.axisLabel,
+                          stability === 0
+                            ? dynamicStyles.stabilityAxisLabelZero
+                            : dynamicStyles.stabilityAxisLabel,
                           {
                             left: padding + ((6 - stability) / 11) * plotWidth - 10,
-                            bottom: 20,
-                            fontSize: 11,
-                            fontWeight: stability === 0 ? '600' : '400',
                             color: stability === 0 ? colors.primary : colors.textLight,
-                            opacity: stability === 0 ? 0.6 : 0.4,
                           },
                         ]}
                       >
@@ -589,83 +790,28 @@ function BaboonsVisionModal({ bag }) {
 
             {/* Selected Point Popup - Slides from bottom */}
             {selectedPoint && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                }}
-              >
+              <View style={dynamicStyles.popupOverlay}>
                 {/* Backdrop */}
                 <TouchableOpacity
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                  }}
+                  style={dynamicStyles.popupBackdrop}
                   onPress={() => setSelectedPoint(null)}
                 />
 
                 {/* Bottom Sheet */}
-                <View style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: colors.background,
-                  borderTopLeftRadius: 24,
-                  borderTopRightRadius: 24,
-                  paddingHorizontal: spacing.lg,
-                  paddingTop: spacing.md,
-                  paddingBottom: spacing.xl,
-                  maxHeight: '70%',
-                }}
-                >
+                <View style={dynamicStyles.bottomSheet}>
                   {/* Drag Handle */}
-                  <View style={{
-                    alignSelf: 'center',
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.border,
-                    marginBottom: spacing.md,
-                  }}
-                  />
+                  <View style={dynamicStyles.dragHandle} />
 
                   {/* Header */}
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: spacing.sm,
-                    paddingBottom: spacing.sm,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                  >
-                    <View>
-                      <Text style={{
-                        ...typography.h2,
-                        color: colors.text,
-                        fontWeight: '700',
-                      }}
-                      >
+                  <View style={dynamicStyles.popupHeader}>
+                    <View style={dynamicStyles.popupHeaderTextContainer}>
+                      <Text style={dynamicStyles.popupTitle}>
                         {selectedPoint.discs.length}
                         {' '}
                         Disc
                         {selectedPoint.discs.length !== 1 ? 's' : ''}
                       </Text>
-                      <Text style={{
-                        ...typography.caption,
-                        color: colors.textLight,
-                        marginTop: 2,
-                      }}
-                      >
+                      <Text style={dynamicStyles.popupSubtitle}>
                         Speed
                         {' '}
                         {selectedPoint.speed}
@@ -676,13 +822,7 @@ function BaboonsVisionModal({ bag }) {
                       </Text>
                     </View>
                     <TouchableOpacity
-                      style={{
-                        padding: spacing.sm,
-                        backgroundColor: colors.surface,
-                        borderRadius: 20,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                      }}
+                      style={dynamicStyles.popupCloseButton}
                       onPress={() => setSelectedPoint(null)}
                     >
                       <Icon name="close" size={20} color={colors.textLight} />
@@ -690,160 +830,111 @@ function BaboonsVisionModal({ bag }) {
                   </View>
                   <ScrollView
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: spacing.md }}
+                    contentContainerStyle={dynamicStyles.popupScrollContent}
                   >
                     {selectedPoint.discs.map((disc) => (
                       <View
                         key={`${disc.model}-${disc.brand}-${disc.speed}-${disc.glide}-${disc.turn}-${disc.fade}-${disc.color || 'nocolor'}`}
-                        style={{
-                          backgroundColor: colors.surface,
-                          borderRadius: Platform.select({
-                            ios: 12,
-                            android: 16,
-                          }),
-                          padding: spacing.lg,
-                          marginBottom: spacing.md,
-                          borderWidth: 1,
-                          borderColor: colors.border,
-                        }}
+                        style={dynamicStyles.discCard}
                       >
                         {/* Disc Header - Model and Brand */}
-                        <View style={{
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: spacing.sm,
-                        }}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={{
-                              ...typography.h3,
-                              color: colors.text,
-                              fontWeight: '700',
-                              fontSize: 16,
-                            }}
-                            >
+                        <View style={dynamicStyles.discCardHeader}>
+                          <View style={dynamicStyles.discCardTextContainer}>
+                            <Text style={dynamicStyles.discCardTitle}>
                               {disc.model}
                             </Text>
-                            <Text style={{
-                              ...typography.caption,
-                              color: colors.textLight,
-                              fontStyle: 'italic',
-                              fontSize: 12,
-                            }}
-                            >
+                            <Text style={dynamicStyles.discCardBrand}>
                               {disc.brand}
                             </Text>
                           </View>
                           {disc.color && (
-                            <View style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 12,
-                              backgroundColor: getDiscColor(disc.color),
-                              borderWidth: 2,
-                              borderColor: colors.surface,
-                            }}
+                            <View style={[
+                              dynamicStyles.discColorIndicator,
+                              { backgroundColor: getDiscColor(disc.color) },
+                            ]}
                             />
                           )}
                         </View>
 
                         {/* Flight Numbers */}
-                        <View style={{
-                          flexDirection: 'row',
-                          gap: spacing.sm,
-                          marginTop: spacing.xs,
-                        }}
-                        >
-                          <View style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            paddingVertical: spacing.xs,
-                            backgroundColor: `${colors.error}15`,
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: colors.error,
-                          }}
+                        <View style={dynamicStyles.flightNumbersContainer}>
+                          <View style={[
+                            dynamicStyles.flightNumberBox,
+                            dynamicStyles.speedBox,
+                          ]}
                           >
-                            <Text
-                              style={{
-                                ...typography.caption,
-                                color: colors.error,
-                                fontSize: 10,
-                              }}
+                            <Text style={[
+                              dynamicStyles.flightNumberLabel,
+                              dynamicStyles.speedLabel,
+                            ]}
                             >
                               SPEED
                             </Text>
-                            <Text style={{ ...typography.bodyBold, color: colors.error }}>
+                            <Text style={[
+                              dynamicStyles.flightNumberValue,
+                              dynamicStyles.speedValue,
+                            ]}
+                            >
                               {disc.speed}
                             </Text>
                           </View>
-                          <View style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            paddingVertical: spacing.xs,
-                            backgroundColor: `${colors.primary}15`,
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: colors.primary,
-                          }}
+                          <View style={[
+                            dynamicStyles.flightNumberBox,
+                            dynamicStyles.glideBox,
+                          ]}
                           >
-                            <Text
-                              style={{
-                                ...typography.caption,
-                                color: colors.primary,
-                                fontSize: 10,
-                              }}
+                            <Text style={[
+                              dynamicStyles.flightNumberLabel,
+                              dynamicStyles.glideLabel,
+                            ]}
                             >
                               GLIDE
                             </Text>
-                            <Text style={{ ...typography.bodyBold, color: colors.primary }}>
+                            <Text style={[
+                              dynamicStyles.flightNumberValue,
+                              dynamicStyles.glideValue,
+                            ]}
+                            >
                               {disc.glide || 0}
                             </Text>
                           </View>
-                          <View style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            paddingVertical: spacing.xs,
-                            backgroundColor: `${colors.warning}15`,
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: colors.warning,
-                          }}
+                          <View style={[
+                            dynamicStyles.flightNumberBox,
+                            dynamicStyles.turnBox,
+                          ]}
                           >
-                            <Text
-                              style={{
-                                ...typography.caption,
-                                color: colors.warning,
-                                fontSize: 10,
-                              }}
+                            <Text style={[
+                              dynamicStyles.flightNumberLabel,
+                              dynamicStyles.turnLabel,
+                            ]}
                             >
                               TURN
                             </Text>
-                            <Text style={{ ...typography.bodyBold, color: colors.warning }}>
+                            <Text style={[
+                              dynamicStyles.flightNumberValue,
+                              dynamicStyles.turnValue,
+                            ]}
+                            >
                               {disc.turn}
                             </Text>
                           </View>
-                          <View style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            paddingVertical: spacing.xs,
-                            backgroundColor: `${colors.success}15`,
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: colors.success,
-                          }}
+                          <View style={[
+                            dynamicStyles.flightNumberBox,
+                            dynamicStyles.fadeBox,
+                          ]}
                           >
-                            <Text
-                              style={{
-                                ...typography.caption,
-                                color: colors.success,
-                                fontSize: 10,
-                              }}
+                            <Text style={[
+                              dynamicStyles.flightNumberLabel,
+                              dynamicStyles.fadeLabel,
+                            ]}
                             >
                               FADE
                             </Text>
-                            <Text style={{ ...typography.bodyBold, color: colors.success }}>
+                            <Text style={[
+                              dynamicStyles.flightNumberValue,
+                              dynamicStyles.fadeValue,
+                            ]}
+                            >
                               {disc.fade}
                             </Text>
                           </View>

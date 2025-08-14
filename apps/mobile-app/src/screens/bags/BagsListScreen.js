@@ -16,6 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import PropTypes from 'prop-types';
+import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
@@ -77,6 +78,12 @@ function BagsListScreen({ navigation }) {
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    headerContent: {
+      flex: 1,
     },
     headerTitle: {
       ...typography.h2,
@@ -116,6 +123,10 @@ function BagsListScreen({ navigation }) {
       fontSize: 24,
       color: colors.surface,
     },
+    settingsButton: {
+      padding: spacing.sm,
+      marginTop: -spacing.sm,
+    },
   });
 
   // Show loading state on first load
@@ -138,13 +149,25 @@ function BagsListScreen({ navigation }) {
   // Render header
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Your Bags</Text>
-      <Text style={styles.bagCount}>
-        {bags.length}
-        {' '}
-        bag
-        {bags.length !== 1 ? 's' : ''}
-      </Text>
+      <View style={styles.headerContent}>
+        <Text style={styles.headerTitle}>Your Bags</Text>
+        <Text style={styles.bagCount}>
+          {bags.length}
+          {' '}
+          bag
+          {bags.length !== 1 ? 's' : ''}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.settingsButton}
+        testID="settings-button"
+      >
+        <Icon
+          name="settings-outline"
+          size={24}
+          color={colors.text}
+        />
+      </TouchableOpacity>
     </View>
   );
 

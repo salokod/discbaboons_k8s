@@ -71,7 +71,10 @@ describe('AddDiscToBagScreen Navigation', () => {
     // Mock the handleAddDiscToBag function logic
     const handleAddDiscToBag = (disc) => {
       if (!disc || !disc.id) {
-        console.error('Invalid disc object passed to handleAddDiscToBag:', disc);
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.error('Invalid disc object passed to handleAddDiscToBag:', disc);
+        }
         return;
       }
 

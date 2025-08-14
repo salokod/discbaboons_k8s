@@ -612,7 +612,119 @@ Response: { "success": true, "message": "Disc submission denied" }
 
 **Learning Focus Completed**: Complex state management with useMemo/useCallback, client-side data filtering/sorting, modal design patterns, comprehensive test coverage strategies
 
-#### **Phase 3.9: Disc Denial System - AFTER BAG DETAIL**
+### **Phase 5: Settings & Theme Management** 🆕
+**TDD Focus**: Side navigation, theme persistence, settings infrastructure
+
+**Vision**: Create a professional settings experience with side drawer navigation, theme management, and extensible settings infrastructure for future features.
+
+**Phase 5.1: Settings Infrastructure**
+- [ ] **Side Drawer Navigation**: Implement drawer navigator from main landing screen
+- [ ] **Settings Button**: Add settings icon button to main header/navigation bar
+- [ ] **Settings Screen Structure**: Create modular settings screen with sections
+- [ ] **Navigation Integration**: Integrate drawer with existing stack navigation
+- [ ] **Gesture Support**: Swipe-to-open drawer from left edge
+
+**Phase 5.2: Theme Management System**
+- [ ] **Theme Picker Component**: Beautiful theme selection UI with live preview
+- [ ] **Theme Options**: 
+  - Light Mode (default)
+  - Dark Mode
+  - Blackout Mode (pure black for OLED)
+  - Custom accent colors (future)
+- [ ] **Theme Persistence**: Save theme preference to AsyncStorage
+- [ ] **System Theme Detection**: Option to follow system theme (iOS 13+, Android 10+)
+- [ ] **Smooth Transitions**: Animated theme switching without app restart
+
+**Phase 5.3: Settings Categories**
+- [ ] **Appearance Section**:
+  - Theme picker
+  - Font size adjustment (future)
+  - High contrast mode (accessibility)
+- [ ] **Account Section**:
+  - Profile information
+  - Change password
+  - Logout option
+- [ ] **Preferences Section**:
+  - Default sorting preferences
+  - Notification settings (future)
+  - Units (metric/imperial for disc weights)
+- [ ] **About Section**:
+  - App version
+  - Terms of service
+  - Privacy policy
+  - Support/feedback
+
+**Phase 5.4: Inline Styles Migration** 
+- [ ] **StyleSheet Refactor**: Move all inline styles to StyleSheet.create()
+- [ ] **Theme-aware Styles**: Ensure all styles use theme colors
+- [ ] **Dynamic Styles**: Create style factories for theme-dependent styles
+- [ ] **Performance Optimization**: Memoize style objects where beneficial
+
+**Technical Architecture:**
+```javascript
+// Navigation Structure
+DrawerNavigator
+├── MainStack (existing navigation)
+└── SettingsDrawer
+    ├── SettingsScreen
+    ├── ThemePickerScreen
+    ├── ProfileScreen
+    └── AboutScreen
+
+// Theme System Enhancement
+ThemeContext
+├── Current theme state
+├── Theme switcher function
+├── System theme listener
+└── Persistence layer
+
+// Settings Service
+settingsService.js
+├── getSettings()
+├── updateSetting(key, value)
+├── resetSettings()
+└── migrateSettings() // for version updates
+```
+
+**Component Structure:**
+```
+src/screens/settings/
+├── SettingsScreen.js          # Main settings screen with sections
+├── ThemePickerScreen.js       # Theme selection with preview
+├── ProfileSettingsScreen.js   # User profile management
+└── AboutScreen.js             # App information
+
+src/components/settings/
+├── SettingsDrawer.js          # Custom drawer component
+├── SettingRow.js              # Reusable setting item component
+├── ThemePreview.js            # Live theme preview component
+└── SettingsSection.js         # Section header component
+
+src/navigation/
+├── DrawerNavigator.js         # Drawer navigation setup
+└── SettingsNavigator.js       # Settings stack navigator
+```
+
+**Design Patterns:**
+- **Consistent with CreateBagScreen**: Same spacing, typography, and visual hierarchy
+- **Professional Settings UX**: iOS Settings app inspired layout
+- **Smooth Animations**: Drawer slide, theme transitions
+- **Accessibility First**: Screen reader support, high contrast options
+
+**Files to Create/Update:**
+- `src/navigation/DrawerNavigator.js` - New drawer navigation
+- `src/screens/settings/SettingsScreen.js` - Main settings screen
+- `src/screens/settings/ThemePickerScreen.js` - Theme selection
+- `src/components/settings/SettingsDrawer.js` - Custom drawer
+- `src/services/settingsService.js` - Settings persistence
+- `src/context/ThemeContext.js` - Enhanced with theme switching
+- Update all components to remove inline styles
+
+**Learning Focus**: Drawer navigation, AsyncStorage persistence, system theme detection, animated transitions, settings architecture patterns
+
+**Phase 5 Summary**: Professional settings infrastructure with beautiful theme management, preparing the app for future customization features while maintaining design consistency and performance.
+
+#### **Phase 3.9: Disc Denial System - AFTER SETTINGS**
 **TDD Focus**: Complete moderation workflow, backend/frontend disc rejection with user feedback
 
 **Backend Implementation:**

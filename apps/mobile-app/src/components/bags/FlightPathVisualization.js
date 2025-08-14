@@ -104,6 +104,14 @@ function FlightPathVisualization({
       opacity: 0.7,
       borderRadius: 1,
     },
+    pathLineSegment: {
+      position: 'absolute',
+      height: 2.5,
+      transformOrigin: '0 50%',
+      backgroundColor: colors.primary,
+      opacity: 0.7,
+      borderRadius: 1,
+    },
     // Reference line (center vertical) - shows straight throw path
     centerLine: {
       position: 'absolute',
@@ -197,17 +205,14 @@ function FlightPathVisualization({
           <View
             key={`segment-${prevSegment.x}-${prevSegment.y}-${segment.x}-${segment.y}`}
             style={[
-              styles.pathLine,
+              styles.pathLineSegment,
               {
-                position: 'absolute',
                 left: prevSegment.x,
                 top: prevSegment.y - 1,
                 width: segmentLength + 1,
-                height: 2.5,
                 transform: [
                   { rotateZ: `${angle}rad` },
                 ],
-                transformOrigin: '0 50%',
               },
             ]}
           />

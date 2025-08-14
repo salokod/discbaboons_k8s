@@ -334,6 +334,15 @@ function AddDiscToBagScreen({ navigation, route }) {
       fontWeight: '700',
       fontSize: 16,
     },
+
+    // Dynamic styles for inline replacements
+    centeredContainer: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    flexOne: {
+      flex: 1,
+    },
   });
 
   // Handle input changes
@@ -472,7 +481,7 @@ function AddDiscToBagScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.container}>
         <AppContainer>
-          <View style={[styles.scrollContent, { justifyContent: 'center', alignItems: 'center' }]}>
+          <View style={[styles.scrollContent, styles.centeredContainer]}>
             <Text style={typography.h3}>No disc selected</Text>
             <Button title="Go Back" onPress={() => navigation.goBack()} />
           </View>
@@ -886,14 +895,14 @@ function AddDiscToBagScreen({ navigation, route }) {
             <View style={styles.actionContainer}>
               <View style={styles.actionButtons}>
                 <TouchableOpacity
-                  style={[styles.cancelButton, { flex: 1 }]}
+                  style={[styles.cancelButton, styles.flexOne]}
                   onPress={() => navigation.goBack()}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.addButton, { flex: 1 }, isAdding && styles.addButtonDisabled]}
+                  style={[styles.addButton, styles.flexOne, isAdding && styles.addButtonDisabled]}
                   onPress={handleAddToBag}
                   disabled={isAdding}
                 >

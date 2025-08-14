@@ -82,4 +82,22 @@ describe('BagsListScreen', () => {
       expect(getByText('Create First Bag')).toBeTruthy();
     });
   });
+
+  it('should render settings button', async () => {
+    // Mock getBags to return some bags so we see the main screen
+    mockGetBags.mockResolvedValue({
+      bags: [{ id: 1, name: 'Test Bag', discCount: 5 }],
+    });
+
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <BagsListScreen />
+      </ThemeProvider>,
+    );
+
+    // Wait for loading to complete and settings button to render
+    await waitFor(() => {
+      expect(getByTestId('settings-button')).toBeTruthy();
+    });
+  });
 });

@@ -70,6 +70,7 @@ function SortPanel({
   onClose,
   onApplySort,
   currentSort = { field: null, direction: 'asc' },
+  testID,
 }) {
   const colors = useThemeColors();
   const [localSort, setLocalSort] = useState(currentSort);
@@ -117,7 +118,7 @@ function SortPanel({
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.panel}>
+      <View style={styles.panel} testID={testID}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Sort Discs</Text>
@@ -277,6 +278,7 @@ function SortPanel({
                 return (
                   <TouchableOpacity
                     key={option.key}
+                    testID={option.key === 'model' && localSort.direction === 'asc' ? 'sort-model-asc' : undefined}
                     style={[
                       styles.sortFieldOption,
                       isSelected && styles.sortFieldOptionSelected,
@@ -613,10 +615,12 @@ SortPanel.propTypes = {
     field: PropTypes.string,
     direction: PropTypes.oneOf(['asc', 'desc']),
   }),
+  testID: PropTypes.string,
 };
 
 SortPanel.defaultProps = {
   currentSort: { field: null, direction: 'asc' },
+  testID: undefined,
 };
 
 export default SortPanel;

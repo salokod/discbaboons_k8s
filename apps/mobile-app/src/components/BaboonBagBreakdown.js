@@ -185,6 +185,13 @@ function BaboonBagBreakdown({ bag, style }) {
       minWidth: 40,
       textAlign: 'right',
     },
+    statValueLarge: {
+      ...typography.bodyBold,
+      color: colors.primary,
+      fontSize: 18,
+      minWidth: 40,
+      textAlign: 'right',
+    },
     averagesGrid: {
       flexDirection: 'row',
       gap: spacing.md,
@@ -282,7 +289,7 @@ function BaboonBagBreakdown({ bag, style }) {
               <Text style={styles.statSectionTitle}>Bag Summary</Text>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Total Discs</Text>
-                <Text style={[styles.statValue, { color: colors.primary, fontSize: 18 }]}>
+                <Text style={styles.statValueLarge}>
                   {stats.totalDiscs}
                 </Text>
               </View>

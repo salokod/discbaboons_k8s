@@ -64,6 +64,10 @@ function BaboonBagBreakdownModal({ bag }) {
       paddingBottom: spacing.md,
       paddingTop: spacing.xs,
     },
+    scrollContainer: {
+      flexGrow: 1,
+      justifyContent: 'flex-start',
+    },
     triggerButton: {
       flex: 1,
       paddingVertical: spacing.sm,
@@ -117,7 +121,7 @@ function BaboonBagBreakdownModal({ bag }) {
             <ScrollView
               style={styles.modalContent}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-start' }}
+              contentContainerStyle={styles.scrollContainer}
             >
               <BaboonBagBreakdown bag={bag} />
             </ScrollView>

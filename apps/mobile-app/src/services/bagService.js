@@ -62,14 +62,10 @@ function convertPrivacyToFlags(privacy) {
  */
 async function getAuthHeaders() {
   const tokens = await getTokens();
-  console.log('Retrieved tokens for API call:', tokens ? 'tokens found' : 'no tokens');
 
   if (!tokens || !tokens.accessToken) {
-    console.error('No access token available for API request');
     throw new Error('Authentication required. Please log in again.');
   }
-
-  console.log('Using access token for API call:', 'token exists');
 
   return {
     'Content-Type': 'application/json',
@@ -464,13 +460,16 @@ export async function addDiscToBag(bagId, discData) {
     const data = await response.json();
 
     if (!response.ok) {
-      // Enhanced error logging for debugging
-      console.error('Add disc API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        data,
-        url: `${API_BASE_URL}/api/bags/${bagId}/discs`,
-      });
+      // Enhanced error logging for debugging (development only)
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('Add disc API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          url: `${API_BASE_URL}/api/bags/${bagId}/discs`,
+        });
+      }
 
       // Handle different error types based on backend error responses
       if (response.status === 401) {

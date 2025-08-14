@@ -562,11 +562,15 @@ function BagDetailScreen({ route, navigation }) {
 
             {filteredAndSortedDiscs.length > 0 ? (
               <FlatList
+                testID="disc-list"
                 data={filteredAndSortedDiscs}
                 renderItem={renderDiscItem}
                 keyExtractor={(item) => item.id}
                 scrollEnabled={false}
                 contentContainerStyle={styles.listContent}
+                removeClippedSubviews
+                maxToRenderPerBatch={10}
+                windowSize={5}
               />
             ) : (
               <View style={styles.emptyContainer}>
@@ -597,6 +601,7 @@ function BagDetailScreen({ route, navigation }) {
 
       {/* Filter Panel Modal */}
       <FilterPanel
+        testID="filter-panel"
         visible={showFilterPanel}
         onClose={() => setShowFilterPanel(false)}
         onApplyFilters={handleFilterApply}
@@ -606,6 +611,7 @@ function BagDetailScreen({ route, navigation }) {
 
       {/* Sort Panel Modal */}
       <SortPanel
+        testID="sort-panel"
         visible={showSortPanel}
         onClose={() => setShowSortPanel(false)}
         onApplySort={handleSortApply}
