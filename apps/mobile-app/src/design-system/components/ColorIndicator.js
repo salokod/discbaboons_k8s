@@ -8,7 +8,7 @@ import PropTypes from 'prop-types';
 import { validateAndNormalizeHexColor } from '../../utils/validation';
 
 function ColorIndicator({
-  color, size, shape, accessibilityLabel, width, height,
+  color, size, shape, accessibilityLabel, width, height, testID,
 }) {
   // Generate accessibility label
   const getAccessibilityLabel = () => {
@@ -84,7 +84,7 @@ function ColorIndicator({
 
   return (
     <View
-      testID="color-indicator"
+      testID={testID || 'color-indicator'}
       style={dynamicStyles}
       accessibilityRole="image"
       accessibilityLabel={getAccessibilityLabel()}
@@ -99,6 +99,7 @@ ColorIndicator.propTypes = {
   accessibilityLabel: PropTypes.string,
   width: PropTypes.number,
   height: PropTypes.number,
+  testID: PropTypes.string,
 };
 
 ColorIndicator.defaultProps = {
@@ -108,6 +109,7 @@ ColorIndicator.defaultProps = {
   accessibilityLabel: null,
   width: null,
   height: null,
+  testID: null,
 };
 
 // Add display name for React DevTools

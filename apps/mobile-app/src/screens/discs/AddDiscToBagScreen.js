@@ -28,25 +28,13 @@ import Input from '../../components/Input';
 import Button from '../../components/Button';
 import DiscCard from '../../components/DiscCard';
 import { addDiscToBag } from '../../services/bagService';
+import ColorPicker from '../../design-system/components/ColorPicker';
 
 const CONDITION_OPTIONS = [
   { value: 'new', label: 'New', icon: 'sparkles-outline' },
   { value: 'good', label: 'Good', icon: 'thumbs-up-outline' },
   { value: 'worn', label: 'Worn', icon: 'time-outline' },
   { value: 'beat-in', label: 'Beat-in', icon: 'fitness-outline' },
-];
-
-const DISC_COLORS = [
-  { value: 'red', color: '#FF4444', label: 'Red' },
-  { value: 'orange', color: '#FF8800', label: 'Orange' },
-  { value: 'yellow', color: '#FFD700', label: 'Yellow' },
-  { value: 'green', color: '#44BB44', label: 'Green' },
-  { value: 'blue', color: '#4444FF', label: 'Blue' },
-  { value: 'purple', color: '#8844FF', label: 'Purple' },
-  { value: 'pink', color: '#FF44BB', label: 'Pink' },
-  { value: 'white', color: '#FFFFFF', label: 'White' },
-  { value: 'black', color: '#333333', label: 'Black' },
-  { value: 'clear', color: '#E0E0E0', label: 'Clear' },
 ];
 
 function AddDiscToBagScreen({ navigation, route }) {
@@ -256,29 +244,6 @@ function AddDiscToBagScreen({ navigation, route }) {
       fontWeight: '700',
     },
 
-    // Color selector
-    colorGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-      marginTop: spacing.sm,
-    },
-    colorOption: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      borderWidth: 3,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    colorOptionSelected: {
-      borderColor: colors.primary,
-      borderWidth: 3,
-    },
-    colorCheckmark: {
-      position: 'absolute',
-    },
     // Action buttons
     actionContainer: {
       marginTop: spacing.xl * 2,
@@ -749,30 +714,10 @@ function AddDiscToBagScreen({ navigation, route }) {
                 <Text style={styles.inputDescription}>
                   Select the color of your disc
                 </Text>
-                <View style={styles.colorGrid}>
-                  {DISC_COLORS.map((colorOption) => (
-                    <TouchableOpacity
-                      key={colorOption.value}
-                      style={[
-                        styles.colorOption,
-                        { backgroundColor: colorOption.color },
-                        customProps.color === colorOption.value && styles.colorOptionSelected,
-                      ]}
-                      onPress={() => handleInputChange('color', colorOption.value)}
-                    >
-                      {customProps.color === colorOption.value && (
-                        <Icon
-                          name="checkmark"
-                          size={24}
-                          color={colorOption.value === 'white' || colorOption.value === 'yellow' || colorOption.value === 'clear'
-                            ? colors.text
-                            : colors.surface}
-                          style={styles.colorCheckmark}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <ColorPicker
+                  selectedColor={customProps.color}
+                  onColorSelect={(color) => handleInputChange('color', color)}
+                />
               </View>
 
               <View style={styles.inputGroup}>

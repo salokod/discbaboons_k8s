@@ -221,6 +221,15 @@ function FilterPanel({
                 ]}
                 onPress={() => setLocalFilters((prev) => ({ ...prev, approved: undefined }))}
               >
+                <Icon
+                  name="checkmark-circle-outline"
+                  size={24}
+                  color={(localFilters.approved === undefined || localFilters.approved === true)
+                    ? colors.primary
+                    : colors.textLight}
+                  style={styles.statusOptionIcon}
+                  testID="approved-status-icon"
+                />
                 <View style={styles.statusOptionContent}>
                   <Text style={[
                     styles.statusOptionLabel,
@@ -254,6 +263,13 @@ function FilterPanel({
                 ]}
                 onPress={() => setLocalFilters((prev) => ({ ...prev, approved: false }))}
               >
+                <Icon
+                  name="time-outline"
+                  size={24}
+                  color={localFilters.approved === false ? colors.primary : colors.textLight}
+                  style={styles.statusOptionIcon}
+                  testID="pending-status-icon"
+                />
                 <View style={styles.statusOptionContent}>
                   <Text style={[
                     styles.statusOptionLabel,
@@ -488,6 +504,52 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '600',
   },
   brandOptionLabelSelected: {
+    color: colors.primary,
+  },
+  statusOptions: {
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  statusOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: Platform.select({
+      ios: 12,
+      android: 16,
+    }),
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  statusOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: Platform.select({
+      ios: `${colors.primary}10`,
+      android: `${colors.primary}15`,
+    }),
+  },
+  statusOptionIcon: {
+    marginRight: spacing.md,
+  },
+  statusOptionContent: {
+    flex: 1,
+  },
+  statusOptionLabel: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  statusOptionLabelSelected: {
+    color: colors.primary,
+  },
+  statusOptionDescription: {
+    ...typography.caption,
+    color: colors.textLight,
+    lineHeight: 16,
+  },
+  statusOptionDescriptionSelected: {
     color: colors.primary,
   },
   rangeOptions: {
