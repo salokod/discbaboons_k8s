@@ -63,6 +63,48 @@ const isValidPassword = (password) => {
   return password.length >= 8 && password.length <= 32;
 };
 
+/**
+ * Validate and normalize hex color format
+ * @param {string} color - Color string to validate and normalize
+ * @returns {string|null} - Normalized hex color (#RRGGBB format) or null if invalid
+ */
+const validateAndNormalizeHexColor = (color) => {
+  if (!color || typeof color !== 'string') {
+    return null;
+  }
+
+  const trimmed = color.trim();
+
+  // Must start with #
+  if (!trimmed.startsWith('#')) {
+    return null;
+  }
+
+  const hexPart = trimmed.slice(1); // Remove #
+
+  // Check for valid 3-character hex (#RGB)
+  if (hexPart.length === 3) {
+    if (!/^[0-9A-Fa-f]{3}$/.test(hexPart)) {
+      return null;
+    }
+    // Expand 3-char to 6-char format and convert to uppercase
+    const expanded = hexPart.split('').map((char) => char + char).join('');
+    return `#${expanded.toUpperCase()}`;
+  }
+
+  // Check for valid 6-character hex (#RRGGBB)
+  if (hexPart.length === 6) {
+    if (!/^[0-9A-Fa-f]{6}$/.test(hexPart)) {
+      return null;
+    }
+    // Convert to uppercase
+    return `#${hexPart.toUpperCase()}`;
+  }
+
+  // Invalid length
+  return null;
+};
+
 module.exports = {
   EMAIL_REGEX,
   isValidEmail,
@@ -70,4 +112,5 @@ module.exports = {
   isValidHexString,
   isValidUsername,
   isValidPassword,
+  validateAndNormalizeHexColor,
 };

@@ -50,13 +50,16 @@ describe('DiscRow', () => {
   });
 
   it('should display custom disc properties', () => {
-    const { getByText } = render(
+    const { getByText, getByTestId } = render(
       <ThemeProvider>
         <DiscRow disc={mockDisc} />
       </ThemeProvider>,
     );
 
-    expect(getByText('Red • 175g • good')).toBeDefined();
+    // Color is now displayed as a visual bar, not text
+    expect(getByTestId('color-indicator')).toBeDefined();
+    // Weight and condition are still displayed as text
+    expect(getByText('175g • good')).toBeDefined();
   });
 
   it('should use disc_master fallback when custom values are missing', () => {
@@ -81,5 +84,114 @@ describe('DiscRow', () => {
     expect(getByText('Destroyer')).toBeDefined();
     expect(getByText('Innova')).toBeDefined();
     expect(getByText('12')).toBeDefined();
+  });
+
+  it('should use ColorIndicator component when disc has color', () => {
+    const discWithColor = {
+      ...mockDisc,
+      color: 'red',
+    };
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithColor} />
+      </ThemeProvider>,
+    );
+
+    const colorIndicator = getByTestId('color-indicator');
+    expect(colorIndicator).toBeTruthy();
+    expect(colorIndicator.props.accessibilityLabel).toBe('Disc color: red');
+  });
+
+  it('should not display color indicator when disc has no color', () => {
+    const discWithoutColor = {
+      ...mockDisc,
+      color: null,
+    };
+    const { queryByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithoutColor} />
+      </ThemeProvider>,
+    );
+
+    expect(queryByTestId('color-indicator')).toBeNull();
+  });
+
+  it('should pass correct props to ColorIndicator', () => {
+    const discWithHexColor = {
+      ...mockDisc,
+      color: '#FF5733',
+    };
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithHexColor} />
+      </ThemeProvider>,
+    );
+
+    const colorIndicator = getByTestId('color-indicator');
+    expect(colorIndicator.props.accessibilityLabel).toBe('Disc color: #FF5733');
+  });
+
+  it('should use bar shape for ColorIndicator', () => {
+    const discWithColor = {
+      ...mockDisc,
+      color: 'blue',
+    };
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithColor} />
+      </ThemeProvider>,
+    );
+
+    const colorIndicator = getByTestId('color-indicator');
+    // Should have bar styling (borderRadius: 2, not circular)
+    expect(colorIndicator).toBeTruthy();
+  });
+
+  it('should handle disc with empty string color', () => {
+    const discWithEmptyColor = {
+      ...mockDisc,
+      color: '',
+    };
+    const { queryByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithEmptyColor} />
+      </ThemeProvider>,
+    );
+
+    expect(queryByTestId('color-indicator')).toBeNull();
+  });
+
+  it('should handle disc with undefined color property', () => {
+    const discWithUndefinedColor = {
+      ...mockDisc,
+      color: undefined,
+    };
+    const { queryByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithUndefinedColor} />
+      </ThemeProvider>,
+    );
+
+    expect(queryByTestId('color-indicator')).toBeNull();
+  });
+
+  it('should handle disc_master fallback for color', () => {
+    const discWithMasterColor = {
+      id: 'test-id',
+      model: 'Test Disc',
+      // No direct color property
+      disc_master: {
+        model: 'Master Disc',
+        brand: 'Master Brand',
+        color: 'blue',
+      },
+    };
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <DiscRow disc={discWithMasterColor} />
+      </ThemeProvider>,
+    );
+
+    expect(getByTestId('color-indicator')).toBeTruthy();
   });
 });

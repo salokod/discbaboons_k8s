@@ -25,3 +25,27 @@ console.error = (...args) => {
   }
   originalError.call(console, ...args);
 };
+
+// Pure React Native color picker implementation - no external dependencies needed
+
+// Mock react-native-reanimated
+// eslint-disable-next-line no-undef
+jest.mock('react-native-reanimated', () => {
+  // eslint-disable-next-line no-undef
+  const actualReanimated = jest.requireActual('react-native-reanimated/mock');
+  return {
+    ...actualReanimated,
+    default: {
+      ...actualReanimated.default,
+      // Add any additional mocks if needed
+    },
+  };
+});
+
+// Mock react-native-gesture-handler
+// eslint-disable-next-line no-undef
+jest.mock('react-native-gesture-handler', () => {
+  // eslint-disable-next-line no-undef
+  const actualGestureHandler = jest.requireActual('react-native-gesture-handler/jestSetup');
+  return actualGestureHandler;
+});
