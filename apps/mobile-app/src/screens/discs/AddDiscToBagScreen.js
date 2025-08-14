@@ -503,7 +503,7 @@ function AddDiscToBagScreen({ navigation, route }) {
             <View style={styles.header}>
               <Text style={styles.headerTitle}>
                 Add to
-                {bagName}
+                {` ${bagName}`}
               </Text>
               <Text style={styles.headerSubtitle}>
                 Customize this disc&apos;s properties for your bag

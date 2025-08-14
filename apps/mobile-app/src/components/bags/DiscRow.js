@@ -17,6 +17,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import Card from '../../design-system/components/Card';
+import ColorIndicator from '../../design-system/components/ColorIndicator';
 import FlightPathVisualization from './FlightPathVisualization';
 
 function DiscRow({ disc }) {
@@ -46,6 +47,8 @@ function DiscRow({ disc }) {
       minWidth: 75,
     },
     discHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
       marginBottom: 2,
     },
     colorCircle: {
@@ -174,6 +177,10 @@ function DiscRow({ disc }) {
     fade: disc.fade || disc.disc_master?.fade || 0,
   };
 
+  // Enhanced color checking with disc_master fallback
+  const discColor = disc.color || disc.disc_master?.color;
+  const hasValidColor = discColor && discColor.trim() !== '';
+
   return (
     <View style={styles.discCard}>
       <Card>
@@ -214,10 +221,19 @@ function DiscRow({ disc }) {
               </View>
             </View>
 
-            {(disc.color || disc.weight || disc.condition) && (
+            {(hasValidColor || disc.weight || disc.condition) && (
               <View style={styles.customInfo}>
+                {hasValidColor && (
+                  <ColorIndicator
+                    color={discColor}
+                    shape="bar"
+                    width={35}
+                    height={12}
+                    accessibilityLabel={`Disc color: ${discColor}`}
+                  />
+                )}
                 <Text style={styles.customText}>
-                  {[disc.color, disc.weight && `${disc.weight}g`, disc.condition]
+                  {[disc.weight && `${disc.weight}g`, disc.condition]
                     .filter(Boolean)
                     .join(' • ')}
                 </Text>
@@ -261,6 +277,7 @@ DiscRow.propTypes = {
       glide: PropTypes.number,
       turn: PropTypes.number,
       fade: PropTypes.number,
+      color: PropTypes.string,
     }),
   }).isRequired,
 };
