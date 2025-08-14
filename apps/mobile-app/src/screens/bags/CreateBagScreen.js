@@ -166,8 +166,8 @@ function CreateBagScreen({ navigation, onCreateBag }) {
       // Call the optional callback prop with the created bag data
       onCreateBag?.(createdBag);
 
-      // Navigate back to bags list after successful creation
-      navigation?.goBack();
+      // Navigate to bag detail after successful creation
+      navigation?.replace('BagDetail', { bagId: createdBag.id });
     } catch (error) {
       // Show user-friendly error message
       Alert.alert(

@@ -22,6 +22,13 @@ const PRIVACY_ICONS = {
 function BagCard({ bag, onPress }) {
   const colors = useThemeColors();
 
+  // Convert API response format to display format
+  const getPrivacyType = (bagData) => {
+    if (bagData.is_public) return 'public';
+    if (bagData.is_friends_visible) return 'friends';
+    return 'private';
+  };
+
   const styles = StyleSheet.create({
     cardTouchable: {
       marginBottom: spacing.md,
@@ -83,7 +90,7 @@ function BagCard({ bag, onPress }) {
               {bag.name}
             </Text>
             <Icon
-              name={PRIVACY_ICONS[bag.privacy] || PRIVACY_ICONS.private}
+              name={PRIVACY_ICONS[getPrivacyType(bag)] || PRIVACY_ICONS.private}
               size={16}
               color={colors.textLight}
               style={styles.privacyIcon}
@@ -98,7 +105,7 @@ function BagCard({ bag, onPress }) {
 
           <View style={styles.footer}>
             <Text style={styles.discCount}>
-              {getDiscCountText(bag.discCount || 0)}
+              {getDiscCountText(bag.disc_count || 0)}
             </Text>
           </View>
         </View>
@@ -112,8 +119,9 @@ BagCard.propTypes = {
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
     description: PropTypes.string,
-    privacy: PropTypes.oneOf(['private', 'friends', 'public']),
-    discCount: PropTypes.number,
+    is_public: PropTypes.bool,
+    is_friends_visible: PropTypes.bool,
+    disc_count: PropTypes.number,
   }).isRequired,
   onPress: PropTypes.func,
 };

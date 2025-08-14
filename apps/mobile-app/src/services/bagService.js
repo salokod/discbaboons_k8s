@@ -62,6 +62,7 @@ function convertPrivacyToFlags(privacy) {
  */
 async function getAuthHeaders() {
   const tokens = await getTokens();
+
   if (!tokens || !tokens.accessToken) {
     throw new Error('Authentication required. Please log in again.');
   }
@@ -327,6 +328,262 @@ export async function updateBag(bagId, updates) {
     }
 
     return data.bag;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Get a single bag by ID
+ * @param {string} bagId - Bag ID to retrieve
+ * @param {Object} options - Query options (include_lost)
+ * @returns {Promise<Object>} Bag data with contents
+ * @throws {Error} Get bag failed error with message
+ */
+export async function getBag(bagId, options = {}) {
+  // Validate inputs before making API call
+  if (!bagId || typeof bagId !== 'string') {
+    throw new Error('Bag ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    // Build query string from options
+    const queryParams = new URLSearchParams();
+    if (options.include_lost) {
+      queryParams.append('include_lost', 'true');
+    }
+    const queryString = queryParams.toString();
+    const url = `${API_BASE_URL}/api/bags/${bagId}${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid bag ID format');
+      }
+      if (response.status === 404) {
+        // Bag not found
+        throw new Error(data.message || 'Bag not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // API actually returns {success: true, bag: {...}} format
+    if (!data || !data.success || !data.bag) {
+      throw new Error('Invalid response from server');
+    }
+
+    const bagData = data.bag;
+
+    // Validate essential fields
+    if (!bagData.id) {
+      throw new Error('Invalid bag data from server');
+    }
+
+    // Ensure bag_contents is always an array (even if empty)
+    if (!bagData.bag_contents) {
+      bagData.bag_contents = [];
+    }
+
+    return bagData;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Add a disc to a bag
+ * @param {string} bagId - Bag ID to add disc to
+ * @param {Object} discData - Disc data including disc_id and optional custom properties
+ * @returns {Promise<Object>} Added bag content data
+ * @throws {Error} Add disc failed error with message
+ */
+export async function addDiscToBag(bagId, discData) {
+  // Validate inputs before making API call
+  if (!bagId || typeof bagId !== 'string') {
+    throw new Error('Bag ID is required');
+  }
+
+  if (!discData || typeof discData !== 'object') {
+    throw new Error('Disc data is required');
+  }
+
+  if (!discData.disc_id || typeof discData.disc_id !== 'string') {
+    throw new Error('Disc ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/${bagId}/discs`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(discData),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Enhanced error logging for debugging (development only)
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('Add disc API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          url: `${API_BASE_URL}/api/bags/${bagId}/discs`,
+        });
+      }
+
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid disc data');
+      }
+      if (response.status === 403) {
+        // Authorization error
+        throw new Error(data.message || 'Bag not found or access denied');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'Disc not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // API returns success wrapper: { success: true, bag_content: {...} }
+    if (!data || !data.success || !data.bag_content) {
+      throw new Error('Invalid response from server');
+    }
+
+    const bagContent = data.bag_content;
+
+    // Validate essential fields of the bag content
+    if (!bagContent.id || !bagContent.disc_id) {
+      throw new Error('Invalid bag content data from server');
+    }
+
+    return bagContent;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Mark a disc as lost or found
+ * @param {string} contentId - Bag content ID to mark as lost/found
+ * @param {boolean} isLost - True to mark as lost, false to mark as found
+ * @param {string} notes - Optional notes about where/how disc was lost
+ * @returns {Promise<Object>} Updated disc data
+ * @throws {Error} Mark disc lost failed error with message
+ */
+export async function markDiscAsLost(contentId, isLost = true, notes = '') {
+  // Validate inputs before making API call
+  if (!contentId || typeof contentId !== 'string') {
+    throw new Error('Content ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const body = {
+      is_lost: isLost,
+    };
+
+    if (isLost && notes) {
+      body.lost_notes = notes;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/discs/${contentId}/lost`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid request');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'Disc not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data.disc;
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller

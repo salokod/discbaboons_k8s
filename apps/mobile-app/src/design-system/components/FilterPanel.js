@@ -65,6 +65,7 @@ function FilterPanel({
   onClose,
   onApplyFilters,
   currentFilters = {},
+  testID,
 }) {
   const colors = useThemeColors();
   const [localFilters, setLocalFilters] = useState(currentFilters);
@@ -127,7 +128,7 @@ function FilterPanel({
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.panel}>
+      <View style={styles.panel} testID={testID}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -168,6 +169,7 @@ function FilterPanel({
                 return (
                   <TouchableOpacity
                     key={brand}
+                    testID={brand === 'Innova' ? 'filter-panel-apply-brand-filter' : undefined}
                     style={[
                       styles.brandOption,
                       isSelected && styles.brandOptionSelected,
@@ -541,10 +543,12 @@ FilterPanel.propTypes = {
     turn: PropTypes.arrayOf(PropTypes.string),
     fade: PropTypes.arrayOf(PropTypes.string),
   }),
+  testID: PropTypes.string,
 };
 
 FilterPanel.defaultProps = {
   currentFilters: {},
+  testID: undefined,
 };
 
 export default FilterPanel;

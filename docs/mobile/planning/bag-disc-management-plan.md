@@ -552,11 +552,197 @@ Response: { "success": true, "message": "Disc submission denied" }
 - Simple approval workflow with confirmation modals and success feedback
 - Complete integration with GET /api/discs/pending and PATCH /api/discs/:id/approve
 
-#### **🚀 Phase 3.9: Disc Denial System - NEXT**
-- Backend PATCH /api/discs/:id/deny endpoint with admin authorization
-- Frontend deny button with confirmation modal and optional reason field
-- Complete approve OR deny workflow for full admin moderation control
-- Visual distinction between approve (green) and deny (red) actions
+#### **✅ Phase 4: Enhanced Bag Detail & Disc Management - COMPLETE**
+**TDD Focus**: Complete bag management experience with CreateBagScreen design consistency
+
+**Vision**: Transform bag detail into the central hub of the disc golf experience - where users spend 80% of their time managing their collection, preparing for rounds, and discovering new discs. This screen evolves from simple list view to comprehensive disc golf workflow center.
+
+**Phase 4.1: Foundation & Bug Fixes** ✅
+- [x] **Fix getBag API validation**: Handle direct object response (not wrapped in success envelope)
+- [x] **Fix BagsListScreen data extraction**: Handle `{bags: [...], pagination: {...}}` response format  
+- [x] **Fix BagCard API format**: Handle `is_public`, `is_friends_visible`, `disc_count` from API
+- [x] **Navigation integration**: Proper BagDetail screen navigation from both CreateBag and BagsList
+
+**Phase 4.2: Enhanced Bag Detail Experience** ✅
+- [x] **CreateBagScreen design consistency**: Applied same visual hierarchy, spacing, and professional feel
+- [x] **Action-rich header**: Bag name, description, disc count with professional layout
+- [x] **Contextual CTAs**: "Add Your First Disc" empty state with clear guidance
+- [x] **Quick actions bar**: Add Disc, Sort, Filter buttons with CreateBagScreen button styling
+- [x] **Professional empty state**: Hero experience matching EmptyBagsScreen with disc bag icon
+
+**Phase 4.3: Advanced Disc Display & Organization** ✅
+- [x] **Enhanced DiscRow component**: Beautiful cards with individual flight number displays
+- [x] **Smart sorting**: Model, Brand, Speed (ascending/descending) with visual indicators
+- [x] **Contextual filtering**: By brand and flight numbers with range support ("8-10", "-3--1")
+- [x] **Flight path visualization**: Visual representation of disc flight characteristics
+- [x] **Professional statistics**: Baboon Breakdown modal with brand distribution and disc counts
+
+**Phase 4.4: Disc Management Actions** ✅
+- [x] **Add disc workflow**: Search master database → Add to bag via AddDiscToBagScreen
+- [x] **Disc analytics**: Baboon Breakdown for statistics, Baboons Vision for flight charts
+- [x] **Clear all functionality**: Remove all filters and sorts with single action
+- [x] **Active indicators**: Show count of active filters/sorts in buttons
+- [x] **Empty state handling**: Professional message when no discs match filters
+
+**Phase 4 Achievements:**
+✅ **Complete bag detail functionality** - Professional screen with full disc management capabilities
+✅ **Sort & Filter system** - Client-side filtering and sorting with excellent performance
+✅ **Disc visualization** - Beautiful DiscRow component with flight numbers and colors
+✅ **Analytics modals** - Baboon Breakdown and Baboons Vision for disc insights
+✅ **538 tests passing** - 100% test pass rate with comprehensive coverage
+✅ **Zero linting errors** - Clean, maintainable code following established patterns
+✅ **Professional UX** - Empty states, loading states, error handling all implemented
+✅ **Design consistency** - Follows CreateBagScreen patterns throughout
+
+**Files Created/Enhanced:**
+- `src/screens/bags/BagDetailScreen.js` + tests - Main bag detail screen with sort/filter
+- `src/components/bags/DiscRow.js` + tests - Professional disc display component
+- `src/components/bags/FlightPathVisualization.js` - Visual flight representation
+- `src/components/BaboonBagBreakdown.js` + tests - Statistics modal
+- `src/components/modals/BaboonsVisionModal.js` - Flight chart visualization
+- `src/components/modals/AddDiscToBagModal.js` - Add disc to bag modal
+- `src/services/bagService.js` - Enhanced with disc management methods
+- `src/screens/discs/AddDiscToBagScreen.js` + tests - Complete add disc workflow
+
+**API Integration Complete:**
+✅ `GET /api/bags/:id` - Retrieve bag with disc contents
+✅ `POST /api/bags/:id/discs` - Add disc to bag
+✅ `PUT /api/bags/:id/discs/:contentId` - Update disc in bag
+✅ `DELETE /api/bags/discs/:contentId` - Remove disc from bag
+
+**Learning Focus Completed**: Complex state management with useMemo/useCallback, client-side data filtering/sorting, modal design patterns, comprehensive test coverage strategies
+
+### **Phase 5: Settings & Theme Management** 🆕
+**TDD Focus**: Side navigation, theme persistence, settings infrastructure
+
+**Vision**: Create a professional settings experience with side drawer navigation, theme management, and extensible settings infrastructure for future features.
+
+**Phase 5.1: Settings Infrastructure**
+- [ ] **Side Drawer Navigation**: Implement drawer navigator from main landing screen
+- [ ] **Settings Button**: Add settings icon button to main header/navigation bar
+- [ ] **Settings Screen Structure**: Create modular settings screen with sections
+- [ ] **Navigation Integration**: Integrate drawer with existing stack navigation
+- [ ] **Gesture Support**: Swipe-to-open drawer from left edge
+
+**Phase 5.2: Theme Management System**
+- [ ] **Theme Picker Component**: Beautiful theme selection UI with live preview
+- [ ] **Theme Options**: 
+  - Light Mode (default)
+  - Dark Mode
+  - Blackout Mode (pure black for OLED)
+  - Custom accent colors (future)
+- [ ] **Theme Persistence**: Save theme preference to AsyncStorage
+- [ ] **System Theme Detection**: Option to follow system theme (iOS 13+, Android 10+)
+- [ ] **Smooth Transitions**: Animated theme switching without app restart
+
+**Phase 5.3: Settings Categories**
+- [ ] **Appearance Section**:
+  - Theme picker
+  - Font size adjustment (future)
+  - High contrast mode (accessibility)
+- [ ] **Account Section**:
+  - Profile information
+  - Change password
+  - Logout option
+- [ ] **Preferences Section**:
+  - Default sorting preferences
+  - Notification settings (future)
+  - Units (metric/imperial for disc weights)
+- [ ] **About Section**:
+  - App version
+  - Terms of service
+  - Privacy policy
+  - Support/feedback
+
+**Phase 5.4: Inline Styles Migration** 
+- [ ] **StyleSheet Refactor**: Move all inline styles to StyleSheet.create()
+- [ ] **Theme-aware Styles**: Ensure all styles use theme colors
+- [ ] **Dynamic Styles**: Create style factories for theme-dependent styles
+- [ ] **Performance Optimization**: Memoize style objects where beneficial
+
+**Technical Architecture:**
+```javascript
+// Navigation Structure
+DrawerNavigator
+├── MainStack (existing navigation)
+└── SettingsDrawer
+    ├── SettingsScreen
+    ├── ThemePickerScreen
+    ├── ProfileScreen
+    └── AboutScreen
+
+// Theme System Enhancement
+ThemeContext
+├── Current theme state
+├── Theme switcher function
+├── System theme listener
+└── Persistence layer
+
+// Settings Service
+settingsService.js
+├── getSettings()
+├── updateSetting(key, value)
+├── resetSettings()
+└── migrateSettings() // for version updates
+```
+
+**Component Structure:**
+```
+src/screens/settings/
+├── SettingsScreen.js          # Main settings screen with sections
+├── ThemePickerScreen.js       # Theme selection with preview
+├── ProfileSettingsScreen.js   # User profile management
+└── AboutScreen.js             # App information
+
+src/components/settings/
+├── SettingsDrawer.js          # Custom drawer component
+├── SettingRow.js              # Reusable setting item component
+├── ThemePreview.js            # Live theme preview component
+└── SettingsSection.js         # Section header component
+
+src/navigation/
+├── DrawerNavigator.js         # Drawer navigation setup
+└── SettingsNavigator.js       # Settings stack navigator
+```
+
+**Design Patterns:**
+- **Consistent with CreateBagScreen**: Same spacing, typography, and visual hierarchy
+- **Professional Settings UX**: iOS Settings app inspired layout
+- **Smooth Animations**: Drawer slide, theme transitions
+- **Accessibility First**: Screen reader support, high contrast options
+
+**Files to Create/Update:**
+- `src/navigation/DrawerNavigator.js` - New drawer navigation
+- `src/screens/settings/SettingsScreen.js` - Main settings screen
+- `src/screens/settings/ThemePickerScreen.js` - Theme selection
+- `src/components/settings/SettingsDrawer.js` - Custom drawer
+- `src/services/settingsService.js` - Settings persistence
+- `src/context/ThemeContext.js` - Enhanced with theme switching
+- Update all components to remove inline styles
+
+**Learning Focus**: Drawer navigation, AsyncStorage persistence, system theme detection, animated transitions, settings architecture patterns
+
+**Phase 5 Summary**: Professional settings infrastructure with beautiful theme management, preparing the app for future customization features while maintaining design consistency and performance.
+
+#### **Phase 3.9: Disc Denial System - AFTER SETTINGS**
+**TDD Focus**: Complete moderation workflow, backend/frontend disc rejection with user feedback
+
+**Backend Implementation:**
+- [ ] **PATCH /api/discs/:id/deny endpoint**: Admin-only endpoint to reject pending disc submissions
+- [ ] **Denial reasons**: Optional reason field for admin feedback to users
+- [ ] **Permanent removal**: Denied discs are soft-deleted and hidden from pending queue
+- [ ] **Audit logging**: Track admin denial actions with timestamps and reasons
+- [ ] **Rate limiting**: Same admin operation limits as approval endpoint (50/hour)
+- [ ] **Error handling**: 403 for non-admin, 404 for non-existent disc, 409 if already processed
+
+**Frontend Implementation:**
+- [ ] **Deny button**: Add "Deny & Remove" button alongside "Approve & Publish" in AdminDiscScreen
+- [ ] **Denial confirmation modal**: Professional confirmation dialog with optional reason field
+- [ ] **Immediate UI feedback**: Remove denied disc from pending list with smooth animation
+- [ ] **Dual-action workflow**: Approve OR deny options for complete admin moderation control
+- [ ] **discService.denyDisc()**: New service method following existing API patterns
+- [ ] **Visual differentiation**: Clear visual distinction between approve (green) and deny (red) actions
+- [ ] **Loading states**: "Denying..." button state with disabled interactions during API call
 
 **Admin Integration Goals:**
 - ✅ **Secure Backend**: Admin endpoints with proper authentication
@@ -568,20 +754,7 @@ Response: { "success": true, "message": "Disc submission denied" }
 - 🚀 **Professional Tools**: Disc moderation with CreateBagScreen UX consistency
 - 🚀 **Complete Workflow**: From login to disc approval in seamless flow
 
-### **Phase 4: Bag Detail & Disc Display** 
-**TDD Focus**: List rendering, sorting, filtering performance
-- [ ] **BagDetailScreen**: Individual bag view with disc list using established screen patterns
-- [ ] **DiscRow component**: Full-width disc info using typography + spacing from design system
-- [ ] **Disc display format**: `DiscName (Brand) | Speed Glide Turn Fade | Color●`
-- [ ] **Sort/Filter UI**: Collapsible filter bar using existing FilterChip + SearchBar components
-- [ ] **Sort options**: Speed (default), Brand, Model, Recently Added with FilterChip arrays
-- [ ] **DiscColorIndicator**: 16px colored circle with long-press tooltip for plastic type
-
-**Components Already Built**: ✅ Card, ✅ FilterChip, ✅ SearchBar (ready for composition)
-
-**Learning Focus**: FlatList optimization, sort/filter state management, component composition patterns
-
-### **Phase 5: Multi-Select & Bulk Operations (Day 5)**
+### **Phase 5: Multi-Select & Bulk Operations**
 **TDD Focus**: Complex state management, bulk API calls
 - [ ] **Design System**: Create BottomSheet + ActionBar components
 - [ ] Multi-select mode activation following iOS Photos app patterns
@@ -592,7 +765,7 @@ Response: { "success": true, "message": "Disc submission denied" }
 
 **Learning Focus**: Complex state patterns, modal presentations, design system composition
 
-### **Phase 6: Add Discs to Bags (Day 6)**
+### **Phase 6: Add Discs to Bags**
 **TDD Focus**: Disc customization, API integration
 - [ ] Add disc from search results using existing Button + navigation patterns
 - [ ] Custom properties form using existing Input + FilterChip components
@@ -703,20 +876,88 @@ __tests__/integration/
 - [ ] Color indicators have text alternatives
 - [ ] Touch targets meet minimum size requirements (44px)
 
-## Future Enhancements
+## Complete DiscBaboons App Vision: From Bags to Community
 
-### **Phase 7: Advanced Features**
-- [ ] Bag sharing with friends
-- [ ] Disc recommendations based on course/conditions
-- [ ] Statistics and analytics (most-used discs, etc.)
-- [ ] Export bag contents to various formats
-- [ ] Photo integration for disc condition documentation
+### **Long-term Vision: The Disc Golf Lifestyle App**
 
-### **Phase 8: Social Features**
-- [ ] Public bag browsing and cloning
-- [ ] Friend activity feeds
-- [ ] Disc trading marketplace integration
-- [ ] Community-driven disc reviews and ratings
+**Core Philosophy**: Transform bag management from simple storage into the foundation of complete disc golf lifestyle - connecting collection management with social play, course strategy, and community engagement.
+
+### **Phase 5: Social Integration & Friends System**
+**Vision**: Your bag becomes a social profile - share setups, get recommendations, discover new players
+- [ ] **Friends & Following**: Connect with local players, see their bag setups and recent rounds
+- [ ] **Bag Sharing**: "Show me your woods bag" - share specific bag configurations for different courses  
+- [ ] **Social Validation**: "12 players use this same Thunderbird setup" - community-driven confidence
+- [ ] **Friend Recommendations**: "Mike who you play with uses a Teebird here" - contextual disc suggestions
+- [ ] **Bag Evolution Stories**: "See how Sarah's bag changed over 2024" - progression narratives
+
+**CreateBagScreen Design Evolution**: Social features integrate seamlessly with existing professional UX - privacy settings expand to include friend visibility, sharing controls, and community participation levels.
+
+### **Phase 6: Intelligent Round Preparation**
+**Vision**: Bag management becomes round strategy - AI-powered course analysis meets personal disc preferences
+- [ ] **Course-Specific Bag Recommendations**: "For DeLaveaga, most players carry 3 overstable drivers" 
+- [ ] **Weather Integration**: "High wind today - consider more stable discs" with automatic bag adjustments
+- [ ] **Round Planning**: "Hole 7 is 420ft with OB right - your Thunderbird is perfect" pre-round strategy
+- [ ] **Performance Tracking**: "Your Firebird averages 15ft closer to pin than your Destroyer on this hole"
+- [ ] **Bag Optimization**: "Remove 2 similar mids, add a utility disc" - data-driven bag refinement
+
+### **Phase 7: Advanced Analytics & Insights**
+**Vision**: Every throw becomes data - transform bag management with performance insights
+- [ ] **Disc Performance Analytics**: Heat maps showing which discs perform best on specific hole types
+- [ ] **Bag Usage Patterns**: "You throw 8 discs regularly, consider leaving 6 at home" efficiency insights
+- [ ] **Progression Tracking**: "Your arm speed increased - time for more stable discs" growth guidance
+- [ ] **Community Benchmarking**: "Advanced players your rating average 23 discs" comparative insights
+- [ ] **Predictive Recommendations**: "Players who bag your setup also love the Sexton Firebird"
+
+### **Phase 8: Tournament & Event Integration**
+**Vision**: Competition preparation becomes seamless - from bag management to event participation
+- [ ] **Tournament Bag Validation**: "Your bag meets PDGA regulations for Amateur worlds" compliance checking
+- [ ] **Event-Specific Prep**: "For this tournament, 78% of players carry backup putters" preparation insights
+- [ ] **Live Round Tracking**: Real-time bag usage during tournament rounds with performance correlation
+- [ ] **Post-Round Analysis**: "You threw 12 discs today, Thunderbird was money on hole 15" immediate feedback
+- [ ] **Champion Bag Insights**: "See what Paul McBeth bagged for this course in 2023" pro inspiration
+
+### **Phase 9: Market Intelligence & Gear Evolution**
+**Vision**: Bag management meets marketplace - smart buying, selling, and trading recommendations
+- [ ] **Market Value Tracking**: "Your Champion Thunderbird is worth $23 today" collection valuation
+- [ ] **Upgrade Recommendations**: "New Discraft ESP plastic performs 8% better than your current" improvement suggestions
+- [ ] **Trading Optimization**: "Trade your unused Wraith for a Teebird - 5 local offers available" smart exchanges
+- [ ] **Collection Curation**: "You have 4 similar understable drivers - consider consolidating" efficiency guidance
+- [ ] **Investment Insights**: "Limited edition Sexton Firebirds appreciate 15% annually" collector intelligence
+
+### **Phase 10: Comprehensive Lifestyle Integration**
+**Vision**: DiscBaboons becomes the complete disc golf lifestyle platform
+- [ ] **Course Discovery**: "New course 12 minutes away - your bag setup is perfect" exploration encouragement
+- [ ] **Weather-Based Suggestions**: "Perfect wind conditions for your understable drivers today" playing prompts
+- [ ] **Social Coordination**: "3 friends are playing Morley today - join them?" community facilitation
+- [ ] **Skill Development**: "Practice these 5 shots to improve your bag utilization" targeted improvement
+- [ ] **Lifestyle Optimization**: Complete disc golf life management from gear to social to performance
+
+### **Design Evolution Strategy**
+
+**Consistency Through Growth**: Every new feature builds on the CreateBagScreen professional foundation
+- **Visual Language**: Section headers with icons, card-based layouts, professional spacing maintained across all features
+- **Theme System**: Light/dark/blackout themes scale seamlessly from bags to tournament tracking to social feeds
+- **Navigation Patterns**: Bottom tab evolution from Bags/Discs/Search to Bags/Friends/Rounds/Profile/Explore
+- **Component Composition**: FilterChip, Card, Button, SearchBar components evolve into complex social and analytics interfaces
+- **Professional Polish**: The same attention to spacing, typography, and user flow extends to every feature addition
+
+**User Journey Evolution**:
+1. **Month 1**: "I need to organize my discs" → Excellent bag management
+2. **Month 3**: "I want to play better" → Course-specific recommendations  
+3. **Month 6**: "I want to improve faster" → Performance analytics and insights
+4. **Month 12**: "I want to be part of the community" → Full social and tournament integration
+5. **Year 2+**: "This is my disc golf lifestyle platform" → Complete ecosystem integration
+
+### **Technical Architecture Scaling**
+
+**Progressive Enhancement**: Each phase builds on established patterns while adding complexity
+- **State Management**: Evolves from simple bag state to complex social, analytics, and real-time tournament data
+- **API Integration**: Scales from basic CRUD operations to real-time social feeds and external tournament APIs  
+- **Component System**: Design system components become the foundation for complex feature sets
+- **Testing Strategy**: TDD methodology scales to handle complex user workflows and data relationships
+- **Performance**: FlatList optimizations learned in bag management apply to friends feeds and tournament results
+
+**Vision Summary**: DiscBaboons starts as excellent bag management and evolves into the comprehensive disc golf lifestyle platform - where every feature feels natural, professional, and essential to the disc golf experience. The CreateBagScreen's professional polish becomes the DNA of every feature we add.
 
 ## Learning Opportunities
 

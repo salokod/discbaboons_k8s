@@ -32,8 +32,12 @@ import { searchDiscs } from '../../services/discService';
 
 // RangeInput component removed - now using sliders instead
 
-function DiscSearchScreen({ navigation }) {
+function DiscSearchScreen({ navigation, route }) {
   const colors = useThemeColors();
+
+  // Check if we're in "add to bag" mode
+  const { mode, bagId, bagName } = route?.params || {};
+  const isAddToBagMode = mode === 'addToBag' && bagId;
   const [searchQuery, setSearchQuery] = useState('');
   // Using ref for search input to avoid re-renders on every keystroke
   const searchInputRef = useRef(''); // Ref to avoid re-renders
@@ -296,36 +300,67 @@ function DiscSearchScreen({ navigation }) {
     performSearch(true);
   }, [performSearch]);
 
+  // Navigate to add disc screen
+  const handleAddDiscToBag = useCallback((disc) => {
+    if (!disc || !disc.id) {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('Invalid disc object passed to handleAddDiscToBag:', disc);
+      }
+      return;
+    }
+
+    navigation.navigate('AddDiscToBagScreen', {
+      disc,
+      bagId,
+      bagName,
+    });
+  }, [navigation, bagId, bagName]);
+
   const renderDiscItem = React.useCallback(({ item }) => (
     <View style={styles.discItem}>
       <View style={styles.discContent}>
-        <View style={styles.discInfo}>
-          <Text style={styles.discName}>{item.model}</Text>
-          <Text style={styles.discBrand}>
-            {item.brand}
-          </Text>
+        <View style={styles.discInfoContainer}>
+          <View style={styles.discInfo}>
+            <View style={styles.discNameRow}>
+              <Text style={styles.discName}>{item.model}</Text>
+              <Text style={styles.discBrand}>
+                {item.brand}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.flightNumbers}>
+            <View style={[styles.flightNumber, styles.speedNumber]}>
+              <Text style={styles.flightLabel}>S</Text>
+              <Text style={styles.flightNumberText}>{item.speed}</Text>
+            </View>
+            <View style={[styles.flightNumber, styles.glideNumber]}>
+              <Text style={styles.flightLabel}>G</Text>
+              <Text style={styles.flightNumberText}>{item.glide}</Text>
+            </View>
+            <View style={[styles.flightNumber, styles.turnNumber]}>
+              <Text style={styles.flightLabel}>T</Text>
+              <Text style={styles.flightNumberText}>{item.turn}</Text>
+            </View>
+            <View style={[styles.flightNumber, styles.fadeNumber]}>
+              <Text style={styles.flightLabel}>F</Text>
+              <Text style={styles.flightNumberText}>{item.fade}</Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.flightNumbers}>
-          <View style={[styles.flightNumber, styles.speedNumber]}>
-            <Text style={styles.flightLabel}>S</Text>
-            <Text style={styles.flightNumberText}>{item.speed}</Text>
-          </View>
-          <View style={[styles.flightNumber, styles.glideNumber]}>
-            <Text style={styles.flightLabel}>G</Text>
-            <Text style={styles.flightNumberText}>{item.glide}</Text>
-          </View>
-          <View style={[styles.flightNumber, styles.turnNumber]}>
-            <Text style={styles.flightLabel}>T</Text>
-            <Text style={styles.flightNumberText}>{item.turn}</Text>
-          </View>
-          <View style={[styles.flightNumber, styles.fadeNumber]}>
-            <Text style={styles.flightLabel}>F</Text>
-            <Text style={styles.flightNumberText}>{item.fade}</Text>
-          </View>
-        </View>
+
+        {isAddToBagMode && (
+          <TouchableOpacity
+            style={styles.addToBagButton}
+            onPress={() => handleAddDiscToBag(item)}
+          >
+            <Icon name="add-circle-outline" size={24} color={colors.primary} />
+            <Text style={styles.addToBagButtonText}>Add</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
-  ), [styles]);
+  ), [styles, isAddToBagMode, handleAddDiscToBag, colors]);
 
   // Count active filters for display
   const activeFilterCount = React.useMemo(() => Object.keys(filters).filter(
@@ -572,6 +607,7 @@ function DiscSearchScreen({ navigation }) {
         onApplySort={handleApplySort}
         currentSort={sort}
       />
+
     </SafeAreaView>
   );
 }
@@ -679,35 +715,48 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  discInfo: {
+  discInfoContainer: {
     flex: 1,
     marginRight: spacing.md,
+  },
+  discInfo: {
+    marginBottom: spacing.sm,
+  },
+  discNameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   discName: {
     ...typography.h3,
     color: colors.text,
     fontWeight: '700',
-    marginBottom: spacing.xs,
+    flex: 0,
   },
   discBrand: {
     ...typography.body2,
     color: colors.textLight,
     fontWeight: '500',
     fontStyle: 'italic',
+    fontSize: 14,
+    flex: 0,
   },
   flightNumbers: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.md,
+    flex: 1,
   },
   flightNumber: {
     borderRadius: 8,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    minWidth: 40,
+    paddingHorizontal: spacing.md,
+    minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
+    flex: 1,
   },
   speedNumber: {
     backgroundColor: `${colors.success}20`, // 20% opacity
@@ -737,6 +786,28 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     fontSize: 16,
+  },
+  // Add to Bag styles - positioned to the right, vertically centered
+  addToBagButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    minWidth: 64,
+    minHeight: 64,
+  },
+  addToBagButtonText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 11,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -831,6 +902,17 @@ DiscSearchScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func.isRequired,
   }).isRequired,
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      mode: PropTypes.string,
+      bagId: PropTypes.string,
+      bagName: PropTypes.string,
+    }),
+  }),
+};
+
+DiscSearchScreen.defaultProps = {
+  route: { params: {} },
 };
 
 export default DiscSearchScreen;

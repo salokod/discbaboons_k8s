@@ -13,6 +13,9 @@
 - **One concept per slice**: Don't bundle multiple validations or features in one step
 - **Security-first approach**: Always validate user ownership/permissions in the same database query
 - **Edge cases as separate slices**: Test happy path first, then add edge cases one by one
+- **CRITICAL FOR AGENTS**: Run `npm run verify` after EVERY thin slice implementation
+- **TEST QUALITY**: NEVER sacrifice test quality or delete tests - write complete, thorough tests
+- **NO SHORTCUTS**: Do not give up on writing tests or skip test cases - maintain high quality standards
 
 ## Testing Standards - Martin Fowler's Testing Pyramid
 - Use Vitest for all tests
@@ -82,3 +85,35 @@ apps/express-server/
 ## Commands to Run
 - Tests: `npm test` or specific test files
 - Linting: `npm run lint`
+- **Verification**: `npm run verify` - Run after EVERY implementation slice
+
+## Agent-Specific Instructions
+
+### For react-native-code-reviewer Agent
+- Review all React Native code for performance, security, and best practices
+- Follow the React Native PR Review Guide standards
+- Identify inline styles that need refactoring to StyleSheet.create()
+- Check for proper theme integration using useThemeColors()
+- Ensure cross-platform consistency (iOS/Android)
+
+### For principal-engineer-delegator Agent
+- Design architecture following existing patterns in the codebase
+- Break down complex features into thin, testable slices
+- Delegate tasks with clear acceptance criteria
+- Ensure TDD methodology is followed
+- Plan for scalability and maintainability
+
+### For delivery-implementer Agent
+- **CRITICAL**: Run `npm run verify` after EVERY thin slice
+- **TEST FIRST**: Write the test before implementation
+- **NO SHORTCUTS**: Complete all test cases, don't skip or delete tests
+- **QUALITY**: Maintain high code and test quality standards
+- Follow the thinnest slice approach:
+  1. Write failing test for smallest feature
+  2. Implement minimal code to pass
+  3. Run `npm run verify`
+  4. Refactor if needed
+  5. Run `npm run verify` again
+  6. Move to next slice
+- **NEVER** proceed to next slice if current slice has failing tests
+- **ALWAYS** ensure 100% of tests pass before moving forward

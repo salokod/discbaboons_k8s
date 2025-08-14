@@ -17,9 +17,11 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 import BagsListScreen from './src/screens/bags/BagsListScreen';
 import CreateBagScreen from './src/screens/bags/CreateBagScreen';
+import BagDetailScreen from './src/screens/bags/BagDetailScreen';
 import DiscSearchScreen from './src/screens/discs/DiscSearchScreen';
 import SubmitDiscScreen from './src/screens/discs/SubmitDiscScreen';
 import AdminDiscScreen from './src/screens/discs/AdminDiscScreen';
+import AddDiscToBagScreen from './src/screens/discs/AddDiscToBagScreen';
 
 // Wrapped screen components to avoid inline definitions
 function WrappedForgotPasswordScreen(props) {
@@ -156,6 +158,15 @@ function WrappedCreateBagScreen(props) {
   );
 }
 
+function WrappedBagDetailScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <BagDetailScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
 function WrappedDiscSearchScreen(props) {
   return (
     <ErrorBoundary>
@@ -179,6 +190,15 @@ function WrappedAdminDiscScreen(props) {
     <ErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <AdminDiscScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedAddDiscToBagScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AddDiscToBagScreen {...props} />
     </ErrorBoundary>
   );
 }
@@ -224,6 +244,14 @@ function AppNavigator() {
             }}
           />
           <AppStack.Screen
+            name="BagDetail"
+            component={WrappedBagDetailScreen}
+            options={{
+              headerShown: true,
+              title: 'Bag Details',
+            }}
+          />
+          <AppStack.Screen
             name="DiscSearchScreen"
             component={WrappedDiscSearchScreen}
             options={{
@@ -247,6 +275,15 @@ function AppNavigator() {
             options={{
               headerShown: true,
               title: 'Admin - Pending Discs',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="AddDiscToBagScreen"
+            component={WrappedAddDiscToBagScreen}
+            options={{
+              headerShown: true,
+              title: 'Add to Bag',
               headerBackTitle: 'Back',
             }}
           />
