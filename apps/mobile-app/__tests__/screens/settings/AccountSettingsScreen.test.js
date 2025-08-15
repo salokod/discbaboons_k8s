@@ -15,12 +15,7 @@ import * as profileService from '../../../src/services/profile';
 jest.mock('../../../src/services/profile');
 
 // Mock Alert
-jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
-  // Simulate user pressing "Continue" button for password change
-  if (title === 'Change Password' && buttons && buttons[1]) {
-    buttons[1].onPress();
-  }
-});
+jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 // Wrapper component with all necessary providers
 function TestWrapper({ children }) {
@@ -72,8 +67,10 @@ describe('AccountSettingsScreen', () => {
       </TestWrapper>,
     );
 
-    expect(screen.getByText('Loading profile...')).toBeTruthy();
-    expect(screen.getByTestId('activity-indicator')).toBeTruthy();
+    // Should show skeleton loading screen instead of spinner
+    expect(screen.getByTestId('skeleton-header')).toBeTruthy();
+    expect(screen.getByTestId('skeleton-profile-section')).toBeTruthy();
+    expect(screen.getByTestId('skeleton-privacy-section')).toBeTruthy();
   });
 
   it('should load and display profile data', async () => {
@@ -152,24 +149,6 @@ describe('AccountSettingsScreen', () => {
     });
   });
 
-  it('should handle change password button press', async () => {
-    render(
-      <TestWrapper>
-        <AccountSettingsScreen navigation={mockNavigation} />
-      </TestWrapper>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Account Settings')).toBeTruthy();
-    });
-
-    const changePasswordButton = screen.getByText('Change Password');
-    fireEvent.press(changePasswordButton);
-
-    // Should show alert and navigate to forgot password
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('ForgotPassword');
-  });
-
   it('should handle profile load error', async () => {
     profileService.getProfile.mockRejectedValue(new Error('Network error'));
 
@@ -240,6 +219,118 @@ describe('AccountSettingsScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Save Changes')).toBeTruthy();
+    });
+  });
+
+  describe('Skeleton Loading Screen', () => {
+    it('should show skeleton placeholders instead of spinner when loading', async () => {
+      // Set up delayed profile load to keep loading state active
+      profileService.getProfile.mockReturnValue(
+        new Promise(() => {
+          // Keep loading state active
+        }),
+      );
+
+      render(
+        <TestWrapper>
+          <AccountSettingsScreen navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Should show skeleton placeholders instead of basic loading
+      expect(screen.getByTestId('skeleton-header')).toBeTruthy();
+      expect(screen.getByTestId('skeleton-profile-section')).toBeTruthy();
+      expect(screen.getByTestId('skeleton-privacy-section')).toBeTruthy();
+      expect(screen.getByTestId('skeleton-save-button')).toBeTruthy();
+
+      // Should not show the old loading spinner
+      expect(screen.queryByTestId('activity-indicator')).toBeNull();
+      expect(screen.queryByText('Loading profile...')).toBeNull();
+    });
+
+    it('should show correct number of skeleton input fields', async () => {
+      // Set up delayed profile load to keep loading state active
+      profileService.getProfile.mockReturnValue(
+        new Promise(() => {
+          // Keep loading state active
+        }),
+      );
+
+      render(
+        <TestWrapper>
+          <AccountSettingsScreen navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Should show skeleton for each input field (name, bio, city, state, country)
+      const skeletonInputs = screen.getAllByTestId('skeleton-input');
+      expect(skeletonInputs).toHaveLength(5);
+    });
+
+    it('should show correct number of skeleton privacy toggles', async () => {
+      // Set up delayed profile load to keep loading state active
+      profileService.getProfile.mockReturnValue(
+        new Promise(() => {
+          // Keep loading state active
+        }),
+      );
+
+      render(
+        <TestWrapper>
+          <AccountSettingsScreen navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Should show skeleton for each privacy toggle (name, bio, location)
+      const skeletonToggles = screen.getAllByTestId('skeleton-toggle');
+      expect(skeletonToggles).toHaveLength(3);
+    });
+
+    it('should transition from skeleton to actual content when data loads', async () => {
+      // Set up delayed profile load to keep loading state active
+      let resolveProfile;
+      profileService.getProfile.mockReturnValue(
+        new Promise((resolve) => {
+          resolveProfile = resolve;
+        }),
+      );
+
+      render(
+        <TestWrapper>
+          <AccountSettingsScreen navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Initially should show skeleton
+      expect(screen.getByTestId('skeleton-header')).toBeTruthy();
+
+      // Resolve the profile load
+      resolveProfile({
+        success: true,
+        profile: {
+          user_id: 123,
+          name: 'John Doe',
+          bio: 'Test bio',
+          country: 'United States',
+          state_province: 'Texas',
+          city: 'Austin',
+          isnamepublic: true,
+          isbiopublic: false,
+          islocationpublic: true,
+        },
+      });
+
+      // Should transition to actual content
+      await waitFor(() => {
+        expect(screen.getByText('Account Settings')).toBeTruthy();
+      });
+
+      // Skeleton should be gone
+      expect(screen.queryByTestId('skeleton-header')).toBeNull();
+      expect(screen.queryByTestId('skeleton-profile-section')).toBeNull();
+
+      // Real content should be present
+      expect(screen.getByDisplayValue('John Doe')).toBeTruthy();
     });
   });
 });

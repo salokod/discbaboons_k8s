@@ -8,6 +8,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useThemeColors } from '../context/ThemeContext';
 import ErrorBoundary from '../components/ErrorBoundary';
+import ThemeErrorBoundary from '../components/settings/ThemeErrorBoundary';
 
 // Import all the screen components
 import BagsListScreen from '../screens/bags/BagsListScreen';
@@ -100,19 +101,19 @@ function WrappedAddDiscToBagScreen(props) {
 
 function WrappedSettingsScreen(props) {
   return (
-    <ErrorBoundary>
+    <ThemeErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <SettingsScreen {...props} />
-    </ErrorBoundary>
+    </ThemeErrorBoundary>
   );
 }
 
 function WrappedAccountSettingsScreen(props) {
   return (
-    <ErrorBoundary>
+    <ThemeErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <AccountSettingsScreen {...props} />
-    </ErrorBoundary>
+    </ThemeErrorBoundary>
   );
 }
 
@@ -332,8 +333,8 @@ function DrawerNavigator() {
             drawerStatusBarAnimation: 'fade',
             gestureHandlerProps: {
               minPointers: 1,
-              activeOffsetX: 10,
-              failOffsetY: [-5, 5],
+              activeOffsetX: 50, // Increased from 10 to make it less sensitive
+              failOffsetY: [-20, 20], // Increased vertical tolerance
             },
             sceneContainerStyle: {
               backgroundColor: 'transparent',

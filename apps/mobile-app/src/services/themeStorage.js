@@ -63,3 +63,114 @@ export async function clearTheme() {
     return false;
   }
 }
+
+/**
+ * Store theme preference with enhanced error handling and fallback
+ * Ensures theme is available in memory even if storage fails
+ * @param {string} theme - Theme name to store
+ * @returns {Promise<Object>} Result object with success status, theme, and message
+ */
+export async function storeThemeWithFallback(theme) {
+  // Validate input first
+  if (theme === undefined || theme === null) {
+    return {
+      success: false,
+      theme: null,
+      message: 'Invalid theme provided',
+      error: 'Theme is required',
+    };
+  }
+
+  if (typeof theme !== 'string') {
+    return {
+      success: false,
+      theme: null,
+      message: 'Invalid theme provided',
+      error: 'Theme must be a string',
+    };
+  }
+
+  if (theme.trim() === '') {
+    return {
+      success: false,
+      theme: null,
+      message: 'Invalid theme provided',
+      error: 'Theme cannot be empty',
+    };
+  }
+
+  // Try to store in AsyncStorage
+  try {
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, theme);
+    return {
+      success: true,
+      theme,
+      message: 'Theme stored successfully',
+    };
+  } catch (error) {
+    // Storage failed, but theme is still available in memory
+    return {
+      success: false,
+      theme, // Return theme so it can be used in memory
+      message: 'Theme changed in memory only - storage failed',
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Retrieve theme preference with graceful fallback handling
+ * @param {string} fallbackTheme - Theme to use if storage fails or no theme is stored
+ * @returns {Promise<Object>} Result object with success status, theme, source, and message
+ */
+export async function getThemeWithGracefulFallback(fallbackTheme) {
+  // Validate fallback theme
+  const defaultTheme = 'system';
+  let validFallback = fallbackTheme;
+  let fallbackError = null;
+
+  if (!fallbackTheme || typeof fallbackTheme !== 'string' || fallbackTheme.trim() === '') {
+    validFallback = defaultTheme;
+    fallbackError = 'Fallback theme cannot be empty';
+  }
+
+  // Try to retrieve from AsyncStorage
+  try {
+    const storedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme !== null) {
+      return {
+        success: true,
+        theme: storedTheme,
+        source: 'storage',
+        message: 'Theme retrieved from storage',
+      };
+    }
+
+    // No stored theme, use fallback
+    if (fallbackError) {
+      return {
+        success: false,
+        theme: validFallback,
+        source: 'default',
+        message: 'Invalid fallback provided, using system default',
+        error: fallbackError,
+      };
+    }
+
+    return {
+      success: true,
+      theme: validFallback,
+      source: 'fallback',
+      message: 'No stored theme found, using fallback',
+    };
+  } catch (error) {
+    // Storage access failed, use fallback
+    return {
+      success: false,
+      theme: validFallback,
+      source: 'fallback',
+      message: 'Using fallback theme due to storage error',
+      error: error.message,
+    };
+  }
+}

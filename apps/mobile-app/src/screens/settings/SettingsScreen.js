@@ -2,7 +2,7 @@
  * SettingsScreen Component
  */
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -24,7 +24,7 @@ import ThemePicker from '../../components/settings/ThemePicker';
 function SettingsScreen({ navigation }) {
   const colors = useThemeColors();
 
-  const styles = StyleSheet.create({
+  const styles = useMemo(() => StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
@@ -110,7 +110,7 @@ function SettingsScreen({ navigation }) {
     chevronIcon: {
       marginLeft: spacing.sm,
     },
-  });
+  }), [colors]);
 
   return (
     <AppContainer>
@@ -192,48 +192,6 @@ function SettingsScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* About Section */}
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Icon
-                    name="information-circle-outline"
-                    size={24}
-                    color={colors.text}
-                    style={styles.sectionIcon}
-                  />
-                  <Text style={styles.sectionTitle}>About</Text>
-                </View>
-                <Text style={styles.sectionDescription}>
-                  App information, support, and legal
-                </Text>
-                <View style={{ marginTop: spacing.md }}>
-                  <TouchableOpacity
-                    style={styles.settingItem}
-                    onPress={() => navigation.navigate('About')}
-                  >
-                    <Icon
-                      name="help-circle-outline"
-                      size={24}
-                      color={colors.textLight}
-                      style={styles.settingItemIcon}
-                    />
-                    <View style={styles.settingItemContent}>
-                      <Text style={styles.settingItemTitle}>
-                        About DiscBaboons
-                      </Text>
-                      <Text style={styles.settingItemDescription}>
-                        Version info, support, and legal information
-                      </Text>
-                    </View>
-                    <Icon
-                      name="chevron-forward"
-                      size={20}
-                      color={colors.textLight}
-                      style={styles.chevronIcon}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
             </ScrollView>
           </View>
         </TouchableWithoutFeedback>

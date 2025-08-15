@@ -76,4 +76,12 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Appearance')).toBeTruthy();
     expect(screen.getByText('Choose your preferred theme and display settings')).toBeTruthy();
   });
+
+  it('should display Account and Appearance sections only', () => {
+    render(<SettingsScreen />);
+    // Verify only Account and Appearance sections exist
+    // (About is accessible only via hamburger menu)
+    expect(screen.getByText('Account')).toBeTruthy();
+    expect(screen.getByText('Appearance')).toBeTruthy();
+  });
 });

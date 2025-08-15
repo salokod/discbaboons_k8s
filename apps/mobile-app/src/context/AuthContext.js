@@ -35,9 +35,13 @@ export function AuthProvider({ children }) {
   const [tokens, setTokens] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTimer, setRefreshTimer] = useState(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Logout function
   const logout = useCallback(async () => {
+    // Set flag to prevent token restoration during logout
+    setIsLoggingOut(true);
+
     try {
       // Clear stored tokens
       await clearTokens();
@@ -55,10 +59,21 @@ export function AuthProvider({ children }) {
     setUser(null);
     setTokens(null);
     setIsAuthenticated(false);
+
+    // Reset logout flag after state is cleared
+    // Use setTimeout to ensure state updates are processed
+    setTimeout(() => {
+      setIsLoggingOut(false);
+    }, 100);
   }, [refreshTimer]);
 
-  // Handle automatic token refresh
+  // Handle automatic token refresh - moved after logout to avoid circular dependency
   const handleTokenRefresh = useCallback(async (currentRefreshToken) => {
+    // Don't attempt refresh if logging out
+    if (isLoggingOut) {
+      return;
+    }
+
     try {
       const newTokens = await refreshAccessToken(currentRefreshToken);
 
@@ -88,13 +103,21 @@ export function AuthProvider({ children }) {
       setRefreshTimer(timerId);
     } catch (error) {
       // Refresh failed, logout user
-      logout();
+      if (!isLoggingOut) {
+        logout();
+      }
     }
-  }, [logout]);
+  }, [isLoggingOut, logout]);
 
   // Restore authentication state from stored tokens on mount
   useEffect(() => {
     const restoreAuthState = async () => {
+      // Don't restore tokens if we're in the middle of logging out
+      if (isLoggingOut) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const storedTokens = await getTokens();
 
@@ -182,11 +205,12 @@ export function AuthProvider({ children }) {
     };
 
     restoreAuthState();
-  }, [handleTokenRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - intentionally ignoring dependencies
 
   // Manual token refresh function
   const refreshTokens = useCallback(async () => {
-    if (!tokens?.refreshToken) {
+    if (!tokens?.refreshToken || isLoggingOut) {
       return;
     }
 
@@ -208,11 +232,18 @@ export function AuthProvider({ children }) {
       setRefreshTimer(timerId);
     } catch (error) {
       // Refresh failed, logout user
-      logout();
+      if (!isLoggingOut) {
+        logout();
+      }
     }
-  }, [tokens, refreshTimer, handleTokenRefresh, logout]);
+  }, [tokens, refreshTimer, handleTokenRefresh, logout, isLoggingOut]);
 
   const login = useCallback(async ({ user: userData, tokens: authTokens }) => {
+    // Prevent login during logout
+    if (isLoggingOut) {
+      return;
+    }
+
     try {
       // Store tokens securely
       await storeTokens(authTokens);
@@ -221,6 +252,7 @@ export function AuthProvider({ children }) {
       setUser(userData);
       setTokens(authTokens);
       setIsAuthenticated(true);
+      setIsLoggingOut(false); // Ensure logout flag is reset
 
       // Set up token refresh timer
       const timerId = setupTokenRefreshTimer(
@@ -233,8 +265,9 @@ export function AuthProvider({ children }) {
       setUser(userData);
       setTokens(authTokens);
       setIsAuthenticated(true);
+      setIsLoggingOut(false); // Ensure logout flag is reset
     }
-  }, [handleTokenRefresh]);
+  }, [handleTokenRefresh, isLoggingOut]);
 
   // Clean up timer on unmount
   useEffect(() => () => {
