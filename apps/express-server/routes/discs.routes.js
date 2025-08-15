@@ -2,6 +2,7 @@ import express from 'express';
 import discsListController from '../controllers/discs.list.controller.js';
 import discsCreateController from '../controllers/discs.create.controller.js';
 import discsApproveController from '../controllers/discs.approve.controller.js';
+import discsDenyController from '../controllers/discs.deny.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 import isAdmin from '../middleware/isadmin.middleware.js';
 import { discsSearchRateLimit, discsSubmissionRateLimit, discsAdminRateLimit } from '../middleware/discsRateLimit.middleware.js';
@@ -26,5 +27,8 @@ router.get('/pending', discsAdminRateLimit, authenticateToken, isAdmin, forcePen
 
 // PATCH /api/discs/:id/approve - Approve a pending disc (admin only)
 router.patch('/:id/approve', discsAdminRateLimit, authenticateToken, isAdmin, discsApproveController);
+
+// PATCH /api/discs/:id/deny - Deny a pending disc (admin only)
+router.patch('/:id/deny', discsAdminRateLimit, authenticateToken, isAdmin, discsDenyController);
 
 export default router;

@@ -94,8 +94,8 @@ describe('listDiscsService', () => {
     await listDiscsService({ approved: 'false' }, mockDatabase);
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
-      [false, 50, 0],
+      'SELECT * FROM disc_master WHERE approved = $1 AND (denied IS NULL OR denied = $2) ORDER BY brand ASC, model ASC LIMIT $3 OFFSET $4',
+      [false, false, 50, 0],
     );
   });
 
@@ -260,8 +260,8 @@ describe('listDiscsService', () => {
     mockDatabase.queryOne.mockResolvedValue({ count: '1' });
     const result = await listDiscsService({ approved: false });
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
-      [false, 50, 0],
+      'SELECT * FROM disc_master WHERE approved = $1 AND (denied IS NULL OR denied = $2) ORDER BY brand ASC, model ASC LIMIT $3 OFFSET $4',
+      [false, false, 50, 0],
     );
     expect(result.discs.every((d) => d.approved === false)).toBe(true);
   });
@@ -273,6 +273,16 @@ describe('listDiscsService', () => {
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
       'SELECT * FROM disc_master WHERE approved = $1 ORDER BY brand ASC, model ASC LIMIT $2 OFFSET $3',
       [true, 100, 0],
+    );
+  });
+
+  test('should exclude denied discs when listing pending discs', async () => {
+    mockDatabase.queryRows.mockResolvedValue([]);
+    await listDiscsService({ approved: 'false' }, mockDatabase);
+
+    expect(mockDatabase.queryRows).toHaveBeenCalledWith(
+      'SELECT * FROM disc_master WHERE approved = $1 AND (denied IS NULL OR denied = $2) ORDER BY brand ASC, model ASC LIMIT $3 OFFSET $4',
+      [false, false, 50, 0],
     );
   });
 
