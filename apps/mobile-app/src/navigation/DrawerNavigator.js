@@ -8,6 +8,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useThemeColors } from '../context/ThemeContext';
 import ErrorBoundary from '../components/ErrorBoundary';
+import ThemeErrorBoundary from '../components/settings/ThemeErrorBoundary';
 
 // Import all the screen components
 import BagsListScreen from '../screens/bags/BagsListScreen';
@@ -18,6 +19,11 @@ import SubmitDiscScreen from '../screens/discs/SubmitDiscScreen';
 import AdminDiscScreen from '../screens/discs/AdminDiscScreen';
 import AddDiscToBagScreen from '../screens/discs/AddDiscToBagScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import AccountSettingsScreen from '../screens/settings/AccountSettingsScreen';
+import AboutScreen from '../screens/settings/AboutScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import SupportScreen from '../screens/SupportScreen';
 import SettingsDrawer from '../components/settings/SettingsDrawer';
 
 const Drawer = createDrawerNavigator();
@@ -95,9 +101,54 @@ function WrappedAddDiscToBagScreen(props) {
 
 function WrappedSettingsScreen(props) {
   return (
-    <ErrorBoundary>
+    <ThemeErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <SettingsScreen {...props} />
+    </ThemeErrorBoundary>
+  );
+}
+
+function WrappedAccountSettingsScreen(props) {
+  return (
+    <ThemeErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AccountSettingsScreen {...props} />
+    </ThemeErrorBoundary>
+  );
+}
+
+function WrappedAboutScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AboutScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedTermsOfServiceScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <TermsOfServiceScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedPrivacyPolicyScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <PrivacyPolicyScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedSupportScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <SupportScreen {...props} />
     </ErrorBoundary>
   );
 }
@@ -196,6 +247,51 @@ function AppNavigator() {
               headerBackTitle: 'Back',
             }}
           />
+          <AppStack.Screen
+            name="AccountSettings"
+            component={WrappedAccountSettingsScreen}
+            options={{
+              headerShown: true,
+              title: 'Account Settings',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="About"
+            component={WrappedAboutScreen}
+            options={{
+              headerShown: true,
+              title: 'About',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="TermsOfService"
+            component={WrappedTermsOfServiceScreen}
+            options={{
+              headerShown: true,
+              title: 'Terms of Service',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="PrivacyPolicy"
+            component={WrappedPrivacyPolicyScreen}
+            options={{
+              headerShown: true,
+              title: 'Privacy Policy',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="Support"
+            component={WrappedSupportScreen}
+            options={{
+              headerShown: true,
+              title: 'Support',
+              headerBackTitle: 'Back',
+            }}
+          />
         </AppStack.Navigator>
       </ErrorBoundary>
     </View>
@@ -237,8 +333,8 @@ function DrawerNavigator() {
             drawerStatusBarAnimation: 'fade',
             gestureHandlerProps: {
               minPointers: 1,
-              activeOffsetX: 10,
-              failOffsetY: [-5, 5],
+              activeOffsetX: 50, // Increased from 10 to make it less sensitive
+              failOffsetY: [-20, 20], // Increased vertical tolerance
             },
             sceneContainerStyle: {
               backgroundColor: 'transparent',
