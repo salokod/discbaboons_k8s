@@ -169,6 +169,10 @@ const listDiscsService = async (filters = {}, dbClient = { queryRows, queryOne }
       whereConditions.push(`approved = $${paramIndex}`);
       params.push(false);
       paramIndex += 1;
+      // Exclude denied discs when listing pending discs
+      whereConditions.push(`(denied IS NULL OR denied = $${paramIndex})`);
+      params.push(false);
+      paramIndex += 1;
     } else {
       whereConditions.push(`approved = $${paramIndex}`);
       params.push(true);

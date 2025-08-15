@@ -57,4 +57,17 @@ describe('discsRoutes', () => {
     expect(middlewareNames).toContain('authenticateToken');
     expect(middlewareNames).toContain('isAdmin');
   });
+
+  test('should have PATCH /:id/deny route with auth and admin middleware', () => {
+    const stack = discsRoutes.stack || [];
+    const denyRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/:id/deny'
+        && layer.route.methods.patch,
+    );
+    expect(denyRoute).toBeTruthy();
+    const middlewareNames = (denyRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+    expect(middlewareNames).toContain('isAdmin');
+  });
 });

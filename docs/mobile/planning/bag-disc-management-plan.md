@@ -532,6 +532,126 @@ Response: { "success": true, "message": "Disc submission denied" }
 
 **Phase 3.9 Summary**: Complete the admin moderation toolkit with denial capabilities, giving admins full control over disc submissions with approve OR deny workflows. Maintains design consistency while providing clear feedback and proper error handling.
 
+---
+
+## **Phase 3.9: Disc Denial System - Product Plan**
+
+### **Executive Summary**
+The Disc Denial System completes the admin moderation workflow by adding the ability to reject inappropriate or inaccurate disc submissions. Currently, admins can only approve pending disc submissions, leaving them with no way to permanently remove invalid entries from the pending queue. This enhancement provides a complete approve/deny workflow that gives admins full control over disc database quality while maintaining the professional user experience established in Phase 3.8.
+
+**Business Impact**: Complete admin moderation capabilities ensure database quality, reduce admin workload, and provide clear feedback mechanisms for community contributions.
+
+### **API Requirements**
+
+#### **New Endpoint: PATCH /api/discs/:id/deny**
+**Purpose**: Admin-only endpoint to reject pending disc submissions with optional feedback
+
+**Authentication**: Bearer token with admin privileges required
+**Rate Limiting**: 50 admin operations per hour per IP (shared with approval endpoint)
+
+**Request Format**:
+```http
+PATCH /api/discs/:id/deny
+Authorization: Bearer <admin-access-token>
+Content-Type: application/json
+
+{
+  "reason": "Flight numbers do not match manufacturer specifications" // Optional, max 500 chars
+}
+```
+
+**Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Disc submission denied",
+  "disc": {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "brand": "Dynamic Discs",
+    "model": "Lucid Truth",
+    "speed": 5,
+    "glide": 5,
+    "turn": 0,
+    "fade": 2,
+    "approved": false,
+    "denied": true,
+    "denied_reason": "Flight numbers do not match manufacturer specifications",
+    "denied_at": "2024-01-15T11:30:00.000Z",
+    "denied_by_id": 789,
+    "added_by_id": 456,
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "updated_at": "2024-01-15T11:30:00.000Z"
+  }
+}
+```
+
+**Error Responses**:
+- **401 Unauthorized**: `{"success": false, "message": "Access token required"}`
+- **403 Forbidden**: `{"success": false, "message": "Admin access required"}`
+- **404 Not Found**: `{"success": false, "message": "Disc not found"}`
+- **409 Conflict**: `{"success": false, "message": "Disc has already been processed"}`
+- **429 Too Many Requests**: `{"success": false, "message": "Too many admin operations, please try again in 1 hour"}`
+
+### **Database Schema Changes**
+**Add new columns to `disc_master` table**:
+```sql
+ALTER TABLE disc_master 
+ADD COLUMN denied BOOLEAN DEFAULT FALSE,
+ADD COLUMN denied_reason TEXT,
+ADD COLUMN denied_at TIMESTAMP,
+ADD COLUMN denied_by_id INTEGER REFERENCES users(id);
+
+-- Index for efficient pending disc queries
+CREATE INDEX idx_disc_master_pending ON disc_master (approved, denied) WHERE approved = FALSE AND denied = FALSE;
+```
+
+### **Frontend Requirements**
+
+#### **AdminDiscScreen UI Modifications**
+**Enhanced State**: Dual-action interface with approve and deny buttons
+
+**Button Layout** (following CreateBagScreen two-column pattern):
+- **Approve Button**: Green primary color, left side, "Approve & Publish"
+- **Deny Button**: Red destructive color, right side, "Deny & Remove"  
+- **Equal width**: 48% each with gap between (same as privacy options)
+- **Loading States**: Individual button disabling with text changes
+
+#### **Denial Confirmation Experience**
+```
+Deny Button Tap
+├── Show confirmation alert with disc details
+├── Present dual options:
+│   ├── "Add Reason & Deny" → Open reason modal → Submit with reason
+│   ├── "Deny Without Reason" → Immediate denial confirmation
+│   └── "Cancel" → Return to disc list
+└── Success feedback: "Disc denied and removed from queue"
+```
+
+### **Service Layer Enhancement**
+**Add denyDisc Method to discService.js**:
+- Validate disc ID and reason length (max 500 characters)
+- 30-second timeout with AbortController
+- Same error handling patterns as approveDisc
+- Return denied disc object on success
+
+### **User Experience Design**
+- **Professional confirmation flow** - no accidental denials
+- **Visual distinction** - green approve vs red deny buttons
+- **Optional feedback system** - admins can provide denial reasons
+- **Immediate UI updates** - denied discs removed from pending list
+- **Loading states** - "Denying..." button feedback during API calls
+
+### **Success Criteria**
+- ✅ Complete approve/deny workflow for all pending discs
+- ✅ Professional UX matching existing admin tools  
+- ✅ Secure admin-only access with proper error handling
+- ✅ Comprehensive test coverage (90%+ for denial functionality)
+
+### **Implementation Timeline**
+- **Day 1**: Backend API endpoint + database schema + unit tests
+- **Day 2**: Frontend UI integration + service layer + component tests  
+- **Day 3**: Integration tests + accessibility + polish + documentation
+
 ### **Complete Admin Integration Roadmap (Phases 3.5-3.9)**
 
 #### **✅ Phase 3.5: Backend Admin Flag Integration - COMPLETE**
