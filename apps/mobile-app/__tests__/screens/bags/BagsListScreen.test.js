@@ -83,7 +83,7 @@ describe('BagsListScreen', () => {
     });
   });
 
-  it('should render settings button', async () => {
+  it('should render hamburger menu button', async () => {
     // Mock getBags to return some bags so we see the main screen
     mockGetBags.mockResolvedValue({
       bags: [{ id: 1, name: 'Test Bag', discCount: 5 }],
@@ -95,9 +95,9 @@ describe('BagsListScreen', () => {
       </ThemeProvider>,
     );
 
-    // Wait for loading to complete and settings button to render
+    // Wait for loading to complete and hamburger menu button to render
     await waitFor(() => {
-      expect(getByTestId('settings-button')).toBeTruthy();
+      expect(getByTestId('hamburger-menu-button')).toBeTruthy();
     });
   });
 });

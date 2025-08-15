@@ -2,6 +2,7 @@ export const THEME_NAMES = {
   LIGHT: 'light',
   DARK: 'dark',
   BLACKOUT: 'blackout',
+  SYSTEM: 'system',
 };
 
 // Brand colors that remain consistent across all themes

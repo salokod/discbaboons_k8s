@@ -29,9 +29,7 @@ console.error = (...args) => {
 // Pure React Native color picker implementation - no external dependencies needed
 
 // Mock react-native-reanimated
-// eslint-disable-next-line no-undef
 jest.mock('react-native-reanimated', () => {
-  // eslint-disable-next-line no-undef
   const actualReanimated = jest.requireActual('react-native-reanimated/mock');
   return {
     ...actualReanimated,
@@ -43,9 +41,19 @@ jest.mock('react-native-reanimated', () => {
 });
 
 // Mock react-native-gesture-handler
-// eslint-disable-next-line no-undef
 jest.mock('react-native-gesture-handler', () => {
-  // eslint-disable-next-line no-undef
   const actualGestureHandler = jest.requireActual('react-native-gesture-handler/jestSetup');
   return actualGestureHandler;
 });
+
+// Mock AsyncStorage for theme persistence
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(() => Promise.resolve(null)),
+  setItem: jest.fn(() => Promise.resolve()),
+  removeItem: jest.fn(() => Promise.resolve()),
+  multiGet: jest.fn(() => Promise.resolve([])),
+  multiSet: jest.fn(() => Promise.resolve()),
+  multiRemove: jest.fn(() => Promise.resolve()),
+  clear: jest.fn(() => Promise.resolve()),
+  getAllKeys: jest.fn(() => Promise.resolve([])),
+}));
