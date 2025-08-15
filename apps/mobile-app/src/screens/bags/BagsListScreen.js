@@ -123,8 +123,11 @@ function BagsListScreen({ navigation }) {
       fontSize: 24,
       color: colors.surface,
     },
-    settingsButton: {
-      padding: spacing.sm,
+    hamburgerButton: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
       marginTop: -spacing.sm,
     },
   });
@@ -159,11 +162,12 @@ function BagsListScreen({ navigation }) {
         </Text>
       </View>
       <TouchableOpacity
-        style={styles.settingsButton}
-        testID="settings-button"
+        style={styles.hamburgerButton}
+        testID="hamburger-menu-button"
+        onPress={() => navigation?.openDrawer()}
       >
         <Icon
-          name="settings-outline"
+          name="menu-outline"
           size={24}
           color={colors.text}
         />
@@ -208,6 +212,7 @@ function BagsListScreen({ navigation }) {
 BagsListScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func,
+    openDrawer: PropTypes.func,
   }),
 };
 

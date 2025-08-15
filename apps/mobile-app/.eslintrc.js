@@ -11,6 +11,10 @@ module.exports = {
       presets: ['@react-native/babel-preset'],
     },
   },
+  env: {
+    'jest/globals': true,
+  },
+  plugins: ['jest'],
   rules: {
     // React Native specific overrides
     'react/prop-types': 'off', // React Native often doesn't use prop-types
@@ -23,4 +27,12 @@ module.exports = {
     'react/jsx-uses-react': 'off',
     'react/react-in-jsx-scope': 'off',
   },
+  overrides: [
+    {
+      files: ['**/__tests__/**/*', '**/*.test.js', '**/*.test.jsx', 'setupTests.js'],
+      env: {
+        jest: true,
+      },
+    },
+  ],
 };
