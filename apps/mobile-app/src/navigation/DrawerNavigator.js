@@ -18,6 +18,11 @@ import SubmitDiscScreen from '../screens/discs/SubmitDiscScreen';
 import AdminDiscScreen from '../screens/discs/AdminDiscScreen';
 import AddDiscToBagScreen from '../screens/discs/AddDiscToBagScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import AccountSettingsScreen from '../screens/settings/AccountSettingsScreen';
+import AboutScreen from '../screens/settings/AboutScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import SupportScreen from '../screens/SupportScreen';
 import SettingsDrawer from '../components/settings/SettingsDrawer';
 
 const Drawer = createDrawerNavigator();
@@ -98,6 +103,51 @@ function WrappedSettingsScreen(props) {
     <ErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <SettingsScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedAccountSettingsScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AccountSettingsScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedAboutScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AboutScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedTermsOfServiceScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <TermsOfServiceScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedPrivacyPolicyScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <PrivacyPolicyScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedSupportScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <SupportScreen {...props} />
     </ErrorBoundary>
   );
 }
@@ -193,6 +243,51 @@ function AppNavigator() {
               presentation: 'modal',
               headerShown: true,
               title: 'Settings',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="AccountSettings"
+            component={WrappedAccountSettingsScreen}
+            options={{
+              headerShown: true,
+              title: 'Account Settings',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="About"
+            component={WrappedAboutScreen}
+            options={{
+              headerShown: true,
+              title: 'About',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="TermsOfService"
+            component={WrappedTermsOfServiceScreen}
+            options={{
+              headerShown: true,
+              title: 'Terms of Service',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="PrivacyPolicy"
+            component={WrappedPrivacyPolicyScreen}
+            options={{
+              headerShown: true,
+              title: 'Privacy Policy',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="Support"
+            component={WrappedSupportScreen}
+            options={{
+              headerShown: true,
+              title: 'Support',
               headerBackTitle: 'Back',
             }}
           />

@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
   TouchableWithoutFeedback,
+  TouchableOpacity,
   Keyboard,
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -20,7 +21,7 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import ThemePicker from '../../components/settings/ThemePicker';
 
-function SettingsScreen() {
+function SettingsScreen({ navigation }) {
   const colors = useThemeColors();
 
   const styles = StyleSheet.create({
@@ -78,6 +79,37 @@ function SettingsScreen() {
       marginTop: spacing.xs,
       lineHeight: 18,
     },
+    settingItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: Platform.select({
+        ios: 12,
+        android: 8,
+      }),
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    settingItemIcon: {
+      marginRight: spacing.md,
+    },
+    settingItemContent: {
+      flex: 1,
+    },
+    settingItemTitle: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: spacing.xs,
+    },
+    settingItemDescription: {
+      ...typography.caption,
+      color: colors.textLight,
+      lineHeight: 16,
+    },
+    chevronIcon: {
+      marginLeft: spacing.sm,
+    },
   });
 
   return (
@@ -98,6 +130,49 @@ function SettingsScreen() {
                 </Text>
               </View>
 
+              {/* Account Section */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Icon
+                    name="person-outline"
+                    size={24}
+                    color={colors.text}
+                    style={styles.sectionIcon}
+                  />
+                  <Text style={styles.sectionTitle}>Account</Text>
+                </View>
+                <Text style={styles.sectionDescription}>
+                  Manage your profile and account settings
+                </Text>
+                <View style={{ marginTop: spacing.md }}>
+                  <TouchableOpacity
+                    style={styles.settingItem}
+                    onPress={() => navigation.navigate('AccountSettings')}
+                  >
+                    <Icon
+                      name="settings-outline"
+                      size={24}
+                      color={colors.textLight}
+                      style={styles.settingItemIcon}
+                    />
+                    <View style={styles.settingItemContent}>
+                      <Text style={styles.settingItemTitle}>
+                        Account Settings
+                      </Text>
+                      <Text style={styles.settingItemDescription}>
+                        Update your profile, privacy settings, and password
+                      </Text>
+                    </View>
+                    <Icon
+                      name="chevron-forward"
+                      size={20}
+                      color={colors.textLight}
+                      style={styles.chevronIcon}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {/* Appearance Section */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -114,6 +189,49 @@ function SettingsScreen() {
                 </Text>
                 <View style={{ marginTop: spacing.md }}>
                   <ThemePicker />
+                </View>
+              </View>
+
+              {/* About Section */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Icon
+                    name="information-circle-outline"
+                    size={24}
+                    color={colors.text}
+                    style={styles.sectionIcon}
+                  />
+                  <Text style={styles.sectionTitle}>About</Text>
+                </View>
+                <Text style={styles.sectionDescription}>
+                  App information, support, and legal
+                </Text>
+                <View style={{ marginTop: spacing.md }}>
+                  <TouchableOpacity
+                    style={styles.settingItem}
+                    onPress={() => navigation.navigate('About')}
+                  >
+                    <Icon
+                      name="help-circle-outline"
+                      size={24}
+                      color={colors.textLight}
+                      style={styles.settingItemIcon}
+                    />
+                    <View style={styles.settingItemContent}>
+                      <Text style={styles.settingItemTitle}>
+                        About DiscBaboons
+                      </Text>
+                      <Text style={styles.settingItemDescription}>
+                        Version info, support, and legal information
+                      </Text>
+                    </View>
+                    <Icon
+                      name="chevron-forward"
+                      size={20}
+                      color={colors.textLight}
+                      style={styles.chevronIcon}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
             </ScrollView>

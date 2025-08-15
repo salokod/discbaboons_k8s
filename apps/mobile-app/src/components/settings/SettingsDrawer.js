@@ -94,6 +94,11 @@ function SettingsDrawer({ navigation }) {
     navigation.closeDrawer();
   };
 
+  const handleAboutPress = () => {
+    navigation.navigate('App', { screen: 'About' });
+    navigation.closeDrawer();
+  };
+
   const getInitials = (username) => {
     if (!username) return '?';
     return username.charAt(0).toUpperCase();
@@ -144,7 +149,11 @@ function SettingsDrawer({ navigation }) {
           <Text style={styles.navText}>Settings</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity
+          testID="about-nav-item"
+          style={styles.navItem}
+          onPress={handleAboutPress}
+        >
           <Icon
             name="information-circle-outline"
             size={20}
