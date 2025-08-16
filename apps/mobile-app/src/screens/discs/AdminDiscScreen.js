@@ -118,21 +118,27 @@ function AdminDiscScreen({ navigation }) {
   const handleDenialConfirm = useCallback(async (reason) => {
     if (!selectedDiscForDenial) return;
 
+    // Capture disc details before async operations
+    const discToRemove = selectedDiscForDenial;
+    const discId = discToRemove.id;
+    const discBrand = discToRemove.brand;
+    const discModel = discToRemove.model;
+
     setDenialModalVisible(false);
-    setDenyingIds((prev) => new Set(prev).add(selectedDiscForDenial.id));
+    setDenyingIds((prev) => new Set(prev).add(discId));
 
     try {
-      await denyDisc(selectedDiscForDenial.id, reason);
+      await denyDisc(discId, reason);
 
       // Remove from pending list with smooth transition
-      setPendingDiscs((prev) => prev.filter((d) => d.id !== selectedDiscForDenial.id));
+      setPendingDiscs((prev) => prev.filter((d) => d.id !== discId));
 
       // Trigger success haptic feedback (denial was successful)
       triggerSuccessHaptic();
 
       Alert.alert(
         'Disc Denied ❌',
-        `"${selectedDiscForDenial.brand} ${selectedDiscForDenial.model}" has been denied and will not be added to the database.`,
+        `"${discBrand} ${discModel}" has been denied and will not be added to the database.`,
       );
     } catch (error) {
       // Trigger error haptic feedback
@@ -141,7 +147,7 @@ function AdminDiscScreen({ navigation }) {
     } finally {
       setDenyingIds((prev) => {
         const updated = new Set(prev);
-        updated.delete(selectedDiscForDenial.id);
+        updated.delete(discId);
         return updated;
       });
       setSelectedDiscForDenial(null);
