@@ -74,4 +74,21 @@ describe('Themes', () => {
     expect(themes[THEME_NAMES.BLACKOUT].warning).toBe('#FFFFFF');
     expect(themes[THEME_NAMES.BLACKOUT].info).toBe('#FFFFFF');
   });
+
+  it('should have admin theme colors across all themes', () => {
+    // Admin primary should be golden accent (#FFD700)
+    expect(themes[THEME_NAMES.LIGHT].adminPrimary).toBe('#FFD700');
+    expect(themes[THEME_NAMES.DARK].adminPrimary).toBe('#FFD700');
+    expect(themes[THEME_NAMES.BLACKOUT].adminPrimary).toBe('#FFD700');
+
+    // Admin secondary should be darker golden accent (#B8860B)
+    expect(themes[THEME_NAMES.LIGHT].adminSecondary).toBe('#B8860B');
+    expect(themes[THEME_NAMES.DARK].adminSecondary).toBe('#B8860B');
+    expect(themes[THEME_NAMES.BLACKOUT].adminSecondary).toBe('#B8860B');
+
+    // Admin accent should be lighter golden (#FFF8DC)
+    expect(themes[THEME_NAMES.LIGHT].adminAccent).toBe('#FFF8DC');
+    expect(themes[THEME_NAMES.DARK].adminAccent).toBe('#FFF8DC');
+    expect(themes[THEME_NAMES.BLACKOUT].adminAccent).toBe('#FFF8DC');
+  });
 });

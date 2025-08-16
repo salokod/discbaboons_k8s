@@ -8,7 +8,7 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
 import AdminDiscScreen from '../../../src/screens/discs/AdminDiscScreen';
-import { getPendingDiscs, approveDisc } from '../../../src/services/discService';
+import { getPendingDiscs, approveDisc, denyDisc } from '../../../src/services/discService';
 
 // Mock the disc service
 jest.mock('../../../src/services/discService');
@@ -63,6 +63,11 @@ describe('AdminDiscScreen', () => {
       id: '1',
       approved: true,
     });
+
+    denyDisc.mockResolvedValue({
+      id: '1',
+      denied: true,
+    });
   });
 
   it('should render admin screen header with stats', async () => {
@@ -95,7 +100,7 @@ describe('AdminDiscScreen', () => {
       expect(getAllByText('T')).toHaveLength(2); // Turn badge for both discs
       expect(getAllByText('F')).toHaveLength(2); // Fade badge for both discs
 
-      expect(getAllByText('Approve & Publish')).toHaveLength(2);
+      expect(getAllByText('Approve')).toHaveLength(2);
     });
   });
 
@@ -118,10 +123,10 @@ describe('AdminDiscScreen', () => {
     );
 
     await waitFor(() => {
-      expect(getAllByText('Approve & Publish')).toHaveLength(2);
+      expect(getAllByText('Approve')).toHaveLength(2);
     });
 
-    fireEvent.press(getAllByText('Approve & Publish')[0]);
+    fireEvent.press(getAllByText('Approve')[0]);
 
     expect(alertSpy).toHaveBeenCalledWith(
       'Approve Disc Submission',
@@ -140,10 +145,10 @@ describe('AdminDiscScreen', () => {
     );
 
     await waitFor(() => {
-      expect(getAllByText('Approve & Publish')).toHaveLength(2);
+      expect(getAllByText('Approve')).toHaveLength(2);
     });
 
-    fireEvent.press(getAllByText('Approve & Publish')[0]);
+    fireEvent.press(getAllByText('Approve')[0]);
 
     // Simulate pressing "Approve" in the confirmation dialog
     const approveButton = alertSpy.mock.calls[0][2][1];
@@ -173,10 +178,10 @@ describe('AdminDiscScreen', () => {
     );
 
     await waitFor(() => {
-      expect(getAllByText('Approve & Publish')).toHaveLength(2);
+      expect(getAllByText('Approve')).toHaveLength(2);
     });
 
-    fireEvent.press(getAllByText('Approve & Publish')[0]);
+    fireEvent.press(getAllByText('Approve')[0]);
 
     // Simulate pressing "Approve" in the confirmation dialog
     const approveButton = alertSpy.mock.calls[0][2][1];
@@ -247,6 +252,91 @@ describe('AdminDiscScreen', () => {
     alertSpy.mockRestore();
   });
 
+  it('should render both approve and deny buttons side by side', async () => {
+    const { getAllByText } = renderWithTheme(
+      <AdminDiscScreen navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      // Should have 2 discs, each with approve and deny buttons
+      expect(getAllByText('Approve')).toHaveLength(2);
+      expect(getAllByText('Deny')).toHaveLength(2);
+    });
+  });
+
+  it('should manage denyingIds state independently from approvingIds', async () => {
+    const { getAllByText } = renderWithTheme(
+      <AdminDiscScreen navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      expect(getAllByText('Approve')).toHaveLength(2);
+      expect(getAllByText('Deny')).toHaveLength(2);
+    });
+
+    // Both buttons should be enabled initially
+    const denyButtons = getAllByText('Deny');
+    expect(denyButtons[0].props.disabled).toBeFalsy();
+    expect(denyButtons[1].props.disabled).toBeFalsy();
+  });
+
+  it('should open denial modal when deny button pressed', async () => {
+    const { getAllByText, getByText } = renderWithTheme(
+      <AdminDiscScreen navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      expect(getAllByText('Deny')).toHaveLength(2);
+    });
+
+    fireEvent.press(getAllByText('Deny')[0]);
+
+    // Modal should be visible
+    await waitFor(() => {
+      expect(getByText('Deny Disc Submission')).toBeTruthy();
+      expect(getByText('Deny Disc')).toBeTruthy(); // The deny button in modal
+    });
+  });
+
+  it('should complete deny workflow from button to API to list removal', async () => {
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+
+    const { getAllByText, getByText, queryByText } = renderWithTheme(
+      <AdminDiscScreen navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      expect(getAllByText('Deny')).toHaveLength(2);
+    });
+
+    // Click deny button
+    fireEvent.press(getAllByText('Deny')[0]);
+
+    // Modal should be visible
+    await waitFor(() => {
+      expect(getByText('Deny Disc Submission')).toBeTruthy();
+    });
+
+    // Click deny in modal
+    fireEvent.press(getByText('Deny Disc'));
+
+    // Should call denyDisc service
+    expect(denyDisc).toHaveBeenCalledWith('1', '');
+
+    // Wait for completion and verify disc was removed from list
+    await waitFor(() => {
+      expect(queryByText('Truth')).toBeFalsy(); // Should be removed from list
+    });
+
+    // Should show success alert
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Disc Denied ❌',
+      '"Dynamic Discs Truth" has been denied and will not be added to the database.',
+    );
+
+    alertSpy.mockRestore();
+  });
+
   it('should prevent double approval attempts', async () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
 
@@ -260,10 +350,10 @@ describe('AdminDiscScreen', () => {
     );
 
     await waitFor(() => {
-      expect(getAllByText('Approve & Publish')).toHaveLength(2);
+      expect(getAllByText('Approve')).toHaveLength(2);
     });
 
-    fireEvent.press(getAllByText('Approve & Publish')[0]);
+    fireEvent.press(getAllByText('Approve')[0]);
 
     // Simulate pressing "Approve" in the confirmation dialog
     const approveButton = alertSpy.mock.calls[0][2][1];
@@ -274,5 +364,37 @@ describe('AdminDiscScreen', () => {
     });
 
     alertSpy.mockRestore();
+  });
+
+  it('should handle platform-specific behavior correctly', async () => {
+    const { getAllByText } = renderWithTheme(
+      <AdminDiscScreen navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      // Should render buttons correctly on both platforms
+      expect(getAllByText('Approve')).toHaveLength(2);
+      expect(getAllByText('Deny')).toHaveLength(2);
+    });
+  });
+
+  it('should have proper accessibility labels for screen readers', async () => {
+    const { getByLabelText, getAllByLabelText } = renderWithTheme(
+      <AdminDiscScreen navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      // Should have accessibility labels for disc submissions
+      expect(getByLabelText('Disc submission: Dynamic Discs Truth')).toBeTruthy();
+      expect(getByLabelText('Disc submission: Innova Destroyer')).toBeTruthy();
+
+      // Should have flight number accessibility info
+      expect(getByLabelText('Flight numbers: Speed 5, Glide 5, Turn 0, Fade 2')).toBeTruthy();
+      expect(getByLabelText('Flight numbers: Speed 12, Glide 5, Turn -1, Fade 3')).toBeTruthy();
+
+      // Should have button accessibility labels
+      expect(getAllByLabelText(/Approve .* disc submission/)).toHaveLength(2);
+      expect(getAllByLabelText(/Deny .* disc submission/)).toHaveLength(2);
+    });
   });
 });

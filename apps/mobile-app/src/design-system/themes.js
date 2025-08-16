@@ -19,10 +19,18 @@ const semanticColors = {
   info: '#0288D1',
 };
 
+// Admin colors that remain consistent across all themes
+const adminColors = {
+  adminPrimary: '#FFD700', // Golden accent
+  adminSecondary: '#B8860B', // Darker golden
+  adminAccent: '#FFF8DC', // Light cream/golden
+};
+
 export const themes = {
   [THEME_NAMES.LIGHT]: {
     ...brandColors,
     ...semanticColors,
+    ...adminColors,
     background: '#FAFBFC', // Very soft, warm off-white background
     surface: '#FFFFFF', // Pure white for cards/inputs
     text: '#212121',
@@ -36,6 +44,7 @@ export const themes = {
   [THEME_NAMES.DARK]: {
     ...brandColors,
     ...semanticColors,
+    ...adminColors,
     background: '#121212',
     surface: '#1E1E1E',
     text: '#FFFFFF',
@@ -48,6 +57,7 @@ export const themes = {
   },
   [THEME_NAMES.BLACKOUT]: {
     ...brandColors,
+    ...adminColors,
     background: '#000000',
     surface: '#000000',
     text: '#FFFFFF',

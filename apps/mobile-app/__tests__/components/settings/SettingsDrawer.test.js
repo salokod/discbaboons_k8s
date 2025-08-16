@@ -253,4 +253,183 @@ describe('SettingsDrawer', () => {
     // Clean up mocks
     consoleSpy.mockRestore();
   });
+
+  describe('AdminBadge functionality', () => {
+    it('should not display admin badge for non-admin users', () => {
+      render(
+        <TestWrapper>
+          <SettingsDrawer navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      expect(screen.queryByTestId('admin-badge')).toBeNull();
+    });
+
+    it('should display admin badge for admin users', () => {
+      const adminUser = { ...mockUser, isAdmin: true };
+      const adminAuthContext = { ...mockAuthContextValue, user: adminUser };
+
+      render(
+        <NavigationContainer>
+          <ThemeProvider>
+            <AuthContext.Provider value={adminAuthContext}>
+              <SettingsDrawer navigation={mockNavigation} />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </NavigationContainer>,
+      );
+
+      expect(screen.getByTestId('admin-badge')).toBeTruthy();
+    });
+  });
+
+  describe('Section headers', () => {
+    it('should display section headers with proper styling', () => {
+      render(
+        <TestWrapper>
+          <SettingsDrawer navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Test navigation section presence - using Settings as a proxy for the navigation section
+      expect(screen.getByText('Settings')).toBeTruthy();
+      expect(screen.getByText('About')).toBeTruthy();
+    });
+  });
+
+  describe('Disc Database section', () => {
+    it('should display "Disc Database" navigation option', () => {
+      render(
+        <TestWrapper>
+          <SettingsDrawer navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      expect(screen.getByTestId('disc-database-nav-item')).toBeTruthy();
+    });
+
+    it('should navigate to DiscDatabase when Disc Database is pressed', () => {
+      render(
+        <TestWrapper>
+          <SettingsDrawer navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      const discDatabaseOption = screen.getByTestId('disc-database-nav-item');
+      fireEvent.press(discDatabaseOption);
+
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('App', { screen: 'DiscDatabase' });
+      expect(mockNavigation.closeDrawer).toHaveBeenCalled();
+    });
+  });
+
+  describe('Admin section', () => {
+    it('should not display admin section for non-admin users', () => {
+      render(
+        <TestWrapper>
+          <SettingsDrawer navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      expect(screen.queryByText('Admin')).toBeNull();
+    });
+
+    it('should display admin section for admin users', () => {
+      const adminUser = { ...mockUser, isAdmin: true };
+      const adminAuthContext = { ...mockAuthContextValue, user: adminUser };
+
+      render(
+        <NavigationContainer>
+          <ThemeProvider>
+            <AuthContext.Provider value={adminAuthContext}>
+              <SettingsDrawer navigation={mockNavigation} />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </NavigationContainer>,
+      );
+
+      expect(screen.getByTestId('admin-dashboard-nav-item')).toBeTruthy();
+    });
+
+    it('should display "Admin Dashboard" navigation option for admin users', () => {
+      const adminUser = { ...mockUser, isAdmin: true };
+      const adminAuthContext = { ...mockAuthContextValue, user: adminUser };
+
+      render(
+        <NavigationContainer>
+          <ThemeProvider>
+            <AuthContext.Provider value={adminAuthContext}>
+              <SettingsDrawer navigation={mockNavigation} />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </NavigationContainer>,
+      );
+
+      expect(screen.getByTestId('admin-dashboard-nav-item')).toBeTruthy();
+    });
+
+    it('should navigate to AdminDashboard when Admin Dashboard is pressed', () => {
+      const adminUser = { ...mockUser, isAdmin: true };
+      const adminAuthContext = { ...mockAuthContextValue, user: adminUser };
+
+      render(
+        <NavigationContainer>
+          <ThemeProvider>
+            <AuthContext.Provider value={adminAuthContext}>
+              <SettingsDrawer navigation={mockNavigation} />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </NavigationContainer>,
+      );
+
+      const adminDashboardOption = screen.getByTestId('admin-dashboard-nav-item');
+      fireEvent.press(adminDashboardOption);
+
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('App', { screen: 'AdminDashboard' });
+      expect(mockNavigation.closeDrawer).toHaveBeenCalled();
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have proper accessibility labels for all navigation items', () => {
+      const adminUser = { ...mockUser, isAdmin: true };
+      const adminAuthContext = { ...mockAuthContextValue, user: adminUser };
+
+      render(
+        <NavigationContainer>
+          <ThemeProvider>
+            <AuthContext.Provider value={adminAuthContext}>
+              <SettingsDrawer navigation={mockNavigation} />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </NavigationContainer>,
+      );
+
+      // Check that all navigation items are accessible
+      expect(screen.getByTestId('disc-database-nav-item')).toBeTruthy();
+      expect(screen.getByTestId('settings-nav-item')).toBeTruthy();
+      expect(screen.getByTestId('about-nav-item')).toBeTruthy();
+      expect(screen.getByTestId('admin-dashboard-nav-item')).toBeTruthy();
+      expect(screen.getByTestId('admin-badge')).toBeTruthy();
+    });
+
+    it('should have accessibility properties for AdminBadge', () => {
+      const adminUser = { ...mockUser, isAdmin: true };
+      const adminAuthContext = { ...mockAuthContextValue, user: adminUser };
+
+      render(
+        <NavigationContainer>
+          <ThemeProvider>
+            <AuthContext.Provider value={adminAuthContext}>
+              <SettingsDrawer navigation={mockNavigation} />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </NavigationContainer>,
+      );
+
+      const adminBadge = screen.getByTestId('admin-badge');
+      expect(adminBadge.props.accessibilityLabel).toBe('Administrator badge');
+      expect(adminBadge.props.accessibilityHint).toBe('Indicates this user has administrator privileges');
+    });
+  });
 });

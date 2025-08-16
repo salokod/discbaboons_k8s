@@ -20,14 +20,23 @@ function Button({
     if (disabled) {
       return colors.textLight; // Gray out disabled buttons
     }
-    return variant === 'primary' ? colors.primary : colors.surface;
+    if (variant === 'primary') {
+      return colors.primary;
+    }
+    if (variant === 'destructive') {
+      return colors.error;
+    }
+    return colors.surface;
   };
 
   const getTextColor = () => {
     if (disabled) {
       return colors.white; // White text on disabled buttons for contrast
     }
-    return variant === 'primary' ? colors.textOnPrimary : colors.text;
+    if (variant === 'primary' || variant === 'destructive') {
+      return colors.textOnPrimary;
+    }
+    return colors.text;
   };
 
   const styles = StyleSheet.create({
@@ -90,7 +99,7 @@ function Button({
 Button.propTypes = {
   title: PropTypes.string,
   onPress: PropTypes.func,
-  variant: PropTypes.oneOf(['primary', 'secondary']),
+  variant: PropTypes.oneOf(['primary', 'secondary', 'destructive']),
   disabled: PropTypes.bool,
   accessibilityLabel: PropTypes.string,
   accessibilityHint: PropTypes.string,

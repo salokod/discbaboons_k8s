@@ -4,9 +4,13 @@
  */
 
 import * as Keychain from 'react-native-keychain';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Keychain service identifier for our tokens
 const KEYCHAIN_SERVICE = 'discbaboons_auth_tokens';
+
+// AsyncStorage key for logout flag
+const LOGOUT_FLAG_KEY = 'discbaboons_logout_flag';
 
 /**
  * Store JWT tokens securely in keychain
@@ -94,6 +98,49 @@ export async function hasStoredTokens() {
   try {
     const hasCredentials = await Keychain.hasInternetCredentials(KEYCHAIN_SERVICE);
     return hasCredentials;
+  } catch (error) {
+    // Return false on error (graceful degradation)
+    return false;
+  }
+}
+
+/**
+ * Set logout flag to prevent token restoration after logout
+ * This flag persists through app restarts to maintain logout security
+ * @returns {Promise<boolean>} True if flag was set successfully
+ */
+export async function setLogoutFlag() {
+  try {
+    await AsyncStorage.setItem(LOGOUT_FLAG_KEY, 'true');
+    return true;
+  } catch (error) {
+    // Return false on error (graceful degradation)
+    return false;
+  }
+}
+
+/**
+ * Check if logout flag is set
+ * @returns {Promise<boolean>} True if user has logged out and tokens should not be restored
+ */
+export async function isLoggedOut() {
+  try {
+    const flag = await AsyncStorage.getItem(LOGOUT_FLAG_KEY);
+    return flag === 'true';
+  } catch (error) {
+    // Return false on error (graceful degradation)
+    return false;
+  }
+}
+
+/**
+ * Clear logout flag when user logs in
+ * @returns {Promise<boolean>} True if flag was cleared successfully
+ */
+export async function clearLogoutFlag() {
+  try {
+    await AsyncStorage.removeItem(LOGOUT_FLAG_KEY);
+    return true;
   } catch (error) {
     // Return false on error (graceful degradation)
     return false;

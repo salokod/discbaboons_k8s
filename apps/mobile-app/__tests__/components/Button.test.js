@@ -72,6 +72,27 @@ describe('Button component', () => {
     });
   });
 
+  it('should render destructive variant with red styling', () => {
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <Button title="Delete" variant="destructive" />
+      </ThemeProvider>,
+    );
+
+    const button = getByTestId('button');
+    const text = getByTestId('button-text');
+
+    // Destructive button should use error color
+    expect(button.props.style).toMatchObject({
+      backgroundColor: themes[THEME_NAMES.LIGHT].error,
+    });
+
+    // Text should be white on destructive
+    expect(text.props.style).toMatchObject({
+      color: themes[THEME_NAMES.LIGHT].textOnPrimary,
+    });
+  });
+
   describe('Platform-Specific Styling', () => {
     const originalPlatform = require('react-native').Platform.OS;
     const originalSelect = require('react-native').Platform.select;

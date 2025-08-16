@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
 import { spacing } from '../../design-system/spacing';
 import { typography } from '../../design-system/typography';
 import AppContainer from '../../components/AppContainer';
@@ -18,7 +17,6 @@ import { getTokens } from '../../services/tokenStorage';
 
 function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
   const colors = useThemeColors();
-  const { user } = useAuth();
 
   // Debug function to check auth status
   const checkAuthAndNavigate = async (screenName) => {
@@ -53,14 +51,8 @@ function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
       marginBottom: spacing.md,
       textAlign: 'center',
     },
-    buttonRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: spacing.sm,
-    },
     button: {
-      flex: 1,
-      marginHorizontal: spacing.xs, // Use margin instead of gap for better compatibility
+      marginBottom: spacing.sm,
     },
   });
 
@@ -82,30 +74,12 @@ function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
         <View style={styles.discSection}>
           <Text style={styles.discSectionTitle}>Disc Database</Text>
 
-          <View style={styles.buttonRow}>
-            <Button
-              title="Search Discs"
-              onPress={() => checkAuthAndNavigate('DiscSearchScreen')}
-              style={styles.button}
-              variant="secondary"
-            />
-            <Button
-              title="Submit New Disc"
-              onPress={() => checkAuthAndNavigate('SubmitDiscScreen')}
-              style={styles.button}
-              variant="secondary"
-            />
-          </View>
-
-          {/* Admin Section - Only visible to admin users */}
-          {user?.isAdmin && (
-            <Button
-              title="Admin: Approve Discs"
-              onPress={() => checkAuthAndNavigate('AdminDiscScreen')}
-              style={styles.button}
-              variant="primary"
-            />
-          )}
+          <Button
+            title="Search Discs"
+            onPress={() => checkAuthAndNavigate('DiscSearchScreen')}
+            style={styles.button}
+            variant="secondary"
+          />
         </View>
       </AppContainer>
     </SafeAreaView>

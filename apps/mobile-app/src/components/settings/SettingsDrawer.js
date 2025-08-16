@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import LogoutButton from './LogoutButton';
+import AdminBadge from './AdminBadge';
 
 function SettingsDrawer({ navigation }) {
   const colors = useThemeColors();
@@ -95,6 +96,19 @@ function SettingsDrawer({ navigation }) {
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
+    sectionHeader: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sectionTitle: {
+      ...typography.caption,
+      color: colors.textLight,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
   });
 
   const handleClose = () => {
@@ -108,6 +122,16 @@ function SettingsDrawer({ navigation }) {
 
   const handleAboutPress = () => {
     navigation.navigate('App', { screen: 'About' });
+    navigation.closeDrawer();
+  };
+
+  const handleDiscDatabasePress = () => {
+    navigation.navigate('App', { screen: 'DiscDatabase' });
+    navigation.closeDrawer();
+  };
+
+  const handleAdminDashboardPress = () => {
+    navigation.navigate('App', { screen: 'AdminDashboard' });
     navigation.closeDrawer();
   };
 
@@ -157,14 +181,43 @@ function SettingsDrawer({ navigation }) {
               <Text style={styles.email}>
                 {user?.email || 'No email'}
               </Text>
+              {user?.isAdmin && <AdminBadge />}
             </View>
           </View>
 
           <ScrollView style={styles.navigation}>
+            {/* Disc Database Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Disc Database</Text>
+            </View>
+
+            <TouchableOpacity
+              testID="disc-database-nav-item"
+              style={styles.navItem}
+              onPress={handleDiscDatabasePress}
+              accessibilityLabel="Disc Database"
+              accessibilityHint="Access disc search and submission options"
+            >
+              <Icon
+                name="disc-outline"
+                size={20}
+                color={colors.primary}
+                style={styles.navIcon}
+              />
+              <Text style={styles.navText}>Disc Database</Text>
+            </TouchableOpacity>
+
+            {/* General Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>General</Text>
+            </View>
+
             <TouchableOpacity
               testID="settings-nav-item"
               style={styles.navItem}
               onPress={handleSettingsPress}
+              accessibilityLabel="Settings"
+              accessibilityHint="Open app settings and preferences"
             >
               <Icon
                 name="settings-outline"
@@ -179,6 +232,8 @@ function SettingsDrawer({ navigation }) {
               testID="about-nav-item"
               style={styles.navItem}
               onPress={handleAboutPress}
+              accessibilityLabel="About"
+              accessibilityHint="View app information and version details"
             >
               <Icon
                 name="information-circle-outline"
@@ -188,6 +243,31 @@ function SettingsDrawer({ navigation }) {
               />
               <Text style={styles.navText}>About</Text>
             </TouchableOpacity>
+
+            {/* Admin Section - Only visible to admin users */}
+            {user?.isAdmin && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Admin</Text>
+                </View>
+
+                <TouchableOpacity
+                  testID="admin-dashboard-nav-item"
+                  style={styles.navItem}
+                  onPress={handleAdminDashboardPress}
+                  accessibilityLabel="Admin Dashboard"
+                  accessibilityHint="Access admin tools and pending submissions"
+                >
+                  <Icon
+                    name="shield-checkmark-outline"
+                    size={20}
+                    color={colors.error}
+                    style={styles.navIcon}
+                  />
+                  <Text style={styles.navText}>Admin</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </ScrollView>
 
           <View style={styles.footer}>

@@ -21,6 +21,8 @@ import AddDiscToBagScreen from '../screens/discs/AddDiscToBagScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import AccountSettingsScreen from '../screens/settings/AccountSettingsScreen';
 import AboutScreen from '../screens/settings/AboutScreen';
+import DiscDatabaseScreen from '../screens/settings/DiscDatabaseScreen';
+import AdminDashboardScreen from '../screens/settings/AdminDashboardScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import SupportScreen from '../screens/SupportScreen';
@@ -123,6 +125,24 @@ function WrappedAboutScreen(props) {
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <AboutScreen {...props} />
     </ErrorBoundary>
+  );
+}
+
+function WrappedDiscDatabaseScreen(props) {
+  return (
+    <ThemeErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <DiscDatabaseScreen {...props} />
+    </ThemeErrorBoundary>
+  );
+}
+
+function WrappedAdminDashboardScreen(props) {
+  return (
+    <ThemeErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <AdminDashboardScreen {...props} />
+    </ThemeErrorBoundary>
   );
 }
 
@@ -244,6 +264,24 @@ function AppNavigator() {
               presentation: 'modal',
               headerShown: true,
               title: 'Settings',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="DiscDatabase"
+            component={WrappedDiscDatabaseScreen}
+            options={{
+              headerShown: true,
+              title: 'Disc Database',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="AdminDashboard"
+            component={WrappedAdminDashboardScreen}
+            options={{
+              headerShown: true,
+              title: 'Admin Dashboard',
               headerBackTitle: 'Back',
             }}
           />
