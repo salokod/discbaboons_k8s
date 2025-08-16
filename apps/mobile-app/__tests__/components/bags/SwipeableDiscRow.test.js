@@ -156,8 +156,141 @@ const mockDisc = {
 const renderComponent = (component) => render(component);
 
 describe('SwipeableDiscRow', () => {
-  it('should export a function', () => {
-    expect(typeof SwipeableDiscRow).toBe('function');
+  it('should export a component', () => {
+    expect(SwipeableDiscRow).toBeDefined();
+    expect(typeof SwipeableDiscRow).toBe('object'); // React.memo returns an object
+  });
+
+  it('should import Swipeable from react-native-gesture-handler', () => {
+    // Test that the component imports Swipeable
+    const fs = require('fs');
+    const path = require('path');
+    const componentPath = path.join(__dirname, '../../../src/components/bags/SwipeableDiscRow.js');
+    const componentCode = fs.readFileSync(componentPath, 'utf8');
+
+    expect(componentCode).toMatch(/import.*Swipeable.*from.*react-native-gesture-handler/);
+  });
+
+  describe('Swipeable Integration', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should wrap DiscRow with Swipeable component', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+
+      // Mock Swipeable to track if it's being used
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow disc={mockDisc} />,
+      );
+
+      expect(MockSwipeable).toHaveBeenCalled();
+    });
+
+    it('should provide renderRightActions to Swipeable when onSwipeRight is provided', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const mockOnSwipeRight = jest.fn();
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.renderRightActions).toBeDefined();
+      expect(typeof swipeableProps.renderRightActions).toBe('function');
+    });
+
+    it('should set 80px threshold for swipe detection', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const mockOnSwipeRight = jest.fn();
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.rightThreshold).toBe(80);
+    });
+
+    it('should trigger onSwipeRight callback when swipe is opened', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const mockOnSwipeRight = jest.fn();
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.onSwipeableOpen).toBeDefined();
+      expect(typeof swipeableProps.onSwipeableOpen).toBe('function');
+
+      // Simulate swipe open with 'right' direction
+      swipeableProps.onSwipeableOpen('right');
+
+      expect(mockOnSwipeRight).toHaveBeenCalledWith(mockDisc);
+    });
+
+    it('should forward ref to Swipeable component', () => {
+      // Test that the component uses forwardRef pattern
+      const fs = require('fs');
+      const path = require('path');
+      const componentPath = path.join(__dirname, '../../../src/components/bags/SwipeableDiscRow.js');
+      const componentCode = fs.readFileSync(componentPath, 'utf8');
+
+      expect(componentCode).toMatch(/React\.forwardRef/);
+      expect(componentCode).toMatch(/ref={ref}/);
+    });
+
+    it('should render right actions when onSwipeRight is provided', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn();
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+      );
+
+      expect(getByTestId('right-actions')).toBeTruthy();
+    });
+  });
+
+  it('should be wrapped with React.memo for performance optimization', () => {
+    // Test that the component is memoized
+    const fs = require('fs');
+    const path = require('path');
+    const componentPath = path.join(__dirname, '../../../src/components/bags/SwipeableDiscRow.js');
+    const componentCode = fs.readFileSync(componentPath, 'utf8');
+
+    expect(componentCode).toMatch(/React\.memo/);
   });
 
   it('should render DiscRow component', () => {
@@ -185,16 +318,6 @@ describe('SwipeableDiscRow', () => {
         <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
       );
     }).not.toThrow();
-  });
-
-  it('should not render right actions in simple implementation', () => {
-    const mockOnSwipeRight = jest.fn();
-    const { queryByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
-    );
-
-    // In the simple implementation, no gesture actions are rendered yet
-    expect(queryByTestId('right-actions')).toBeNull();
   });
 
   it('should not render right actions when onSwipeRight is not provided', () => {

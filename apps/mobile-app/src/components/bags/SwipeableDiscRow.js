@@ -3,24 +3,41 @@
  * Wrapper around DiscRow with swipe gesture support
  */
 
+import React from 'react';
 import { View } from 'react-native';
 import PropTypes from 'prop-types';
+import { Swipeable } from 'react-native-gesture-handler';
 import DiscRow from './DiscRow';
 
-function SwipeableDiscRow({ disc, onSwipeRight, actions }) {
+const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref) => {
   // Start with a simple wrapper that just renders DiscRow
   // Gesture handling will be added in future iterations
   // eslint-disable-next-line no-unused-vars
-  const placeholderOnSwipeRight = onSwipeRight;
-  // eslint-disable-next-line no-unused-vars
   const placeholderActions = actions;
+
+  const renderRightActions = onSwipeRight ? () => (
+    <View testID="right-actions" />
+  ) : undefined;
+
+  const handleSwipeableOpen = (direction) => {
+    if (direction === 'right' && onSwipeRight) {
+      onSwipeRight(disc);
+    }
+  };
 
   return (
     <View testID="swipeable-disc-row">
-      <DiscRow disc={disc} />
+      <Swipeable
+        ref={ref}
+        renderRightActions={renderRightActions}
+        rightThreshold={80}
+        onSwipeableOpen={handleSwipeableOpen}
+      >
+        <DiscRow disc={disc} />
+      </Swipeable>
     </View>
   );
-}
+});
 
 SwipeableDiscRow.propTypes = {
   disc: PropTypes.shape({
@@ -60,4 +77,4 @@ SwipeableDiscRow.defaultProps = {
 
 SwipeableDiscRow.displayName = 'SwipeableDiscRow';
 
-export default SwipeableDiscRow;
+export default React.memo(SwipeableDiscRow);
