@@ -320,8 +320,10 @@ describe('AdminDiscScreen', () => {
     // Click deny in modal
     fireEvent.press(getByText('Deny Disc'));
 
-    // Should call denyDisc service
-    expect(denyDisc).toHaveBeenCalledWith('1', '');
+    // Wait for denyDisc service to be called and complete
+    await waitFor(() => {
+      expect(denyDisc).toHaveBeenCalledWith('1', '');
+    });
 
     // Wait for completion and verify disc was removed from list
     await waitFor(() => {
@@ -329,10 +331,12 @@ describe('AdminDiscScreen', () => {
     });
 
     // Should show success alert
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Disc Denied ❌',
-      '"Dynamic Discs Truth" has been denied and will not be added to the database.',
-    );
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Disc Denied ❌',
+        '"Dynamic Discs Truth" has been denied and will not be added to the database.',
+      );
+    });
 
     alertSpy.mockRestore();
   });
