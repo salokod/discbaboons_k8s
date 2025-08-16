@@ -3,7 +3,14 @@
  */
 
 import {
-  getBags, getBag, createBag, updateBag, deleteBag, addDiscToBag,
+  getBags,
+  getBag,
+  createBag,
+  updateBag,
+  deleteBag,
+  addDiscToBag,
+  removeDiscFromBag,
+  updateDiscInBag,
 } from '../../src/services/bagService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -576,6 +583,321 @@ describe('BagService Functions', () => {
     });
   });
 
+  describe('removeDiscFromBag', () => {
+    it('should export removeDiscFromBag function', () => {
+      expect(removeDiscFromBag).toBeInstanceOf(Function);
+    });
+
+    it('should throw error for missing contentId', async () => {
+      await expect(removeDiscFromBag()).rejects.toThrow('Content ID is required');
+      await expect(removeDiscFromBag('')).rejects.toThrow('Content ID is required');
+      await expect(removeDiscFromBag(null)).rejects.toThrow('Content ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should include authentication headers', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Disc removed from bag',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await removeDiscFromBag('test-content-id');
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/discs/test-content-id', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('should handle successful removal', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Disc removed from bag',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await removeDiscFromBag('test-content-id');
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle disc not found error', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Disc not found in bag',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      await expect(removeDiscFromBag('nonexistent-content-id')).rejects.toThrow('Disc not found in bag');
+    });
+
+    it('should handle authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Access token required',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      await expect(removeDiscFromBag('test-content-id')).rejects.toThrow('Access token required');
+    });
+
+    it('should handle network timeout with 30-second timeout', async () => {
+      // Test that timeout is set up correctly
+      const mockResponse = {
+        success: true,
+        message: 'Disc removed from bag',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await removeDiscFromBag('test-content-id');
+
+      // Verify setTimeout was called for 30 seconds (30000ms)
+      expect(global.setTimeout).toHaveBeenCalledWith(expect.any(Function), 30000);
+      // Verify clearTimeout was called
+      expect(global.clearTimeout).toHaveBeenCalled();
+    });
+
+    it('should throw error when no auth token is available', async () => {
+      getTokens.mockResolvedValue(null);
+
+      await expect(removeDiscFromBag('test-content-id')).rejects.toThrow('Authentication required. Please log in again.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      await expect(removeDiscFromBag('test-content-id')).rejects.toThrow('Something went wrong. Please try again.');
+    });
+  });
+
+  describe('updateDiscInBag', () => {
+    it('should export updateDiscInBag function', () => {
+      expect(updateDiscInBag).toBeInstanceOf(Function);
+    });
+
+    it('should throw error for missing bagId', async () => {
+      await expect(updateDiscInBag()).rejects.toThrow('Bag ID is required');
+      await expect(updateDiscInBag('')).rejects.toThrow('Bag ID is required');
+      await expect(updateDiscInBag(null)).rejects.toThrow('Bag ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for missing contentId', async () => {
+      await expect(updateDiscInBag('bag-123')).rejects.toThrow('Content ID is required');
+      await expect(updateDiscInBag('bag-123', '')).rejects.toThrow('Content ID is required');
+      await expect(updateDiscInBag('bag-123', null)).rejects.toThrow('Content ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for missing updates', async () => {
+      await expect(updateDiscInBag('bag-123', 'content-456')).rejects.toThrow('Updates object is required');
+      await expect(updateDiscInBag('bag-123', 'content-456', null)).rejects.toThrow('Updates object is required');
+      await expect(updateDiscInBag('bag-123', 'content-456', '')).rejects.toThrow('Updates object is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should include authentication headers', async () => {
+      const mockResponse = {
+        success: true,
+        disc: {
+          id: 'content-456',
+          speed: 9,
+          glide: 5,
+          notes: 'My favorite driver',
+          color: 'red',
+          condition: 'good',
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const updates = { speed: 9, glide: 5 };
+      await updateDiscInBag('bag-123', 'content-456', updates);
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/bag-123/discs/content-456', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify(updates),
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('should handle successful update', async () => {
+      const mockResponse = {
+        success: true,
+        disc: {
+          id: 'content-456',
+          speed: 9,
+          glide: 5,
+          notes: 'My favorite driver',
+          color: 'red',
+          condition: 'good',
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const updates = {
+        speed: 9,
+        glide: 5,
+        notes: 'My favorite driver',
+        color: 'red',
+        condition: 'good',
+      };
+
+      const result = await updateDiscInBag('bag-123', 'content-456', updates);
+
+      expect(result).toEqual(mockResponse.disc);
+    });
+
+    it('should handle disc not found error', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Disc not found in bag',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      const updates = { speed: 9 };
+      await expect(updateDiscInBag('bag-123', 'nonexistent-content-id', updates)).rejects.toThrow('Disc not found in bag');
+    });
+
+    it('should handle validation errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Invalid update data',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => errorResponse,
+      });
+
+      const updates = { speed: 'invalid' };
+      await expect(updateDiscInBag('bag-123', 'content-456', updates)).rejects.toThrow('Invalid update data');
+    });
+
+    it('should handle authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Access token required',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      const updates = { speed: 9 };
+      await expect(updateDiscInBag('bag-123', 'content-456', updates)).rejects.toThrow('Access token required');
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      const updates = { speed: 9 };
+      await expect(updateDiscInBag('bag-123', 'content-456', updates)).rejects.toThrow('Something went wrong. Please try again.');
+    });
+
+    it('should handle network timeout with 30-second timeout', async () => {
+      const mockResponse = {
+        success: true,
+        disc: {
+          id: 'content-456',
+          speed: 9,
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const updates = { speed: 9 };
+      await updateDiscInBag('bag-123', 'content-456', updates);
+
+      // Verify setTimeout was called for 30 seconds (30000ms)
+      expect(global.setTimeout).toHaveBeenCalledWith(expect.any(Function), 30000);
+      // Verify clearTimeout was called
+      expect(global.clearTimeout).toHaveBeenCalled();
+    });
+
+    it('should throw error when no auth token is available', async () => {
+      getTokens.mockResolvedValue(null);
+
+      const updates = { speed: 9 };
+      await expect(updateDiscInBag('bag-123', 'content-456', updates)).rejects.toThrow('Authentication required. Please log in again.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('export functions', () => {
     it('should export a getBags function', () => {
       expect(getBags).toBeTruthy();
@@ -591,6 +913,14 @@ describe('BagService Functions', () => {
 
     it('should export a deleteBag function', () => {
       expect(deleteBag).toBeTruthy();
+    });
+
+    it('should export a removeDiscFromBag function', () => {
+      expect(removeDiscFromBag).toBeTruthy();
+    });
+
+    it('should export a updateDiscInBag function', () => {
+      expect(updateDiscInBag).toBeTruthy();
     });
   });
 });

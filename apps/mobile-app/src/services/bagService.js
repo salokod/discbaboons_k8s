@@ -653,3 +653,138 @@ export async function deleteBag(bagId) {
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Remove a disc from a bag
+ * @param {string} contentId - Bag content ID to remove
+ * @returns {Promise<Object>} Success response
+ * @throws {Error} Remove disc failed error with message
+ */
+export async function removeDiscFromBag(contentId) {
+  // Validate inputs before making API call
+  if (!contentId || typeof contentId !== 'string') {
+    throw new Error('Content ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/discs/${contentId}`, {
+      method: 'DELETE',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'Disc not found in bag');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Update disc properties in a bag
+ * @param {string} bagId - Bag ID containing the disc
+ * @param {string} contentId - Bag content ID to update
+ * @param {Object} updates - Updates object with fields to change
+ * @returns {Promise<Object>} Updated disc data
+ * @throws {Error} Update disc failed error with message
+ */
+export async function updateDiscInBag(bagId, contentId, updates) {
+  // Validate inputs before making API call
+  if (!bagId || typeof bagId !== 'string') {
+    throw new Error('Bag ID is required');
+  }
+
+  if (!contentId || typeof contentId !== 'string') {
+    throw new Error('Content ID is required');
+  }
+
+  if (!updates || typeof updates !== 'object') {
+    throw new Error('Updates object is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/${bagId}/discs/${contentId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(updates),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid update data');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'Disc not found in bag');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success || !data.disc) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data.disc;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
