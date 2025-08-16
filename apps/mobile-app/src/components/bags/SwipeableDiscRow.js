@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, Platform,
+  View, Text, StyleSheet, Platform, TouchableOpacity,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -37,6 +37,7 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
       alignItems: 'center',
       paddingHorizontal: spacing.lg,
       minWidth: 100,
+      minHeight: 44, // Ensure minimum touch target size
       borderRadius: Platform.select({
         ios: 8,
         android: 10,
@@ -67,16 +68,31 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
     },
   });
 
-  const renderRightActions = onSwipeRight ? () => (
-    <View testID="right-actions" style={styles.rightActions}>
-      <Icon
-        name="trash-outline"
-        size={24}
-        color={colors.surface}
-      />
-      <Text style={styles.actionText}>Remove</Text>
-    </View>
-  ) : undefined;
+  const renderRightActions = onSwipeRight ? () => {
+    const handleRemovePress = () => {
+      const swipeActions = onSwipeRight(disc);
+      const removeAction = swipeActions?.find((action) => action.id === 'delete') || swipeActions?.[0];
+      if (removeAction?.onPress) {
+        removeAction.onPress();
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        testID="right-actions"
+        style={styles.rightActions}
+        onPress={handleRemovePress}
+        activeOpacity={0.8}
+      >
+        <Icon
+          name="trash-outline"
+          size={24}
+          color={colors.surface}
+        />
+        <Text style={styles.actionText}>Remove</Text>
+      </TouchableOpacity>
+    );
+  } : undefined;
 
   const handleSwipeableOpen = (direction) => {
     if (direction === 'right' && onSwipeRight) {

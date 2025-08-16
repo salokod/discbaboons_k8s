@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -26,7 +27,7 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import Button from '../../components/Button';
-import { getBag } from '../../services/bagService';
+import { getBag, removeDiscFromBag } from '../../services/bagService';
 import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
 import BaboonBagBreakdownModal from '../../components/modals/BaboonBagBreakdownModal';
 import BaboonsVisionModal from '../../components/modals/BaboonsVisionModal';
@@ -367,12 +368,66 @@ function BagDetailScreen({ route, navigation }) {
     setSort({ field: null, direction: 'asc' });
   }, []);
 
-  // Placeholder swipe handler
+  // Swipe action handler with edit and delete functionality
   const handleDiscSwipe = useCallback((disc) => {
-    // Placeholder for future swipe functionality
-    // eslint-disable-next-line no-console
-    console.log('Disc swiped:', disc.id);
-  }, []);
+    const actions = [
+      {
+        id: 'edit',
+        label: 'Edit',
+        color: '#007AFF',
+        icon: 'create-outline',
+        onPress: async () => {
+          try {
+            // For now, navigate to a disc edit screen or show edit modal
+            // This will be implemented in future slices
+            // eslint-disable-next-line no-console
+            console.log('Edit disc:', disc.id);
+          } catch (editError) {
+            // eslint-disable-next-line no-console
+            console.error('Edit disc failed:', editError);
+          }
+        },
+      },
+      {
+        id: 'delete',
+        label: 'Delete',
+        color: '#FF3B30',
+        icon: 'trash-outline',
+        onPress: async () => {
+          const discBrand = disc.brand || disc.disc_master?.brand || '';
+          const discModel = disc.model || disc.disc_master?.model || '';
+          const bagName = bag?.name || 'this bag';
+
+          Alert.alert(
+            'Remove Disc',
+            `Remove ${discBrand} ${discModel} from ${bagName}?`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await removeDiscFromBag(disc.id);
+                    // Refresh bag data to show updated contents
+                    await loadBagData();
+                  } catch (removeError) {
+                    // eslint-disable-next-line no-console
+                    console.error('Remove disc failed:', removeError);
+                  }
+                },
+              },
+            ],
+          );
+        },
+      },
+    ];
+
+    return actions;
+  }, [loadBagData, bag?.name]);
 
   // Count active filters for display
   const activeFilterCount = useMemo(() => Object.keys(filters).filter(
