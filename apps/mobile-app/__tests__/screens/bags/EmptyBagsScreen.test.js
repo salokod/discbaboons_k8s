@@ -2,7 +2,7 @@
  * EmptyBagsScreen Tests
  */
 
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import EmptyBagsScreen from '../../../src/screens/bags/EmptyBagsScreen';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
 
@@ -100,19 +100,30 @@ describe('EmptyBagsScreen', () => {
     expect(onCreateFirstBagMock).toHaveBeenCalledTimes(1);
   });
 
-  describe('Admin Button Visibility', () => {
-    it('should NOT show admin button for regular users', () => {
-      // Regular user (default mock setup)
+  describe('Disc Database Buttons', () => {
+    it('should display "Search Discs" button', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <EmptyBagsScreen />
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Search Discs')).toBeTruthy();
+    });
+
+    it('should NOT display "Submit New Disc" button (moved to settings drawer)', () => {
       const { queryByText } = render(
         <ThemeProvider>
           <EmptyBagsScreen />
         </ThemeProvider>,
       );
 
-      expect(queryByText('Admin: Approve Discs')).toBeNull();
+      expect(queryByText('Submit New Disc')).toBeNull();
     });
+  });
 
-    it('should show admin button for admin users', () => {
+  describe('Admin Section Removal', () => {
+    it('should NOT display admin section even for admin users (moved to settings drawer)', () => {
       // Mock admin user
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,
@@ -120,51 +131,6 @@ describe('EmptyBagsScreen', () => {
           id: 1, username: 'adminuser', email: 'admin@example.com', isAdmin: true,
         },
         tokens: { accessToken: 'token123', refreshToken: 'refresh123' },
-      });
-
-      const { getByText } = render(
-        <ThemeProvider>
-          <EmptyBagsScreen />
-        </ThemeProvider>,
-      );
-
-      expect(getByText('Admin: Approve Discs')).toBeTruthy();
-    });
-
-    it('should navigate to AdminDiscScreen when admin button is pressed', async () => {
-      const mockNavigation = {
-        navigate: jest.fn(),
-      };
-
-      // Mock admin user
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: true,
-        user: {
-          id: 1, username: 'adminuser', email: 'admin@example.com', isAdmin: true,
-        },
-        tokens: { accessToken: 'token123', refreshToken: 'refresh123' },
-      });
-
-      const { getByText } = render(
-        <ThemeProvider>
-          <EmptyBagsScreen navigation={mockNavigation} />
-        </ThemeProvider>,
-      );
-
-      fireEvent.press(getByText('Admin: Approve Discs'));
-
-      // Wait for async checkAuthAndNavigate to complete
-      await waitFor(() => {
-        expect(mockNavigation.navigate).toHaveBeenCalledWith('AdminDiscScreen');
-      });
-    });
-
-    it('should handle missing user gracefully', () => {
-      // Mock no user
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: false,
-        user: null,
-        tokens: null,
       });
 
       const { queryByText } = render(

@@ -6,7 +6,14 @@ import {
   createContext, useContext, useState, useEffect, useMemo, useCallback,
 } from 'react';
 import PropTypes from 'prop-types';
-import { storeTokens, getTokens, clearTokens } from '../services/tokenStorage';
+import {
+  storeTokens,
+  getTokens,
+  clearTokens,
+  setLogoutFlag,
+  isLoggedOut,
+  clearLogoutFlag,
+} from '../services/tokenStorage';
 import {
   refreshAccessToken,
   isTokenExpired,
@@ -42,26 +49,37 @@ export function AuthProvider({ children }) {
     // Set flag to prevent token restoration during logout
     setIsLoggingOut(true);
 
-    try {
-      // Clear stored tokens
-      await clearTokens();
-    } catch (error) {
-      // Continue with logout even if clearing tokens fails
-    }
-
-    // Clear refresh timer
+    // Clear refresh timer immediately
     if (refreshTimer) {
       clearTokenRefreshTimer(refreshTimer);
       setRefreshTimer(null);
     }
 
-    // Clear state
+    // Clear state IMMEDIATELY for security - user should appear logged out right away
     setUser(null);
     setTokens(null);
     setIsAuthenticated(false);
 
-    // Reset logout flag after state is cleared
-    // Use setTimeout to ensure state updates are processed
+    // Then handle async storage operations in background
+    try {
+      // CRITICAL: Set persistent logout flag FIRST to prevent race conditions
+      // This flag persists through app restarts and Metro refreshes
+      await setLogoutFlag();
+
+      // Then clear stored tokens
+      await clearTokens();
+    } catch (error) {
+      // Continue with logout even if clearing tokens fails
+      // The logout flag is our primary security mechanism
+      try {
+        await setLogoutFlag();
+      } catch (flagError) {
+        // Even if we can't set the flag, state is already cleared for current session
+      }
+    }
+
+    // Reset logout flag after storage operations are complete
+    // Use setTimeout to ensure all async operations have finished
     setTimeout(() => {
       setIsLoggingOut(false);
     }, 100);
@@ -72,6 +90,18 @@ export function AuthProvider({ children }) {
     // Don't attempt refresh if logging out
     if (isLoggingOut) {
       return;
+    }
+
+    // Additional safeguard: Check if user has logged out
+    try {
+      const userLoggedOut = await isLoggedOut();
+      if (userLoggedOut) {
+        // User has logged out, don't refresh tokens
+        logout();
+        return;
+      }
+    } catch (error) {
+      // If we can't check logout status, proceed with refresh
     }
 
     try {
@@ -119,6 +149,16 @@ export function AuthProvider({ children }) {
       }
 
       try {
+        // CRITICAL: Check logout flag first - this prevents security bug
+        // where tokens are restored after logout + Metro refresh
+        const userLoggedOut = await isLoggedOut();
+        if (userLoggedOut) {
+          // User has logged out, clear any remaining tokens and don't restore
+          await clearTokens();
+          setIsLoading(false);
+          return;
+        }
+
         const storedTokens = await getTokens();
 
         if (!storedTokens) {
@@ -245,11 +285,27 @@ export function AuthProvider({ children }) {
     }
 
     try {
+      // Clear logout flag first - user is logging in
+      await clearLogoutFlag();
+
       // Store tokens securely
       await storeTokens(authTokens);
 
-      // Update state
-      setUser(userData);
+      // Extract user data from JWT token for consistency with restoration flow
+      const payload = decodeJWTPayload(authTokens.accessToken);
+      if (!payload) {
+        throw new Error('Invalid access token format');
+      }
+
+      const userDataFromToken = {
+        id: payload.userId,
+        username: payload.username,
+        email: payload.email,
+        isAdmin: payload.isAdmin || false,
+      };
+
+      // Update state with user data extracted from JWT
+      setUser(userDataFromToken);
       setTokens(authTokens);
       setIsAuthenticated(true);
       setIsLoggingOut(false); // Ensure logout flag is reset
@@ -261,11 +317,41 @@ export function AuthProvider({ children }) {
       );
       setRefreshTimer(timerId);
     } catch (error) {
-      // Failed to store tokens, but still set state for current session
-      setUser(userData);
+      // Even if storage operations fail, try to clear logout flag and set state
+      try {
+        await clearLogoutFlag();
+      } catch (flagError) {
+        // Continue with login even if we can't clear logout flag
+      }
+
+      // Failed to store tokens or extract JWT payload, fallback to API response
+      // but still try to extract from JWT if possible
+      let finalUserData = userData;
+      try {
+        const payload = decodeJWTPayload(authTokens.accessToken);
+        if (payload) {
+          finalUserData = {
+            id: payload.userId,
+            username: payload.username,
+            email: payload.email,
+            isAdmin: payload.isAdmin || false,
+          };
+        }
+      } catch (jwtError) {
+        // Use API response data as fallback
+      }
+
+      setUser(finalUserData);
       setTokens(authTokens);
       setIsAuthenticated(true);
       setIsLoggingOut(false); // Ensure logout flag is reset
+
+      // Set up token refresh timer even if JWT extraction failed
+      const timerId = setupTokenRefreshTimer(
+        authTokens.accessToken,
+        () => handleTokenRefresh(authTokens.refreshToken),
+      );
+      setRefreshTimer(timerId);
     }
   }, [handleTokenRefresh, isLoggingOut]);
 

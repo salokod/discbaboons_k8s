@@ -24,7 +24,9 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import EmptyState from '../../design-system/components/EmptyState';
 import Button from '../../components/Button';
-import { getPendingDiscs, approveDisc } from '../../services/discService';
+import DenialConfirmationModal from '../../components/modals/DenialConfirmationModal';
+import { getPendingDiscs, approveDisc, denyDisc } from '../../services/discService';
+import { triggerSuccessHaptic, triggerErrorHaptic } from '../../services/hapticService';
 
 function AdminDiscScreen({ navigation }) {
   const colors = useThemeColors();
@@ -32,6 +34,9 @@ function AdminDiscScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [approvingIds, setApprovingIds] = useState(new Set());
+  const [denyingIds, setDenyingIds] = useState(new Set());
+  const [denialModalVisible, setDenialModalVisible] = useState(false);
+  const [selectedDiscForDenial, setSelectedDiscForDenial] = useState(null);
 
   // Load pending discs
   const loadPendingDiscs = useCallback(async (showLoader = true) => {
@@ -79,11 +84,16 @@ function AdminDiscScreen({ navigation }) {
               // Remove from pending list with smooth transition
               setPendingDiscs((prev) => prev.filter((d) => d.id !== disc.id));
 
+              // Trigger success haptic feedback
+              triggerSuccessHaptic();
+
               Alert.alert(
                 'Disc Approved! ✅',
                 `"${disc.brand} ${disc.model}" is now available to all users in the disc database.`,
               );
             } catch (error) {
+              // Trigger error haptic feedback
+              triggerErrorHaptic();
               Alert.alert('Approval Error', `Failed to approve disc: ${error.message}`);
             } finally {
               setApprovingIds((prev) => {
@@ -96,6 +106,58 @@ function AdminDiscScreen({ navigation }) {
         },
       ],
     );
+  }, []);
+
+  // Handle disc denial
+  const handleDenyDisc = useCallback((disc) => {
+    setSelectedDiscForDenial(disc);
+    setDenialModalVisible(true);
+  }, []);
+
+  // Handle denial confirmation from modal
+  const handleDenialConfirm = useCallback(async (reason) => {
+    if (!selectedDiscForDenial) return;
+
+    // Capture disc details before async operations
+    const discToRemove = selectedDiscForDenial;
+    const discId = discToRemove.id;
+    const discBrand = discToRemove.brand;
+    const discModel = discToRemove.model;
+
+    setDenialModalVisible(false);
+    setDenyingIds((prev) => new Set(prev).add(discId));
+
+    try {
+      await denyDisc(discId, reason);
+
+      // Remove from pending list with smooth transition
+      setPendingDiscs((prev) => prev.filter((d) => d.id !== discId));
+
+      // Trigger success haptic feedback (denial was successful)
+      triggerSuccessHaptic();
+
+      Alert.alert(
+        'Disc Denied ❌',
+        `"${discBrand} ${discModel}" has been denied and will not be added to the database.`,
+      );
+    } catch (error) {
+      // Trigger error haptic feedback
+      triggerErrorHaptic();
+      Alert.alert('Denial Error', `Failed to deny disc: ${error.message}`);
+    } finally {
+      setDenyingIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(discId);
+        return updated;
+      });
+      setSelectedDiscForDenial(null);
+    }
+  }, [selectedDiscForDenial]);
+
+  // Handle denial cancellation
+  const handleDenialCancel = useCallback(() => {
+    setDenialModalVisible(false);
+    setSelectedDiscForDenial(null);
   }, []);
 
   useEffect(() => {
@@ -272,7 +334,7 @@ function AdminDiscScreen({ navigation }) {
       flexDirection: 'row',
       gap: spacing.sm,
     },
-    approveButton: {
+    actionButton: {
       flex: 1,
     },
     // Loading states
@@ -356,12 +418,17 @@ function AdminDiscScreen({ navigation }) {
             ) : (
               pendingDiscs.map((disc) => {
                 const isApproving = approvingIds.has(disc.id);
+                const isDenying = denyingIds.has(disc.id);
                 return (
                   <View
                     key={disc.id}
                     style={[styles.discItem, isApproving && styles.discItemApproving]}
                   >
-                    <View style={styles.discContent}>
+                    <View
+                      style={styles.discContent}
+                      accessibilityRole="group"
+                      accessibilityLabel={`Disc submission: ${disc.brand} ${disc.model}`}
+                    >
                       <View style={styles.discInfo}>
                         <Text style={styles.discName}>{disc.model}</Text>
                         <Text style={styles.discBrand}>{disc.brand}</Text>
@@ -375,7 +442,11 @@ function AdminDiscScreen({ navigation }) {
                           })}
                         </Text>
                       </View>
-                      <View style={styles.flightNumbers}>
+                      <View
+                        style={styles.flightNumbers}
+                        accessibilityRole="group"
+                        accessibilityLabel={`Flight numbers: Speed ${disc.speed}, Glide ${disc.glide}, Turn ${disc.turn}, Fade ${disc.fade}`}
+                      >
                         <View style={[styles.flightNumber, styles.speedNumber]}>
                           <Text style={styles.flightLabel}>S</Text>
                           <Text style={styles.flightNumberText}>{disc.speed}</Text>
@@ -396,11 +467,22 @@ function AdminDiscScreen({ navigation }) {
                     </View>
                     <View style={styles.actionButtons}>
                       <Button
-                        title={isApproving ? 'Approving...' : 'Approve & Publish'}
+                        title={isApproving ? 'Approving...' : 'Approve'}
                         onPress={() => handleApproveDisc(disc)}
                         variant="primary"
-                        style={styles.approveButton}
-                        disabled={isApproving}
+                        style={styles.actionButton}
+                        disabled={isApproving || isDenying}
+                        accessibilityLabel={`Approve ${disc.brand} ${disc.model} disc submission`}
+                        accessibilityHint="Approves this disc and makes it available in the public database"
+                      />
+                      <Button
+                        title={isDenying ? 'Denying...' : 'Deny'}
+                        onPress={() => handleDenyDisc(disc)}
+                        variant="destructive"
+                        style={styles.actionButton}
+                        disabled={isApproving || isDenying}
+                        accessibilityLabel={`Deny ${disc.brand} ${disc.model} disc submission`}
+                        accessibilityHint="Denies this disc submission and prevents it from being added to the database"
                       />
                     </View>
                   </View>
@@ -409,6 +491,14 @@ function AdminDiscScreen({ navigation }) {
             )}
           </View>
         </ScrollView>
+
+        {/* Denial Confirmation Modal */}
+        <DenialConfirmationModal
+          visible={denialModalVisible}
+          disc={selectedDiscForDenial}
+          onConfirm={handleDenialConfirm}
+          onCancel={handleDenialCancel}
+        />
       </AppContainer>
     </SafeAreaView>
   );

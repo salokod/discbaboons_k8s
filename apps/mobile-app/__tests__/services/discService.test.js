@@ -4,7 +4,7 @@
  */
 
 import {
-  searchDiscs, submitDisc, getPendingDiscs, approveDisc,
+  searchDiscs, submitDisc, getPendingDiscs, approveDisc, denyDisc,
 } from '../../src/services/discService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -589,6 +589,210 @@ describe('discService', () => {
         turn: 0,
         fade: 2,
       })).rejects.toThrow('Request timeout');
+    });
+  });
+
+  describe('denyDisc', () => {
+    it('should export denyDisc function', () => {
+      expect(typeof denyDisc).toBe('function');
+    });
+
+    it('should validate disc ID is required', async () => {
+      await expect(denyDisc()).rejects.toThrow('Disc ID is required');
+      await expect(denyDisc('')).rejects.toThrow('Disc ID is required');
+      await expect(denyDisc(123)).rejects.toThrow('Disc ID is required');
+    });
+
+    it('should validate reason is a string if provided', async () => {
+      await expect(denyDisc('valid-id', 123)).rejects.toThrow('Reason must be a string');
+      await expect(denyDisc('valid-id', {})).rejects.toThrow('Reason must be a string');
+      await expect(denyDisc('valid-id', [])).rejects.toThrow('Reason must be a string');
+    });
+
+    it('should validate reason length if provided', async () => {
+      const longReason = 'a'.repeat(501); // 501 characters
+      await expect(denyDisc('valid-id', longReason)).rejects.toThrow('Reason must be 500 characters or less');
+    });
+
+    it('should make PATCH request to deny disc', async () => {
+      const discId = '770e8400-e29b-41d4-a716-446655440000';
+      const reason = 'Invalid flight numbers';
+      const mockResponse = {
+        success: true,
+        disc: {
+          id: discId,
+          brand: 'Dynamic Discs',
+          model: 'Truth',
+          speed: 5,
+          glide: 5,
+          turn: 0,
+          fade: 2,
+          approved: false,
+          denied: true,
+          denial_reason: reason,
+          added_by_id: 456,
+          created_at: '2024-01-15T10:30:00.000Z',
+          updated_at: '2024-01-15T11:00:00.000Z',
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      const result = await denyDisc(discId, reason);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `http://localhost:3000/api/discs/${discId}/deny`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer mock-access-token',
+          },
+          body: JSON.stringify({ reason }),
+          signal: expect.any(AbortSignal),
+        },
+      );
+
+      expect(result.id).toBe(discId);
+      expect(result.denied).toBe(true);
+      expect(result.denial_reason).toBe(reason);
+    });
+
+    it('should make PATCH request without reason when not provided', async () => {
+      const discId = '770e8400-e29b-41d4-a716-446655440000';
+      const mockResponse = {
+        success: true,
+        disc: {
+          id: discId,
+          brand: 'Dynamic Discs',
+          model: 'Truth',
+          speed: 5,
+          glide: 5,
+          turn: 0,
+          fade: 2,
+          approved: false,
+          denied: true,
+          added_by_id: 456,
+          created_at: '2024-01-15T10:30:00.000Z',
+          updated_at: '2024-01-15T11:00:00.000Z',
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      const result = await denyDisc(discId);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `http://localhost:3000/api/discs/${discId}/deny`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer mock-access-token',
+          },
+          body: JSON.stringify({}),
+          signal: expect.any(AbortSignal),
+        },
+      );
+
+      expect(result.id).toBe(discId);
+      expect(result.denied).toBe(true);
+    });
+
+    it('should handle 404 disc not found', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Disc not found',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      await expect(denyDisc('invalid-id')).rejects.toThrow('Disc not found');
+    });
+
+    it('should handle 403 admin access required', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Admin access required',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      await expect(denyDisc('valid-id')).rejects.toThrow('Admin access required');
+    });
+
+    it('should handle 401 authentication error', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Authentication required',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      await expect(denyDisc('valid-id')).rejects.toThrow('Authentication required');
+    });
+
+    it('should handle 429 rate limiting', async () => {
+      const mockResponse = {
+        success: false,
+        message: 'Too many admin operations. Please try again later.',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      await expect(denyDisc('valid-id')).rejects.toThrow('Too many admin operations. Please try again later.');
+    });
+
+    it('should handle 500+ server errors with user-friendly message', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: jest.fn().mockResolvedValue({ message: 'Internal Server Error' }),
+      });
+
+      await expect(denyDisc('valid-id')).rejects.toThrow('Something went wrong. Please try again.');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(denyDisc('valid-id')).rejects.toThrow('Network error');
+    });
+
+    it('should validate response format', async () => {
+      const mockResponse = {
+        success: false, // Invalid response
+        disc: 'not-an-object',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      await expect(denyDisc('valid-id')).rejects.toThrow('Invalid response from server');
     });
   });
 });

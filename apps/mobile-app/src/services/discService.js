@@ -438,3 +438,86 @@ export async function approveDisc(discId) {
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Deny pending disc (admin only)
+ * @param {string} discId - Disc ID to deny
+ * @param {string} reason - Optional reason for denial
+ * @returns {Promise<Object>} Denied disc data
+ * @throws {Error} Denial failed error with message
+ */
+export async function denyDisc(discId, reason) {
+  // Validate disc ID
+  if (!discId || typeof discId !== 'string') {
+    throw new Error('Disc ID is required');
+  }
+
+  // Validate reason if provided
+  if (reason && typeof reason !== 'string') {
+    throw new Error('Reason must be a string');
+  }
+
+  // Validate reason length if provided
+  if (reason && reason.length > 500) {
+    throw new Error('Reason must be 500 characters or less');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    // Prepare request body
+    const body = reason ? { reason } : {};
+
+    const response = await fetch(`${API_BASE_URL}/api/discs/${discId}/deny`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 403) {
+        // Admin access required
+        throw new Error(data.message || 'Admin access required');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'Disc not found');
+      }
+      if (response.status === 429) {
+        // Rate limiting
+        throw new Error(data.message || 'Too many admin operations. Please try again later.');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success || !data.disc) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data.disc;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
