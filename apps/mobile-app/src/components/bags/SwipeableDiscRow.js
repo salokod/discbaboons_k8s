@@ -3,35 +3,127 @@
  * Wrapper around DiscRow with swipe gesture support
  */
 
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View, Text, StyleSheet, Platform,
+} from 'react-native';
 import PropTypes from 'prop-types';
 import { Swipeable } from 'react-native-gesture-handler';
+import HapticFeedback from 'react-native-haptic-feedback';
+import Icon from '@react-native-vector-icons/ionicons';
+import { useThemeColors } from '../../context/ThemeContext';
+import { typography } from '../../design-system/typography';
+import { spacing } from '../../design-system/spacing';
 import DiscRow from './DiscRow';
 
 const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref) => {
-  // Start with a simple wrapper that just renders DiscRow
-  // Gesture handling will be added in future iterations
+  const colors = useThemeColors();
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const placeholderActions = actions;
 
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: isSwipeActive ? `${colors.primary}10` : 'transparent',
+      borderRadius: Platform.select({
+        ios: 8,
+        android: 10,
+      }),
+      overflow: 'hidden',
+    },
+    rightActions: {
+      backgroundColor: colors.error,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      minWidth: 100,
+      borderRadius: Platform.select({
+        ios: 8,
+        android: 10,
+      }),
+    },
+    actionText: {
+      ...typography.caption,
+      color: colors.surface,
+      fontWeight: '700',
+      fontSize: 12,
+      marginTop: spacing.xs,
+    },
+    debugContainer: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 4,
+      zIndex: 1000,
+    },
+    debugText: {
+      ...typography.caption,
+      color: colors.surface,
+      fontSize: 10,
+      fontWeight: '700',
+    },
+  });
+
   const renderRightActions = onSwipeRight ? () => (
-    <View testID="right-actions" />
+    <View testID="right-actions" style={styles.rightActions}>
+      <Icon
+        name="trash-outline"
+        size={24}
+        color={colors.surface}
+      />
+      <Text style={styles.actionText}>Remove</Text>
+    </View>
   ) : undefined;
 
   const handleSwipeableOpen = (direction) => {
     if (direction === 'right' && onSwipeRight) {
+      // Trigger haptic feedback
+      HapticFeedback.trigger('impactMedium', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: false,
+      });
+
+      // Visual feedback
+      setIsSwipeActive(false);
       onSwipeRight(disc);
     }
   };
 
+  const handleSwipeableBeginDrag = () => {
+    setIsSwipeActive(true);
+
+    // Light haptic feedback on start
+    HapticFeedback.trigger('impactLight', {
+      enableVibrateFallback: true,
+      ignoreAndroidSystemSettings: false,
+    });
+  };
+
+  const handleSwipeableClose = () => {
+    setIsSwipeActive(false);
+  };
+
   return (
-    <View testID="swipeable-disc-row">
+    <View testID="swipeable-disc-row" style={styles.container}>
+      {/* Debug indicator */}
+      {isSwipeActive && (
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugText}>SWIPING</Text>
+        </View>
+      )}
+
       <Swipeable
         ref={ref}
         renderRightActions={renderRightActions}
-        rightThreshold={80}
+        rightThreshold={40}
         onSwipeableOpen={handleSwipeableOpen}
+        onSwipeableBeginDrag={handleSwipeableBeginDrag}
+        onSwipeableClose={handleSwipeableClose}
+        friction={2}
+        overshootFriction={8}
       >
         <DiscRow disc={disc} />
       </Swipeable>

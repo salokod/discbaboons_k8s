@@ -27,7 +27,7 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import Button from '../../components/Button';
 import { getBag } from '../../services/bagService';
-import DiscRow from '../../components/bags/DiscRow';
+import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
 import BaboonBagBreakdownModal from '../../components/modals/BaboonBagBreakdownModal';
 import BaboonsVisionModal from '../../components/modals/BaboonsVisionModal';
 import FilterPanel from '../../design-system/components/FilterPanel';
@@ -367,6 +367,13 @@ function BagDetailScreen({ route, navigation }) {
     setSort({ field: null, direction: 'asc' });
   }, []);
 
+  // Placeholder swipe handler
+  const handleDiscSwipe = useCallback((disc) => {
+    // Placeholder for future swipe functionality
+    // eslint-disable-next-line no-console
+    console.log('Disc swiped:', disc.id);
+  }, []);
+
   // Count active filters for display
   const activeFilterCount = useMemo(() => Object.keys(filters).filter(
     (key) => filters[key] !== undefined
@@ -444,7 +451,9 @@ function BagDetailScreen({ route, navigation }) {
   );
 
   // Render disc item
-  const renderDiscItem = ({ item }) => <DiscRow disc={item} />;
+  const renderDiscItem = ({ item }) => (
+    <SwipeableDiscRow disc={item} onSwipeRight={handleDiscSwipe} />
+  );
 
   // Success state with bag data
   return (

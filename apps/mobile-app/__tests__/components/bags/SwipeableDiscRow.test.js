@@ -209,7 +209,7 @@ describe('SwipeableDiscRow', () => {
       expect(typeof swipeableProps.renderRightActions).toBe('function');
     });
 
-    it('should set 80px threshold for swipe detection', () => {
+    it('should set 40px threshold for swipe detection', () => {
       const { Swipeable } = require('react-native-gesture-handler');
       const mockOnSwipeRight = jest.fn();
 
@@ -224,7 +224,7 @@ describe('SwipeableDiscRow', () => {
       const swipeableCall = MockSwipeable.mock.calls[0];
       const swipeableProps = swipeableCall[0];
 
-      expect(swipeableProps.rightThreshold).toBe(80);
+      expect(swipeableProps.rightThreshold).toBe(40);
     });
 
     it('should trigger onSwipeRight callback when swipe is opened', () => {
