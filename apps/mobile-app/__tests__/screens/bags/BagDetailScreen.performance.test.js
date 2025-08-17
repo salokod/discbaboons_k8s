@@ -6,6 +6,7 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import BagDetailScreen from '../../../src/screens/bags/BagDetailScreen';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
+import { BagRefreshProvider } from '../../../src/context/BagRefreshContext';
 import { getBag } from '../../../src/services/bagService';
 
 // Mock the bagService
@@ -17,6 +18,12 @@ jest.mock('../../../src/services/bagService', () => ({
 const mockNavigation = {
   navigate: jest.fn(),
 };
+
+// Mock React Navigation hook
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => mockNavigation,
+  useFocusEffect: jest.fn(),
+}));
 
 // Mock route with bagId
 const mockRoute = {
@@ -58,10 +65,12 @@ const mockLargeBagData = {
   bag_contents: generateLargeDiscDataset(100),
 };
 
-// Helper to render component with theme
+// Helper to render component with theme and providers
 const renderWithTheme = (component) => render(
   <ThemeProvider>
-    {component}
+    <BagRefreshProvider>
+      {component}
+    </BagRefreshProvider>
   </ThemeProvider>,
 );
 
@@ -206,7 +215,9 @@ describe('BagDetailScreen Performance', () => {
       // Re-render component
       rerender(
         <ThemeProvider>
-          <BagDetailScreen route={mockRoute} navigation={mockNavigation} />
+          <BagRefreshProvider>
+            <BagDetailScreen route={mockRoute} navigation={mockNavigation} />
+          </BagRefreshProvider>
         </ThemeProvider>,
       );
 

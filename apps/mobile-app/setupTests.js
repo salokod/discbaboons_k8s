@@ -42,8 +42,23 @@ jest.mock('react-native-reanimated', () => {
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {
-  const actualGestureHandler = jest.requireActual('react-native-gesture-handler/jestSetup');
-  return actualGestureHandler;
+  const React = require('react');
+  const { View } = require('react-native');
+
+  function MockSwipeable({ children, renderRightActions }) {
+    const rightActions = renderRightActions ? renderRightActions() : null;
+    return React.createElement(View, null, children, rightActions);
+  }
+
+  return {
+    Swipeable: MockSwipeable,
+    // Include other gesture handler components if needed
+    PanGestureHandler: View,
+    TapGestureHandler: View,
+    GestureHandlerRootView: View,
+    State: {},
+    Directions: {},
+  };
 });
 
 // Mock AsyncStorage for theme persistence

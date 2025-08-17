@@ -7,6 +7,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { BagRefreshProvider } from './src/context/BagRefreshContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -146,9 +147,11 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
+        <BagRefreshProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </BagRefreshProvider>
       </AuthProvider>
     </ThemeProvider>
   );

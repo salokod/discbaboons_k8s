@@ -18,6 +18,7 @@ import {
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import EmptyBagsScreen from './EmptyBagsScreen';
@@ -26,6 +27,7 @@ import { getBags } from '../../services/bagService';
 
 function BagsListScreen({ navigation }) {
   const colors = useThemeColors();
+  const { addBagListListener } = useBagRefreshContext();
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,6 +54,14 @@ function BagsListScreen({ navigation }) {
   useEffect(() => {
     loadBags();
   }, [loadBags]);
+
+  // Listen for bag list refresh events
+  useEffect(() => {
+    const cleanup = addBagListListener(() => {
+      loadBags();
+    });
+    return cleanup;
+  }, [addBagListListener, loadBags]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {

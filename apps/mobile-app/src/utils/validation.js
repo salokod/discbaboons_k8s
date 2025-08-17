@@ -105,7 +105,7 @@ const validateAndNormalizeHexColor = (color) => {
   return null;
 };
 
-module.exports = {
+export {
   EMAIL_REGEX,
   isValidEmail,
   isEmailAddress,

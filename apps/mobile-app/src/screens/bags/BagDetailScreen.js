@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -26,15 +27,18 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import Button from '../../components/Button';
-import { getBag } from '../../services/bagService';
-import DiscRow from '../../components/bags/DiscRow';
+import { getBag, removeDiscFromBag } from '../../services/bagService';
+import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
 import BaboonBagBreakdownModal from '../../components/modals/BaboonBagBreakdownModal';
 import BaboonsVisionModal from '../../components/modals/BaboonsVisionModal';
+import MoveDiscModal from '../../components/modals/MoveDiscModal';
 import FilterPanel from '../../design-system/components/FilterPanel';
 import SortPanel from '../../design-system/components/SortPanel';
+import { useBagRefreshListener, useBagRefreshContext } from '../../context/BagRefreshContext';
 
 function BagDetailScreen({ route, navigation }) {
   const colors = useThemeColors();
+  const { triggerBagListRefresh } = useBagRefreshContext();
   const { bagId } = route?.params || {};
 
   // State management
@@ -48,6 +52,10 @@ function BagDetailScreen({ route, navigation }) {
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSortPanel, setShowSortPanel] = useState(false);
+
+  // Move modal state
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [selectedDisc, setSelectedDisc] = useState(null);
 
   // Load bag data function
   const loadBagData = useCallback(async (isRefreshing = false) => {
@@ -78,6 +86,27 @@ function BagDetailScreen({ route, navigation }) {
   useEffect(() => {
     loadBagData();
   }, [loadBagData]);
+
+  // Listen for refresh triggers from context
+  useBagRefreshListener(bagId, useCallback(() => {
+    if (bagId) {
+      loadBagData();
+    }
+  }, [bagId, loadBagData]));
+
+  // Fallback: Check for navigation param shouldRefresh
+  useEffect(() => {
+    if (route?.params?.shouldRefresh && bagId) {
+      loadBagData();
+      // Clear the param to prevent infinite refresh
+      if (navigation?.setParams) {
+        navigation.setParams({ shouldRefresh: false });
+      }
+    }
+  }, [route?.params?.shouldRefresh, bagId, loadBagData, navigation]);
+
+  // Removed auto-refresh temporarily - was causing infinite loop bug
+  // TODO: Implement proper auto-refresh with correct useFocusEffect pattern
 
   // Handle pull to refresh
   const handleRefresh = useCallback(() => {
@@ -367,6 +396,93 @@ function BagDetailScreen({ route, navigation }) {
     setSort({ field: null, direction: 'asc' });
   }, []);
 
+  // Handle move disc operation
+  const handleMoveDisc = useCallback((disc) => {
+    setSelectedDisc(disc);
+    setShowMoveModal(true);
+  }, []);
+
+  // Handle successful move
+  const handleMoveSuccess = useCallback(async () => {
+    setShowMoveModal(false);
+    setSelectedDisc(null);
+    // Refresh bag data to show updated contents
+    await loadBagData();
+  }, [loadBagData]);
+
+  // Handle move modal close
+  const handleMoveModalClose = useCallback(() => {
+    setShowMoveModal(false);
+    setSelectedDisc(null);
+  }, []);
+
+  // Right swipe action handler - Edit and Remove only
+  const handleDiscSwipeRight = useCallback((disc) => {
+    const actions = [
+      {
+        id: 'edit',
+        label: 'Edit',
+        color: colors.primary,
+        icon: 'create-outline',
+      },
+      {
+        id: 'delete',
+        label: 'Delete',
+        color: colors.error,
+        icon: 'trash-outline',
+        onPress: async () => {
+          const discBrand = disc.brand || disc.disc_master?.brand || '';
+          const discModel = disc.model || disc.disc_master?.model || '';
+          const bagName = bag?.name || 'this bag';
+
+          Alert.alert(
+            'Remove Disc',
+            `Remove ${discBrand} ${discModel} from ${bagName}?`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await removeDiscFromBag(disc.id);
+                    // Refresh bag data to show updated contents
+                    await loadBagData();
+                    // Trigger bag list refresh to update disc counts
+                    triggerBagListRefresh();
+                  } catch (removeError) {
+                    // eslint-disable-next-line no-console
+                    console.error('Remove disc failed:', removeError);
+                  }
+                },
+              },
+            ],
+          );
+        },
+      },
+    ];
+
+    return actions;
+  }, [loadBagData, bag?.name, triggerBagListRefresh, colors]);
+
+  // Left swipe action handler - Move only
+  const handleDiscSwipeLeft = useCallback((disc) => {
+    const actions = [
+      {
+        id: 'move',
+        label: 'Move',
+        color: colors.info,
+        icon: 'swap-horizontal-outline',
+        onPress: () => handleMoveDisc(disc),
+      },
+    ];
+
+    return actions;
+  }, [handleMoveDisc, colors]);
+
   // Count active filters for display
   const activeFilterCount = useMemo(() => Object.keys(filters).filter(
     (key) => filters[key] !== undefined
@@ -444,7 +560,15 @@ function BagDetailScreen({ route, navigation }) {
   );
 
   // Render disc item
-  const renderDiscItem = ({ item }) => <DiscRow disc={item} />;
+  const renderDiscItem = ({ item }) => (
+    <SwipeableDiscRow
+      disc={item}
+      onSwipeRight={handleDiscSwipeRight}
+      onSwipeLeft={handleDiscSwipeLeft}
+      bagId={bag?.id || bagId || 'unknown'}
+      bagName={bag?.name || 'Unknown Bag'}
+    />
+  );
 
   // Success state with bag data
   return (
@@ -617,6 +741,17 @@ function BagDetailScreen({ route, navigation }) {
         onApplySort={handleSortApply}
         currentSort={sort}
       />
+
+      {/* Move Disc Modal */}
+      <MoveDiscModal
+        visible={showMoveModal}
+        onClose={handleMoveModalClose}
+        disc={selectedDisc}
+        currentBagId={bagId}
+        currentBagName={bag?.name || 'Current Bag'}
+        onSuccess={handleMoveSuccess}
+      />
+
     </SafeAreaView>
   );
 }
