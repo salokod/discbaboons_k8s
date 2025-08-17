@@ -3,7 +3,7 @@
  * Tests the integration of enhanced ColorPicker component
  */
 
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AddDiscToBagScreen from '../../../src/screens/discs/AddDiscToBagScreen';
 
 // Mock dependencies
@@ -21,6 +21,17 @@ jest.mock('../../../src/context/ThemeContext', () => ({
 
 jest.mock('../../../src/services/bagService', () => ({
   addDiscToBag: jest.fn(),
+}));
+
+// Mock bag refresh context
+const mockTriggerBagRefresh = jest.fn();
+const mockTriggerBagListRefresh = jest.fn();
+
+jest.mock('../../../src/context/BagRefreshContext', () => ({
+  useBagRefreshContext: () => ({
+    triggerBagRefresh: mockTriggerBagRefresh,
+    triggerBagListRefresh: mockTriggerBagListRefresh,
+  }),
 }));
 
 jest.mock('@react-native-vector-icons/ionicons', () => 'Icon');
@@ -239,5 +250,131 @@ describe('AddDiscToBagScreen Enhanced Color Picker Integration', () => {
     expect(getByTestId('visual-color-picker')).toBeTruthy();
     expect(getByTestId('color-preview')).toBeTruthy();
     expect(getByText('Drag or Tap to Select Color')).toBeTruthy();
+  });
+});
+
+describe('AddDiscToBagScreen - Slice 4: Refresh Trigger Integration', () => {
+  let mockAddDiscToBag;
+
+  const mockNavigation = {
+    goBack: jest.fn(),
+    navigate: jest.fn(),
+  };
+
+  beforeEach(() => {
+    mockAddDiscToBag = require('../../../src/services/bagService').addDiscToBag;
+    mockAddDiscToBag.mockClear();
+    mockTriggerBagRefresh.mockClear();
+    mockTriggerBagListRefresh.mockClear();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should trigger bag refresh for the target bag after successful disc addition', async () => {
+    mockAddDiscToBag.mockResolvedValue({ success: true });
+
+    const mockRoute = {
+      params: {
+        disc: {
+          id: 'disc123',
+          model: 'Test Disc',
+          brand: 'Test Brand',
+          speed: 7,
+          glide: 5,
+          turn: -1,
+          fade: 2,
+        },
+        bagId: 'bag456',
+        bagName: 'Test Bag',
+      },
+    };
+
+    const { getByText } = render(
+      <AddDiscToBagScreen
+        route={mockRoute}
+        navigation={mockNavigation}
+      />,
+    );
+
+    // Click the quick add button
+    const quickAddButton = getByText('Quick Add with Defaults');
+    fireEvent.press(quickAddButton);
+
+    // Wait for the API call and refresh triggers
+    await waitFor(() => {
+      expect(mockAddDiscToBag).toHaveBeenCalledWith('bag456', expect.objectContaining({ disc_id: 'disc123' }));
+      expect(mockTriggerBagRefresh).toHaveBeenCalledWith('bag456');
+    });
+  });
+
+  it('should trigger bag list refresh after successful disc addition', async () => {
+    mockAddDiscToBag.mockResolvedValue({ success: true });
+
+    const mockRoute = {
+      params: {
+        disc: {
+          id: 'disc123',
+          model: 'Test Disc',
+          brand: 'Test Brand',
+        },
+        bagId: 'bag456',
+        bagName: 'Test Bag',
+      },
+    };
+
+    const { getByText } = render(
+      <AddDiscToBagScreen
+        route={mockRoute}
+        navigation={mockNavigation}
+      />,
+    );
+
+    // Click the quick add button
+    const quickAddButton = getByText('Quick Add with Defaults');
+    fireEvent.press(quickAddButton);
+
+    // Wait for the API call and refresh triggers
+    await waitFor(() => {
+      expect(mockAddDiscToBag).toHaveBeenCalled();
+      expect(mockTriggerBagListRefresh).toHaveBeenCalled();
+    });
+  });
+
+  it('should not trigger refresh on addition failure', async () => {
+    mockAddDiscToBag.mockRejectedValue(new Error('API Error'));
+
+    const mockRoute = {
+      params: {
+        disc: {
+          id: 'disc123',
+          model: 'Test Disc',
+          brand: 'Test Brand',
+        },
+        bagId: 'bag456',
+        bagName: 'Test Bag',
+      },
+    };
+
+    const { getByText } = render(
+      <AddDiscToBagScreen
+        route={mockRoute}
+        navigation={mockNavigation}
+      />,
+    );
+
+    // Click the quick add button
+    const quickAddButton = getByText('Quick Add with Defaults');
+    fireEvent.press(quickAddButton);
+
+    // Wait for the API call to fail
+    await waitFor(() => {
+      expect(mockAddDiscToBag).toHaveBeenCalled();
+    });
+
+    // Refresh triggers should NOT have been called
+    expect(mockTriggerBagRefresh).not.toHaveBeenCalled();
+    expect(mockTriggerBagListRefresh).not.toHaveBeenCalled();
   });
 });

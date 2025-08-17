@@ -11,6 +11,8 @@ import {
   addDiscToBag,
   removeDiscFromBag,
   updateDiscInBag,
+  markDiscAsLost,
+  moveDiscBetweenBags,
 } from '../../src/services/bagService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -739,7 +741,7 @@ describe('BagService Functions', () => {
     it('should include authentication headers', async () => {
       const mockResponse = {
         success: true,
-        disc: {
+        bag_content: {
           id: 'content-456',
           speed: 9,
           glide: 5,
@@ -772,7 +774,7 @@ describe('BagService Functions', () => {
     it('should handle successful update', async () => {
       const mockResponse = {
         success: true,
-        disc: {
+        bag_content: {
           id: 'content-456',
           speed: 9,
           glide: 5,
@@ -798,7 +800,7 @@ describe('BagService Functions', () => {
 
       const result = await updateDiscInBag('bag-123', 'content-456', updates);
 
-      expect(result).toEqual(mockResponse.disc);
+      expect(result).toEqual(mockResponse.bag_content);
     });
 
     it('should handle disc not found error', async () => {
@@ -868,7 +870,7 @@ describe('BagService Functions', () => {
     it('should handle network timeout with 30-second timeout', async () => {
       const mockResponse = {
         success: true,
-        disc: {
+        bag_content: {
           id: 'content-456',
           speed: 9,
         },
@@ -898,6 +900,319 @@ describe('BagService Functions', () => {
     });
   });
 
+  describe('markDiscAsLost', () => {
+    it('should export markDiscAsLost function', () => {
+      expect(markDiscAsLost).toBeInstanceOf(Function);
+    });
+
+    it('should throw error for missing contentId', async () => {
+      await expect(markDiscAsLost()).rejects.toThrow('Content ID is required');
+      await expect(markDiscAsLost('')).rejects.toThrow('Content ID is required');
+      await expect(markDiscAsLost(null)).rejects.toThrow('Content ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle successful disc marked as lost', async () => {
+      const mockResponse = {
+        success: true,
+        bag_content: {
+          id: 'content-456',
+          disc_id: 'disc-123',
+          is_lost: true,
+          lost_notes: 'Lost at hole 7',
+          updated_at: '2024-01-15T10:30:00.000Z',
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await markDiscAsLost('content-456', true, 'Lost at hole 7');
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/discs/content-456/lost', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify({
+          is_lost: true,
+          lost_notes: 'Lost at hole 7',
+        }),
+        signal: expect.any(AbortSignal),
+      });
+
+      expect(result).toEqual(mockResponse.bag_content);
+    });
+
+    it('should handle successful disc marked as found', async () => {
+      const mockResponse = {
+        success: true,
+        bag_content: {
+          id: 'content-456',
+          disc_id: 'disc-123',
+          is_lost: false,
+          lost_notes: null,
+          updated_at: '2024-01-15T10:30:00.000Z',
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await markDiscAsLost('content-456', false);
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/discs/content-456/lost', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify({
+          is_lost: false,
+        }),
+        signal: expect.any(AbortSignal),
+      });
+
+      expect(result).toEqual(mockResponse.bag_content);
+    });
+
+    it('should handle disc not found error', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Disc not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      await expect(markDiscAsLost('nonexistent-content-id', true)).rejects.toThrow('Disc not found');
+    });
+
+    it('should handle authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Access token required',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      await expect(markDiscAsLost('content-456', true)).rejects.toThrow('Access token required');
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      await expect(markDiscAsLost('content-456', true)).rejects.toThrow('Something went wrong. Please try again.');
+    });
+
+    it('should throw error when no auth token is available', async () => {
+      getTokens.mockResolvedValue(null);
+
+      await expect(markDiscAsLost('content-456', true)).rejects.toThrow('Authentication required. Please log in again.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle network timeout with 30-second timeout', async () => {
+      const mockResponse = {
+        success: true,
+        bag_content: {
+          id: 'content-456',
+          is_lost: true,
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await markDiscAsLost('content-456', true);
+
+      // Verify setTimeout was called for 30 seconds (30000ms)
+      expect(global.setTimeout).toHaveBeenCalledWith(expect.any(Function), 30000);
+      // Verify clearTimeout was called
+      expect(global.clearTimeout).toHaveBeenCalled();
+    });
+  });
+
+  describe('moveDiscBetweenBags', () => {
+    it('should export moveDiscBetweenBags function', () => {
+      expect(moveDiscBetweenBags).toBeInstanceOf(Function);
+    });
+
+    it('should throw error for missing sourceBagId', async () => {
+      await expect(moveDiscBetweenBags()).rejects.toThrow('Source bag ID is required');
+      await expect(moveDiscBetweenBags('')).rejects.toThrow('Source bag ID is required');
+      await expect(moveDiscBetweenBags(null)).rejects.toThrow('Source bag ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for missing targetBagId', async () => {
+      await expect(moveDiscBetweenBags('source-bag-id')).rejects.toThrow('Target bag ID is required');
+      await expect(moveDiscBetweenBags('source-bag-id', '')).rejects.toThrow('Target bag ID is required');
+      await expect(moveDiscBetweenBags('source-bag-id', null)).rejects.toThrow('Target bag ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for missing contentIds', async () => {
+      await expect(moveDiscBetweenBags('source-bag-id', 'target-bag-id')).rejects.toThrow('Content IDs are required');
+      await expect(moveDiscBetweenBags('source-bag-id', 'target-bag-id', null)).rejects.toThrow('Content IDs are required');
+      await expect(moveDiscBetweenBags('source-bag-id', 'target-bag-id', '')).rejects.toThrow('Content IDs are required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for empty contentIds array', async () => {
+      await expect(moveDiscBetweenBags('source-bag-id', 'target-bag-id', [])).rejects.toThrow('At least one content ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should include authentication headers and make PUT request with correct payload', async () => {
+      const mockResponse = {
+        success: true,
+        movedCount: 2,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const sourceBagId = 'source-bag-123';
+      const targetBagId = 'target-bag-456';
+      const contentIds = ['content-1', 'content-2'];
+
+      await moveDiscBetweenBags(sourceBagId, targetBagId, contentIds);
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/discs/move', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify({
+          sourceBagId,
+          targetBagId,
+          contentIds,
+        }),
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('should handle successful move operation', async () => {
+      const mockResponse = {
+        success: true,
+        movedCount: 2,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const result = await moveDiscBetweenBags('source-bag-123', 'target-bag-456', ['content-1', 'content-2']);
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle 401 authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Authentication required. Please log in again.',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      await expect(moveDiscBetweenBags('source-bag-123', 'target-bag-456', ['content-1'])).rejects.toThrow('Authentication required. Please log in again.');
+    });
+
+    it('should handle 404 not found errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Source bag not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      await expect(moveDiscBetweenBags('nonexistent-bag', 'target-bag-456', ['content-1'])).rejects.toThrow('Source bag not found');
+    });
+
+    it('should handle network timeout with 30-second timeout', async () => {
+      const mockResponse = {
+        success: true,
+        movedCount: 1,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      await moveDiscBetweenBags('source-bag-123', 'target-bag-456', ['content-1']);
+
+      // Verify setTimeout was called for 30 seconds (30000ms)
+      expect(global.setTimeout).toHaveBeenCalledWith(expect.any(Function), 30000);
+      // Verify clearTimeout was called
+      expect(global.clearTimeout).toHaveBeenCalled();
+    });
+
+    it('should throw error when no auth token is available', async () => {
+      getTokens.mockResolvedValue(null);
+
+      await expect(moveDiscBetweenBags('source-bag-123', 'target-bag-456', ['content-1'])).rejects.toThrow('Authentication required. Please log in again.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      await expect(moveDiscBetweenBags('source-bag-123', 'target-bag-456', ['content-1'])).rejects.toThrow('Something went wrong. Please try again.');
+    });
+  });
+
   describe('export functions', () => {
     it('should export a getBags function', () => {
       expect(getBags).toBeTruthy();
@@ -921,6 +1236,14 @@ describe('BagService Functions', () => {
 
     it('should export a updateDiscInBag function', () => {
       expect(updateDiscInBag).toBeTruthy();
+    });
+
+    it('should export a markDiscAsLost function', () => {
+      expect(markDiscAsLost).toBeTruthy();
+    });
+
+    it('should export a moveDiscBetweenBags function', () => {
+      expect(moveDiscBetweenBags).toBeTruthy();
     });
   });
 });

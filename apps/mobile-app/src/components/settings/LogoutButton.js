@@ -26,8 +26,10 @@ function LogoutButton({ onLogout }) {
       await handleLogout();
     } catch (error) {
       // Handle errors silently - the AuthContext or parent component will handle error display
-      // eslint-disable-next-line no-console
-      console.error('Logout error:', error);
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('Logout error:', error);
+      }
     } finally {
       setIsLoading(false);
     }

@@ -11,12 +11,16 @@ import PropTypes from 'prop-types';
 import { Swipeable } from 'react-native-gesture-handler';
 import HapticFeedback from 'react-native-haptic-feedback';
 import Icon from '@react-native-vector-icons/ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import DiscRow from './DiscRow';
 
-const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref) => {
+const SwipeableDiscRow = React.forwardRef(({
+  disc, onSwipeRight, onSwipeLeft, actions, bagId, bagName,
+}, ref) => {
+  const navigation = useNavigation();
   const colors = useThemeColors();
   const [isSwipeActive, setIsSwipeActive] = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -32,7 +36,14 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
       overflow: 'hidden',
     },
     rightActions: {
-      backgroundColor: colors.error,
+      flexDirection: 'row',
+      backgroundColor: 'transparent',
+    },
+    leftActions: {
+      flexDirection: 'row',
+      backgroundColor: 'transparent',
+    },
+    actionButton: {
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: spacing.lg,
@@ -42,6 +53,15 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
         ios: 8,
         android: 10,
       }),
+    },
+    editButton: {
+      backgroundColor: colors.primary,
+    },
+    moveButton: {
+      backgroundColor: colors.info,
+    },
+    removeButton: {
+      backgroundColor: colors.error,
     },
     actionText: {
       ...typography.caption,
@@ -69,28 +89,85 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
   });
 
   const renderRightActions = onSwipeRight ? () => {
-    const handleRemovePress = () => {
-      const swipeActions = onSwipeRight(disc);
-      const removeAction = swipeActions?.find((action) => action.id === 'delete') || swipeActions?.[0];
-      if (removeAction?.onPress) {
-        removeAction.onPress();
-      }
-    };
+    const swipeActions = onSwipeRight(disc);
+
+    if (!swipeActions || !Array.isArray(swipeActions)) {
+      return null;
+    }
+
+    const editAction = swipeActions.find((action) => action.id === 'edit');
+    const deleteAction = swipeActions.find((action) => action.id === 'delete');
 
     return (
-      <TouchableOpacity
-        testID="right-actions"
-        style={styles.rightActions}
-        onPress={handleRemovePress}
-        activeOpacity={0.8}
-      >
-        <Icon
-          name="trash-outline"
-          size={24}
-          color={colors.surface}
-        />
-        <Text style={styles.actionText}>Remove</Text>
-      </TouchableOpacity>
+      <View testID="right-actions" style={styles.rightActions}>
+        {editAction && (
+          <TouchableOpacity
+            testID="edit-button"
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => {
+              navigation.navigate('EditDiscScreen', {
+                disc,
+                bagId,
+                bagName,
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name="create-outline"
+              size={24}
+              color={colors.surface}
+            />
+            <Text style={styles.actionText}>Edit</Text>
+          </TouchableOpacity>
+        )}
+        {/* Move action is excluded from right swipe - now only available on left swipe */}
+        {deleteAction && (
+          <TouchableOpacity
+            testID="remove-button"
+            style={[styles.actionButton, styles.removeButton]}
+            onPress={deleteAction.onPress}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name="trash-outline"
+              size={24}
+              color={colors.surface}
+            />
+            <Text style={styles.actionText}>Remove</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  } : undefined;
+
+  const renderLeftActions = onSwipeLeft ? () => {
+    const swipeActions = onSwipeLeft(disc);
+
+    if (!swipeActions || !Array.isArray(swipeActions)) {
+      return null;
+    }
+
+    const moveAction = swipeActions.find((action) => action.id === 'move');
+
+    return (
+      <View testID="left-actions" style={styles.leftActions}>
+        {moveAction && (
+          <TouchableOpacity
+            testID="move-button"
+            style={[styles.actionButton, styles.moveButton]}
+            onPress={moveAction.onPress}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name="swap-horizontal-outline"
+              size={24}
+              color={colors.surface}
+            />
+            <Text style={styles.actionText}>Move</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   } : undefined;
 
@@ -105,6 +182,16 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
       // Visual feedback
       setIsSwipeActive(false);
       onSwipeRight(disc);
+    } else if (direction === 'left' && onSwipeLeft) {
+      // Trigger haptic feedback
+      HapticFeedback.trigger('impactMedium', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: false,
+      });
+
+      // Visual feedback
+      setIsSwipeActive(false);
+      onSwipeLeft(disc);
     }
   };
 
@@ -134,7 +221,9 @@ const SwipeableDiscRow = React.forwardRef(({ disc, onSwipeRight, actions }, ref)
       <Swipeable
         ref={ref}
         renderRightActions={renderRightActions}
+        renderLeftActions={renderLeftActions}
         rightThreshold={40}
+        leftThreshold={40}
         onSwipeableOpen={handleSwipeableOpen}
         onSwipeableBeginDrag={handleSwipeableBeginDrag}
         onSwipeableClose={handleSwipeableClose}
@@ -170,16 +259,20 @@ SwipeableDiscRow.propTypes = {
     }),
   }).isRequired,
   onSwipeRight: PropTypes.func,
+  onSwipeLeft: PropTypes.func,
   actions: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string.isRequired,
     label: PropTypes.string.isRequired,
     color: PropTypes.string.isRequired,
     onPress: PropTypes.func,
   })),
+  bagId: PropTypes.string.isRequired,
+  bagName: PropTypes.string.isRequired,
 };
 
 SwipeableDiscRow.defaultProps = {
   onSwipeRight: undefined,
+  onSwipeLeft: undefined,
   actions: undefined,
 };
 

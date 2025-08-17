@@ -21,14 +21,15 @@ import {
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
-import DiscCard from '../../components/DiscCard';
 import { addDiscToBag } from '../../services/bagService';
 import ColorPicker from '../../design-system/components/ColorPicker';
+import DiscPreviewSection from '../../components/shared/DiscPreviewSection';
 
 const CONDITION_OPTIONS = [
   { value: 'new', label: 'New', icon: 'sparkles-outline' },
@@ -39,6 +40,7 @@ const CONDITION_OPTIONS = [
 
 function AddDiscToBagScreen({ navigation, route }) {
   const colors = useThemeColors();
+  const { triggerBagRefresh, triggerBagListRefresh } = useBagRefreshContext();
   const { disc, bagId, bagName } = route?.params || {};
 
   // Form state - initialize with disc master values
@@ -133,9 +135,6 @@ function AddDiscToBagScreen({ navigation, route }) {
       ...typography.h3,
       color: colors.text,
       fontWeight: '600',
-    },
-    discPreviewContainer: {
-      marginBottom: 0,
     },
 
     // Form Sections
@@ -415,6 +414,11 @@ function AddDiscToBagScreen({ navigation, route }) {
 
       await addDiscToBag(bagId, discData);
 
+      // Trigger refresh for the target bag after successful disc addition
+      triggerBagRefresh(bagId);
+      // Trigger bag list refresh to update disc counts
+      triggerBagListRefresh();
+
       Alert.alert(
         'Disc Added!',
         `${disc.model} has been added to ${bagName}.`,
@@ -488,32 +492,28 @@ function AddDiscToBagScreen({ navigation, route }) {
             </View>
 
             {/* Disc Preview Section */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Icon
-                  name="disc-outline"
-                  size={20}
-                  color={colors.primary}
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>Disc Preview</Text>
-              </View>
-
-              <DiscCard
-                disc={{
-                  model: customProps.model || disc.model,
-                  brand: customProps.brand || disc.brand,
-                  speed: parseInt(customProps.speed || disc.speed || 0, 10),
-                  glide: parseInt(customProps.glide || disc.glide || 0, 10),
-                  turn: parseInt(customProps.turn || disc.turn || 0, 10),
-                  fade: parseInt(customProps.fade || disc.fade || 0, 10),
-                  color: customProps.color,
-                  weight: customProps.weight,
-                  condition: customProps.condition,
-                }}
-                style={styles.discPreviewContainer}
-              />
-            </View>
+            <DiscPreviewSection
+              disc={{
+                ...disc,
+                color: customProps.color,
+                weight: customProps.weight,
+              }}
+              flightNumbers={{
+                speed: customProps.speed ? parseInt(customProps.speed, 10) : null,
+                glide: customProps.glide ? parseInt(customProps.glide, 10) : null,
+                turn: customProps.turn ? parseInt(customProps.turn, 10) : null,
+                fade: customProps.fade ? parseInt(customProps.fade, 10) : null,
+              }}
+              masterFlightNumbers={{
+                speed: disc?.speed,
+                glide: disc?.glide,
+                turn: disc?.turn,
+                fade: disc?.fade,
+              }}
+              customName={customProps.model}
+              condition={customProps.condition}
+              showCustomFields
+            />
 
             {/* Flight Numbers Section */}
             <View style={styles.section}>

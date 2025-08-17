@@ -3,7 +3,7 @@
  * Following TDD methodology
  */
 
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import SwipeableDiscRow from '../../../src/components/bags/SwipeableDiscRow';
 
 // Mock all theme-related services first
@@ -35,6 +35,8 @@ jest.mock('../../../src/context/ThemeContext', () => ({
     border: '#E0E0E0',
     primary: '#ec7032',
     textOnPrimary: '#FFFFFF',
+    error: '#FF3B30',
+    info: '#007AFF',
   })),
   useTheme: jest.fn(() => ({
     theme: 'light',
@@ -85,6 +87,14 @@ jest.mock('react-native-reanimated', () => ({
   default: {
     View: jest.fn(),
   },
+}));
+
+// Mock React Navigation
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: mockNavigate,
+  }),
 }));
 
 // Mock Appearance API for theme context
@@ -153,9 +163,16 @@ const mockDisc = {
   fade: 3,
 };
 
+const mockBagId = 'test-bag-1';
+const mockBagName = 'Test Bag';
+
 const renderComponent = (component) => render(component);
 
 describe('SwipeableDiscRow', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should export a component', () => {
     expect(SwipeableDiscRow).toBeDefined();
     expect(typeof SwipeableDiscRow).toBe('object'); // React.memo returns an object
@@ -184,7 +201,11 @@ describe('SwipeableDiscRow', () => {
       Swipeable.mockImplementation(MockSwipeable);
 
       renderComponent(
-        <SwipeableDiscRow disc={mockDisc} />,
+        <SwipeableDiscRow
+          disc={mockDisc}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
       );
 
       expect(MockSwipeable).toHaveBeenCalled();
@@ -199,7 +220,12 @@ describe('SwipeableDiscRow', () => {
       Swipeable.mockImplementation(MockSwipeable);
 
       renderComponent(
-        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
       );
 
       const swipeableCall = MockSwipeable.mock.calls[0];
@@ -218,7 +244,12 @@ describe('SwipeableDiscRow', () => {
       Swipeable.mockImplementation(MockSwipeable);
 
       renderComponent(
-        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
       );
 
       const swipeableCall = MockSwipeable.mock.calls[0];
@@ -236,7 +267,12 @@ describe('SwipeableDiscRow', () => {
       Swipeable.mockImplementation(MockSwipeable);
 
       renderComponent(
-        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
       );
 
       const swipeableCall = MockSwipeable.mock.calls[0];
@@ -266,7 +302,10 @@ describe('SwipeableDiscRow', () => {
       const { Swipeable } = require('react-native-gesture-handler');
       const React = require('react');
       const { View } = require('react-native');
-      const mockOnSwipeRight = jest.fn();
+      const mockOnSwipeRight = jest.fn().mockReturnValue([
+        { id: 'edit', label: 'Edit', onPress: jest.fn() },
+        { id: 'delete', label: 'Delete', onPress: jest.fn() },
+      ]);
 
       // Mock Swipeable to capture and render right actions
       const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
@@ -276,7 +315,12 @@ describe('SwipeableDiscRow', () => {
       Swipeable.mockImplementation(MockSwipeable);
 
       const { getByTestId } = renderComponent(
-        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
       );
 
       expect(getByTestId('right-actions')).toBeTruthy();
@@ -295,7 +339,11 @@ describe('SwipeableDiscRow', () => {
 
   it('should render DiscRow component', () => {
     const { getByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     expect(getByTestId('disc-row')).toBeTruthy();
@@ -303,7 +351,11 @@ describe('SwipeableDiscRow', () => {
 
   it('should wrap DiscRow in container component', () => {
     const { getByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     expect(getByTestId('swipeable-disc-row')).toBeTruthy();
@@ -315,14 +367,38 @@ describe('SwipeableDiscRow', () => {
 
     expect(() => {
       renderComponent(
-        <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+    }).not.toThrow();
+  });
+
+  it('should accept onSwipeLeft prop', () => {
+    const mockOnSwipeLeft = jest.fn();
+
+    expect(() => {
+      renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeLeft={mockOnSwipeLeft}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
       );
     }).not.toThrow();
   });
 
   it('should not render right actions when onSwipeRight is not provided', () => {
     const { queryByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     expect(queryByTestId('right-actions')).toBeNull();
@@ -332,7 +408,11 @@ describe('SwipeableDiscRow', () => {
     const { useSharedValue, useAnimatedStyle } = require('react-native-reanimated');
 
     renderComponent(
-      <SwipeableDiscRow disc={mockDisc} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     // In simple implementation, no animation hooks are used yet
@@ -348,7 +428,13 @@ describe('SwipeableDiscRow', () => {
     const mockOnSwipeRight = jest.fn();
 
     const { queryByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} actions={mockActions} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        onSwipeRight={mockOnSwipeRight}
+        actions={mockActions}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     // In simple implementation, no action menu is rendered yet
@@ -358,7 +444,13 @@ describe('SwipeableDiscRow', () => {
   it('should not render SwipeActionMenu when actions array is empty', () => {
     const mockOnSwipeRight = jest.fn();
     const { queryByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} actions={[]} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        onSwipeRight={mockOnSwipeRight}
+        actions={[]}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     expect(queryByTestId('swipe-action-menu')).toBeNull();
@@ -367,9 +459,639 @@ describe('SwipeableDiscRow', () => {
   it('should not render SwipeActionMenu when actions is undefined', () => {
     const mockOnSwipeRight = jest.fn();
     const { queryByTestId } = renderComponent(
-      <SwipeableDiscRow disc={mockDisc} onSwipeRight={mockOnSwipeRight} />,
+      <SwipeableDiscRow
+        disc={mockDisc}
+        onSwipeRight={mockOnSwipeRight}
+        bagId={mockBagId}
+        bagName={mockBagName}
+      />,
     );
 
     expect(queryByTestId('swipe-action-menu')).toBeNull();
+  });
+
+  describe('Theme System Integration', () => {
+    it('should use theme colors instead of hardcoded colors for Edit button', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue([
+        { id: 'edit', label: 'Edit', onPress: jest.fn() },
+      ]);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const editButton = getByTestId('edit-button');
+
+      // Should use colors.primary (#ec7032) instead of hardcoded #007AFF
+      expect(editButton.props.style).toEqual(
+        expect.objectContaining({
+          backgroundColor: '#ec7032', // colors.primary from theme mock
+        }),
+      );
+    });
+
+    it('should use theme colors instead of hardcoded colors for Remove button', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue([
+        { id: 'delete', label: 'Delete', onPress: jest.fn() },
+      ]);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const removeButton = getByTestId('remove-button');
+
+      // Should use colors.error instead of hardcoded #FF3B30
+      expect(removeButton.props.style).toEqual(
+        expect.objectContaining({
+          backgroundColor: '#FF3B30', // colors.error from theme mock
+        }),
+      );
+    });
+
+    it('should use theme colors for Move button on left swipe', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeLeft = jest.fn().mockReturnValue([
+        { id: 'move', label: 'Move', onPress: jest.fn() },
+      ]);
+
+      // Mock Swipeable to capture and render left actions
+      const MockSwipeable = jest.fn(({ children, renderLeftActions }) => {
+        const leftActions = renderLeftActions ? renderLeftActions() : null;
+        return React.createElement(View, null, leftActions, children);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeLeft={mockOnSwipeLeft}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const moveButton = getByTestId('move-button');
+
+      // Should use colors.info instead of hardcoded #007AFF
+      expect(moveButton.props.style).toEqual(
+        expect.objectContaining({
+          backgroundColor: '#007AFF', // colors.info from theme mock
+        }),
+      );
+    });
+  });
+
+  describe('Left Swipe Infrastructure', () => {
+    it('should provide renderLeftActions to Swipeable when onSwipeLeft is provided', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const mockOnSwipeLeft = jest.fn();
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeLeft={mockOnSwipeLeft}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.renderLeftActions).toBeDefined();
+      expect(typeof swipeableProps.renderLeftActions).toBe('function');
+    });
+
+    it('should not provide renderLeftActions when onSwipeLeft is not provided', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.renderLeftActions).toBeUndefined();
+    });
+
+    it('should render left actions when onSwipeLeft is provided and returns Move action', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeLeft = jest.fn().mockReturnValue([
+        { id: 'move', label: 'Move', onPress: jest.fn() },
+      ]);
+
+      // Mock Swipeable to capture and render left actions
+      const MockSwipeable = jest.fn(({ children, renderLeftActions }) => {
+        const leftActions = renderLeftActions ? renderLeftActions() : null;
+        return React.createElement(View, null, leftActions, children);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeLeft={mockOnSwipeLeft}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      expect(getByTestId('left-actions')).toBeTruthy();
+      expect(getByTestId('move-button')).toBeTruthy();
+    });
+
+    it('should set 40px threshold for left swipe detection', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const mockOnSwipeLeft = jest.fn();
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeLeft={mockOnSwipeLeft}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.leftThreshold).toBe(40);
+    });
+
+    it('should trigger onSwipeLeft callback when left swipe is opened', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const mockOnSwipeLeft = jest.fn();
+
+      // Mock Swipeable to capture props
+      const MockSwipeable = jest.fn(({ children }) => children);
+      Swipeable.mockImplementation(MockSwipeable);
+
+      renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeLeft={mockOnSwipeLeft}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const swipeableCall = MockSwipeable.mock.calls[0];
+      const swipeableProps = swipeableCall[0];
+
+      expect(swipeableProps.onSwipeableOpen).toBeDefined();
+      expect(typeof swipeableProps.onSwipeableOpen).toBe('function');
+
+      // Simulate swipe open with 'left' direction
+      swipeableProps.onSwipeableOpen('left');
+
+      expect(mockOnSwipeLeft).toHaveBeenCalledWith(mockDisc);
+    });
+  });
+
+  describe('Right Swipe Simplification', () => {
+    it('should render only Edit and Remove buttons on right swipe (no Move)', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue([
+        { id: 'edit', label: 'Edit', onPress: jest.fn() },
+        { id: 'move', label: 'Move', onPress: jest.fn() }, // Include move but it should be filtered out
+        { id: 'delete', label: 'Delete', onPress: jest.fn() },
+      ]);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId, queryByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      // Should render Edit and Remove buttons
+      expect(getByTestId('edit-button')).toBeTruthy();
+      expect(getByTestId('remove-button')).toBeTruthy();
+
+      // Should NOT render Move button on right swipe (even if provided in actions)
+      expect(queryByTestId('move-button')).toBeNull();
+    });
+
+    it('should show 2-button layout for right swipe (Edit + Remove)', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue([
+        { id: 'edit', label: 'Edit', onPress: jest.fn() },
+        { id: 'move', label: 'Move', onPress: jest.fn() },
+        { id: 'delete', label: 'Delete', onPress: jest.fn() },
+      ]);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const rightActions = getByTestId('right-actions');
+      const buttons = rightActions.children;
+
+      // Should only have 2 buttons (Edit + Remove, no Move)
+      expect(buttons).toHaveLength(2);
+      expect(getByTestId('edit-button')).toBeTruthy();
+      expect(getByTestId('remove-button')).toBeTruthy();
+    });
+  });
+
+  describe('Dual-Action Swipe UI', () => {
+    const mockActions = [
+      {
+        id: 'edit',
+        label: 'Edit',
+        color: '#007AFF',
+        icon: 'create-outline',
+        onPress: jest.fn(),
+      },
+      {
+        id: 'delete',
+        label: 'Delete',
+        color: '#FF3B30',
+        icon: 'trash-outline',
+        onPress: jest.fn(),
+      },
+    ];
+
+    const mockActionsWithMove = [
+      {
+        id: 'edit',
+        label: 'Edit',
+        color: '#007AFF',
+        icon: 'create-outline',
+        onPress: jest.fn(),
+      },
+      {
+        id: 'move',
+        label: 'Move',
+        color: '#007AFF',
+        icon: 'swap-horizontal-outline',
+        onPress: jest.fn(),
+      },
+      {
+        id: 'delete',
+        label: 'Delete',
+        color: '#FF3B30',
+        icon: 'trash-outline',
+        onPress: jest.fn(),
+      },
+    ];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should render both Edit and Remove buttons when swiped', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue(mockActions);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      expect(getByTestId('edit-button')).toBeTruthy();
+      expect(getByTestId('remove-button')).toBeTruthy();
+    });
+
+    it('should apply correct theme colors to each button', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue(mockActions);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const editButton = getByTestId('edit-button');
+      const removeButton = getByTestId('remove-button');
+
+      // Check that buttons have correct theme colors
+      expect(editButton.props.style).toEqual(
+        expect.objectContaining({
+          backgroundColor: '#ec7032', // colors.primary from theme
+        }),
+      );
+      expect(removeButton.props.style).toEqual(
+        expect.objectContaining({
+          backgroundColor: '#FF3B30', // colors.error from theme
+        }),
+      );
+    });
+
+    it('should navigate to EditDiscScreen when Edit button is pressed', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue(mockActions);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const editButton = getByTestId('edit-button');
+
+      // Simulate press
+      fireEvent.press(editButton);
+
+      expect(mockNavigate).toHaveBeenCalledWith('EditDiscScreen', {
+        disc: mockDisc,
+        bagId: mockBagId,
+        bagName: mockBagName,
+      });
+    });
+
+    it('should trigger correct action when Remove button is pressed', () => {
+      const { Swipeable } = require('react-native-gesture-handler');
+      const React = require('react');
+      const { View } = require('react-native');
+      const mockOnSwipeRight = jest.fn().mockReturnValue(mockActions);
+
+      // Mock Swipeable to capture and render right actions
+      const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+        const rightActions = renderRightActions ? renderRightActions() : null;
+        return React.createElement(View, null, children, rightActions);
+      });
+      Swipeable.mockImplementation(MockSwipeable);
+
+      const { getByTestId } = renderComponent(
+        <SwipeableDiscRow
+          disc={mockDisc}
+          onSwipeRight={mockOnSwipeRight}
+          bagId={mockBagId}
+          bagName={mockBagName}
+        />,
+      );
+
+      const removeButton = getByTestId('remove-button');
+
+      // Simulate press
+      fireEvent.press(removeButton);
+
+      expect(mockActions[1].onPress).toHaveBeenCalled();
+    });
+
+    describe('Move Action', () => {
+      it('should NOT render Move button on right swipe even when move action is provided', () => {
+        const { Swipeable } = require('react-native-gesture-handler');
+        const React = require('react');
+        const { View } = require('react-native');
+        const mockOnSwipeRight = jest.fn().mockReturnValue(mockActionsWithMove);
+
+        // Mock Swipeable to capture and render right actions
+        const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+          const rightActions = renderRightActions ? renderRightActions() : null;
+          return React.createElement(View, null, children, rightActions);
+        });
+        Swipeable.mockImplementation(MockSwipeable);
+
+        const { getByTestId, queryByTestId } = renderComponent(
+          <SwipeableDiscRow
+            disc={mockDisc}
+            onSwipeRight={mockOnSwipeRight}
+            bagId={mockBagId}
+            bagName={mockBagName}
+          />,
+        );
+
+        expect(getByTestId('edit-button')).toBeTruthy();
+        expect(queryByTestId('move-button')).toBeNull(); // Move should NOT be on right swipe
+        expect(getByTestId('remove-button')).toBeTruthy();
+      });
+
+      it('should render Move button on left swipe when move action is provided', () => {
+        const { Swipeable } = require('react-native-gesture-handler');
+        const React = require('react');
+        const { View } = require('react-native');
+        const mockOnSwipeLeft = jest.fn().mockReturnValue([
+          { id: 'move', label: 'Move', onPress: jest.fn() },
+        ]);
+
+        // Mock Swipeable to capture and render left actions
+        const MockSwipeable = jest.fn(({ children, renderLeftActions }) => {
+          const leftActions = renderLeftActions ? renderLeftActions() : null;
+          return React.createElement(View, null, leftActions, children);
+        });
+        Swipeable.mockImplementation(MockSwipeable);
+
+        const { getByTestId } = renderComponent(
+          <SwipeableDiscRow
+            disc={mockDisc}
+            onSwipeLeft={mockOnSwipeLeft}
+            bagId={mockBagId}
+            bagName={mockBagName}
+          />,
+        );
+
+        const moveButton = getByTestId('move-button');
+        expect(moveButton).toBeTruthy();
+
+        // In the actual implementation, this uses swap-horizontal-outline icon
+        // The icon component is mocked in tests, so we verify the button exists
+      });
+
+      it('should use correct theme color for Move button on left swipe', () => {
+        const { Swipeable } = require('react-native-gesture-handler');
+        const React = require('react');
+        const { View } = require('react-native');
+        const mockOnSwipeLeft = jest.fn().mockReturnValue([
+          { id: 'move', label: 'Move', onPress: jest.fn() },
+        ]);
+
+        // Mock Swipeable to capture and render left actions
+        const MockSwipeable = jest.fn(({ children, renderLeftActions }) => {
+          const leftActions = renderLeftActions ? renderLeftActions() : null;
+          return React.createElement(View, null, leftActions, children);
+        });
+        Swipeable.mockImplementation(MockSwipeable);
+
+        const { getByTestId } = renderComponent(
+          <SwipeableDiscRow
+            disc={mockDisc}
+            onSwipeLeft={mockOnSwipeLeft}
+            bagId={mockBagId}
+            bagName={mockBagName}
+          />,
+        );
+
+        const moveButton = getByTestId('move-button');
+        expect(moveButton.props.style).toEqual(
+          expect.objectContaining({
+            backgroundColor: '#007AFF', // colors.info from theme
+          }),
+        );
+      });
+
+      it('should call move action onPress when Move button is pressed on left swipe', () => {
+        const { Swipeable } = require('react-native-gesture-handler');
+        const React = require('react');
+        const { View } = require('react-native');
+        const mockMoveAction = { id: 'move', label: 'Move', onPress: jest.fn() };
+        const mockOnSwipeLeft = jest.fn().mockReturnValue([mockMoveAction]);
+
+        // Mock Swipeable to capture and render left actions
+        const MockSwipeable = jest.fn(({ children, renderLeftActions }) => {
+          const leftActions = renderLeftActions ? renderLeftActions() : null;
+          return React.createElement(View, null, leftActions, children);
+        });
+        Swipeable.mockImplementation(MockSwipeable);
+
+        const { getByTestId } = renderComponent(
+          <SwipeableDiscRow
+            disc={mockDisc}
+            onSwipeLeft={mockOnSwipeLeft}
+            bagId={mockBagId}
+            bagName={mockBagName}
+          />,
+        );
+
+        const moveButton = getByTestId('move-button');
+
+        // Simulate press
+        fireEvent.press(moveButton);
+
+        expect(mockMoveAction.onPress).toHaveBeenCalled();
+      });
+
+      it('should not render Move button when move action is not provided', () => {
+        const { Swipeable } = require('react-native-gesture-handler');
+        const React = require('react');
+        const { View } = require('react-native');
+        const mockOnSwipeRight = jest.fn().mockReturnValue(mockActions); // without move action
+
+        // Mock Swipeable to capture and render right actions
+        const MockSwipeable = jest.fn(({ children, renderRightActions }) => {
+          const rightActions = renderRightActions ? renderRightActions() : null;
+          return React.createElement(View, null, children, rightActions);
+        });
+        Swipeable.mockImplementation(MockSwipeable);
+
+        const { queryByTestId } = renderComponent(
+          <SwipeableDiscRow
+            disc={mockDisc}
+            onSwipeRight={mockOnSwipeRight}
+            bagId={mockBagId}
+            bagName={mockBagName}
+          />,
+        );
+
+        expect(queryByTestId('move-button')).toBeNull();
+      });
+    });
   });
 });

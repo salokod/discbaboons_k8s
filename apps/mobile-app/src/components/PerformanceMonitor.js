@@ -17,8 +17,10 @@ const PerformanceMonitor = ({ children, name, enabled = __DEV__ }) => {
 
     return () => {
       performanceTimer.end(`${name} mount`);
-      // eslint-disable-next-line no-console
-      console.log(`📊 ${name} unmounted after ${renderCount.current} renders`);
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log(`📊 ${name} unmounted after ${renderCount.current} renders`);
+      }
     };
   }, [name, enabled]);
 

@@ -18,6 +18,7 @@ import DiscSearchScreen from '../screens/discs/DiscSearchScreen';
 import SubmitDiscScreen from '../screens/discs/SubmitDiscScreen';
 import AdminDiscScreen from '../screens/discs/AdminDiscScreen';
 import AddDiscToBagScreen from '../screens/discs/AddDiscToBagScreen';
+import EditDiscScreen from '../screens/discs/EditDiscScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import AccountSettingsScreen from '../screens/settings/AccountSettingsScreen';
 import AboutScreen from '../screens/settings/AboutScreen';
@@ -97,6 +98,15 @@ function WrappedAddDiscToBagScreen(props) {
     <ErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <AddDiscToBagScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedEditDiscScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <EditDiscScreen {...props} />
     </ErrorBoundary>
   );
 }
@@ -254,6 +264,15 @@ function AppNavigator() {
             options={{
               headerShown: true,
               title: 'Add to Bag',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <AppStack.Screen
+            name="EditDiscScreen"
+            component={WrappedEditDiscScreen}
+            options={{
+              headerShown: true,
+              title: 'Edit Disc',
               headerBackTitle: 'Back',
             }}
           />

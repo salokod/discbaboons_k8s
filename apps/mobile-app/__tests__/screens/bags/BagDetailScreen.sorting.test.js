@@ -6,6 +6,7 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import BagDetailScreen from '../../../src/screens/bags/BagDetailScreen';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
+import { BagRefreshProvider } from '../../../src/context/BagRefreshContext';
 import { getBag } from '../../../src/services/bagService';
 
 // Mock the bagService
@@ -68,6 +69,12 @@ jest.mock('../../../src/design-system/components/SortPanel', () => function Mock
 const mockNavigation = {
   navigate: jest.fn(),
 };
+
+// Mock React Navigation hook
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => mockNavigation,
+  useFocusEffect: jest.fn(),
+}));
 
 // Mock route with bagId
 const mockRoute = {
@@ -142,10 +149,12 @@ const mockBagData = {
   ],
 };
 
-// Helper to render component with theme
+// Helper to render component with theme and providers
 const renderWithTheme = (component) => render(
   <ThemeProvider>
-    {component}
+    <BagRefreshProvider>
+      {component}
+    </BagRefreshProvider>
   </ThemeProvider>,
 );
 

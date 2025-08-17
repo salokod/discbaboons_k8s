@@ -579,11 +579,11 @@ export async function markDiscAsLost(contentId, isLost = true, notes = '') {
     }
 
     // Validate response format matches API documentation
-    if (!data.success) {
+    if (!data.success || !data.bag_content) {
       throw new Error('Invalid response from server');
     }
 
-    return data.disc;
+    return data.bag_content;
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller
@@ -778,11 +778,94 @@ export async function updateDiscInBag(bagId, contentId, updates) {
     }
 
     // Validate response format matches API documentation
-    if (!data.success || !data.disc) {
+    if (!data.success || !data.bag_content) {
       throw new Error('Invalid response from server');
     }
 
-    return data.disc;
+    return data.bag_content;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Move discs between bags
+ * @param {string} sourceBagId - Source bag ID to move discs from
+ * @param {string} targetBagId - Target bag ID to move discs to
+ * @param {Array} contentIds - Array of bag content IDs to move
+ * @returns {Promise<Object>} Success response with moved count
+ * @throws {Error} Move discs failed error with message
+ */
+export async function moveDiscBetweenBags(sourceBagId, targetBagId, contentIds) {
+  // Validate inputs before making API call
+  if (!sourceBagId || typeof sourceBagId !== 'string') {
+    throw new Error('Source bag ID is required');
+  }
+
+  if (!targetBagId || typeof targetBagId !== 'string') {
+    throw new Error('Target bag ID is required');
+  }
+
+  if (!contentIds || !Array.isArray(contentIds)) {
+    throw new Error('Content IDs are required');
+  }
+
+  if (contentIds.length === 0) {
+    throw new Error('At least one content ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/discs/move`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        sourceBagId,
+        targetBagId,
+        contentIds,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid move request');
+      }
+      if (response.status === 404) {
+        // Bag or disc not found
+        throw new Error(data.message || 'Bag or disc not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data;
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller
