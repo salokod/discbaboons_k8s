@@ -13,6 +13,7 @@ import {
   updateDiscInBag,
   markDiscAsLost,
   moveDiscBetweenBags,
+  bulkMarkDiscsAsLost,
 } from '../../src/services/bagService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -1213,6 +1214,140 @@ describe('BagService Functions', () => {
     });
   });
 
+  describe('bulkMarkDiscsAsLost', () => {
+    it('should successfully mark multiple discs as lost', async () => {
+      const successResponse = {
+        success: true,
+        markedLostCount: 2,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => successResponse,
+      });
+
+      const result = await bulkMarkDiscsAsLost(['content-1', 'content-2'], true, 'Lost during tournament');
+
+      expect(result).toEqual(successResponse);
+      expect(fetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/bags/discs/bulk-mark-lost',
+        expect.objectContaining({
+          method: 'PATCH',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer mock-access-token',
+          }),
+          body: JSON.stringify({
+            contentIds: ['content-1', 'content-2'],
+            isLost: true,
+            notes: 'Lost during tournament',
+          }),
+        }),
+      );
+    });
+
+    it('should validate contentIds parameter', async () => {
+      await expect(bulkMarkDiscsAsLost()).rejects.toThrow('Content IDs are required');
+      await expect(bulkMarkDiscsAsLost(null)).rejects.toThrow('Content IDs are required');
+      await expect(bulkMarkDiscsAsLost([])).rejects.toThrow('At least one content ID is required');
+    });
+
+    it('should handle authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Authentication required',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      await expect(bulkMarkDiscsAsLost(['content-1'])).rejects.toThrow('Authentication required');
+    });
+
+    it('should handle not found errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'One or more discs not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      await expect(bulkMarkDiscsAsLost(['content-1', 'content-2'])).rejects.toThrow('One or more discs not found');
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      await expect(bulkMarkDiscsAsLost(['content-1'])).rejects.toThrow('Something went wrong. Please try again.');
+    });
+
+    it('should default isLost to true and notes to empty string', async () => {
+      const successResponse = {
+        success: true,
+        markedLostCount: 1,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => successResponse,
+      });
+
+      await bulkMarkDiscsAsLost(['content-1']);
+
+      expect(fetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/bags/discs/bulk-mark-lost',
+        expect.objectContaining({
+          body: JSON.stringify({
+            contentIds: ['content-1'],
+            isLost: true,
+            notes: '',
+          }),
+        }),
+      );
+    });
+
+    it('should support marking discs as found', async () => {
+      const successResponse = {
+        success: true,
+        markedFoundCount: 1,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => successResponse,
+      });
+
+      await bulkMarkDiscsAsLost(['content-1'], false);
+
+      expect(fetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/bags/discs/bulk-mark-lost',
+        expect.objectContaining({
+          body: JSON.stringify({
+            contentIds: ['content-1'],
+            isLost: false,
+            notes: '',
+          }),
+        }),
+      );
+    });
+  });
+
   describe('export functions', () => {
     it('should export a getBags function', () => {
       expect(getBags).toBeTruthy();
@@ -1244,6 +1379,10 @@ describe('BagService Functions', () => {
 
     it('should export a moveDiscBetweenBags function', () => {
       expect(moveDiscBetweenBags).toBeTruthy();
+    });
+
+    it('should export a bulkMarkDiscsAsLost function', () => {
+      expect(bulkMarkDiscsAsLost).toBeTruthy();
     });
   });
 });

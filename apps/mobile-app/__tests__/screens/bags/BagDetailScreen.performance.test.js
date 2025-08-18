@@ -126,7 +126,7 @@ describe('BagDetailScreen Performance', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Your Discs (100)')).toBeTruthy();
+        expect(getByText('Performance Test Bag')).toBeTruthy();
       });
 
       // Measure filter application time
@@ -157,7 +157,7 @@ describe('BagDetailScreen Performance', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Your Discs (100)')).toBeTruthy();
+        expect(getByText('Performance Test Bag')).toBeTruthy();
       });
 
       // Measure sort application time
@@ -192,7 +192,7 @@ describe('BagDetailScreen Performance', () => {
       });
 
       // FlatList should be used for performance
-      const flatList = getByTestId('disc-list');
+      const flatList = getByTestId('main-disc-list');
       expect(flatList).toBeTruthy();
 
       // Verify FlatList props for performance
@@ -246,6 +246,359 @@ describe('BagDetailScreen Performance', () => {
     });
   });
 
+  describe('getItemLayout Optimization', () => {
+    it('should implement getItemLayout for predictable performance', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+      expect(flatList).toBeTruthy();
+
+      // Verify getItemLayout is implemented
+      expect(flatList.props.getItemLayout).toBeDefined();
+      expect(typeof flatList.props.getItemLayout).toBe('function');
+    });
+
+    it('should calculate correct item layout with standard disc row height', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+      const { getItemLayout } = flatList.props;
+
+      // Test layout calculation for various indices
+      const layout0 = getItemLayout(mockLargeBagData.bag_contents, 0);
+      const layout5 = getItemLayout(mockLargeBagData.bag_contents, 5);
+      const layout10 = getItemLayout(mockLargeBagData.bag_contents, 10);
+
+      // Standard disc row height should be consistent
+      expect(layout0.length).toBeGreaterThan(0);
+      expect(layout0.offset).toBe(0);
+      expect(layout0.index).toBe(0);
+
+      expect(layout5.length).toBe(layout0.length);
+      expect(layout5.offset).toBe(layout0.length * 5);
+      expect(layout5.index).toBe(5);
+
+      expect(layout10.length).toBe(layout0.length);
+      expect(layout10.offset).toBe(layout0.length * 10);
+      expect(layout10.index).toBe(10);
+    });
+
+    it('should handle multi-select mode layout calculations', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId, getByText } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      // Enter multi-select mode
+      fireEvent.press(getByText('Select'));
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+      const { getItemLayout } = flatList.props;
+
+      // Layout should still work in multi-select mode
+      const layout = getItemLayout(mockLargeBagData.bag_contents, 0);
+      expect(layout.length).toBeGreaterThan(0);
+      expect(layout.offset).toBe(0);
+      expect(layout.index).toBe(0);
+    });
+
+    it('should provide stable item layout calculations', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+      const { getItemLayout } = flatList.props;
+
+      // Call getItemLayout multiple times for same index
+      const layout1 = getItemLayout(mockLargeBagData.bag_contents, 3);
+      const layout2 = getItemLayout(mockLargeBagData.bag_contents, 3);
+      const layout3 = getItemLayout(mockLargeBagData.bag_contents, 3);
+
+      // Results should be stable
+      expect(layout1).toEqual(layout2);
+      expect(layout2).toEqual(layout3);
+    });
+
+    it('should handle edge cases in layout calculation', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+      const { getItemLayout } = flatList.props;
+
+      // Test edge cases
+      const firstItem = getItemLayout(mockLargeBagData.bag_contents, 0);
+      const lastIndex = mockLargeBagData.bag_contents.length - 1;
+      const lastItem = getItemLayout(mockLargeBagData.bag_contents, lastIndex);
+
+      expect(firstItem.offset).toBe(0);
+      expect(lastItem.offset).toBe(firstItem.length * (mockLargeBagData.bag_contents.length - 1));
+    });
+  });
+
+  describe('Advanced FlatList Configuration', () => {
+    it('should optimize rendering configuration for large datasets', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Verify advanced optimization props
+      expect(flatList.props.removeClippedSubviews).toBe(true);
+      expect(flatList.props.maxToRenderPerBatch).toBeDefined();
+      expect(flatList.props.windowSize).toBeDefined();
+      expect(flatList.props.initialNumToRender).toBeDefined();
+      expect(flatList.props.updateCellsBatchingPeriod).toBeDefined();
+    });
+
+    it('should adapt configuration for multi-select mode', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId, getByText } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      // Enter multi-select mode
+      fireEvent.press(getByText('Select'));
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // In multi-select mode, should maintain performance optimizations
+      expect(flatList.props.removeClippedSubviews).toBe(true);
+      expect(flatList.props.maxToRenderPerBatch).toBeGreaterThan(0);
+      expect(flatList.props.windowSize).toBeGreaterThan(0);
+    });
+
+    it('should use optimized batch sizes for different data sizes', async () => {
+      // Test with small dataset
+      const smallBag = {
+        ...mockLargeBagData,
+        bag_contents: generateLargeDiscDataset(20),
+      };
+      getBag.mockResolvedValue(smallBag);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Should have reasonable batch configuration for small datasets
+      expect(flatList.props.maxToRenderPerBatch).toBeGreaterThan(0);
+      expect(flatList.props.initialNumToRender).toBeGreaterThan(0);
+    });
+
+    it('should implement keyExtractor optimization', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+      const { keyExtractor } = flatList.props;
+
+      // Verify keyExtractor returns stable strings
+      const sampleDisc = mockLargeBagData.bag_contents[0];
+      const key1 = keyExtractor(sampleDisc);
+      const key2 = keyExtractor(sampleDisc);
+
+      expect(typeof key1).toBe('string');
+      expect(key1).toBe(key2);
+      expect(key1.length).toBeGreaterThan(0);
+    });
+
+    it('should handle scrolling performance optimizations', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Verify scrolling optimizations
+      expect(flatList.props.scrollEventThrottle).toBeDefined();
+      expect(flatList.props.disableIntervalMomentum).toBeDefined();
+      expect(flatList.props.disableScrollViewPanResponder).toBeDefined();
+    });
+  });
+
+  describe('Performance Metrics and Monitoring', () => {
+    it('should implement scroll performance monitoring', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Verify scroll performance handlers are implemented
+      expect(flatList.props.onScrollBeginDrag).toBeDefined();
+      expect(flatList.props.onScrollEndDrag).toBeDefined();
+      expect(flatList.props.onMomentumScrollBegin).toBeDefined();
+      expect(flatList.props.onMomentumScrollEnd).toBeDefined();
+    });
+
+    it('should track render performance metrics', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Verify render performance tracking
+      expect(flatList.props.onViewableItemsChanged).toBeDefined();
+      expect(flatList.props.viewabilityConfig).toBeDefined();
+      expect(flatList.props.viewabilityConfigCallbackPairs).toBeDefined();
+    });
+
+    it('should monitor memory usage during large dataset operations', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      // Performance monitoring should work with large datasets
+      const flatList = getByTestId('main-disc-list');
+      expect(flatList.props.data.length).toBe(100);
+
+      // Verify memory optimization is in place
+      expect(flatList.props.removeClippedSubviews).toBe(true);
+      expect(flatList.props.maxToRenderPerBatch).toBeGreaterThan(0);
+    });
+
+    it('should provide performance telemetry callbacks', async () => {
+      getBag.mockResolvedValue(mockLargeBagData);
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Verify telemetry callbacks are set up
+      expect(flatList.props.progressViewOffset).toBeDefined();
+    });
+
+    it('should handle performance degradation gracefully', async () => {
+      // Test with extremely large dataset
+      const extremeLargeBag = {
+        ...mockLargeBagData,
+        bag_contents: generateLargeDiscDataset(500),
+      };
+      getBag.mockResolvedValue(extremeLargeBag);
+
+      const startTime = performance.now();
+
+      const { getByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('main-disc-list')).toBeTruthy();
+      });
+
+      const endTime = performance.now();
+      const renderTime = endTime - startTime;
+
+      // Should handle 500 discs without significant performance degradation
+      expect(renderTime).toBeLessThan(3000);
+
+      const flatList = getByTestId('main-disc-list');
+
+      // Verify adaptive configuration kicks in for large datasets
+      expect(flatList.props.maxToRenderPerBatch).toBeGreaterThanOrEqual(15);
+      expect(flatList.props.windowSize).toBeGreaterThanOrEqual(10);
+    });
+  });
+
   describe('Performance Optimizations', () => {
     it('should use useMemo for expensive computations', async () => {
       // This test verifies that the component uses useMemo
@@ -257,7 +610,7 @@ describe('BagDetailScreen Performance', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Your Discs (100)')).toBeTruthy();
+        expect(getByText('Performance Test Bag')).toBeTruthy();
       });
 
       // The component should efficiently handle the large dataset
@@ -274,7 +627,7 @@ describe('BagDetailScreen Performance', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Your Discs (100)')).toBeTruthy();
+        expect(getByText('Performance Test Bag')).toBeTruthy();
       });
 
       // Event handlers should be stable across re-renders

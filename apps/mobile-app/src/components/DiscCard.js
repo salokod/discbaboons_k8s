@@ -221,6 +221,7 @@ function DiscCard({ disc, showCustomInfo = true, style }) {
               fade={displayDisc.fade}
               width={isSmallDevice ? 70 : 80}
               height={isSmallDevice ? 90 : 100}
+              compact
             />
           </View>
         </View>

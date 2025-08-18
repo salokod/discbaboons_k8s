@@ -18,7 +18,8 @@ import { spacing } from '../../design-system/spacing';
 import DiscRow from './DiscRow';
 
 const SwipeableDiscRow = React.forwardRef(({
-  disc, onSwipeRight, onSwipeLeft, actions, bagId, bagName,
+  disc, onSwipeRight, onSwipeLeft, actions, bagId, bagName, onLongPress,
+  hideFlightPath, showCompactFlightPath,
 }, ref) => {
   const navigation = useNavigation();
   const colors = useThemeColors();
@@ -230,7 +231,12 @@ const SwipeableDiscRow = React.forwardRef(({
         friction={2}
         overshootFriction={8}
       >
-        <DiscRow disc={disc} />
+        <DiscRow
+          disc={disc}
+          onLongPress={onLongPress}
+          hideFlightPath={hideFlightPath}
+          showCompactFlightPath={showCompactFlightPath}
+        />
       </Swipeable>
     </View>
   );
@@ -268,12 +274,18 @@ SwipeableDiscRow.propTypes = {
   })),
   bagId: PropTypes.string.isRequired,
   bagName: PropTypes.string.isRequired,
+  onLongPress: PropTypes.func,
+  hideFlightPath: PropTypes.bool,
+  showCompactFlightPath: PropTypes.bool,
 };
 
 SwipeableDiscRow.defaultProps = {
   onSwipeRight: undefined,
   onSwipeLeft: undefined,
   actions: undefined,
+  onLongPress: undefined,
+  hideFlightPath: false,
+  showCompactFlightPath: false,
 };
 
 SwipeableDiscRow.displayName = 'SwipeableDiscRow';

@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
@@ -20,7 +21,9 @@ import Card from '../../design-system/components/Card';
 import ColorIndicator from '../../design-system/components/ColorIndicator';
 import FlightPathVisualization from './FlightPathVisualization';
 
-function DiscRow({ disc }) {
+function DiscRow({
+  disc, onLongPress, hideFlightPath, showCompactFlightPath,
+}) {
   const colors = useThemeColors();
   const { width: screenWidth } = Dimensions.get('window');
   const isSmallDevice = screenWidth < 375;
@@ -187,50 +190,52 @@ function DiscRow({ disc }) {
 
   return (
     <View style={styles.discCard}>
-      <Card>
-        <View style={styles.discContent}>
-          {/* Left Content - Disc Info */}
-          <View style={styles.leftContent}>
-            <View style={styles.discHeader}>
-              <View style={styles.discNameBrandContainer}>
-                <Text style={styles.discName}>{displayDisc.model}</Text>
-                <Text style={styles.discBrand}>{displayDisc.brand}</Text>
-                <Text style={styles.discName} testID="disc-custom-name">
-                  {disc.custom_name || ''}
-                </Text>
-              </View>
-            </View>
+      <TouchableWithoutFeedback onLongPress={onLongPress}>
+        <View>
+          <Card>
+            <View testID="disc-content" style={styles.discContent}>
+              {/* Left Content - Disc Info */}
+              <View style={styles.leftContent}>
+                <View style={styles.discHeader}>
+                  <View style={styles.discNameBrandContainer}>
+                    <Text style={styles.discName}>{displayDisc.model}</Text>
+                    <Text style={styles.discBrand}>{displayDisc.brand}</Text>
+                    <Text style={styles.discName} testID="disc-custom-name">
+                      {disc.custom_name || ''}
+                    </Text>
+                  </View>
+                </View>
 
-            <View style={styles.flightNumbers}>
-              <View style={[styles.flightNumber, styles.speedNumber]}>
-                <Text style={[styles.flightLabel, styles.speedLabel]}>S</Text>
-                <Text style={[styles.flightNumberText, styles.speedText]}>
-                  {displayDisc.speed}
-                </Text>
-              </View>
-              <View style={[styles.flightNumber, styles.glideNumber]}>
-                <Text style={[styles.flightLabel, styles.glideLabel]}>G</Text>
-                <Text style={[styles.flightNumberText, styles.glideText]}>
-                  {displayDisc.glide}
-                </Text>
-              </View>
-              <View style={[styles.flightNumber, styles.turnNumber]}>
-                <Text style={[styles.flightLabel, styles.turnLabel]}>T</Text>
-                <Text style={[styles.flightNumberText, styles.turnText]}>
-                  {displayDisc.turn}
-                </Text>
-              </View>
-              <View style={[styles.flightNumber, styles.fadeNumber]}>
-                <Text style={[styles.flightLabel, styles.fadeLabel]}>F</Text>
-                <Text style={[styles.flightNumberText, styles.fadeText]}>
-                  {displayDisc.fade}
-                </Text>
-              </View>
-            </View>
+                <View style={styles.flightNumbers}>
+                  <View style={[styles.flightNumber, styles.speedNumber]}>
+                    <Text style={[styles.flightLabel, styles.speedLabel]}>S</Text>
+                    <Text style={[styles.flightNumberText, styles.speedText]}>
+                      {displayDisc.speed}
+                    </Text>
+                  </View>
+                  <View style={[styles.flightNumber, styles.glideNumber]}>
+                    <Text style={[styles.flightLabel, styles.glideLabel]}>G</Text>
+                    <Text style={[styles.flightNumberText, styles.glideText]}>
+                      {displayDisc.glide}
+                    </Text>
+                  </View>
+                  <View style={[styles.flightNumber, styles.turnNumber]}>
+                    <Text style={[styles.flightLabel, styles.turnLabel]}>T</Text>
+                    <Text style={[styles.flightNumberText, styles.turnText]}>
+                      {displayDisc.turn}
+                    </Text>
+                  </View>
+                  <View style={[styles.flightNumber, styles.fadeNumber]}>
+                    <Text style={[styles.flightLabel, styles.fadeLabel]}>F</Text>
+                    <Text style={[styles.flightNumberText, styles.fadeText]}>
+                      {displayDisc.fade}
+                    </Text>
+                  </View>
+                </View>
 
-            {(hasValidColor || disc.weight || disc.condition || disc.notes) && (
-              <View style={styles.customInfo}>
-                {hasValidColor && (
+                {(hasValidColor || disc.weight || disc.condition || disc.notes) && (
+                <View style={styles.customInfo}>
+                  {hasValidColor && (
                   <ColorIndicator
                     color={discColor}
                     shape="bar"
@@ -238,40 +243,45 @@ function DiscRow({ disc }) {
                     height={12}
                     accessibilityLabel={`Disc color: ${discColor}`}
                   />
-                )}
-                <Text style={styles.customText}>
-                  {[disc.weight && `${disc.weight}g`, disc.condition, disc.notes]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </Text>
-                {/* Test-specific elements for integration tests */}
-                {disc.condition && (
+                  )}
+                  <Text style={styles.customText}>
+                    {[disc.weight && `${disc.weight}g`, disc.condition, disc.notes]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  </Text>
+                  {/* Test-specific elements for integration tests */}
+                  {disc.condition && (
                   <Text style={[styles.customText, styles.hiddenTestElement]} testID="disc-condition">
                     {disc.condition}
                   </Text>
-                )}
-                {disc.notes && (
+                  )}
+                  {disc.notes && (
                   <Text style={[styles.customText, styles.hiddenTestElement]} testID="disc-notes">
                     {disc.notes}
                   </Text>
+                  )}
+                </View>
                 )}
               </View>
-            )}
-          </View>
 
-          {/* Right Content - Flight Path Visualization */}
-          <View style={styles.rightContent}>
-            <FlightPathVisualization
-              speed={displayDisc.speed}
-              glide={displayDisc.glide}
-              turn={displayDisc.turn}
-              fade={displayDisc.fade}
-              width={isSmallDevice ? 65 : 75}
-              height={isSmallDevice ? 90 : 100}
-            />
-          </View>
+              {/* Right Content - Flight Path Visualization */}
+              {!hideFlightPath && (
+                <View testID="right-content" style={styles.rightContent}>
+                  <FlightPathVisualization
+                    speed={displayDisc.speed}
+                    glide={displayDisc.glide}
+                    turn={displayDisc.turn}
+                    fade={displayDisc.fade}
+                    width={isSmallDevice ? 65 : 75}
+                    height={isSmallDevice ? 90 : 100}
+                    compact={showCompactFlightPath}
+                  />
+                </View>
+              )}
+            </View>
+          </Card>
         </View>
-      </Card>
+      </TouchableWithoutFeedback>
     </View>
   );
 }
@@ -300,6 +310,15 @@ DiscRow.propTypes = {
       color: PropTypes.string,
     }),
   }).isRequired,
+  onLongPress: PropTypes.func,
+  hideFlightPath: PropTypes.bool,
+  showCompactFlightPath: PropTypes.bool,
+};
+
+DiscRow.defaultProps = {
+  onLongPress: undefined,
+  hideFlightPath: false,
+  showCompactFlightPath: false,
 };
 
 DiscRow.displayName = 'DiscRow';
