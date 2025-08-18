@@ -490,6 +490,7 @@ describe('MoveDiscModal', () => {
 
     it('should handle API failure gracefully', async () => {
       // Mock console.error to avoid noise in test output
+      // eslint-disable-next-line no-console
       const originalError = console.error;
       // eslint-disable-next-line no-console
       console.error = jest.fn();

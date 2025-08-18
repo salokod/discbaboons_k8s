@@ -17,7 +17,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Platform,
-  ScrollView,
   Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
@@ -29,12 +28,15 @@ import AppContainer from '../../components/AppContainer';
 import Button from '../../components/Button';
 import { getBag, removeDiscFromBag } from '../../services/bagService';
 import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
-import BaboonBagBreakdownModal from '../../components/modals/BaboonBagBreakdownModal';
-import BaboonsVisionModal from '../../components/modals/BaboonsVisionModal';
+import SelectableDiscRow from '../../components/bags/SelectableDiscRow';
+import BulkActionBar from '../../components/bags/BulkActionBar';
+import BagDetailHeader from '../../components/bags/BagDetailHeader';
 import MoveDiscModal from '../../components/modals/MoveDiscModal';
+import BulkMoveModal from '../../components/modals/BulkMoveModal';
 import FilterPanel from '../../design-system/components/FilterPanel';
 import SortPanel from '../../design-system/components/SortPanel';
 import { useBagRefreshListener, useBagRefreshContext } from '../../context/BagRefreshContext';
+import useMultiSelect from '../../hooks/useMultiSelect';
 
 function BagDetailScreen({ route, navigation }) {
   const colors = useThemeColors();
@@ -47,6 +49,16 @@ function BagDetailScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Multi-select state
+  const {
+    isMultiSelectMode,
+    selectedIds,
+    selectedCount,
+    toggleSelection,
+    enterMultiSelectMode,
+    exitMultiSelectMode,
+  } = useMultiSelect();
+
   // Filter and Sort state
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
@@ -56,6 +68,9 @@ function BagDetailScreen({ route, navigation }) {
   // Move modal state
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [selectedDisc, setSelectedDisc] = useState(null);
+
+  // Bulk move modal state
+  const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
 
   // Load bag data function
   const loadBagData = useCallback(async (isRefreshing = false) => {
@@ -179,182 +194,71 @@ function BagDetailScreen({ route, navigation }) {
     return discs;
   }, [bag?.bag_contents, filters, sort]);
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: Platform.select({
-        ios: spacing.xl,
-        android: spacing.lg,
-      }),
-      paddingBottom: spacing.xl * 2,
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: spacing.lg,
-    },
-    loadingText: {
-      ...typography.body,
-      color: colors.textLight,
-      marginTop: spacing.md,
-    },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: spacing.lg,
-    },
-    errorText: {
-      ...typography.body,
-      color: colors.error,
-      textAlign: 'center',
-      marginBottom: spacing.lg,
-    },
-    // Header Section (matching CreateBagScreen)
-    header: {
-      marginBottom: spacing.xs * 1.5,
-      alignItems: 'center',
-    },
-    headerTitle: {
-      ...typography.h1,
-      color: colors.text,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-    },
-    headerSubtitle: {
-      ...typography.body,
-      color: colors.textLight,
-      textAlign: 'center',
-      lineHeight: 22,
-      marginBottom: spacing.md,
-    },
-    discCountBadge: {
-      backgroundColor: colors.surface,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      borderRadius: Platform.select({
-        ios: 12,
-        android: 16,
-      }),
-      borderWidth: 1,
-      borderColor: colors.primary,
-    },
-    discCountText: {
-      ...typography.bodyBold,
-      color: colors.primary,
-    },
-    // Quick Actions Section (matching CreateBagScreen section style)
-    section: {
-      marginBottom: spacing.xl * 1.5,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: spacing.md,
-    },
-    sectionIcon: {
-      marginRight: spacing.sm,
-    },
-    sectionTitle: {
-      ...typography.h3,
-      color: colors.text,
-      fontWeight: '600',
-    },
-    quickActions: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      marginBottom: spacing.lg,
-    },
-    analyticsActions: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      marginBottom: spacing.xl * 1.5,
-    },
-    actionButton: {
-      flex: 1,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.xs,
-      backgroundColor: colors.surface,
-      borderRadius: Platform.select({
-        ios: 8,
-        android: 10,
-      }),
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      gap: spacing.xs,
-    },
-    actionButtonText: {
-      ...typography.caption,
-      color: colors.text,
-      fontWeight: '600',
-      fontSize: 12,
-    },
-    actionButtonActive: {
-      borderColor: colors.primary,
-      backgroundColor: `${colors.primary}15`,
-    },
-    actionButtonTextActive: {
-      color: colors.primary,
-      fontWeight: '700',
-    },
-    clearAllButton: {
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      backgroundColor: colors.error,
-      borderRadius: Platform.select({
-        ios: 8,
-        android: 10,
-      }),
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: spacing.md,
-    },
-    clearAllButtonText: {
-      ...typography.caption,
-      color: colors.surface,
-      fontWeight: '700',
-      fontSize: 12,
-    },
-    // Professional Empty State (matching CreateBagScreen and EmptyBagsScreen)
-    emptyContainer: {
-      alignItems: 'center',
-      paddingVertical: spacing.xl * 2,
-      paddingHorizontal: spacing.lg,
-    },
-    emptyIcon: {
-      marginBottom: spacing.xl,
-    },
-    emptyTitle: {
-      ...typography.h2,
-      color: colors.text,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-    },
-    emptySubtitle: {
-      ...typography.body,
-      color: colors.textLight,
-      textAlign: 'center',
-      lineHeight: 22,
-      marginBottom: spacing.xl,
-    },
-    emptyButtonContainer: {
-      width: '100%',
-      marginTop: spacing.lg,
-    },
-    // Disc List
-    listContent: {
-      paddingBottom: spacing.lg,
-    },
-  });
+  // getItemLayout for FlatList performance optimization
+  const getItemLayout = useCallback((data, index) => {
+    // Standard disc row height calculation:
+    // - DiscRow minHeight: 80px
+    // - DiscRow paddingVertical: spacing.sm * 2 = 16px
+    // - Card padding: spacing.md * 2 = 32px
+    // - DiscCard marginBottom: spacing.xs = 4px
+    // Total: 80 + 16 + 32 + 4 = 132px
+    const ITEM_HEIGHT = 132;
+
+    return {
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * index,
+      index,
+    };
+  }, []);
+
+  // Performance monitoring callbacks
+  const onScrollBeginDrag = useCallback(() => {
+    // Track scroll start time for performance monitoring
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.debug('FlatList scroll started');
+    }
+  }, []);
+
+  const onScrollEndDrag = useCallback(() => {
+    // Track scroll end time for performance monitoring
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.debug('FlatList scroll ended');
+    }
+  }, []);
+
+  const onMomentumScrollBegin = useCallback(() => {
+    // Track momentum scroll start
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.debug('FlatList momentum scroll started');
+    }
+  }, []);
+
+  const onMomentumScrollEnd = useCallback(() => {
+    // Track momentum scroll end
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.debug('FlatList momentum scroll ended');
+    }
+  }, []);
+
+  // Viewability tracking for render performance
+  const onViewableItemsChanged = useCallback(({ viewableItems, changed }) => {
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.debug('Viewable items changed:', {
+        viewableCount: viewableItems.length,
+        changedCount: changed.length,
+      });
+    }
+  }, []);
+
+  const viewabilityConfig = useMemo(() => ({
+    viewAreaCoveragePercentThreshold: 50,
+    minimumViewTime: 100,
+  }), []);
 
   // Handler for quick actions
   const handleAddDisc = useCallback(() => {
@@ -414,6 +318,19 @@ function BagDetailScreen({ route, navigation }) {
   const handleMoveModalClose = useCallback(() => {
     setShowMoveModal(false);
     setSelectedDisc(null);
+  }, []);
+
+  // Handle bulk move success
+  const handleBulkMoveSuccess = useCallback(async () => {
+    setShowBulkMoveModal(false);
+    exitMultiSelectMode();
+    // Refresh bag data to show updated contents
+    await loadBagData();
+  }, [loadBagData, exitMultiSelectMode]);
+
+  // Handle bulk move modal close
+  const handleBulkMoveModalClose = useCallback(() => {
+    setShowBulkMoveModal(false);
   }, []);
 
   // Right swipe action handler - Edit and Remove only
@@ -483,19 +400,208 @@ function BagDetailScreen({ route, navigation }) {
     return actions;
   }, [handleMoveDisc, colors]);
 
+  // Multi-select handlers
+  const handleSelectAll = useCallback(() => {
+    if (!bag?.bag_contents) return;
+
+    // If all are selected, deselect all, otherwise select all
+    const allDiscIds = bag.bag_contents.map((disc) => disc.id);
+    const areAllSelected = allDiscIds.every((id) => selectedIds.has(id));
+
+    if (areAllSelected) {
+      allDiscIds.forEach((id) => toggleSelection(id));
+    } else {
+      allDiscIds.forEach((id) => {
+        if (!selectedIds.has(id)) {
+          toggleSelection(id);
+        }
+      });
+    }
+  }, [bag?.bag_contents, selectedIds, toggleSelection]);
+
+  // Bulk action handlers
+  const handleBulkMove = useCallback(() => {
+    setShowBulkMoveModal(true);
+  }, []);
+
   // Count active filters for display
   const activeFilterCount = useMemo(() => Object.keys(filters).filter(
     (key) => filters[key] !== undefined
              && (Array.isArray(filters[key]) ? filters[key].length > 0 : true),
   ).length, [filters]);
 
-  // Determine sort icon name
-  const sortIconName = useMemo(() => {
-    if (sort.field) {
-      return sort.direction === 'asc' ? 'arrow-up-outline' : 'arrow-down-outline';
+  // Create styles here to use in useCallback hooks
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flatListContent: {
+      flexGrow: 1,
+      paddingBottom: spacing.xl * 2,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    loadingText: {
+      ...typography.body,
+      color: colors.textLight,
+      marginTop: spacing.md,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    errorText: {
+      ...typography.body,
+      color: colors.error,
+      textAlign: 'center',
+      marginBottom: spacing.lg,
+    },
+    // Professional Empty State (matching CreateBagScreen and EmptyBagsScreen)
+    emptyContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.xl * 2,
+      paddingHorizontal: spacing.lg,
+    },
+    emptyIcon: {
+      marginBottom: spacing.xl,
+    },
+    emptyTitle: {
+      ...typography.h2,
+      color: colors.text,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      ...typography.body,
+      color: colors.textLight,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: spacing.xl,
+    },
+    emptyButtonContainer: {
+      width: '100%',
+      marginTop: spacing.lg,
+    },
+    clearAllButton: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.error,
+      borderRadius: Platform.select({
+        ios: 8,
+        android: 10,
+      }),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
+    clearAllButtonText: {
+      ...typography.caption,
+      color: colors.surface,
+      fontWeight: '700',
+      fontSize: 12,
+    },
+    // Disc List
+    listContent: {
+      paddingBottom: spacing.lg,
+    },
+  });
+
+  // Empty state for when bag has no contents
+  const renderEmptyState = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Icon
+        name="bag-outline"
+        size={80}
+        color={colors.textLight}
+        style={styles.emptyIcon}
+      />
+      <Text style={styles.emptyTitle}>Ready to Build Your Bag</Text>
+      <Text style={styles.emptySubtitle}>
+        Start adding discs to create your perfect disc golf setup.
+        Search our database of thousands of discs to find exactly what you need.
+      </Text>
+      <View style={styles.emptyButtonContainer}>
+        <Button
+          title="Add Your First Disc"
+          onPress={handleAddDisc}
+          variant="primary"
+        />
+      </View>
+    </View>
+  ), [colors.textLight, handleAddDisc, styles]);
+
+  // Empty state for when filters return no results
+  const renderFilterEmptyState = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Icon
+        name="funnel-outline"
+        size={64}
+        color={colors.textLight}
+        style={styles.emptyIcon}
+      />
+      <Text style={styles.emptyTitle}>No Matching Discs</Text>
+      <Text style={styles.emptySubtitle}>
+        No discs match your current filters or search criteria.
+        Try adjusting your filters or clearing them to see all discs.
+      </Text>
+      <TouchableOpacity
+        style={styles.clearAllButton}
+        onPress={clearFiltersAndSort}
+      >
+        <Text style={styles.clearAllButtonText}>Clear Filters</Text>
+      </TouchableOpacity>
+    </View>
+  ), [colors.textLight, clearFiltersAndSort, styles]);
+
+  // Determine which empty state to show
+  const renderListEmptyComponent = useCallback(() => {
+    // If bag has no contents at all
+    if (!bag?.bag_contents || bag.bag_contents.length === 0) {
+      return renderEmptyState();
     }
-    return 'swap-vertical-outline';
-  }, [sort]);
+    // If bag has contents but filters return nothing
+    return renderFilterEmptyState();
+  }, [bag?.bag_contents, renderEmptyState, renderFilterEmptyState]);
+
+  // Render header component
+  const renderHeader = useCallback(() => (
+    <BagDetailHeader
+      bag={bag}
+      isMultiSelectMode={isMultiSelectMode}
+      selectedCount={selectedCount}
+      activeFilterCount={activeFilterCount}
+      sort={sort}
+      filteredDiscCount={filteredAndSortedDiscs.length}
+      onAddDisc={handleAddDisc}
+      onSort={handleSort}
+      onFilter={handleFilter}
+      onSelectAll={handleSelectAll}
+      onCancelMultiSelect={exitMultiSelectMode}
+      onEnterMultiSelect={enterMultiSelectMode}
+      onClearFiltersAndSort={clearFiltersAndSort}
+    />
+  ), [
+    bag,
+    isMultiSelectMode,
+    selectedCount,
+    activeFilterCount,
+    sort,
+    filteredAndSortedDiscs.length,
+    handleAddDisc,
+    handleSort,
+    handleFilter,
+    handleSelectAll,
+    exitMultiSelectMode,
+    enterMultiSelectMode,
+    clearFiltersAndSort,
+  ]);
 
   // Loading state
   if (loading) {
@@ -535,223 +641,127 @@ function BagDetailScreen({ route, navigation }) {
     );
   }
 
-  // Professional empty state
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Icon
-        name="bag-outline"
-        size={80}
-        color={colors.textLight}
-        style={styles.emptyIcon}
-      />
-      <Text style={styles.emptyTitle}>Ready to Build Your Bag</Text>
-      <Text style={styles.emptySubtitle}>
-        Start adding discs to create your perfect disc golf setup.
-        Search our database of thousands of discs to find exactly what you need.
-      </Text>
-      <View style={styles.emptyButtonContainer}>
-        <Button
-          title="Add Your First Disc"
-          onPress={handleAddDisc}
-          variant="primary"
-        />
-      </View>
-    </View>
-  );
-
   // Render disc item
-  const renderDiscItem = ({ item }) => (
-    <SwipeableDiscRow
-      disc={item}
-      onSwipeRight={handleDiscSwipeRight}
-      onSwipeLeft={handleDiscSwipeLeft}
-      bagId={bag?.id || bagId || 'unknown'}
-      bagName={bag?.name || 'Unknown Bag'}
-    />
-  );
+  const renderDiscItem = ({ item }) => {
+    if (isMultiSelectMode) {
+      return (
+        <SelectableDiscRow
+          disc={item}
+          bagId={bag?.id || bagId || 'unknown'}
+          bagName={bag?.name || 'Unknown Bag'}
+          isMultiSelectMode={isMultiSelectMode}
+          isSelected={selectedIds.has(item.id)}
+          onToggleSelection={toggleSelection}
+          onSwipeRight={handleDiscSwipeRight}
+          onSwipeLeft={handleDiscSwipeLeft}
+        />
+      );
+    }
+
+    return (
+      <SwipeableDiscRow
+        disc={item}
+        onSwipeRight={handleDiscSwipeRight}
+        onSwipeLeft={handleDiscSwipeLeft}
+        bagId={bag?.id || bagId || 'unknown'}
+        bagName={bag?.name || 'Unknown Bag'}
+        onLongPress={() => {
+          enterMultiSelectMode();
+          toggleSelection(item.id);
+        }}
+      />
+    );
+  };
 
   // Success state with bag data
   return (
     <SafeAreaView testID="bag-detail-screen" style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={(
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-          />
-        )}
-      >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{bag?.name || 'Bag Details'}</Text>
-          {bag?.description && (
-            <Text style={styles.headerSubtitle}>{bag.description}</Text>
+      <AppContainer>
+        <FlatList
+          testID="main-disc-list"
+          data={filteredAndSortedDiscs}
+          renderItem={renderDiscItem}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderListEmptyComponent}
+          contentContainerStyle={styles.flatListContent}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          refreshControl={(
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
           )}
-        </View>
+          getItemLayout={getItemLayout}
+          removeClippedSubviews
+          maxToRenderPerBatch={filteredAndSortedDiscs.length > 100 ? 15 : 10}
+          windowSize={filteredAndSortedDiscs.length > 100 ? 10 : 5}
+          initialNumToRender={Math.min(
+            filteredAndSortedDiscs.length,
+            filteredAndSortedDiscs.length > 50 ? 20 : 15,
+          )}
+          updateCellsBatchingPeriod={50}
+          scrollEventThrottle={16}
+          disableIntervalMomentum
+          disableScrollViewPanResponder={false}
+          scrollEnabled
+          progressViewOffset={0}
+          onScrollBeginDrag={onScrollBeginDrag}
+          onScrollEndDrag={onScrollEndDrag}
+          onMomentumScrollBegin={onMomentumScrollBegin}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+        />
 
-        {/* Clear All Button (only show if filters or sort are active) */}
-        {(activeFilterCount > 0 || sort.field) && (
-          <TouchableOpacity style={styles.clearAllButton} onPress={clearFiltersAndSort}>
-            <Text style={styles.clearAllButtonText}>
-              Clear All (
-              {activeFilterCount + (sort.field ? 1 : 0)}
-              )
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* Filter Panel Modal */}
+        <FilterPanel
+          testID="filter-panel"
+          visible={showFilterPanel}
+          onClose={() => setShowFilterPanel(false)}
+          onApplyFilters={handleFilterApply}
+          currentFilters={filters}
+          discs={bag?.bag_contents || []}
+        />
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleAddDisc}>
-            <Icon name="add-circle-outline" size={16} color={colors.primary} />
-            <Text style={styles.actionButtonText}>Add Disc</Text>
-          </TouchableOpacity>
+        {/* Sort Panel Modal */}
+        <SortPanel
+          testID="sort-panel"
+          visible={showSortPanel}
+          onClose={() => setShowSortPanel(false)}
+          onApplySort={handleSortApply}
+          currentSort={sort}
+        />
 
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              sort.field && styles.actionButtonActive,
-            ]}
-            onPress={handleSort}
-          >
-            <Icon
-              name={sortIconName}
-              size={16}
-              color={sort.field ? colors.primary : colors.textLight}
-            />
-            <Text style={[
-              styles.actionButtonText,
-              sort.field && styles.actionButtonTextActive,
-            ]}
-            >
-              Sort
-              {sort.field ? ' (1)' : ''}
-            </Text>
-          </TouchableOpacity>
+        {/* Move Disc Modal */}
+        <MoveDiscModal
+          visible={showMoveModal}
+          onClose={handleMoveModalClose}
+          disc={selectedDisc}
+          currentBagId={bagId}
+          currentBagName={bag?.name || 'Current Bag'}
+          onSuccess={handleMoveSuccess}
+        />
 
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              activeFilterCount > 0 && styles.actionButtonActive,
-            ]}
-            onPress={handleFilter}
-          >
-            <Icon
-              name="funnel-outline"
-              size={16}
-              color={activeFilterCount > 0 ? colors.primary : colors.textLight}
-            />
-            <Text style={[
-              styles.actionButtonText,
-              activeFilterCount > 0 && styles.actionButtonTextActive,
-            ]}
-            >
-              Filter
-              {activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Bulk Move Modal */}
+        <BulkMoveModal
+          visible={showBulkMoveModal}
+          onClose={handleBulkMoveModalClose}
+          selectedDiscIds={Array.from(selectedIds)}
+          currentBagId={bagId}
+          currentBagName={bag?.name || 'Current Bag'}
+          onSuccess={handleBulkMoveSuccess}
+        />
 
-        {/* Analytics Row */}
-        {bag?.bag_contents && bag.bag_contents.length > 0 && (
-          <View style={styles.analyticsActions}>
-            <BaboonBagBreakdownModal bag={bag} />
-            <BaboonsVisionModal bag={bag} />
-          </View>
-        )}
-
-        {/* Disc List or Empty State */}
-        {bag?.bag_contents && bag.bag_contents.length > 0 ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Icon
-                name="disc-outline"
-                size={20}
-                color={colors.primary}
-                style={styles.sectionIcon}
-              />
-              <Text style={styles.sectionTitle}>
-                Your Discs
-                {' '}
-                (
-                {filteredAndSortedDiscs.length}
-                {filteredAndSortedDiscs.length !== bag.bag_contents.length
-                  && ` of ${bag.bag_contents.length}`}
-                )
-              </Text>
-            </View>
-
-            {filteredAndSortedDiscs.length > 0 ? (
-              <FlatList
-                testID="disc-list"
-                data={filteredAndSortedDiscs}
-                renderItem={renderDiscItem}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-                contentContainerStyle={styles.listContent}
-                removeClippedSubviews
-                maxToRenderPerBatch={10}
-                windowSize={5}
-              />
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Icon
-                  name="funnel-outline"
-                  size={64}
-                  color={colors.textLight}
-                  style={styles.emptyIcon}
-                />
-                <Text style={styles.emptyTitle}>No Matching Discs</Text>
-                <Text style={styles.emptySubtitle}>
-                  No discs match your current filters or search criteria.
-                  Try adjusting your filters or clearing them to see all discs.
-                </Text>
-                <TouchableOpacity
-                  style={styles.clearAllButton}
-                  onPress={clearFiltersAndSort}
-                >
-                  <Text style={styles.clearAllButtonText}>Clear Filters</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        ) : (
-          renderEmptyState()
-        )}
-      </ScrollView>
-
-      {/* Filter Panel Modal */}
-      <FilterPanel
-        testID="filter-panel"
-        visible={showFilterPanel}
-        onClose={() => setShowFilterPanel(false)}
-        onApplyFilters={handleFilterApply}
-        currentFilters={filters}
-        discs={bag?.bag_contents || []}
-      />
-
-      {/* Sort Panel Modal */}
-      <SortPanel
-        testID="sort-panel"
-        visible={showSortPanel}
-        onClose={() => setShowSortPanel(false)}
-        onApplySort={handleSortApply}
-        currentSort={sort}
-      />
-
-      {/* Move Disc Modal */}
-      <MoveDiscModal
-        visible={showMoveModal}
-        onClose={handleMoveModalClose}
-        disc={selectedDisc}
-        currentBagId={bagId}
-        currentBagName={bag?.name || 'Current Bag'}
-        onSuccess={handleMoveSuccess}
-      />
-
+        {/* Bulk Action Bar */}
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onMove={handleBulkMove}
+          visible={isMultiSelectMode}
+        />
+      </AppContainer>
     </SafeAreaView>
   );
 }

@@ -871,3 +871,78 @@ export async function moveDiscBetweenBags(sourceBagId, targetBagId, contentIds) 
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Mark multiple discs as lost or found (bulk mark lost)
+ * @param {Array} contentIds - Array of bag content IDs to mark as lost/found
+ * @param {boolean} isLost - True to mark as lost, false to mark as found
+ * @param {string} notes - Optional notes about where/how discs were lost
+ * @returns {Promise<Object>} Success response with marked count
+ * @throws {Error} Bulk mark lost failed error with message
+ */
+export async function bulkMarkDiscsAsLost(contentIds, isLost = true, notes = '') {
+  // Validate inputs before making API call
+  if (!contentIds || !Array.isArray(contentIds)) {
+    throw new Error('Content IDs are required');
+  }
+
+  if (contentIds.length === 0) {
+    throw new Error('At least one content ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/discs/bulk-mark-lost`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        contentIds,
+        isLost,
+        notes,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid mark lost request');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'One or more discs not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}

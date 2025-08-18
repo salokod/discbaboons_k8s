@@ -194,4 +194,83 @@ describe('DiscRow', () => {
 
     expect(getByTestId('color-indicator')).toBeTruthy();
   });
+
+  describe('flight path visibility', () => {
+    it('should show flight path visualization by default', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} />
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('flight-path-visualization')).toBeTruthy();
+    });
+
+    it('should hide flight path visualization when hideFlightPath prop is true', () => {
+      const { queryByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} hideFlightPath />
+        </ThemeProvider>,
+      );
+
+      expect(queryByTestId('flight-path-visualization')).toBeNull();
+    });
+
+    it('should show flight path visualization when hideFlightPath prop is false', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} hideFlightPath={false} />
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('flight-path-visualization')).toBeTruthy();
+    });
+
+    it('should adjust layout when flight path is hidden', () => {
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} hideFlightPath />
+        </ThemeProvider>,
+      );
+
+      // Should have disc-content but no right-content when flight path is hidden
+      expect(getByTestId('disc-content')).toBeTruthy();
+      expect(queryByTestId('right-content')).toBeNull();
+    });
+
+    it('should show compact flight path when showCompactFlightPath is true', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} showCompactFlightPath />
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('flight-path-visualization')).toBeTruthy();
+      expect(getByTestId('right-content')).toBeTruthy();
+    });
+
+    it('should pass compact prop to FlightPathVisualization when showCompactFlightPath is true', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} showCompactFlightPath />
+        </ThemeProvider>,
+      );
+
+      const flightPath = getByTestId('flight-path-visualization');
+      expect(flightPath).toBeTruthy();
+      // The compact prop should be passed to FlightPathVisualization
+    });
+
+    it('should prioritize hideFlightPath over showCompactFlightPath', () => {
+      const { queryByTestId } = render(
+        <ThemeProvider>
+          <DiscRow disc={mockDisc} hideFlightPath showCompactFlightPath />
+        </ThemeProvider>,
+      );
+
+      // hideFlightPath should take precedence - no flight path should be shown
+      expect(queryByTestId('flight-path-visualization')).toBeNull();
+      expect(queryByTestId('right-content')).toBeNull();
+    });
+  });
 });

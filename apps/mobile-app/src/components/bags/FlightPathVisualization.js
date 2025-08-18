@@ -14,7 +14,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { spacing } from '../../design-system/spacing';
 
 function FlightPathVisualization({
-  turn, fade, width = 80, height = 100,
+  turn, fade, width = 80, height = 100, compact = false,
 }) {
   const colors = useThemeColors();
 
@@ -45,10 +45,10 @@ function FlightPathVisualization({
       width,
       height,
       position: 'relative',
-      backgroundColor: colors.surface,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
+      backgroundColor: 'transparent',
+      borderRadius: compact ? 4 : 8,
+      borderWidth: 0,
+      borderColor: 'transparent',
       overflow: 'hidden',
     },
     // Flight path segments
@@ -174,9 +174,9 @@ function FlightPathVisualization({
   }
 
   return (
-    <View style={styles.container}>
+    <View testID="flight-path-visualization" style={styles.container}>
       {/* Center reference line - dotted to show straight throw path */}
-      {dots.map((dot) => (
+      {!compact && dots.map((dot) => (
         <View
           key={`dot-${dot.top}`}
           style={[
@@ -220,7 +220,7 @@ function FlightPathVisualization({
       })}
 
       {/* Flight points */}
-      <View style={styles.throwerPosition} />
+      {!compact && <View style={styles.throwerPosition} />}
       <View style={styles.landingPoint} />
     </View>
   );
@@ -231,11 +231,13 @@ FlightPathVisualization.propTypes = {
   fade: PropTypes.number.isRequired,
   width: PropTypes.number,
   height: PropTypes.number,
+  compact: PropTypes.bool,
 };
 
 FlightPathVisualization.defaultProps = {
   width: 80,
   height: 100,
+  compact: false,
 };
 
 FlightPathVisualization.displayName = 'FlightPathVisualization';

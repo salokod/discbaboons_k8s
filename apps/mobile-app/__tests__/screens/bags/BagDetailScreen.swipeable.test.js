@@ -139,7 +139,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('disc-list')).toBeTruthy();
+        expect(getByTestId('main-disc-list')).toBeTruthy();
       });
 
       // Look for the swipeable-disc-row testID which indicates SwipeableDiscRow is being used
@@ -193,7 +193,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
 
         // Disc list section
         expect(getByText('Your Discs (1)')).toBeTruthy();
-        expect(getByTestId('disc-list')).toBeTruthy();
+        expect(getByTestId('main-disc-list')).toBeTruthy();
 
         // Disc content (via DiscRow inside SwipeableDiscRow)
         expect(getByText('Destroyer')).toBeTruthy();
