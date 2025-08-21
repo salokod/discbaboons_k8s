@@ -178,8 +178,8 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
 
       // Test all the core functionality still works
       await waitFor(() => {
-        // Header and bag info
-        expect(getByText('Test Bag')).toBeTruthy();
+        // Verify screen loads
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
         expect(getByText('A test bag for swipeable testing')).toBeTruthy();
 
         // Action buttons

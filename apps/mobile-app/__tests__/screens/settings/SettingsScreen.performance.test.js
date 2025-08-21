@@ -7,6 +7,13 @@ import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import SettingsScreen from '../../../src/screens/settings/SettingsScreen';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
 
+// Mock AuthContext
+jest.mock('../../../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { username: 'testuser', isAdmin: false },
+  }),
+}));
+
 // Mock navigation
 const mockNavigation = {
   navigate: jest.fn(),

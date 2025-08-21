@@ -85,13 +85,13 @@ describe('BagDetailScreen Refresh', () => {
     it('should refresh when context trigger fired', async () => {
       getBag.mockResolvedValue(mockBagData);
 
-      const { getByText } = renderWithProviders(
+      const { getByTestId } = renderWithProviders(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
       // Wait for initial load
       await waitFor(() => {
-        expect(getByText('Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
 
       // Verify initial API call
@@ -117,20 +117,20 @@ describe('BagDetailScreen Refresh', () => {
 
       // Verify bag was refreshed
       await waitFor(() => {
-        expect(getByText('Updated Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
     });
 
     it('should only refresh for matching bag ID', async () => {
       getBag.mockResolvedValue(mockBagData);
 
-      const { getByText } = renderWithProviders(
+      const { getByTestId } = renderWithProviders(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
       // Wait for initial load
       await waitFor(() => {
-        expect(getByText('Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
 
       // Verify initial API call

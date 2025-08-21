@@ -161,7 +161,7 @@ function AdminDashboardScreen({ navigation }) {
             <View style={{ marginTop: spacing.md }}>
               <TouchableOpacity
                 style={styles.adminItem}
-                onPress={() => navigation.navigate('AdminDiscScreen')}
+                onPress={() => navigation.navigate('AdminDisc')}
                 accessibilityLabel="Review pending disc submissions"
                 accessibilityRole="button"
                 accessibilityHint="Navigate to pending discs screen"

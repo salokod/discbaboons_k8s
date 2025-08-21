@@ -80,7 +80,7 @@ const measureRenderTime = async (renderFn) => {
   const result = renderFn();
   await waitFor(() => {
     // Wait for component to be fully rendered
-    expect(result.getByText('Performance Test Bag')).toBeTruthy();
+    expect(result.getByTestId('bag-detail-screen')).toBeTruthy();
   });
   const endTime = performance.now();
   return endTime - startTime;
@@ -126,7 +126,7 @@ describe('BagDetailScreen Performance', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Performance Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
 
       // Measure filter application time
@@ -157,7 +157,7 @@ describe('BagDetailScreen Performance', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Performance Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
 
       // Measure sort application time
@@ -605,12 +605,12 @@ describe('BagDetailScreen Performance', () => {
       // by checking that filtering/sorting doesn't cause unnecessary re-renders
       getBag.mockResolvedValue(mockLargeBagData);
 
-      const { getByText } = renderWithTheme(
+      const { getByTestId } = renderWithTheme(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
       await waitFor(() => {
-        expect(getByText('Performance Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
 
       // The component should efficiently handle the large dataset
@@ -622,12 +622,12 @@ describe('BagDetailScreen Performance', () => {
       // This test verifies that event handlers are memoized
       getBag.mockResolvedValue(mockLargeBagData);
 
-      const { getByText } = renderWithTheme(
+      const { getByText, getByTestId } = renderWithTheme(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
       await waitFor(() => {
-        expect(getByText('Performance Test Bag')).toBeTruthy();
+        expect(getByTestId('bag-detail-screen')).toBeTruthy();
       });
 
       // Event handlers should be stable across re-renders

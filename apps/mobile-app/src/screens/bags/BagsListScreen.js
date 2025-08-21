@@ -16,7 +16,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import PropTypes from 'prop-types';
-import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
@@ -133,13 +132,6 @@ function BagsListScreen({ navigation }) {
       fontSize: 24,
       color: colors.surface,
     },
-    hamburgerButton: {
-      minWidth: 44,
-      minHeight: 44,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: -spacing.sm,
-    },
   });
 
   // Show loading state on first load
@@ -171,17 +163,6 @@ function BagsListScreen({ navigation }) {
           {bags.length !== 1 ? 's' : ''}
         </Text>
       </View>
-      <TouchableOpacity
-        style={styles.hamburgerButton}
-        testID="hamburger-menu-button"
-        onPress={() => navigation?.openDrawer()}
-      >
-        <Icon
-          name="menu-outline"
-          size={24}
-          color={colors.text}
-        />
-      </TouchableOpacity>
     </View>
   );
 
@@ -209,6 +190,7 @@ function BagsListScreen({ navigation }) {
           />
         )}
       />
+
       <TouchableOpacity
         style={styles.createButton}
         onPress={() => navigation?.navigate('CreateBag')}
@@ -222,7 +204,6 @@ function BagsListScreen({ navigation }) {
 BagsListScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func,
-    openDrawer: PropTypes.func,
   }),
 };
 

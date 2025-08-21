@@ -90,26 +90,6 @@ describe('BagsListScreen', () => {
       expect(getByText('Create First Bag')).toBeTruthy();
     });
   });
-
-  it('should render hamburger menu button', async () => {
-    // Mock getBags to return some bags so we see the main screen
-    mockGetBags.mockResolvedValue({
-      bags: [{ id: 1, name: 'Test Bag', discCount: 5 }],
-    });
-
-    const { getByTestId } = render(
-      <ThemeProvider>
-        <BagRefreshProvider>
-          <BagsListScreen />
-        </BagRefreshProvider>
-      </ThemeProvider>,
-    );
-
-    // Wait for loading to complete and hamburger menu button to render
-    await waitFor(() => {
-      expect(getByTestId('hamburger-menu-button')).toBeTruthy();
-    });
-  });
 });
 
 describe('BagsListScreen - Slice 2: Bag List Refresh Integration', () => {

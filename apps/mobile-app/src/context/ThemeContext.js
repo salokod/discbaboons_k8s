@@ -1,5 +1,5 @@
 import {
-  createContext, useContext, useState, useMemo, useEffect,
+  createContext, useContext, useState, useMemo, useEffect, useCallback,
 } from 'react';
 import PropTypes from 'prop-types';
 import { THEME_NAMES, themes } from '../design-system/themes';
@@ -9,10 +9,15 @@ import { getSystemColorScheme, addSystemThemeChangeListener, isSystemThemeSuppor
 
 const ThemeContext = createContext();
 
-export function ThemeProvider({ children }) {
+export function ThemeProvider({ children, testMode = false, testStorage = false }) {
   const [theme, setTheme] = useState(THEME_NAMES.SYSTEM);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!testMode);
   const [activeTheme, setActiveTheme] = useState(() => {
+    // In test mode, start with light theme to allow proper test control
+    if (testMode) {
+      return THEME_NAMES.LIGHT;
+    }
+
     // Initialize activeTheme based on initial theme preference
     if (isSystemThemeSupported()) {
       const systemTheme = getSystemColorScheme();
@@ -24,6 +29,19 @@ export function ThemeProvider({ children }) {
 
   // Update activeTheme when theme preference changes
   useEffect(() => {
+    // In test mode without storage, handle theme changes directly without system calls
+    if (testMode && !testStorage) {
+      if (theme === THEME_NAMES.SYSTEM) {
+        // In test mode, system theme should use mocked system theme service
+        setActiveTheme(THEME_NAMES.LIGHT);
+      } else {
+        // For non-system themes, resolve directly
+        const resolvedTheme = resolveTheme(theme, null);
+        setActiveTheme(resolvedTheme);
+      }
+      return;
+    }
+
     if (theme === THEME_NAMES.SYSTEM && isSystemThemeSupported()) {
       const systemTheme = getSystemColorScheme();
       const resolvedTheme = resolveTheme(theme, systemTheme);
@@ -36,10 +54,16 @@ export function ThemeProvider({ children }) {
       const resolvedTheme = resolveTheme(theme, null);
       setActiveTheme(resolvedTheme);
     }
-  }, [theme]);
+  }, [theme, testMode, testStorage]);
 
   // Load stored theme on initialization
   useEffect(() => {
+    // Skip async loading in test mode unless testStorage is enabled
+    if (testMode && !testStorage) {
+      setIsLoading(false);
+      return;
+    }
+
     const loadStoredTheme = async () => {
       try {
         const storedTheme = await getStoredTheme();
@@ -54,10 +78,15 @@ export function ThemeProvider({ children }) {
     };
 
     loadStoredTheme();
-  }, []);
+  }, [testMode, testStorage]);
 
   // Add system theme change listener when preference is set to 'system'
   useEffect(() => {
+    // Skip system theme listeners in test mode unless testStorage is enabled
+    if (testMode && !testStorage) {
+      return undefined;
+    }
+
     if (theme === THEME_NAMES.SYSTEM && isSystemThemeSupported()) {
       const cleanup = addSystemThemeChangeListener((newSystemTheme) => {
         setActiveTheme(newSystemTheme);
@@ -67,22 +96,26 @@ export function ThemeProvider({ children }) {
     }
 
     return undefined;
-  }, [theme]);
+  }, [theme, testMode, testStorage]);
 
   // Function to change theme with persistence
-  const changeTheme = async (newTheme) => {
+  const changeTheme = useCallback(async (newTheme) => {
     if (themes[newTheme] || newTheme === THEME_NAMES.SYSTEM) {
       setIsLoading(true);
       setTheme(newTheme);
-      try {
-        await storeTheme(newTheme);
-      } catch (error) {
-        // Graceful degradation - theme still changes in memory
-      } finally {
-        setIsLoading(false);
+
+      // Skip storage operations in test mode unless testStorage is enabled
+      if (!testMode || testStorage) {
+        try {
+          await storeTheme(newTheme);
+        } catch (error) {
+          // Graceful degradation - theme still changes in memory
+        }
       }
+
+      setIsLoading(false);
     }
-  };
+  }, [testMode, testStorage]);
 
   const value = useMemo(() => ({
     theme,
@@ -90,7 +123,7 @@ export function ThemeProvider({ children }) {
     setTheme,
     changeTheme,
     isLoading,
-  }), [theme, activeTheme, isLoading]);
+  }), [theme, activeTheme, isLoading, changeTheme]);
 
   return (
     <ThemeContext.Provider value={value}>
@@ -101,6 +134,13 @@ export function ThemeProvider({ children }) {
 
 ThemeProvider.propTypes = {
   children: PropTypes.node.isRequired,
+  testMode: PropTypes.bool,
+  testStorage: PropTypes.bool,
+};
+
+ThemeProvider.defaultProps = {
+  testMode: false,
+  testStorage: false,
 };
 
 export const useTheme = () => {

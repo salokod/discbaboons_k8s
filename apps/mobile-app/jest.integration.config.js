@@ -12,7 +12,7 @@ module.exports = {
     '^.+\\.(js|jsx)$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons|react-native-gesture-handler|react-native-keychain)/)',
   ],
   moduleNameMapper: {
     '^@react-native-vector-icons/(.*)$': '<rootDir>/__mocks__/@react-native-vector-icons/$1.js',

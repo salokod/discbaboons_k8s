@@ -419,22 +419,8 @@ function AddDiscToBagScreen({ navigation, route }) {
       // Trigger bag list refresh to update disc counts
       triggerBagListRefresh();
 
-      Alert.alert(
-        'Disc Added!',
-        `${disc.model} has been added to ${bagName}.`,
-        [
-          {
-            text: 'Add Another',
-            style: 'default',
-            onPress: () => navigation.goBack(),
-          },
-          {
-            text: 'View Bag',
-            style: 'default',
-            onPress: () => navigation.navigate('BagDetail', { bagId }),
-          },
-        ],
-      );
+      // Use goBack() to return to previous screen (BagDetailScreen) - prevents modal stacking
+      navigation.goBack();
     } catch (error) {
       Alert.alert(
         'Unable to Add Disc',

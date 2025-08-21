@@ -168,7 +168,7 @@ function DiscDatabaseScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.settingItem}
-                onPress={() => navigation.navigate('SubmitDiscScreen')}
+                onPress={() => navigation.navigate('Discover', { screen: 'SubmitDisc' })}
                 accessibilityLabel="Submit a new disc to the database"
                 accessibilityRole="button"
                 accessibilityHint="Navigate to submit disc screen"

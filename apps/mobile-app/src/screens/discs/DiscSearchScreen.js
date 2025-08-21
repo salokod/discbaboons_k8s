@@ -317,6 +317,11 @@ function DiscSearchScreen({ navigation, route }) {
     });
   }, [navigation, bagId, bagName]);
 
+  // Navigate to bags (cross-tab navigation)
+  const handleViewBags = useCallback(() => {
+    navigation.navigate('Bags', { screen: 'BagsList' });
+  }, [navigation]);
+
   const renderDiscItem = React.useCallback(({ item }) => (
     <View style={styles.discItem}>
       <View style={styles.discContent}>
@@ -496,6 +501,20 @@ function DiscSearchScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* Cross-tab navigation: View Bags shortcut */}
+        {!isAddToBagMode && (
+          <View style={styles.crossTabContainer}>
+            <TouchableOpacity
+              style={styles.viewBagsButton}
+              onPress={handleViewBags}
+              testID="add-to-bag-shortcut"
+            >
+              <Icon name="bag-outline" size={20} color={colors.primary} />
+              <Text style={styles.viewBagsButtonText}>Add to Bag (View Bags)</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Results Count */}
         {discs.length > 0 && (
         <View style={styles.resultsHeader}>
@@ -516,7 +535,7 @@ function DiscSearchScreen({ navigation, route }) {
     styles, handleSearchInputChange, handleSearchClear, triggerSearch,
     activeFilterCount, colors, hasSearched, searchQuery,
     clearSearch, discs.length, pagination.total, sort.field, sort.direction,
-    showPending, togglePendingStatus,
+    showPending, togglePendingStatus, handleViewBags, isAddToBagMode,
   ]);
 
   const renderListFooter = React.useCallback(() => {
@@ -563,7 +582,7 @@ function DiscSearchScreen({ navigation, route }) {
         title="No Discs Available"
         message="No discs are currently available in the database."
         actionText="Submit New Disc"
-        onActionPress={() => navigation.navigate('SubmitDiscScreen')}
+        onActionPress={() => navigation.navigate('SubmitDisc')}
       />
     );
   }, [
@@ -893,6 +912,27 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 12,
   },
   actionButtonTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  crossTabContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  viewBagsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    gap: spacing.sm,
+    justifyContent: 'center',
+  },
+  viewBagsButtonText: {
+    ...typography.button,
     color: colors.primary,
     fontWeight: '600',
   },

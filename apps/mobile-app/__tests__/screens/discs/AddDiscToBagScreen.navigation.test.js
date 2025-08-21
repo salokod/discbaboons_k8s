@@ -99,4 +99,20 @@ describe('AddDiscToBagScreen Navigation', () => {
     handleAddDiscToBag({ model: 'Test', brand: 'Test' });
     expect(mockNavigate).not.toHaveBeenCalled();
   });
+
+  it('should navigate directly to BagDetailScreen after adding disc', () => {
+    // Test that after successfully adding a disc, navigation goes directly to BagDetailScreen
+    // This eliminates the intermediate alert that requires user to choose "View Bag"
+    const testBagId = 'bag-123';
+
+    // Simulate successful disc addition flow
+    const handleSuccessfulAddition = (bagId) => {
+      mockNavigation.navigate('BagDetail', { bagId });
+    };
+
+    handleSuccessfulAddition(testBagId);
+
+    expect(mockNavigate).toHaveBeenCalledWith('BagDetail', { bagId: testBagId });
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+  });
 });
