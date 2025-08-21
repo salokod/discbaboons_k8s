@@ -111,7 +111,7 @@ describe('EmptyBagsScreen', () => {
       expect(getByText('Search Discs')).toBeTruthy();
     });
 
-    it('should NOT display "Submit New Disc" button (moved to settings drawer)', () => {
+    it('should NOT display "Submit New Disc" button (now in Admin tab)', () => {
       const { queryByText } = render(
         <ThemeProvider>
           <EmptyBagsScreen />
@@ -123,7 +123,7 @@ describe('EmptyBagsScreen', () => {
   });
 
   describe('Admin Section Removal', () => {
-    it('should NOT display admin section even for admin users (moved to settings drawer)', () => {
+    it('should NOT display admin section even for admin users (now in Admin tab)', () => {
       // Mock admin user
       mockUseAuth.mockReturnValue({
         isAuthenticated: true,

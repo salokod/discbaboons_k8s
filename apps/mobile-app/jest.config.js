@@ -5,7 +5,7 @@ module.exports = {
     '<rootDir>/__tests__/integration/',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons|react-error-boundary|react-native-reanimated|reanimated-color-picker|react-native-gesture-handler|react-native-drawer-layout)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-vector-icons|react-error-boundary|react-native-reanimated|reanimated-color-picker|react-native-gesture-handler)/)',
   ],
   setupFilesAfterEnv: [
     '<rootDir>/setupTests.js',

@@ -266,11 +266,14 @@ function BagDetailScreen({ route, navigation }) {
       return;
     }
 
-    // Navigate to DiscSearchScreen with bagId parameter for adding disc to bag
-    navigation?.navigate('DiscSearchScreen', {
-      mode: 'addToBag',
-      bagId,
-      bagName: bag?.name || 'Your Bag',
+    // Navigate to DiscSearch with cross-tab navigation for adding disc to bag
+    navigation?.navigate('Discover', {
+      screen: 'DiscSearch',
+      params: {
+        mode: 'addToBag',
+        bagId,
+        bagName: bag?.name || 'Your Bag',
+      },
     });
   }, [bagId, bag?.name, navigation]);
 

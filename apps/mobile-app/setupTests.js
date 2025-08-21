@@ -86,3 +86,16 @@ jest.mock('react-native-haptic-feedback', () => ({
     notificationError: 'notificationError',
   },
 }));
+
+// Mock react-native-keychain
+jest.mock('react-native-keychain', () => ({
+  getInternetCredentials: jest.fn(() => Promise.resolve({ username: 'test', password: 'test' })),
+  setInternetCredentials: jest.fn(() => Promise.resolve()),
+  resetInternetCredentials: jest.fn(() => Promise.resolve()),
+  canImplyAuthentication: jest.fn(() => Promise.resolve(true)),
+  getSupportedBiometryType: jest.fn(() => Promise.resolve('TouchID')),
+  SECURITY_LEVEL: {},
+  ACCESS_CONTROL: {},
+  AUTHENTICATION_TYPE: {},
+  BIOMETRY_TYPE: {},
+}));

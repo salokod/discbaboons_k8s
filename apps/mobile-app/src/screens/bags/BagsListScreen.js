@@ -73,6 +73,11 @@ function BagsListScreen({ navigation }) {
     navigation?.navigate('CreateBag');
   }, [navigation]);
 
+  // Navigate to discover discs (cross-tab navigation)
+  const handleSearchDiscs = useCallback(() => {
+    navigation?.navigate('Discover', { screen: 'DiscSearch' });
+  }, [navigation]);
+
   // Navigate to bag detail
   const handleBagPress = useCallback((bag) => {
     navigation?.navigate('BagDetail', { bagId: bag.id });
@@ -133,12 +138,21 @@ function BagsListScreen({ navigation }) {
       fontSize: 24,
       color: colors.surface,
     },
-    hamburgerButton: {
-      minWidth: 44,
-      minHeight: 44,
-      justifyContent: 'center',
+    searchDiscsButton: {
+      flexDirection: 'row',
       alignItems: 'center',
-      marginTop: -spacing.sm,
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderRadius: 8,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    searchDiscsButtonText: {
+      ...typography.button,
+      color: colors.surface,
+      fontWeight: '600',
     },
   });
 
@@ -171,17 +185,6 @@ function BagsListScreen({ navigation }) {
           {bags.length !== 1 ? 's' : ''}
         </Text>
       </View>
-      <TouchableOpacity
-        style={styles.hamburgerButton}
-        testID="hamburger-menu-button"
-        onPress={() => navigation?.openDrawer()}
-      >
-        <Icon
-          name="menu-outline"
-          size={24}
-          color={colors.text}
-        />
-      </TouchableOpacity>
     </View>
   );
 
@@ -209,6 +212,17 @@ function BagsListScreen({ navigation }) {
           />
         )}
       />
+
+      {/* Cross-tab navigation: Search Discs shortcut */}
+      <TouchableOpacity
+        style={styles.searchDiscsButton}
+        onPress={handleSearchDiscs}
+        testID="search-discs-button"
+      >
+        <Icon name="search" size={20} color={colors.surface} />
+        <Text style={styles.searchDiscsButtonText}>Search Discs</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={styles.createButton}
         onPress={() => navigation?.navigate('CreateBag')}
@@ -222,7 +236,6 @@ function BagsListScreen({ navigation }) {
 BagsListScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func,
-    openDrawer: PropTypes.func,
   }),
 };
 

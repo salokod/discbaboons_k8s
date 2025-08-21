@@ -232,10 +232,13 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
 
       fireEvent.press(getByText('Add Disc'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('DiscSearchScreen', {
-        mode: 'addToBag',
-        bagId: 'test-bag-id',
-        bagName: 'Test Bag',
+      expect(mockNavigate).toHaveBeenCalledWith('Discover', {
+        screen: 'DiscSearch',
+        params: {
+          mode: 'addToBag',
+          bagId: 'test-bag-id',
+          bagName: 'Test Bag',
+        },
       });
     });
   });

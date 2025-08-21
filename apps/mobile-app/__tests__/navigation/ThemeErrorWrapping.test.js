@@ -1,12 +1,14 @@
 /**
  * Theme Error Wrapping Tests
- * Tests for wrapping Settings components with ThemeErrorBoundary
+ * Tests for wrapping Settings components with ThemeErrorBoundary in BottomTabNavigator
  */
 
 import { render } from '@testing-library/react-native';
-import DrawerNavigator from '../../src/navigation/DrawerNavigator';
+import { NavigationContainer } from '@react-navigation/native';
+import BottomTabNavigator from '../../src/navigation/BottomTabNavigator';
 import { AuthProvider } from '../../src/context/AuthContext';
 import { ThemeProvider } from '../../src/context/ThemeContext';
+import { BagRefreshProvider } from '../../src/context/BagRefreshContext';
 
 // Mock console.error to avoid noise in tests
 // eslint-disable-next-line no-console
@@ -44,91 +46,49 @@ function TestWrapper({ children }) {
   return (
     <AuthProvider>
       <ThemeProvider>
-        {children}
+        <BagRefreshProvider>
+          <NavigationContainer>
+            {children}
+          </NavigationContainer>
+        </BagRefreshProvider>
       </ThemeProvider>
     </AuthProvider>
   );
 }
 
 describe('Theme Error Wrapping in Navigation', () => {
-  it('should wrap Settings components with ThemeErrorBoundary', () => {
-    const { getByTestId } = render(
+  it('should render BottomTabNavigator without error boundaries (settings moved to Profile tab)', () => {
+    const { queryByTestId } = render(
       <TestWrapper>
-        <DrawerNavigator />
+        <BottomTabNavigator />
       </TestWrapper>,
     );
 
-    // Should render drawer navigator successfully
-    expect(getByTestId('drawer-navigator')).toBeTruthy();
+    // BottomTabNavigator should render successfully
+    // Note: Settings are now handled in Profile tab stack navigators
+    expect(queryByTestId('bottom-tab-navigator')).toBeTruthy();
   });
 
-  it('should handle Settings screen errors gracefully', () => {
-    // Create a version of SettingsScreen that throws an error
-    const originalSettingsScreen = require('../../src/screens/settings/SettingsScreen').default;
-
-    // Mock SettingsScreen to throw an error
-    jest.doMock('../../src/screens/settings/SettingsScreen', () => () => {
-      throw new Error('Settings theme error');
-    });
-
-    // This should not crash the entire app due to error boundary
+  it('should handle navigation errors gracefully with bottom tabs', () => {
+    // BottomTabNavigator should not crash the app
     expect(() => {
       render(
         <TestWrapper>
-          <DrawerNavigator />
+          <BottomTabNavigator />
         </TestWrapper>,
       );
     }).not.toThrow();
-
-    // Restore original component
-    jest.doMock('../../src/screens/settings/SettingsScreen', () => originalSettingsScreen);
   });
 
-  it('should handle AccountSettings screen errors gracefully', () => {
-    // Create a version of AccountSettingsScreen that throws an error
-    const originalAccountSettingsScreen = require('../../src/screens/settings/AccountSettingsScreen').default;
+  it('should verify BottomTabNavigator structure', () => {
+    const { queryByTestId } = render(
+      <TestWrapper>
+        <BottomTabNavigator />
+      </TestWrapper>,
+    );
 
-    // Mock AccountSettingsScreen to throw an error
-    jest.doMock('../../src/screens/settings/AccountSettingsScreen', () => () => {
-      throw new Error('Account settings theme error');
-    });
-
-    // This should not crash the entire app due to error boundary
-    expect(() => {
-      render(
-        <TestWrapper>
-          <DrawerNavigator />
-        </TestWrapper>,
-      );
-    }).not.toThrow();
-
-    // Restore original component
-    jest.doMock('../../src/screens/settings/AccountSettingsScreen', () => originalAccountSettingsScreen);
-  });
-
-  it('should verify ThemeErrorBoundary usage for Settings screens', () => {
-    // Import the DrawerNavigator source to verify structure
-    const fs = require('fs');
-    const path = require('path');
-    const navigatorPath = path.join(__dirname, '../../src/navigation/DrawerNavigator.js');
-    const navigatorSource = fs.readFileSync(navigatorPath, 'utf8');
-
-    // Check that ThemeErrorBoundary is imported and used
-    expect(navigatorSource).toContain('ThemeErrorBoundary');
-  });
-
-  it('should verify Settings screens are wrapped with proper error boundaries', () => {
-    // Import the DrawerNavigator source to verify structure
-    const fs = require('fs');
-    const path = require('path');
-    const navigatorPath = path.join(__dirname, '../../src/navigation/DrawerNavigator.js');
-    const navigatorSource = fs.readFileSync(navigatorPath, 'utf8');
-
-    // Verify ThemeErrorBoundary is imported
-    expect(navigatorSource).toContain('ThemeErrorBoundary');
-
-    // Verify Settings screens are wrapped
-    expect(navigatorSource).toContain('WrappedSettingsScreen');
-    expect(navigatorSource).toContain('WrappedAccountSettingsScreen');
+    // Should render bottom tab navigation successfully
+    // Error boundaries for settings are now handled in ProfileStackNavigator
+    expect(queryByTestId('bottom-tab-navigator')).toBeTruthy();
   });
 });

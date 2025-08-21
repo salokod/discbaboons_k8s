@@ -19,7 +19,7 @@ import DiscRow from './DiscRow';
 
 const SwipeableDiscRow = React.forwardRef(({
   disc, onSwipeRight, onSwipeLeft, actions, bagId, bagName, onLongPress,
-  hideFlightPath, showCompactFlightPath,
+  hideFlightPath, showCompactFlightPath, testID,
 }, ref) => {
   const navigation = useNavigation();
   const colors = useThemeColors();
@@ -211,7 +211,7 @@ const SwipeableDiscRow = React.forwardRef(({
   };
 
   return (
-    <View testID="swipeable-disc-row" style={styles.container}>
+    <View testID={testID || 'swipeable-disc-row'} style={styles.container}>
       {/* Debug indicator */}
       {isSwipeActive && (
         <View style={styles.debugContainer}>
@@ -277,6 +277,7 @@ SwipeableDiscRow.propTypes = {
   onLongPress: PropTypes.func,
   hideFlightPath: PropTypes.bool,
   showCompactFlightPath: PropTypes.bool,
+  testID: PropTypes.string,
 };
 
 SwipeableDiscRow.defaultProps = {
@@ -286,6 +287,7 @@ SwipeableDiscRow.defaultProps = {
   onLongPress: undefined,
   hideFlightPath: false,
   showCompactFlightPath: false,
+  testID: undefined,
 };
 
 SwipeableDiscRow.displayName = 'SwipeableDiscRow';

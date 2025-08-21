@@ -16,15 +16,17 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import NavigationHeader from '../../components/NavigationHeader';
 import { getProfile, updateProfile } from '../../services/profile';
 import AccountSettingsSkeleton from '../../components/settings/AccountSettingsSkeleton';
 
-function AccountSettingsScreen() {
+function AccountSettingsScreen({ navigation }) {
   const colors = useThemeColors();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,6 +83,12 @@ function AccountSettingsScreen() {
 
   const updateField = (field, value) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleBack = () => {
+    if (navigation?.goBack) {
+      navigation.goBack();
+    }
   };
 
   const styles = StyleSheet.create({
@@ -213,6 +221,11 @@ function AccountSettingsScreen() {
   return (
     <AppContainer>
       <SafeAreaView style={styles.container}>
+        <NavigationHeader
+          title="Account Settings"
+          onBack={handleBack}
+          backAccessibilityLabel="Return to settings"
+        />
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -220,7 +233,6 @@ function AccountSettingsScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Account Settings</Text>
             <Text style={styles.headerSubtitle}>
               Manage your profile information and privacy settings
             </Text>
@@ -407,5 +419,15 @@ function AccountSettingsScreen() {
     </AppContainer>
   );
 }
+
+AccountSettingsScreen.propTypes = {
+  navigation: PropTypes.shape({
+    goBack: PropTypes.func,
+  }),
+};
+
+AccountSettingsScreen.defaultProps = {
+  navigation: null,
+};
 
 export default memo(AccountSettingsScreen);
