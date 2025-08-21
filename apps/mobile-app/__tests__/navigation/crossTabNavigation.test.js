@@ -13,36 +13,34 @@ const mockGetState = jest.fn();
 
 jest.mock('../../src/navigation/BagsStackNavigator', () => {
   const React = require('react');
-  const { View, TouchableOpacity, Text } = require('react-native');
+  const { View, Text } = require('react-native');
 
-  return function BagsStackNavigator({ navigation }) {
-    // Mock a "Search Discs" button that should navigate to Discover tab
+  return function BagsStackNavigator() {
+    // Simple mock without Discover navigation since Discover tab is removed
     return React.createElement(View, { testID: 'bags-stack' }, [
       React.createElement(Text, { key: 'title' }, 'BagsStack'),
-      React.createElement(
-        TouchableOpacity,
-        {
-          key: 'search-discs-button',
-          testID: 'search-discs-button',
-          onPress: () => {
-            // This should navigate to Discover tab
-            navigation.navigate('Discover', { screen: 'DiscSearch' });
-          },
-        },
-        React.createElement(Text, null, 'Search Discs'),
-      ),
     ]);
   };
 });
 
-jest.mock('../../src/navigation/DiscoverStackNavigator', () => {
+jest.mock('../../src/navigation/RoundsStackNavigator', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+
+  return function RoundsStackNavigator() {
+    return React.createElement(Text, { testID: 'rounds-stack' }, 'RoundsStack');
+  };
+});
+
+// DiscoverStackNavigator removed - no longer part of bottom tab navigation
+
+jest.mock('../../src/navigation/CommunityStackNavigator', () => {
   const React = require('react');
   const { View, TouchableOpacity, Text } = require('react-native');
-
-  return function DiscoverStackNavigator({ navigation }) {
+  return function CommunityStackNavigator({ navigation }) {
     // Mock an "Add to Bag" button that should navigate to Bags tab
-    return React.createElement(View, { testID: 'discover-stack' }, [
-      React.createElement(Text, { key: 'title' }, 'DiscoverStack'),
+    return React.createElement(View, { testID: 'community-stack' }, [
+      React.createElement(Text, { key: 'title' }, 'CommunityStack'),
       React.createElement(
         TouchableOpacity,
         {
@@ -56,22 +54,6 @@ jest.mock('../../src/navigation/DiscoverStackNavigator', () => {
         React.createElement(Text, null, 'Add to Bag (View Bags)'),
       ),
     ]);
-  };
-});
-
-jest.mock('../../src/navigation/ProfileStackNavigator', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  return function ProfileStackNavigator() {
-    return React.createElement(Text, { testID: 'profile-stack' }, 'ProfileStack');
-  };
-});
-
-jest.mock('../../src/navigation/AdminStackNavigator', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  return function AdminStackNavigator() {
-    return React.createElement(Text, { testID: 'admin-stack' }, 'AdminStack');
   };
 });
 
@@ -121,31 +103,29 @@ describe('Cross-Tab Navigation', () => {
     expect(getByTestId('bags-stack')).toBeTruthy();
   });
 
-  it('should navigate from Bags tab to Discover tab when "Search Discs" is pressed', async () => {
-    const { getByTestId, getByText } = renderWithProviders();
+  it('should render only 4 tabs without Discover tab', async () => {
+    const { getByTestId, getByText, queryByText } = renderWithProviders();
 
-    // Start on Bags tab
+    // Should render 4 tabs
     expect(getByTestId('bags-stack')).toBeTruthy();
-    expect(getByText('Search Discs')).toBeTruthy();
+    expect(getByText('Bags')).toBeTruthy();
+    expect(getByText('Rounds')).toBeTruthy();
+    expect(getByText('Baboons')).toBeTruthy();
+    expect(getByText('Profile')).toBeTruthy();
 
-    // Tap "Search Discs" button
-    fireEvent.press(getByTestId('search-discs-button'));
-
-    // Should navigate to Discover tab
-    await waitFor(() => {
-      expect(getByTestId('discover-stack')).toBeTruthy();
-    });
+    // Should NOT have Discover tab
+    expect(queryByText('Discover')).toBeNull();
   });
 
-  it('should navigate from Discover tab to Bags tab when "Add to Bag" shortcut is pressed', async () => {
+  it('should navigate from Baboons tab to Bags tab when "Add to Bag" shortcut is pressed', async () => {
     const { getByTestId, getByText } = renderWithProviders();
 
-    // Navigate to Discover tab first
-    const discoverTab = getByText('Discover');
-    fireEvent.press(discoverTab);
+    // Navigate to Baboons tab first
+    const baboonsTab = getByText('Baboons');
+    fireEvent.press(baboonsTab);
 
     await waitFor(() => {
-      expect(getByTestId('discover-stack')).toBeTruthy();
+      expect(getByTestId('community-stack')).toBeTruthy();
     });
 
     // Should show "Add to Bag" shortcut
@@ -166,10 +146,10 @@ describe('Cross-Tab Navigation', () => {
     // Start on Bags tab
     expect(getByTestId('bags-stack')).toBeTruthy();
 
-    // Navigate to Discover tab via tab press
-    fireEvent.press(getByText('Discover'));
+    // Navigate to Baboons tab via tab press
+    fireEvent.press(getByText('Baboons'));
     await waitFor(() => {
-      expect(getByTestId('discover-stack')).toBeTruthy();
+      expect(getByTestId('community-stack')).toBeTruthy();
     });
 
     // Navigate back to Bags via shortcut
@@ -178,69 +158,53 @@ describe('Cross-Tab Navigation', () => {
       expect(getByTestId('bags-stack')).toBeTruthy();
     });
 
-    // Navigate to Discover via shortcut
-    fireEvent.press(getByTestId('search-discs-button'));
-    await waitFor(() => {
-      expect(getByTestId('discover-stack')).toBeTruthy();
-    });
-
-    // Tab state should be preserved throughout navigation
+    // Tab state should be preserved - only 4 tabs should exist
     expect(getByText('Bags')).toBeTruthy();
-    expect(getByText('Discover')).toBeTruthy();
+    expect(getByText('Rounds')).toBeTruthy();
+    expect(getByText('Baboons')).toBeTruthy();
+    expect(getByText('Profile')).toBeTruthy();
   });
 
-  it('should provide 60% reduction in taps for common workflows', () => {
+  it('should provide navigation shortcuts through Community tab', () => {
     const { getByTestId, getByText } = renderWithProviders();
 
-    // Traditional workflow to search discs from bags: 2 taps (bags tab → discover tab)
-    // New workflow: 1 tap (search discs button)
-    // Reduction: 50%
-
-    // Traditional workflow to add to bag from discover: 2 taps (discover tab → bags tab)
-    // New workflow: 1 tap (add to bag shortcut)
-    // Reduction: 50%
-
-    // Cross-tab shortcuts should be easily accessible on Bags tab
-    expect(getByTestId('search-discs-button')).toBeTruthy();
-
-    // Navigate to discover to check shortcut
-    fireEvent.press(getByText('Discover'));
+    // Navigate to baboons to check shortcut
+    fireEvent.press(getByText('Baboons'));
     expect(getByTestId('add-to-bag-shortcut')).toBeTruthy();
 
-    // Navigate back to Bags tab to access search button
+    // Navigate back to Bags tab
     fireEvent.press(getByText('Bags'));
-
-    // Verify both shortcuts provide seamless navigation
-    expect(getByTestId('search-discs-button')).toBeTruthy();
-  });
-
-  it('should support complete navigation integration across all tabs', async () => {
-    const { getByTestId, getByText } = renderWithProviders();
-
-    // Test complete navigation flow: Bags → Discover → Bags → Profile → Bags
     expect(getByTestId('bags-stack')).toBeTruthy();
 
-    // Bags to Discover
-    fireEvent.press(getByTestId('search-discs-button'));
+    // Verify the 4-tab navigation structure works
+    expect(getByText('Bags')).toBeTruthy();
+    expect(getByText('Rounds')).toBeTruthy();
+    expect(getByText('Baboons')).toBeTruthy();
+    expect(getByText('Profile')).toBeTruthy();
+  });
+
+  it('should support complete navigation integration across all 4 tabs', async () => {
+    const { getByTestId, getByText } = renderWithProviders();
+
+    // Test complete navigation flow through all 4 tabs
+    expect(getByTestId('bags-stack')).toBeTruthy();
+
+    // Navigate to Community tab first to access the add-to-bag-shortcut
+    fireEvent.press(getByText('Baboons'));
     await waitFor(() => {
-      expect(getByTestId('discover-stack')).toBeTruthy();
+      expect(getByTestId('community-stack')).toBeTruthy();
     });
 
-    // Discover to Bags
+    // Community to Bags
     fireEvent.press(getByTestId('add-to-bag-shortcut'));
     await waitFor(() => {
       expect(getByTestId('bags-stack')).toBeTruthy();
     });
 
-    // Navigate to Profile tab
-    fireEvent.press(getByText('Profile'));
-    await waitFor(() => {
-      expect(getByTestId('profile-stack')).toBeTruthy();
-    });
-
-    // All navigation should work seamlessly
+    // All 4 tabs should work seamlessly (no Discover tab)
     expect(getByText('Bags')).toBeTruthy();
-    expect(getByText('Discover')).toBeTruthy();
+    expect(getByText('Rounds')).toBeTruthy();
+    expect(getByText('Baboons')).toBeTruthy();
     expect(getByText('Profile')).toBeTruthy();
   });
 });

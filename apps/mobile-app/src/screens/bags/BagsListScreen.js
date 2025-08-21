@@ -16,7 +16,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import PropTypes from 'prop-types';
-import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
@@ -71,11 +70,6 @@ function BagsListScreen({ navigation }) {
   // Navigate to create bag
   const handleCreateFirstBag = useCallback(() => {
     navigation?.navigate('CreateBag');
-  }, [navigation]);
-
-  // Navigate to discover discs (cross-tab navigation)
-  const handleSearchDiscs = useCallback(() => {
-    navigation?.navigate('Discover', { screen: 'DiscSearch' });
   }, [navigation]);
 
   // Navigate to bag detail
@@ -138,22 +132,6 @@ function BagsListScreen({ navigation }) {
       fontSize: 24,
       color: colors.surface,
     },
-    searchDiscsButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      borderRadius: 8,
-      marginHorizontal: spacing.lg,
-      marginBottom: spacing.lg,
-      gap: spacing.sm,
-    },
-    searchDiscsButtonText: {
-      ...typography.button,
-      color: colors.surface,
-      fontWeight: '600',
-    },
   });
 
   // Show loading state on first load
@@ -212,16 +190,6 @@ function BagsListScreen({ navigation }) {
           />
         )}
       />
-
-      {/* Cross-tab navigation: Search Discs shortcut */}
-      <TouchableOpacity
-        style={styles.searchDiscsButton}
-        onPress={handleSearchDiscs}
-        testID="search-discs-button"
-      >
-        <Icon name="search" size={20} color={colors.surface} />
-        <Text style={styles.searchDiscsButtonText}>Search Discs</Text>
-      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.createButton}

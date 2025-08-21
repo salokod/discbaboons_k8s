@@ -419,14 +419,8 @@ function AddDiscToBagScreen({ navigation, route }) {
       // Trigger bag list refresh to update disc counts
       triggerBagListRefresh();
 
-      // Navigate to Main navigator, then Bags tab, then BagDetail screen after successful addition
-      navigation.navigate('Main', {
-        screen: 'Bags',
-        params: {
-          screen: 'BagDetail',
-          params: { bagId },
-        },
-      });
+      // Use goBack() to return to previous screen (BagDetailScreen) - prevents modal stacking
+      navigation.goBack();
     } catch (error) {
       Alert.alert(
         'Unable to Add Disc',

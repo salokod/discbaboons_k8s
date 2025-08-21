@@ -139,7 +139,7 @@ function DiscDatabaseScreen({ navigation }) {
             <View style={{ marginTop: spacing.md }}>
               <TouchableOpacity
                 style={styles.settingItem}
-                onPress={() => navigation.navigate('Discover', { screen: 'DiscSearch' })}
+                onPress={() => navigation.navigate('DiscSearchScreen')}
                 accessibilityLabel="Search for discs in the database"
                 accessibilityRole="button"
                 accessibilityHint="Navigate to disc search screen"

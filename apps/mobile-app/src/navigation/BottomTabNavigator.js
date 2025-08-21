@@ -6,12 +6,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, StyleSheet } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
-import { useAuth } from '../context/AuthContext';
 import { useThemeColors } from '../context/ThemeContext';
 import BagsStackNavigator from './BagsStackNavigator';
-import DiscoverStackNavigator from './DiscoverStackNavigator';
+import RoundsStackNavigator from './RoundsStackNavigator';
+import CommunityStackNavigator from './CommunityStackNavigator';
 import ProfileStackNavigator from './ProfileStackNavigator';
-import AdminStackNavigator from './AdminStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -30,11 +29,11 @@ const getTabBarIcon = (route, focused, color) => {
     case 'Bags':
       iconName = focused ? 'bag' : 'bag-outline';
       break;
-    case 'Discover':
-      iconName = focused ? 'compass' : 'compass-outline';
+    case 'Rounds':
+      iconName = focused ? 'golf' : 'golf-outline';
       break;
-    case 'Admin':
-      iconName = focused ? 'settings' : 'settings-outline';
+    case 'Baboons':
+      iconName = focused ? 'people' : 'people-outline';
       break;
     case 'Profile':
       iconName = focused ? 'person' : 'person-outline';
@@ -47,7 +46,6 @@ const getTabBarIcon = (route, focused, color) => {
 };
 
 export default function BottomTabNavigator() {
-  const { user } = useAuth();
   const colors = useThemeColors();
 
   return (
@@ -98,31 +96,29 @@ export default function BottomTabNavigator() {
           }}
         />
         <Tab.Screen
-          name="Discover"
-          component={DiscoverStackNavigator}
+          name="Rounds"
+          component={RoundsStackNavigator}
           options={{
-            tabBarLabel: 'Discover',
-            tabBarAccessibilityLabel: 'Discover tab. Search and explore disc golf discs.',
-            tabBarTestID: 'discover-tab',
+            tabBarLabel: 'Rounds',
+            tabBarAccessibilityLabel: 'Rounds tab. Track your disc golf rounds and scores.',
+            tabBarTestID: 'rounds-tab',
           }}
         />
-        {user?.isAdmin && (
         <Tab.Screen
-          name="Admin"
-          component={AdminStackNavigator}
+          name="Baboons"
+          component={CommunityStackNavigator}
           options={{
-            tabBarLabel: 'Admin',
-            tabBarAccessibilityLabel: 'Admin tab. Access administrative features and controls.',
-            tabBarTestID: 'admin-tab',
+            tabBarLabel: 'Baboons',
+            tabBarAccessibilityLabel: 'Baboons tab. Community features.',
+            tabBarTestID: 'baboons-tab',
           }}
         />
-        )}
         <Tab.Screen
           name="Profile"
           component={ProfileStackNavigator}
           options={{
             tabBarLabel: 'Profile',
-            tabBarAccessibilityLabel: 'Profile tab. View and manage your account settings.',
+            tabBarAccessibilityLabel: 'Profile tab. Settings and account management.',
             tabBarTestID: 'profile-tab',
           }}
         />

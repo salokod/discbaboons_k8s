@@ -5,6 +5,8 @@ import AboutScreen from '../screens/settings/AboutScreen';
 import SupportScreen from '../screens/SupportScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import AdminDashboardScreen from '../screens/settings/AdminDashboardScreen';
+import AdminDiscScreen from '../screens/discs/AdminDiscScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +24,8 @@ export default function ProfileStackNavigator() {
       <Stack.Screen name="Support" component={SupportScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="AdminDisc" component={AdminDiscScreen} />
     </Stack.Navigator>
   );
 }

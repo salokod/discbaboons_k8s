@@ -120,14 +120,11 @@ describe('BagDetailScreen Navigation Fix', () => {
       const addButton = getByText('Add Disc');
       fireEvent.press(addButton);
 
-      // Verify navigation was called with correct cross-tab navigation structure
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Discover', {
-        screen: 'DiscSearch',
-        params: {
-          mode: 'addToBag',
-          bagId: 'test-bag-id',
-          bagName: 'Test Bag',
-        },
+      // Verify navigation was called with correct modal navigation structure
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('DiscSearchScreen', {
+        mode: 'addToBag',
+        bagId: 'test-bag-id',
+        bagName: 'Test Bag',
       });
     } finally {
       unmount();
@@ -182,16 +179,13 @@ describe('BagDetailScreen Navigation Fix', () => {
       const addButton = getByText('Add Disc');
       fireEvent.press(addButton);
 
-      // Verify all required parameters are included in cross-tab navigation structure
+      // Verify all required parameters are included in modal navigation structure
       const navigationCall = mockNavigation.navigate.mock.calls[0];
-      expect(navigationCall[0]).toBe('Discover');
+      expect(navigationCall[0]).toBe('DiscSearchScreen');
       expect(navigationCall[1]).toMatchObject({
-        screen: 'DiscSearch',
-        params: {
-          mode: 'addToBag',
-          bagId: 'test-bag-id',
-          bagName: 'Test Bag',
-        },
+        mode: 'addToBag',
+        bagId: 'test-bag-id',
+        bagName: 'Test Bag',
       });
     } finally {
       unmount();
@@ -217,13 +211,10 @@ describe('BagDetailScreen Navigation Fix', () => {
     });
 
     // Should fallback to 'Your Bag' when bag name is missing
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('Discover', {
-      screen: 'DiscSearch',
-      params: {
-        mode: 'addToBag',
-        bagId: 'test-bag-id',
-        bagName: 'Your Bag',
-      },
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('DiscSearchScreen', {
+      mode: 'addToBag',
+      bagId: 'test-bag-id',
+      bagName: 'Your Bag',
     });
   });
 });

@@ -31,7 +31,25 @@ jest.mock('../../../src/components/settings/ThemePicker', () => {
   return MockThemePicker;
 });
 
+// Mock AuthContext for role-based testing
+jest.mock('../../../src/context/AuthContext', () => ({
+  useAuth: jest.fn(),
+}));
+
 describe('SettingsScreen', () => {
+  const { useAuth } = require('../../../src/context/AuthContext');
+
+  const renderWithUser = (user = { username: 'testuser', isAdmin: false }) => {
+    useAuth.mockReturnValue({ user });
+    return render(<SettingsScreen />);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default to regular user
+    useAuth.mockReturnValue({ user: { username: 'testuser', isAdmin: false } });
+  });
+
   it('should export a SettingsScreen component', () => {
     expect(SettingsScreen).toBeTruthy();
   });
@@ -83,5 +101,53 @@ describe('SettingsScreen', () => {
     // (About is accessible only via hamburger menu)
     expect(screen.getByText('Account')).toBeTruthy();
     expect(screen.getByText('Appearance')).toBeTruthy();
+  });
+
+  describe('Admin Section Role-Based Rendering', () => {
+    it('should NOT display Admin section for regular users', () => {
+      renderWithUser({ username: 'regularuser', isAdmin: false });
+
+      // Should show standard sections
+      expect(screen.getByText('Account')).toBeTruthy();
+      expect(screen.getByText('Appearance')).toBeTruthy();
+
+      // Should NOT show admin section
+      expect(screen.queryByText('Administration')).toBeNull();
+    });
+
+    it('should display Admin section for admin users', () => {
+      renderWithUser({ username: 'adminuser', isAdmin: true });
+
+      // Should show standard sections
+      expect(screen.getByText('Account')).toBeTruthy();
+      expect(screen.getByText('Appearance')).toBeTruthy();
+
+      // Should show admin section
+      expect(screen.getByText('Administration')).toBeTruthy();
+      expect(screen.getByText('Admin Dashboard')).toBeTruthy();
+    });
+
+    it('should handle null user gracefully (no admin section)', () => {
+      useAuth.mockReturnValue({ user: null });
+      render(<SettingsScreen />);
+
+      // Should show standard sections
+      expect(screen.getByText('Account')).toBeTruthy();
+      expect(screen.getByText('Appearance')).toBeTruthy();
+
+      // Should NOT show admin section
+      expect(screen.queryByText('Administration')).toBeNull();
+    });
+
+    it('should handle undefined isAdmin property (no admin section)', () => {
+      renderWithUser({ username: 'user' }); // isAdmin is undefined
+
+      // Should show standard sections
+      expect(screen.getByText('Account')).toBeTruthy();
+      expect(screen.getByText('Appearance')).toBeTruthy();
+
+      // Should NOT show admin section
+      expect(screen.queryByText('Administration')).toBeNull();
+    });
   });
 });

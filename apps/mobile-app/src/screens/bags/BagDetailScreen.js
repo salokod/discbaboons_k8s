@@ -25,6 +25,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import NavigationHeader from '../../components/NavigationHeader';
 import Button from '../../components/Button';
 import { getBag, removeDiscFromBag } from '../../services/bagService';
 import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
@@ -71,6 +72,13 @@ function BagDetailScreen({ route, navigation }) {
 
   // Bulk move modal state
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
+
+  // Navigation handler
+  const handleBack = useCallback(() => {
+    if (navigation?.goBack) {
+      navigation.goBack();
+    }
+  }, [navigation]);
 
   // Load bag data function
   const loadBagData = useCallback(async (isRefreshing = false) => {
@@ -175,10 +183,16 @@ function BagDetailScreen({ route, navigation }) {
         let aVal = a[sort.field] || a.disc_master?.[sort.field] || '';
         let bVal = b[sort.field] || b.disc_master?.[sort.field] || '';
 
-        // Handle numeric values
+        // Handle numeric values vs string values separately
         if (['speed', 'glide', 'turn', 'fade'].includes(sort.field)) {
+          // Keep as numbers for proper numeric comparison
           aVal = Number(aVal) || 0;
           bVal = Number(bVal) || 0;
+
+          if (sort.direction === 'asc') {
+            return aVal - bVal;
+          }
+          return bVal - aVal;
         }
         // Handle string values
         aVal = String(aVal).toLowerCase();
@@ -266,14 +280,11 @@ function BagDetailScreen({ route, navigation }) {
       return;
     }
 
-    // Navigate to DiscSearch with cross-tab navigation for adding disc to bag
-    navigation?.navigate('Discover', {
-      screen: 'DiscSearch',
-      params: {
-        mode: 'addToBag',
-        bagId,
-        bagName: bag?.name || 'Your Bag',
-      },
+    // Navigate to DiscSearchScreen modal for adding disc to bag
+    navigation?.navigate('DiscSearchScreen', {
+      mode: 'addToBag',
+      bagId,
+      bagName: bag?.name || 'Your Bag',
     });
   }, [bagId, bag?.name, navigation]);
 
@@ -680,6 +691,11 @@ function BagDetailScreen({ route, navigation }) {
   return (
     <SafeAreaView testID="bag-detail-screen" style={styles.container}>
       <AppContainer>
+        <NavigationHeader
+          title={bag?.name || 'Bag Details'}
+          onBack={handleBack}
+          backAccessibilityLabel="Return to bags list"
+        />
         <FlatList
           testID="main-disc-list"
           data={filteredAndSortedDiscs}

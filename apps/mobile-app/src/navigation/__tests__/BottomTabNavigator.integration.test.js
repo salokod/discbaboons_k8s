@@ -11,11 +11,11 @@ jest.mock('../BagsStackNavigator', () => {
   };
 });
 
-jest.mock('../DiscoverStackNavigator', () => {
+jest.mock('../RoundsStackNavigator', () => {
   const ReactLocal = require('react');
   const { Text } = require('react-native');
-  return function DiscoverStackNavigator() {
-    return ReactLocal.createElement(Text, { testID: 'discover-stack' }, 'DiscoverStack');
+  return function RoundsStackNavigator() {
+    return ReactLocal.createElement(Text, { testID: 'rounds-stack' }, 'RoundsStack');
   };
 });
 
@@ -32,6 +32,14 @@ jest.mock('../AdminStackNavigator', () => {
   const { Text } = require('react-native');
   return function AdminStackNavigator() {
     return ReactLocal.createElement(Text, { testID: 'admin-stack' }, 'AdminStack');
+  };
+});
+
+jest.mock('../CommunityStackNavigator', () => {
+  const ReactLocal = require('react');
+  const { Text } = require('react-native');
+  return function CommunityStackNavigator() {
+    return ReactLocal.createElement(Text, { testID: 'community-stack' }, 'CommunityStack');
   };
 });
 
@@ -74,12 +82,23 @@ describe('BottomTabNavigator Integration', () => {
     expect(getByTestId('bags-stack')).toBeTruthy();
   });
 
+  it('should use CommunityStackNavigator for Baboons tab', () => {
+    const { getByTestId } = renderWithProviders();
+
+    // Should render the initial tab (Bags)
+    expect(getByTestId('bags-stack')).toBeTruthy();
+
+    // Note: We can't directly test tab navigation in this test,
+    // but we can verify the structure exists for the community tab
+  });
+
   it('should include all standard tabs for regular user', () => {
     const { getByText } = renderWithProviders();
 
     // This is a basic structural test - specific tab behavior will be tested separately
     expect(getByText('Bags')).toBeTruthy();
-    expect(getByText('Discover')).toBeTruthy();
+    expect(getByText('Rounds')).toBeTruthy();
+    expect(getByText('Baboons')).toBeTruthy();
     expect(getByText('Profile')).toBeTruthy();
   });
 
@@ -87,8 +106,8 @@ describe('BottomTabNavigator Integration', () => {
     const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
 
     expect(getByText('Bags')).toBeTruthy();
-    expect(getByText('Discover')).toBeTruthy();
-    expect(getByText('Admin')).toBeTruthy();
+    expect(getByText('Rounds')).toBeTruthy();
+    expect(getByText('Baboons')).toBeTruthy();
     expect(getByText('Profile')).toBeTruthy();
   });
 
@@ -158,14 +177,14 @@ describe('BottomTabNavigator Integration', () => {
 
       // Verify tabs exist - icons will be tested when implemented
       expect(getByText('Bags')).toBeTruthy();
-      expect(getByText('Discover')).toBeTruthy();
-      expect(getByText('Profile')).toBeTruthy();
+      expect(getByText('Rounds')).toBeTruthy();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
     it('should have admin tab icon for admin users', () => {
       const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
 
-      expect(getByText('Admin')).toBeTruthy();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
     it('should apply professional styling with proper tab bar height', () => {
@@ -189,8 +208,8 @@ describe('BottomTabNavigator Integration', () => {
 
       // Verify tabs have accessible labels
       expect(getByText('Bags')).toBeTruthy();
-      expect(getByText('Discover')).toBeTruthy();
-      expect(getByText('Profile')).toBeTruthy();
+      expect(getByText('Rounds')).toBeTruthy();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
     it('should have testID props for automated testing', () => {
@@ -203,7 +222,7 @@ describe('BottomTabNavigator Integration', () => {
     it('should include admin tab accessibility for admin users', () => {
       const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
 
-      expect(getByText('Admin')).toBeTruthy();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
     it('should be WCAG 2.1 compliant', () => {
@@ -222,56 +241,76 @@ describe('BottomTabNavigator Integration', () => {
   });
 
   describe('Comprehensive Admin Tab Testing', () => {
-    it('should hide admin tab for regular users', () => {
-      const { queryByText } = renderWithProviders({ username: 'regularuser', isAdmin: false });
+    it('should show Baboons tab for all users', () => {
+      const { getByText } = renderWithProviders({ username: 'regularuser', isAdmin: false });
 
-      expect(queryByText('Admin')).toBeNull();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
-    it('should show admin tab for admin users', () => {
+    it('should show Baboons tab for admin users', () => {
       const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
 
-      expect(getByText('Admin')).toBeTruthy();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
     it('should handle null user gracefully', () => {
       const { queryByText } = renderWithProviders(null);
 
-      expect(queryByText('Admin')).toBeNull();
+      expect(queryByText('Baboons')).toBeTruthy();
     });
 
     it('should handle undefined isAdmin property', () => {
       const { queryByText } = renderWithProviders({ username: 'user' });
 
-      expect(queryByText('Admin')).toBeNull();
+      expect(queryByText('Baboons')).toBeTruthy();
     });
 
     it('should handle user with isAdmin explicitly false', () => {
       const { queryByText } = renderWithProviders({ username: 'user', isAdmin: false });
 
-      expect(queryByText('Admin')).toBeNull();
+      expect(queryByText('Baboons')).toBeTruthy();
     });
 
     it('should handle user with isAdmin explicitly true', () => {
       const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
 
-      expect(getByText('Admin')).toBeTruthy();
+      expect(getByText('Baboons')).toBeTruthy();
     });
 
-    it('should validate admin tab security through conditional rendering', () => {
-      // Test that admin tab is not just hidden but completely absent from DOM
-      const { queryByText, queryByTestId } = renderWithProviders({ username: 'regularuser', isAdmin: false });
+    it('should validate Baboons tab is always available', () => {
+      // Test that Baboons tab is always present for all users
+      const { queryByText } = renderWithProviders({ username: 'regularuser', isAdmin: false });
 
-      // Admin tab should not exist in the component tree at all
-      expect(queryByText('Admin')).toBeNull();
-      expect(queryByTestId('admin-tab')).toBeNull();
+      // Baboons tab should exist in the component tree for all users
+      expect(queryByText('Baboons')).toBeTruthy();
     });
 
-    it('should properly render admin tab with correct accessibility props when user is admin', () => {
+    it('should properly render Baboons tab with correct accessibility props', () => {
       const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
 
-      const adminTab = getByText('Admin');
-      expect(adminTab).toBeTruthy();
+      const baboonsTab = getByText('Baboons');
+      expect(baboonsTab).toBeTruthy();
+    });
+  });
+
+  describe('Profile Tab Testing', () => {
+    it('should show Profile tab for all users', () => {
+      const { getByText } = renderWithProviders({ username: 'regularuser', isAdmin: false });
+
+      expect(getByText('Profile')).toBeTruthy();
+    });
+
+    it('should show Profile tab for admin users', () => {
+      const { getByText } = renderWithProviders({ username: 'admin', isAdmin: true });
+
+      expect(getByText('Profile')).toBeTruthy();
+    });
+
+    it('should have proper accessibility for Profile tab', () => {
+      const { getByText } = renderWithProviders();
+
+      const profileTab = getByText('Profile');
+      expect(profileTab).toBeTruthy();
     });
   });
 });

@@ -20,6 +20,7 @@ import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import AddDiscToBagScreen from './src/screens/discs/AddDiscToBagScreen';
 import EditDiscScreen from './src/screens/discs/EditDiscScreen';
+import DiscSearchScreen from './src/screens/discs/DiscSearchScreen';
 
 // Wrapped screen components to avoid inline definitions
 function WrappedForgotPasswordScreen(props) {
@@ -81,6 +82,15 @@ function WrappedEditDiscScreen(props) {
     <ErrorBoundary>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <EditDiscScreen {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function WrappedDiscSearchScreen(props) {
+  return (
+    <ErrorBoundary>
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <DiscSearchScreen {...props} />
     </ErrorBoundary>
   );
 }
@@ -190,6 +200,11 @@ function MainNavigator() {
           name="EditDiscScreen"
           component={WrappedEditDiscScreen}
           options={getModalNavigationOptions('Edit Disc', colors)}
+        />
+        <RootStack.Screen
+          name="DiscSearchScreen"
+          component={WrappedDiscSearchScreen}
+          options={getModalNavigationOptions('Search Discs', colors)}
         />
       </RootStack.Navigator>
     </View>

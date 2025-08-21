@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
@@ -23,6 +24,7 @@ import ThemePicker from '../../components/settings/ThemePicker';
 
 function SettingsScreen({ navigation }) {
   const colors = useThemeColors();
+  const { user } = useAuth();
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -110,6 +112,41 @@ function SettingsScreen({ navigation }) {
     chevronIcon: {
       marginLeft: spacing.sm,
     },
+    adminSection: {
+      marginBottom: spacing.xl * 1.5,
+    },
+    adminSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    adminSectionIcon: {
+      marginRight: spacing.sm,
+    },
+    adminSectionTitle: {
+      ...typography.h3,
+      color: '#DC2626', // Red accent color for admin
+      fontWeight: '600',
+    },
+    adminSectionDescription: {
+      ...typography.caption,
+      color: colors.textLight,
+      marginTop: spacing.xs,
+      lineHeight: 18,
+    },
+    adminSettingItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: Platform.select({
+        ios: 12,
+        android: 8,
+      }),
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      borderLeftWidth: 3,
+      borderLeftColor: '#DC2626', // Red accent border
+    },
   }), [colors]);
 
   return (
@@ -191,6 +228,51 @@ function SettingsScreen({ navigation }) {
                   <ThemePicker />
                 </View>
               </View>
+
+              {/* Admin Section - Only visible to admin users */}
+              {user?.isAdmin && (
+                <View style={styles.adminSection}>
+                  <View style={styles.adminSectionHeader}>
+                    <Icon
+                      name="shield-outline"
+                      size={24}
+                      color="#DC2626"
+                      style={styles.adminSectionIcon}
+                    />
+                    <Text style={styles.adminSectionTitle}>Administration</Text>
+                  </View>
+                  <Text style={styles.adminSectionDescription}>
+                    Administrative tools and disc database management
+                  </Text>
+                  <View style={{ marginTop: spacing.md }}>
+                    <TouchableOpacity
+                      style={styles.adminSettingItem}
+                      onPress={() => navigation.navigate('AdminDashboard')}
+                    >
+                      <Icon
+                        name="analytics-outline"
+                        size={24}
+                        color="#DC2626"
+                        style={styles.settingItemIcon}
+                      />
+                      <View style={styles.settingItemContent}>
+                        <Text style={styles.settingItemTitle}>
+                          Admin Dashboard
+                        </Text>
+                        <Text style={styles.settingItemDescription}>
+                          Moderate disc submissions and manage database
+                        </Text>
+                      </View>
+                      <Icon
+                        name="chevron-forward"
+                        size={20}
+                        color={colors.textLight}
+                        style={styles.chevronIcon}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
             </ScrollView>
           </View>
