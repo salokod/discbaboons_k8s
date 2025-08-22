@@ -7,6 +7,8 @@ import deleteBagController from '../controllers/bags.delete.controller.js';
 import bagContentsAddController from '../controllers/bag-contents.add.controller.js';
 import bagContentsEditController from '../controllers/bag-contents.edit.controller.js';
 import bagContentsMarkLostController from '../controllers/bag-contents.mark-lost.controller.js';
+import bagContentsBulkMarkLostController from '../controllers/bag-contents.bulk-mark-lost.controller.js';
+import bagContentsBulkRecoverController from '../controllers/bag-contents.bulk-recover.controller.js';
 import listLostDiscsController from '../controllers/bag-contents.list-lost.controller.js';
 import removeDiscController from '../controllers/bag-contents.remove.controller.js';
 import moveDiscController from '../controllers/bag-contents.move.controller.js';
@@ -56,6 +58,12 @@ router.put('/:id/discs/:contentId', bagsUpdateRateLimit, bagsRequestLimit, authe
 
 // PATCH /api/bags/discs/:contentId/lost - Mark disc as lost/found (requires authentication)
 router.patch('/discs/:contentId/lost', bagsUpdateRateLimit, bagsRequestLimit, authenticateToken, bagContentsMarkLostController);
+
+// PATCH /api/bags/discs/bulk-mark-lost - Mark multiple discs as lost (requires authentication)
+router.patch('/discs/bulk-mark-lost', bagsBulkRateLimit, bagsRequestLimit, authenticateToken, bagContentsBulkMarkLostController);
+
+// PUT /api/bags/discs/bulk-recover - Recover multiple lost discs to a bag (requires authentication)
+router.put('/discs/bulk-recover', bagsBulkRateLimit, bagsRequestLimit, authenticateToken, bagContentsBulkRecoverController);
 
 // DELETE /api/bags/discs/:contentId - Remove disc from account (requires authentication)
 router.delete('/discs/:contentId', bagsDeleteRateLimit, authenticateToken, removeDiscController);

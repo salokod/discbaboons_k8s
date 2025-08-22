@@ -45,6 +45,7 @@ Create and manage disc golf bags and their contents.
 - **[PUT /bags/:id/discs/:contentId](./bags/PUT_bags_id_discs_contentId.md)** - Edit disc in bag
 - **[DELETE /bags/discs/:contentId](./bags/DELETE_bags_discs_contentId.md)** - Remove disc
 - **[PATCH /bags/discs/:contentId/lost](./bags/PATCH_bags_discs_contentId_lost.md)** - Mark disc as lost/found
+- **[PATCH /bags/discs/bulk-mark-lost](./bags/PATCH_bags_discs_bulk-mark-lost.md)** - Mark multiple discs as lost
 - **[PUT /bags/discs/move](./bags/PUT_bags_discs_move.md)** - Move discs between bags
 
 #### Lost Discs & Friends
