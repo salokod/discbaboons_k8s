@@ -12,7 +12,7 @@ import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
 function Button({
-  title, onPress, variant = 'primary', disabled = false, accessibilityLabel, accessibilityHint,
+  title, onPress, variant = 'primary', disabled = false, accessibilityLabel, accessibilityHint, style,
 }) {
   const colors = useThemeColors();
 
@@ -26,6 +26,9 @@ function Button({
     if (variant === 'destructive') {
       return colors.error;
     }
+    if (variant === 'outline') {
+      return 'transparent';
+    }
     return colors.surface;
   };
 
@@ -35,6 +38,9 @@ function Button({
     }
     if (variant === 'primary' || variant === 'destructive') {
       return colors.textOnPrimary;
+    }
+    if (variant === 'outline') {
+      return colors.primary;
     }
     return colors.text;
   };
@@ -51,18 +57,27 @@ function Button({
         android: 12,
       }),
       alignItems: 'center',
+      minHeight: 48,
       backgroundColor: getBackgroundColor(),
-      borderWidth: variant === 'secondary' ? 1 : 0,
-      borderColor: variant === 'secondary' ? colors.border : undefined,
+      borderWidth: (() => {
+        if (variant === 'secondary') return 1;
+        if (variant === 'outline') return 2;
+        return 0;
+      })(),
+      borderColor: (() => {
+        if (variant === 'secondary') return colors.border;
+        if (variant === 'outline') return colors.primary;
+        return undefined;
+      })(),
       opacity: disabled ? 0.6 : 1,
       ...Platform.select({
         android: {
-          elevation: disabled ? 0 : 2,
+          elevation: disabled || variant === 'outline' ? 0 : 2,
         },
         ios: {
-          shadowColor: disabled ? 'transparent' : colors.black,
+          shadowColor: disabled || variant === 'outline' ? 'transparent' : colors.black,
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
+          shadowOpacity: disabled || variant === 'outline' ? 0 : 0.1,
           shadowRadius: 2,
         },
       }),
@@ -84,7 +99,7 @@ function Button({
   return (
     <TouchableOpacity
       testID="button"
-      style={styles.button}
+      style={[styles.button, style]}
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       accessibilityState={{ disabled }}
@@ -99,10 +114,11 @@ function Button({
 Button.propTypes = {
   title: PropTypes.string,
   onPress: PropTypes.func,
-  variant: PropTypes.oneOf(['primary', 'secondary', 'destructive']),
+  variant: PropTypes.oneOf(['primary', 'secondary', 'destructive', 'outline']),
   disabled: PropTypes.bool,
   accessibilityLabel: PropTypes.string,
   accessibilityHint: PropTypes.string,
+  style: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
 };
 
 Button.defaultProps = {
@@ -112,6 +128,7 @@ Button.defaultProps = {
   disabled: false,
   accessibilityLabel: undefined,
   accessibilityHint: undefined,
+  style: undefined,
 };
 
 // Add display name for React DevTools

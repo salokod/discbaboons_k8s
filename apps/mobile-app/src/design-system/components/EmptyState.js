@@ -2,7 +2,6 @@
  * EmptyState Component
  */
 
-import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
@@ -15,6 +14,8 @@ function EmptyState({
   subtitle,
   actionLabel,
   onAction,
+  secondaryActionText,
+  onSecondaryActionPress,
   children,
 }) {
   const colors = useThemeColors();
@@ -42,6 +43,9 @@ function EmptyState({
     actionButton: {
       marginTop: spacing.md,
     },
+    secondaryActionButton: {
+      marginTop: spacing.sm,
+    },
     children: {
       marginTop: spacing.md,
     },
@@ -68,6 +72,15 @@ function EmptyState({
           />
         </View>
       )}
+      {secondaryActionText && onSecondaryActionPress && (
+        <View testID="empty-state-secondary-action" style={styles.secondaryActionButton}>
+          <Button
+            title={secondaryActionText}
+            onPress={onSecondaryActionPress}
+            variant="outline"
+          />
+        </View>
+      )}
       {children && (
         <View style={styles.children}>
           {children}
@@ -82,6 +95,8 @@ EmptyState.propTypes = {
   subtitle: PropTypes.string,
   actionLabel: PropTypes.string,
   onAction: PropTypes.func,
+  secondaryActionText: PropTypes.string,
+  onSecondaryActionPress: PropTypes.func,
   children: PropTypes.node,
 };
 
@@ -90,10 +105,12 @@ EmptyState.defaultProps = {
   subtitle: undefined,
   actionLabel: undefined,
   onAction: undefined,
+  secondaryActionText: undefined,
+  onSecondaryActionPress: undefined,
   children: undefined,
 };
 
 // Add display name for React DevTools
 EmptyState.displayName = 'EmptyState';
 
-export default memo(EmptyState);
+export default EmptyState;

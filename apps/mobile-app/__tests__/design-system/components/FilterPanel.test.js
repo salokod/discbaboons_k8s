@@ -103,4 +103,28 @@ describe('FilterPanel component', () => {
       expect(getByTestId('pending-status-icon')).toBeTruthy();
     });
   });
+
+  describe('Footer Button Layout', () => {
+    it('should have 60/40 button split with proper variants and 16px gap', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <FilterPanel
+            visible
+            onClose={() => {}}
+            onApplyFilters={() => {}}
+            currentFilters={{}}
+          />
+        </ThemeProvider>,
+      );
+
+      const clearButton = getByText('Clear All').parent.parent;
+      const applyButton = getByText('Apply').parent.parent;
+
+      // Clear button should be outline variant with flex: 1 (40%)
+      expect(clearButton.props.style).toMatchObject({ flex: 1 });
+
+      // Apply button should be primary variant with flex: 1.5 (60%)
+      expect(applyButton.props.style).toMatchObject({ flex: 1.5 });
+    });
+  });
 });

@@ -93,6 +93,29 @@ describe('Button component', () => {
     });
   });
 
+  it('should render outline variant with transparent background and primary border', () => {
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <Button title="Test" variant="outline" />
+      </ThemeProvider>,
+    );
+
+    const button = getByTestId('button');
+    const text = getByTestId('button-text');
+
+    // Outline button should have transparent background
+    expect(button.props.style).toMatchObject({
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: themes[THEME_NAMES.LIGHT].primary,
+    });
+
+    // Text should be primary color
+    expect(text.props.style).toMatchObject({
+      color: themes[THEME_NAMES.LIGHT].primary,
+    });
+  });
+
   describe('Platform-Specific Styling', () => {
     const originalPlatform = require('react-native').Platform.OS;
     const originalSelect = require('react-native').Platform.select;
@@ -157,5 +180,28 @@ describe('Button component', () => {
       const button = getByTestId('button');
       expect(button.props.style.elevation).toBe(0);
     });
+  });
+
+  it('should accept and apply custom style prop', () => {
+    const customStyle = { width: 100, marginTop: 10 };
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <Button title="Test" style={customStyle} />
+      </ThemeProvider>,
+    );
+
+    const button = getByTestId('button');
+    expect(button.props.style).toMatchObject(customStyle);
+  });
+
+  it('should have minimum 48px height for mobile touch targets', () => {
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <Button title="Test" />
+      </ThemeProvider>,
+    );
+
+    const button = getByTestId('button');
+    expect(button.props.style.minHeight).toBe(48);
   });
 });

@@ -25,6 +25,7 @@ import SearchBar from '../../design-system/components/SearchBar';
 import EmptyState from '../../design-system/components/EmptyState';
 import FilterPanel from '../../design-system/components/FilterPanel';
 import SortPanel from '../../design-system/components/SortPanel';
+import SearchActionBar from '../../components/SearchActionBar';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
@@ -565,13 +566,11 @@ function DiscSearchScreen({ navigation, route }) {
       return (
         <EmptyState
           title="No Discs Found"
-          message={
+          subtitle={
             hasSearch
               ? `No discs match "${searchQuery}". Try different search terms or adjust your filters.`
               : 'No discs match your current filters. Try adjusting the flight number ranges.'
           }
-          actionText="Clear All"
-          onActionPress={clearSearch}
         />
       );
     }
@@ -580,13 +579,13 @@ function DiscSearchScreen({ navigation, route }) {
     return (
       <EmptyState
         title="No Discs Available"
-        message="No discs are currently available in the database."
-        actionText="Submit New Disc"
-        onActionPress={() => navigation.navigate('SubmitDisc')}
+        subtitle="No discs are currently available in the database."
+        actionLabel="Submit New Disc"
+        onAction={() => navigation.navigate('SubmitDisc')}
       />
     );
   }, [
-    loading, discs.length, styles, colors, activeFilterCount, searchQuery, clearSearch, navigation,
+    loading, discs.length, styles, colors, activeFilterCount, searchQuery, navigation,
   ]);
 
   return (
@@ -609,6 +608,13 @@ function DiscSearchScreen({ navigation, route }) {
         onEndReachedThreshold={0.5}
         style={styles.container}
         contentContainerStyle={discs.length === 0 ? styles.emptyContent : undefined}
+      />
+
+      {/* Search Action Bar - shows when search has no results */}
+      <SearchActionBar
+        visible={hasSearched && discs.length === 0 && !loading}
+        onClear={clearSearch}
+        onAddDisc={() => navigation.navigate('SubmitDiscScreen')}
       />
 
       {/* Filter Panel */}

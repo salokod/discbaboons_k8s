@@ -321,13 +321,13 @@ function SortPanel({
             title="Clear Sort"
             onPress={clearSort}
             variant="outline"
-            style={styles.footerButton}
+            style={styles.clearButton}
           />
           <Button
             title={`Apply${localSort.field ? ' Sort' : ''}`}
             onPress={applySort}
             variant="primary"
-            style={styles.footerButton}
+            style={styles.applyButton}
           />
         </View>
       </View>
@@ -602,8 +602,11 @@ const createStyles = (colors) => StyleSheet.create({
     borderTopColor: colors.border,
     gap: spacing.md,
   },
-  footerButton: {
-    flex: 1,
+  clearButton: {
+    flex: 1, // 40% width
+  },
+  applyButton: {
+    flex: 1.5, // 60% width
   },
 });
 
