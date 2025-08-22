@@ -353,13 +353,13 @@ function FilterPanel({
             title="Clear All"
             onPress={clearAllFilters}
             variant="outline"
-            style={styles.footerButton}
+            style={styles.clearButton}
           />
           <Button
             title={`Apply${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
             onPress={applyFilters}
             variant="primary"
-            style={styles.footerButton}
+            style={styles.applyButton}
           />
         </View>
       </View>
@@ -589,8 +589,11 @@ const createStyles = (colors) => StyleSheet.create({
     borderTopColor: colors.border,
     gap: spacing.md,
   },
-  footerButton: {
-    flex: 1,
+  clearButton: {
+    flex: 1, // 40% width
+  },
+  applyButton: {
+    flex: 1.5, // 60% width
   },
 });
 
