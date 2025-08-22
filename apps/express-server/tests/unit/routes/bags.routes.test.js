@@ -107,6 +107,18 @@ describe('bagsRoutes', () => {
     expect(middlewareNames).toContain('authenticateToken');
   });
 
+  test('should have PATCH /discs/bulk-mark-lost route for bulk marking discs lost with auth middleware', () => {
+    const stack = bagsRoutes.stack || [];
+    const patchBulkLostRoute = stack.find(
+      (layer) => layer.route
+        && layer.route.path === '/discs/bulk-mark-lost'
+        && layer.route.methods.patch,
+    );
+    expect(patchBulkLostRoute).toBeTruthy();
+    const middlewareNames = (patchBulkLostRoute.route.stack || []).map((mw) => mw.name);
+    expect(middlewareNames).toContain('authenticateToken');
+  });
+
   test('should have GET /lost-discs route for listing lost discs with auth middleware', () => {
     const stack = bagsRoutes.stack || [];
     const getLostDiscsRoute = stack.find(

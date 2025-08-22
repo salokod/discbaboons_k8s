@@ -133,7 +133,7 @@ describe('GET /api/discs/master - Integration', () => {
     expect(response.body.discs.every((d) => d.brand === testBrand)).toBe(true);
   });
 
-  // GOOD: Integration concern - brand filtering query
+  // GOOD: Integration concern - brand filtering query without other filters
   test('should filter discs by brand from database', async () => {
     const response = await request(app)
       .get('/api/discs/master')
@@ -141,9 +141,16 @@ describe('GET /api/discs/master - Integration', () => {
       .query({ brand: testBrand })
       .expect(200);
 
-    // Integration: Verify brand filtering
-    expect(response.body.discs.length).toBeGreaterThan(0);
+    // Integration: Verify brand filtering works and returns approved discs
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.discs)).toBe(true);
+    expect(response.body.discs.length).toBe(2); // Should have exactly 2 approved discs
     expect(response.body.discs.every((d) => d.brand === testBrand)).toBe(true);
+    expect(response.body.discs.every((d) => d.approved === true)).toBe(true);
+
+    // Verify pagination structure
+    expect(response.body.pagination).toBeDefined();
+    expect(response.body.pagination.total).toBe(2);
   });
 
   // GOOD: Integration concern - model substring search
