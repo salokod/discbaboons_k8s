@@ -16,6 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import PropTypes from 'prop-types';
+import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
@@ -77,6 +78,11 @@ function BagsListScreen({ navigation }) {
     navigation?.navigate('BagDetail', { bagId: bag.id });
   }, [navigation]);
 
+  // Navigate to lost discs
+  const handleLostDiscsPress = useCallback(() => {
+    navigation?.navigate('LostDiscs', { navigationSource: 'BagsList' });
+  }, [navigation]);
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -132,6 +138,24 @@ function BagsListScreen({ navigation }) {
       fontSize: 24,
       color: colors.surface,
     },
+    lostDiscsButton: {
+      minWidth: 44,
+      height: 44,
+      borderRadius: 22,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      paddingHorizontal: spacing.sm,
+      gap: spacing.xs,
+      borderWidth: 1,
+      borderColor: '#FF9500',
+    },
+    lostDiscsText: {
+      ...typography.caption,
+      color: '#FF9500',
+      fontSize: 12,
+    },
   });
 
   // Show loading state on first load
@@ -163,6 +187,22 @@ function BagsListScreen({ navigation }) {
           {bags.length !== 1 ? 's' : ''}
         </Text>
       </View>
+      <TouchableOpacity
+        testID="lost-discs-header-button"
+        style={styles.lostDiscsButton}
+        onPress={handleLostDiscsPress}
+        accessibilityLabel="Lost Discs - Search for lost discs"
+        accessibilityHint="Opens the lost discs screen where you can search for and manage discs that have been marked as lost"
+        accessibilityRole="button"
+        activeOpacity={0.7}
+      >
+        <Text style={styles.lostDiscsText}>Lost Discs</Text>
+        <Icon
+          name="search-outline"
+          size={24}
+          color="#FF9500"
+        />
+      </TouchableOpacity>
     </View>
   );
 

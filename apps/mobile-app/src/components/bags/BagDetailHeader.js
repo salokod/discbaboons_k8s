@@ -34,6 +34,8 @@ function BagDetailHeader({
   onEnterMultiSelect,
   onClearFiltersAndSort,
   filteredDiscCount,
+  lostDiscCount,
+  onViewLostDiscs,
 }) {
   const colors = useThemeColors();
 
@@ -160,6 +162,29 @@ function BagDetailHeader({
     actionButtonTextActive: {
       color: colors.primary,
       fontWeight: '700',
+    },
+    // Lost Discs button styling with orange theme
+    lostDiscsButton: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      backgroundColor: colors.surface,
+      borderRadius: Platform.select({
+        ios: 8,
+        android: 10,
+      }),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: '#FF9500', // Orange border color
+      gap: spacing.xs,
+    },
+    lostDiscsButtonText: {
+      ...typography.caption,
+      color: '#FF9500', // Orange text color
+      fontWeight: '600',
+      fontSize: 12,
     },
   });
 
@@ -310,6 +335,26 @@ function BagDetailHeader({
         </>
       )}
 
+      {/* Contextual Lost Discs Button */}
+      {!isMultiSelectMode && lostDiscCount > 0 && (
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            testID="contextual-lost-discs-button"
+            style={styles.lostDiscsButton}
+            onPress={onViewLostDiscs}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${lostDiscCount} lost discs from this bag`}
+          >
+            <Icon name="alert-circle-outline" size={16} color="#FF9500" />
+            <Text style={styles.lostDiscsButtonText}>
+              {lostDiscCount}
+              {' '}
+              lost
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Analytics Row */}
       {bag?.bag_contents && bag.bag_contents.length > 0 && (
         <View style={styles.analyticsActions}>
@@ -347,11 +392,15 @@ BagDetailHeader.propTypes = {
   onEnterMultiSelect: PropTypes.func.isRequired,
   onClearFiltersAndSort: PropTypes.func.isRequired,
   filteredDiscCount: PropTypes.number,
+  lostDiscCount: PropTypes.number,
+  onViewLostDiscs: PropTypes.func,
 };
 
 BagDetailHeader.defaultProps = {
   bag: null,
   filteredDiscCount: undefined,
+  lostDiscCount: 0,
+  onViewLostDiscs: () => {},
 };
 
 BagDetailHeader.displayName = 'BagDetailHeader';

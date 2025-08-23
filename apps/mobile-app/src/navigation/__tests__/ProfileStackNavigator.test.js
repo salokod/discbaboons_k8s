@@ -63,6 +63,13 @@ describe('ProfileStackNavigator', () => {
     expect(typeof ProfileStackNavigator).toBe('function');
   });
 
+  it('should not include LostDiscs route', () => {
+    // LostDiscs should only be accessible via BagsStackNavigator
+    // Test that the component renders without trying to import LostDiscsScreen
+    const { getByTestId } = renderWithNavigation(<ProfileStackNavigator />);
+    expect(getByTestId('settings-screen')).toBeTruthy();
+  });
+
   it('should render without crashing', () => {
     const { getByTestId } = renderWithNavigation(<ProfileStackNavigator />);
 

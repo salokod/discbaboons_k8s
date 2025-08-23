@@ -946,3 +946,232 @@ export async function bulkMarkDiscsAsLost(contentIds, isLost = true, notes = '')
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Get count of lost discs for a specific bag
+ * @param {string} bagId - Bag ID to count lost discs for
+ * @returns {Promise<number>} Count of lost discs from this bag
+ * @throws {Error} Request failed error with message
+ */
+export async function getLostDiscCountForBag(bagId) {
+  // Validate inputs before making API call
+  if (!bagId || typeof bagId !== 'string') {
+    throw new Error('Bag ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    // Build query parameters (API supports sourceBagId for filtering)
+    const queryParams = new URLSearchParams();
+    queryParams.set('sourceBagId', bagId);
+    queryParams.set('count', 'true');
+
+    const queryString = queryParams.toString();
+    const url = `${API_BASE_URL}/api/bags/lost-discs${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors for query parameters
+        throw new Error(data.message || 'Invalid request parameters');
+      }
+      if (response.status === 404) {
+        // Bag not found
+        throw new Error(data.message || 'Bag not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success || typeof data.count !== 'number') {
+      throw new Error('Invalid response from server');
+    }
+
+    return data.count;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Get user's lost discs with pagination
+ * @param {Object} params - Query parameters
+ * @returns {Promise<{items: Array, pagination: Object}>} User's lost discs and pagination info
+ * @throws {Error} Request failed error with message
+ */
+export async function getLostDiscs(params = {}) {
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    // Build query parameters (API supports limit, offset, sourceBagId)
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.offset !== undefined) queryParams.set('offset', params.offset.toString());
+    if (params.sourceBagId) queryParams.set('sourceBagId', params.sourceBagId);
+
+    const queryString = queryParams.toString();
+    const url = `${API_BASE_URL}/api/bags/lost-discs${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors for query parameters
+        throw new Error(data.message || 'Invalid request parameters');
+      }
+      if (response.status === 429) {
+        // Rate limiting
+        throw new Error(data.message || 'Too many requests. Please try again later.');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    // Handle both data.items (expected) and data.lost_discs (actual backend response)
+    const items = data.items || data.lost_discs;
+    if (!data.success || !Array.isArray(items)) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      items,
+      pagination: data.pagination || {
+        total: data.total || 0,
+        limit: data.limit || 20,
+        offset: data.offset || 0,
+        hasMore: data.hasMore || false,
+      },
+    };
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Bulk recover lost discs back to a specific bag
+ * @param {Object} payload - Recovery payload with contentIds and targetBagId
+ * @returns {Promise<Object>} Success response with recovered count
+ * @throws {Error} Bulk recover failed error with message
+ */
+export async function bulkRecoverDiscs(payload) {
+  // Validate inputs before making API call
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Recovery payload is required');
+  }
+
+  const { contentIds, targetBagId } = payload;
+
+  if (!contentIds || !Array.isArray(contentIds)) {
+    throw new Error('Content IDs are required');
+  }
+
+  if (contentIds.length === 0) {
+    throw new Error('At least one content ID is required');
+  }
+
+  if (!targetBagId || typeof targetBagId !== 'string') {
+    throw new Error('Target bag ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/bags/discs/bulk-recover`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid recovery request');
+      }
+      if (response.status === 404) {
+        // Disc not found
+        throw new Error(data.message || 'One or more discs not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}

@@ -12,6 +12,7 @@ import { getBag } from '../../../src/services/bagService';
 // Mock the bagService
 jest.mock('../../../src/services/bagService', () => ({
   getBag: jest.fn(),
+  getLostDiscCountForBag: jest.fn().mockResolvedValue(0),
 }));
 
 // Mock the filter and sort panels
