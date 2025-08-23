@@ -103,6 +103,30 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Appearance')).toBeTruthy();
   });
 
+  describe('Lost Discs Menu Item Removal', () => {
+    it('should NOT display Lost Discs menu item in settings', () => {
+      render(<SettingsScreen />);
+
+      // Should show standard sections
+      expect(screen.getByText('Account')).toBeTruthy();
+      expect(screen.getByText('Appearance')).toBeTruthy();
+
+      // Should NOT show Lost Discs menu item
+      expect(screen.queryByText('Lost Discs')).toBeNull();
+    });
+
+    it('should NOT display Bag Management section', () => {
+      render(<SettingsScreen />);
+
+      // Should show standard sections
+      expect(screen.getByText('Account')).toBeTruthy();
+      expect(screen.getByText('Appearance')).toBeTruthy();
+
+      // Should NOT show Bag Management section
+      expect(screen.queryByText('Bag Management')).toBeNull();
+    });
+  });
+
   describe('Admin Section Role-Based Rendering', () => {
     it('should NOT display Admin section for regular users', () => {
       renderWithUser({ username: 'regularuser', isAdmin: false });

@@ -14,6 +14,8 @@ import {
   markDiscAsLost,
   moveDiscBetweenBags,
   bulkMarkDiscsAsLost,
+  getLostDiscs,
+  bulkRecoverDiscs,
 } from '../../src/services/bagService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -1348,6 +1350,365 @@ describe('BagService Functions', () => {
     });
   });
 
+  describe('getLostDiscs', () => {
+    it('should export getLostDiscs function', () => {
+      expect(getLostDiscs).toBeInstanceOf(Function);
+    });
+
+    it('should successfully get lost discs with default parameters', async () => {
+      const mockResponse = {
+        success: true,
+        items: [
+          {
+            id: 'content-1',
+            disc_id: 'disc-123',
+            bag_id: 'bag-456',
+            bag_name: 'My Bag',
+            brand: 'Innova',
+            model: 'Thunderbird',
+            is_lost: true,
+            lost_notes: 'Lost at hole 7',
+            lost_at: '2024-01-15T10:30:00.000Z',
+          },
+          {
+            id: 'content-2',
+            disc_id: 'disc-789',
+            bag_id: 'bag-456',
+            bag_name: 'My Bag',
+            brand: 'Discraft',
+            model: 'Buzzz',
+            is_lost: true,
+            lost_notes: null,
+            lost_at: '2024-01-14T15:20:00.000Z',
+          },
+        ],
+        total: 2,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getLostDiscs();
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/lost-discs', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        signal: expect.any(AbortSignal),
+      });
+
+      expect(result).toEqual({
+        items: mockResponse.items,
+        pagination: {
+          total: mockResponse.total,
+          limit: mockResponse.limit,
+          offset: mockResponse.offset,
+          hasMore: mockResponse.hasMore,
+        },
+      });
+    });
+
+    it('should successfully get lost discs with pagination parameters', async () => {
+      const mockResponse = {
+        success: true,
+        items: [],
+        total: 5,
+        limit: 2,
+        offset: 4,
+        hasMore: false,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const params = { limit: 2, offset: 4 };
+      await getLostDiscs(params);
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/lost-discs?limit=2&offset=4', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('should handle authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Authentication required. Please log in again.',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      await expect(getLostDiscs()).rejects.toThrow('Authentication required. Please log in again.');
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      await expect(getLostDiscs()).rejects.toThrow('Something went wrong. Please try again.');
+    });
+
+    it('should throw error when no auth token is available', async () => {
+      getTokens.mockResolvedValue(null);
+
+      await expect(getLostDiscs()).rejects.toThrow('Authentication required. Please log in again.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle invalid response format', async () => {
+      const invalidResponse = {
+        // Missing success field and items field
+        data: [],
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => invalidResponse,
+      });
+
+      await expect(getLostDiscs()).rejects.toThrow('Invalid response from server');
+    });
+
+    it('should handle network timeout with 30-second timeout', async () => {
+      const mockResponse = {
+        success: true,
+        items: [],
+        total: 0,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      await getLostDiscs();
+
+      // Verify setTimeout was called for 30 seconds (30000ms)
+      expect(global.setTimeout).toHaveBeenCalledWith(expect.any(Function), 30000);
+      // Verify clearTimeout was called
+      expect(global.clearTimeout).toHaveBeenCalled();
+    });
+  });
+
+  describe('bulkRecoverDiscs', () => {
+    it('should export bulkRecoverDiscs function', () => {
+      expect(bulkRecoverDiscs).toBeInstanceOf(Function);
+    });
+
+    it('should successfully recover multiple lost discs to specified bag', async () => {
+      const mockResponse = {
+        success: true,
+        recoveredCount: 2,
+        message: '2 discs recovered successfully',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1', 'content-2'],
+        targetBagId: 'bag-456',
+      };
+
+      const result = await bulkRecoverDiscs(payload);
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/discs/bulk-recover', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify(payload),
+        signal: expect.any(AbortSignal),
+      });
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should validate payload parameter', async () => {
+      await expect(bulkRecoverDiscs()).rejects.toThrow('Recovery payload is required');
+      await expect(bulkRecoverDiscs(null)).rejects.toThrow('Recovery payload is required');
+      await expect(bulkRecoverDiscs({})).rejects.toThrow('Content IDs are required');
+    });
+
+    it('should validate contentIds in payload', async () => {
+      await expect(bulkRecoverDiscs({ contentIds: null })).rejects.toThrow('Content IDs are required');
+      await expect(bulkRecoverDiscs({ contentIds: [] })).rejects.toThrow('At least one content ID is required');
+      await expect(bulkRecoverDiscs({ contentIds: 'invalid' })).rejects.toThrow('Content IDs are required');
+    });
+
+    it('should validate targetBagId in payload', async () => {
+      await expect(bulkRecoverDiscs({ contentIds: ['content-1'] })).rejects.toThrow('Target bag ID is required');
+      await expect(bulkRecoverDiscs({ contentIds: ['content-1'], targetBagId: '' })).rejects.toThrow('Target bag ID is required');
+      await expect(bulkRecoverDiscs({ contentIds: ['content-1'], targetBagId: null })).rejects.toThrow('Target bag ID is required');
+    });
+
+    it('should handle authentication errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Authentication required. Please log in again.',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1'],
+        targetBagId: 'bag-456',
+      };
+
+      await expect(bulkRecoverDiscs(payload)).rejects.toThrow('Authentication required. Please log in again.');
+    });
+
+    it('should handle validation errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Invalid recovery request',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => errorResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1'],
+        targetBagId: 'bag-456',
+      };
+
+      await expect(bulkRecoverDiscs(payload)).rejects.toThrow('Invalid recovery request');
+    });
+
+    it('should handle not found errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'One or more discs not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1', 'nonexistent'],
+        targetBagId: 'bag-456',
+      };
+
+      await expect(bulkRecoverDiscs(payload)).rejects.toThrow('One or more discs not found');
+    });
+
+    it('should handle server errors', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Internal server error',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => errorResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1'],
+        targetBagId: 'bag-456',
+      };
+
+      await expect(bulkRecoverDiscs(payload)).rejects.toThrow('Something went wrong. Please try again.');
+    });
+
+    it('should throw error when no auth token is available', async () => {
+      getTokens.mockResolvedValue(null);
+
+      const payload = {
+        contentIds: ['content-1'],
+        targetBagId: 'bag-456',
+      };
+
+      await expect(bulkRecoverDiscs(payload)).rejects.toThrow('Authentication required. Please log in again.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should handle invalid response format', async () => {
+      const invalidResponse = {
+        // Missing success field
+        data: { recoveredCount: 2 },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => invalidResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1'],
+        targetBagId: 'bag-456',
+      };
+
+      await expect(bulkRecoverDiscs(payload)).rejects.toThrow('Invalid response from server');
+    });
+
+    it('should handle network timeout with 30-second timeout', async () => {
+      const mockResponse = {
+        success: true,
+        recoveredCount: 1,
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-1'],
+        targetBagId: 'bag-456',
+      };
+
+      await bulkRecoverDiscs(payload);
+
+      // Verify setTimeout was called for 30 seconds (30000ms)
+      expect(global.setTimeout).toHaveBeenCalledWith(expect.any(Function), 30000);
+      // Verify clearTimeout was called
+      expect(global.clearTimeout).toHaveBeenCalled();
+    });
+  });
+
   describe('export functions', () => {
     it('should export a getBags function', () => {
       expect(getBags).toBeTruthy();
@@ -1383,6 +1744,14 @@ describe('BagService Functions', () => {
 
     it('should export a bulkMarkDiscsAsLost function', () => {
       expect(bulkMarkDiscsAsLost).toBeTruthy();
+    });
+
+    it('should export a getLostDiscs function', () => {
+      expect(getLostDiscs).toBeTruthy();
+    });
+
+    it('should export a bulkRecoverDiscs function', () => {
+      expect(bulkRecoverDiscs).toBeTruthy();
     });
   });
 });

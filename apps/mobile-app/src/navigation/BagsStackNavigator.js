@@ -3,6 +3,7 @@ import BagsListScreen from '../screens/bags/BagsListScreen';
 import CreateBagScreen from '../screens/bags/CreateBagScreen';
 import BagDetailScreen from '../screens/bags/BagDetailScreen';
 import EditBagScreen from '../screens/bags/EditBagScreen';
+import LostDiscsScreen from '../screens/bags/LostDiscsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +19,7 @@ export default function BagsStackNavigator() {
       <Stack.Screen name="CreateBag" component={CreateBagScreen} />
       <Stack.Screen name="BagDetail" component={BagDetailScreen} />
       <Stack.Screen name="EditBag" component={EditBagScreen} />
+      <Stack.Screen name="LostDiscs" component={LostDiscsScreen} />
     </Stack.Navigator>
   );
 }

@@ -27,7 +27,7 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
 import Button from '../../components/Button';
-import { getBag, removeDiscFromBag } from '../../services/bagService';
+import { getBag, removeDiscFromBag, getLostDiscCountForBag } from '../../services/bagService';
 import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
 import SelectableDiscRow from '../../components/bags/SelectableDiscRow';
 import BulkActionBar from '../../components/bags/BulkActionBar';
@@ -49,6 +49,7 @@ function BagDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [lostDiscCount, setLostDiscCount] = useState(0);
 
   // Multi-select state
   const {
@@ -97,6 +98,17 @@ function BagDetailScreen({ route, navigation }) {
       setError(null);
       const bagData = await getBag(bagId);
       setBag(bagData);
+
+      // Load lost disc count for this bag
+      try {
+        const count = await getLostDiscCountForBag(bagId);
+        setLostDiscCount(count);
+      } catch (countError) {
+        // Don't fail the whole screen if lost disc count fails
+        // eslint-disable-next-line no-console
+        console.warn('Failed to load lost disc count:', countError);
+        setLostDiscCount(0);
+      }
     } catch (err) {
       setError(err.message || 'Failed to load bag details');
     } finally {
@@ -295,6 +307,19 @@ function BagDetailScreen({ route, navigation }) {
   const handleFilter = useCallback(() => {
     setShowFilterPanel(true);
   }, []);
+
+  // Handler for Lost Discs navigation
+  const handleViewLostDiscs = useCallback(() => {
+    if (!bagId) {
+      return;
+    }
+
+    // Navigate to LostDiscs screen with sourceBagId parameter for filtering
+    navigation?.navigate('LostDiscs', {
+      sourceBagId: bagId,
+      navigationSource: 'BagDetail',
+    });
+  }, [bagId, navigation]);
 
   // Handle filter panel apply
   const handleFilterApply = useCallback((newFilters) => {
@@ -593,6 +618,7 @@ function BagDetailScreen({ route, navigation }) {
       activeFilterCount={activeFilterCount}
       sort={sort}
       filteredDiscCount={filteredAndSortedDiscs.length}
+      lostDiscCount={lostDiscCount}
       onAddDisc={handleAddDisc}
       onSort={handleSort}
       onFilter={handleFilter}
@@ -600,6 +626,7 @@ function BagDetailScreen({ route, navigation }) {
       onCancelMultiSelect={exitMultiSelectMode}
       onEnterMultiSelect={enterMultiSelectMode}
       onClearFiltersAndSort={clearFiltersAndSort}
+      onViewLostDiscs={handleViewLostDiscs}
     />
   ), [
     bag,
@@ -608,6 +635,7 @@ function BagDetailScreen({ route, navigation }) {
     activeFilterCount,
     sort,
     filteredAndSortedDiscs.length,
+    lostDiscCount,
     handleAddDisc,
     handleSort,
     handleFilter,
@@ -615,6 +643,7 @@ function BagDetailScreen({ route, navigation }) {
     exitMultiSelectMode,
     enterMultiSelectMode,
     clearFiltersAndSort,
+    handleViewLostDiscs,
   ]);
 
   // Loading state

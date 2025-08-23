@@ -14,6 +14,7 @@ import { getBag, removeDiscFromBag } from '../../../src/services/bagService';
 jest.mock('../../../src/services/bagService', () => ({
   getBag: jest.fn(),
   removeDiscFromBag: jest.fn(),
+  getLostDiscCountForBag: jest.fn().mockResolvedValue(0),
 }));
 
 // Mock Alert
