@@ -17,7 +17,6 @@ import {
   RefreshControl,
   Platform,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -28,6 +27,7 @@ import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
 import SearchBar from '../../design-system/components/SearchBar';
 import DiscRow from '../../components/bags/DiscRow';
+import RecoverDiscModal from '../../components/modals/RecoverDiscModal';
 import { getLostDiscs } from '../../services/bagService';
 
 function LostDiscsScreen({ route, navigation }) {
@@ -54,6 +54,10 @@ function LostDiscsScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Recovery modal state
+  const [showRecoverModal, setShowRecoverModal] = useState(false);
+  const [selectedDiscsForRecovery, setSelectedDiscsForRecovery] = useState([]);
 
   // Navigation handler
   const handleBack = useCallback(() => {
@@ -96,26 +100,11 @@ function LostDiscsScreen({ route, navigation }) {
     loadLostDiscs(true);
   }, [loadLostDiscs]);
 
-  // Handle disc recovery (placeholder for now)
+  // Handle disc recovery - store disc and show modal
   const handleRecoverDisc = useCallback((disc) => {
-    Alert.alert(
-      'Recover Disc',
-      `Recover ${disc.brand} ${disc.model} back to a bag?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Recover',
-          style: 'default',
-          onPress: () => {
-            // TODO: Implement bag selection modal and recovery logic
-            Alert.alert('Coming Soon', 'Disc recovery functionality will be available soon!');
-          },
-        },
-      ],
-    );
+    // Store the selected disc for recovery
+    setSelectedDiscsForRecovery([disc]);
+    setShowRecoverModal(true);
   }, []);
 
   // Filter discs based on search query
@@ -468,6 +457,17 @@ function LostDiscsScreen({ route, navigation }) {
               tintColor="#FF9500"
             />
           )}
+        />
+
+        {/* Recovery Modal */}
+        <RecoverDiscModal
+          visible={showRecoverModal}
+          discs={selectedDiscsForRecovery}
+          onClose={() => setShowRecoverModal(false)}
+          onSuccess={() => {
+            setShowRecoverModal(false);
+            loadLostDiscs(true); // Refresh the lost discs list
+          }}
         />
       </AppContainer>
     </SafeAreaView>

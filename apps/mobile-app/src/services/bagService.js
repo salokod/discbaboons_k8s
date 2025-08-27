@@ -1134,7 +1134,10 @@ export async function bulkRecoverDiscs(payload) {
     const response = await fetch(`${API_BASE_URL}/api/bags/discs/bulk-recover`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        content_ids: payload.contentIds,
+        bag_id: payload.targetBagId,
+      }),
       signal: controller.signal,
     });
 

@@ -67,6 +67,33 @@ jest.mock('../../../src/design-system/components/SearchBar', () => function Mock
   );
 });
 
+// Mock RecoverDiscModal component
+jest.mock('../../../src/components/modals/RecoverDiscModal', () => function MockRecoverDiscModal({
+  visible, discs, onClose, onSuccess,
+}) {
+  const {
+    View, Text, TouchableOpacity,
+  } = require('react-native');
+  if (!visible) return null;
+
+  return (
+    <View testID="recover-disc-modal">
+      <Text testID="modal-title">Recover Disc Modal</Text>
+      <Text testID="modal-disc-count">
+        {discs.length}
+        {' '}
+        discs
+      </Text>
+      <TouchableOpacity testID="modal-close" onPress={onClose}>
+        <Text>Close</Text>
+      </TouchableOpacity>
+      <TouchableOpacity testID="modal-success" onPress={onSuccess}>
+        <Text>Success</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 describe('LostDiscsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -289,6 +316,143 @@ describe('LostDiscsScreen', () => {
 
     // Mock RefreshControl would be tested here in integration
     expect(getLostDiscs).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+  });
+
+  describe('Recovery Modal Integration', () => {
+    it('should have modal state management for recover disc modal', async () => {
+      getLostDiscs.mockResolvedValue({
+        items: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByTestId } = render(
+        <LostDiscsScreen navigation={mockNavigation} route={mockRoute} />,
+      );
+
+      await waitFor(() => {
+        // Test should verify modal state exists (component renders successfully)
+        expect(getByTestId('lost-discs-screen')).toBeTruthy();
+      });
+    });
+
+    it('should store selected disc when recovery button is pressed and show modal', async () => {
+      const mockLostDiscs = {
+        items: [
+          {
+            id: 'content-1',
+            disc_id: 'disc-123',
+            bag_id: 'bag-456',
+            bag_name: 'My Bag',
+            brand: 'Innova',
+            model: 'Thunderbird',
+            is_lost: true,
+            lost_notes: 'Lost at hole 7',
+            lost_at: '2024-01-15T10:30:00.000Z',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+
+      getLostDiscs.mockResolvedValue(mockLostDiscs);
+
+      const { getByTestId, queryByTestId } = render(
+        <LostDiscsScreen navigation={mockNavigation} route={mockRoute} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('recover-button-content-1')).toBeTruthy();
+      });
+
+      // Modal should not be visible initially
+      expect(queryByTestId('recover-disc-modal')).toBeNull();
+
+      // Press the recover button - should store disc and show modal
+      fireEvent.press(getByTestId('recover-button-content-1'));
+
+      // Modal should now be visible with the selected disc
+      expect(getByTestId('recover-disc-modal')).toBeTruthy();
+      expect(getByTestId('modal-disc-count')).toHaveTextContent('1 discs');
+    });
+
+    it('should close modal when onClose callback is called', async () => {
+      const mockLostDiscs = {
+        items: [
+          {
+            id: 'content-1',
+            disc_id: 'disc-123',
+            bag_id: 'bag-456',
+            bag_name: 'My Bag',
+            brand: 'Innova',
+            model: 'Thunderbird',
+            is_lost: true,
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+
+      getLostDiscs.mockResolvedValue(mockLostDiscs);
+
+      const { getByTestId, queryByTestId } = render(
+        <LostDiscsScreen navigation={mockNavigation} route={mockRoute} />,
+      );
+
+      await waitFor(() => {
+        fireEvent.press(getByTestId('recover-button-content-1'));
+      });
+
+      expect(getByTestId('recover-disc-modal')).toBeTruthy();
+
+      // Close the modal
+      fireEvent.press(getByTestId('modal-close'));
+
+      expect(queryByTestId('recover-disc-modal')).toBeNull();
+    });
+
+    it('should close modal and refresh data when onSuccess callback is called', async () => {
+      const mockLostDiscs = {
+        items: [
+          {
+            id: 'content-1',
+            disc_id: 'disc-123',
+            bag_id: 'bag-456',
+            bag_name: 'My Bag',
+            brand: 'Innova',
+            model: 'Thunderbird',
+            is_lost: true,
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+
+      getLostDiscs.mockResolvedValue(mockLostDiscs);
+
+      const { getByTestId, queryByTestId } = render(
+        <LostDiscsScreen navigation={mockNavigation} route={mockRoute} />,
+      );
+
+      await waitFor(() => {
+        fireEvent.press(getByTestId('recover-button-content-1'));
+      });
+
+      expect(getByTestId('recover-disc-modal')).toBeTruthy();
+
+      // Clear the mock call count to verify refresh call
+      getLostDiscs.mockClear();
+
+      // Success callback should close modal and refresh data
+      fireEvent.press(getByTestId('modal-success'));
+
+      expect(queryByTestId('recover-disc-modal')).toBeNull();
+      expect(getLostDiscs).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+    });
   });
 
   describe('Dynamic Back Button Behavior', () => {
