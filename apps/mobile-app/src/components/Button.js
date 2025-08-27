@@ -12,7 +12,7 @@ import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
 
 function Button({
-  title, onPress, variant = 'primary', disabled = false, accessibilityLabel, accessibilityHint, style,
+  title, onPress, variant = 'primary', disabled = false, accessibilityLabel, accessibilityHint, style, testID,
 }) {
   const colors = useThemeColors();
 
@@ -98,7 +98,7 @@ function Button({
 
   return (
     <TouchableOpacity
-      testID="button"
+      testID={testID || 'button'}
       style={[styles.button, style]}
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
@@ -119,6 +119,7 @@ Button.propTypes = {
   accessibilityLabel: PropTypes.string,
   accessibilityHint: PropTypes.string,
   style: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
+  testID: PropTypes.string,
 };
 
 Button.defaultProps = {
@@ -129,6 +130,7 @@ Button.defaultProps = {
   accessibilityLabel: undefined,
   accessibilityHint: undefined,
   style: undefined,
+  testID: undefined,
 };
 
 // Add display name for React DevTools

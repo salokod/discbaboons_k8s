@@ -1548,11 +1548,48 @@ describe('BagService Functions', () => {
           'Content-Type': 'application/json',
           Authorization: 'Bearer mock-access-token',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          content_ids: payload.contentIds,
+          bag_id: payload.targetBagId,
+        }),
         signal: expect.any(AbortSignal),
       });
 
       expect(result).toEqual(mockResponse);
+    });
+
+    it('should transform camelCase field names to snake_case for backend API', async () => {
+      const mockResponse = {
+        success: true,
+        recoveredCount: 3,
+        message: '3 discs recovered successfully',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const payload = {
+        contentIds: ['content-a', 'content-b', 'content-c'],
+        targetBagId: 'target-bag-123',
+      };
+
+      await bulkRecoverDiscs(payload);
+
+      // Verify that camelCase fields are transformed to snake_case
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/bags/discs/bulk-recover', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        body: JSON.stringify({
+          content_ids: ['content-a', 'content-b', 'content-c'],
+          bag_id: 'target-bag-123',
+        }),
+        signal: expect.any(AbortSignal),
+      });
     });
 
     it('should validate payload parameter', async () => {
