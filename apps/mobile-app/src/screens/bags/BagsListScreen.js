@@ -14,6 +14,7 @@ import {
   View,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -139,22 +140,25 @@ function BagsListScreen({ navigation }) {
       color: colors.surface,
     },
     lostDiscsButton: {
-      minWidth: 44,
-      height: 44,
-      borderRadius: 22,
+      minHeight: 44,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: Platform.select({ ios: 12, android: 16 }),
+      backgroundColor: colors.warning,
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'transparent',
-      paddingHorizontal: spacing.sm,
       gap: spacing.xs,
-      borderWidth: 1,
-      borderColor: '#FF9500',
     },
     lostDiscsText: {
-      ...typography.caption,
-      color: '#FF9500',
-      fontSize: 12,
+      color: colors.white,
+      fontWeight: '600',
+      fontSize: 14,
     },
   });
 
@@ -200,7 +204,7 @@ function BagsListScreen({ navigation }) {
         <Icon
           name="search-outline"
           size={24}
-          color="#FF9500"
+          color={colors.white}
         />
       </TouchableOpacity>
     </View>

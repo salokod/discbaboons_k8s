@@ -30,7 +30,7 @@ function FlightNumberSection({
     flightNumbersGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: spacing.lg,
+      gap: spacing.xl,
     },
     flightNumberInput: {
       flex: 1,
@@ -60,14 +60,15 @@ function FlightNumberSection({
       flex: 1,
       ...typography.body,
       paddingVertical: Platform.select({
-        ios: spacing.md,
+        ios: spacing.lg,
         android: spacing.lg,
       }),
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: spacing.md,
       color: colors.text,
       textAlign: 'center',
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: '600',
+      minHeight: 44,
     },
     flightAdjustButton: {
       paddingHorizontal: spacing.sm,
@@ -78,7 +79,8 @@ function FlightNumberSection({
       borderColor: colors.border,
       justifyContent: 'center',
       alignItems: 'center',
-      minWidth: 40,
+      minWidth: 44,
+      minHeight: 44,
     },
     flightAdjustButtonDisabled: {
       opacity: 0.3,

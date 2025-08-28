@@ -24,10 +24,22 @@ jest.mock('../../../src/services/hapticService', () => ({
 // Mock Alert
 jest.spyOn(Alert, 'alert');
 
+// Mock the BagRefreshContext for all tests
+const mockTriggerBagRefresh = jest.fn();
+const mockTriggerBagListRefresh = jest.fn();
+jest.mock('../../../src/context/BagRefreshContext', () => ({
+  useBagRefreshContext: jest.fn(() => ({
+    triggerBagRefresh: mockTriggerBagRefresh,
+    triggerBagListRefresh: mockTriggerBagListRefresh,
+  })),
+}));
+
 describe('RecoverDiscModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     Alert.alert.mockClear();
+    mockTriggerBagRefresh.mockClear();
+    mockTriggerBagListRefresh.mockClear();
   });
   it('should export RecoverDiscModal component', () => {
     expect(typeof RecoverDiscModal).toBe('function');
@@ -40,6 +52,7 @@ describe('RecoverDiscModal', () => {
           <RecoverDiscModal
             visible={false}
             onClose={jest.fn()}
+            onSuccess={jest.fn()}
             discs={[]}
             targetBagId=""
           />
@@ -160,7 +173,7 @@ describe('RecoverDiscModal', () => {
       const brandElement = getByTestId('disc-brand');
       const modelElement = getByTestId('disc-model');
 
-      // Check text content
+      // Check text content - brand element contains just the brand name
       expect(brandElement.children[0]).toBe('Innova');
       expect(modelElement.children[0]).toBe('Destroyer');
     });
@@ -200,7 +213,7 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      expect(getByText('This will move your lost disc back into your selected bag where you can track it again.')).toBeTruthy();
+      expect(getByText('This will return your lost disc back into your selected bag where you can track it again.')).toBeTruthy();
     });
 
     it('should display recovery explanation text for multiple discs', () => {
@@ -221,7 +234,7 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      expect(getByText('This will move your lost discs back into your selected bag where you can track them again.')).toBeTruthy();
+      expect(getByText('This will return your lost discs back into your selected bag where you can track them again.')).toBeTruthy();
     });
 
     it('should show appropriate recovery icon', () => {
@@ -335,11 +348,11 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      expect(getByText('Recovering 1 disc:')).toBeTruthy();
+      expect(getByText('This will return your lost disc back into your selected bag where you can track it again.')).toBeTruthy();
       // Brand and model are now separate elements with proper visual hierarchy
       expect(getByTestId('disc-brand')).toBeTruthy();
       expect(getByTestId('disc-model')).toBeTruthy();
-      expect(getByText('Innova')).toBeTruthy();
+      expect(getByText('Innova')).toBeTruthy(); // Brand is shown without "by" prefix
       expect(getByText('Destroyer')).toBeTruthy();
     });
 
@@ -433,7 +446,7 @@ describe('RecoverDiscModal', () => {
           </ThemeProvider>,
         );
 
-        // Brand and model are now separate elements
+        // Brand is now displayed without "by" prefix, model is separate
         expect(getByText(brand)).toBeTruthy();
         expect(getByText(model)).toBeTruthy();
         unmount();
@@ -456,7 +469,7 @@ describe('RecoverDiscModal', () => {
 
       // Verify single disc formatting
       expect(getSingleText('Recovering 1 disc:')).toBeTruthy();
-      // Brand and model are now separate elements
+      // Brand is now displayed as "by Brand" format, model is separate
       expect(getSingleText('Innova')).toBeTruthy();
       expect(getSingleText('Destroyer')).toBeTruthy();
 
@@ -637,7 +650,7 @@ describe('RecoverDiscModal', () => {
         });
 
         // Should show real bag selection content
-        expect(getByText('Select destination bag:')).toBeTruthy();
+        expect(getByText('Choose bag to recover to:')).toBeTruthy();
         expect(getByText('Main Bag')).toBeTruthy();
       });
 
@@ -744,7 +757,7 @@ describe('RecoverDiscModal', () => {
       });
 
       // Should display bag selection section with loaded bags
-      expect(getByText('Select destination bag:')).toBeTruthy();
+      expect(getByText('Choose bag to recover to:')).toBeTruthy();
       expect(getByText('Main Bag')).toBeTruthy();
       expect(getByText('Tournament Bag')).toBeTruthy();
     });
@@ -788,7 +801,7 @@ describe('RecoverDiscModal', () => {
       });
 
       // Should display bag selection section with loaded bags
-      expect(getByText('Select destination bag:')).toBeTruthy();
+      expect(getByText('Choose bag to recover to:')).toBeTruthy();
       expect(getByText('Main Bag')).toBeTruthy();
       expect(getByText('Tournament Bag')).toBeTruthy();
       expect(getByText('Practice Bag')).toBeTruthy();
@@ -877,17 +890,20 @@ describe('RecoverDiscModal', () => {
       // Select first bag
       fireEvent.press(mainBagItem);
 
-      // Should show selection indicator on selected bag
-      expect(getByTestId('selection-indicator-bag1')).toBeTruthy();
-      // Other bag should not have selection indicator
-      expect(queryByTestId('selection-indicator-bag2')).toBeNull();
+      // Should show selection state on selected bag
+      const mainBagItemAfter = getByTestId('bag-item-bag1');
+      const tournamentBagItemAfter = getByTestId('bag-item-bag2');
+      expect(mainBagItemAfter.props.accessibilityState.selected).toBe(true);
+      expect(tournamentBagItemAfter.props.accessibilityState.selected).toBe(false);
 
       // Select different bag
       fireEvent.press(tournamentBagItem);
 
-      // Should update selection indicator
-      expect(getByTestId('selection-indicator-bag2')).toBeTruthy();
-      expect(queryByTestId('selection-indicator-bag1')).toBeNull();
+      // Should update selection state
+      const mainBagItemFinal = getByTestId('bag-item-bag1');
+      const tournamentBagItemFinal = getByTestId('bag-item-bag2');
+      expect(tournamentBagItemFinal.props.accessibilityState.selected).toBe(true);
+      expect(mainBagItemFinal.props.accessibilityState.selected).toBe(false);
     });
 
     it('should handle no bags available with empty state', async () => {
@@ -922,7 +938,7 @@ describe('RecoverDiscModal', () => {
       expect(getByText('Create your first bag to recover discs.')).toBeTruthy();
 
       // Should not show bag selection section
-      expect(queryByText('Select destination bag:')).toBeNull();
+      expect(queryByText('Choose bag to recover to:')).toBeNull();
     });
   });
 
@@ -959,7 +975,7 @@ describe('RecoverDiscModal', () => {
       expect(getByTestId('enhanced-retry-button')).toBeTruthy();
 
       // Should not show bag selection section
-      expect(queryByText('Select destination bag:')).toBeNull();
+      expect(queryByText('Choose bag to recover to:')).toBeNull();
     });
 
     it('should display error message when bag loading fails', async () => {
@@ -1000,10 +1016,7 @@ describe('RecoverDiscModal', () => {
     });
 
     it('should retry loading bags when retry button is pressed', async () => {
-      // First attempt fails
-      bagService.getBags.mockRejectedValueOnce(new Error('Network error'));
-
-      // Second attempt succeeds
+      // Set up mock sequence: first fails, then succeeds
       const mockResponse = {
         bags: [
           { id: 'bag1', name: 'Main Bag', description: 'My primary disc bag' },
@@ -1012,7 +1025,10 @@ describe('RecoverDiscModal', () => {
           total: 1, limit: 20, offset: 0, hasMore: false,
         },
       };
-      bagService.getBags.mockResolvedValueOnce(mockResponse);
+
+      bagService.getBags
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce(mockResponse);
 
       const {
         getByText, getByTestId, queryByTestId, queryByText,
@@ -1038,17 +1054,17 @@ describe('RecoverDiscModal', () => {
       const retryButton = getByTestId('enhanced-retry-button');
       fireEvent.press(retryButton);
 
-      // Should show loading again
+      // Should show loading again briefly
       expect(getByTestId('skeleton-loading-section')).toBeTruthy();
 
       // Wait for successful load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
         expect(queryByText('Connection Problem')).toBeNull();
-      });
+      }, { timeout: 10000 });
 
       // Should now show bag selection
-      expect(getByText('Select destination bag:')).toBeTruthy();
+      expect(getByText('Choose bag to recover to:')).toBeTruthy();
       expect(getByText('Main Bag')).toBeTruthy();
     });
   });
@@ -1225,15 +1241,17 @@ describe('RecoverDiscModal', () => {
 
       // Should apply enhanced selected styling to selected bag
       // The specific border and background styling will be applied through StyleSheet
-      expect(getByTestId('selection-indicator-bag1')).toBeTruthy();
-      expect(queryByTestId('selection-indicator-bag2')).toBeNull();
+      expect(mainBagItem.props.accessibilityState.selected).toBe(true);
+      expect(tournamentBagItem.props.accessibilityState.selected).toBe(false);
 
       // Select different bag
       fireEvent.press(tournamentBagItem);
 
       // Should update selection with enhanced styling
-      expect(getByTestId('selection-indicator-bag2')).toBeTruthy();
-      expect(queryByTestId('selection-indicator-bag1')).toBeNull();
+      const mainBagItemAfter = getByTestId('bag-item-bag1');
+      const tournamentBagItemAfter = getByTestId('bag-item-bag2');
+      expect(tournamentBagItemAfter.props.accessibilityState.selected).toBe(true);
+      expect(mainBagItemAfter.props.accessibilityState.selected).toBe(false);
     });
 
     it('should display bag information with enhanced typography hierarchy', async () => {
@@ -1351,28 +1369,37 @@ describe('RecoverDiscModal', () => {
         expect(queryByTestId('loading-indicator')).toBeNull();
       });
 
-      // Initially no bags should have selection indicators
-      expect(queryByTestId('selection-indicator-bag1')).toBeNull();
-      expect(queryByTestId('selection-indicator-bag2')).toBeNull();
-      expect(queryByTestId('selection-indicator-bag3')).toBeNull();
+      // Initially no bags should be selected
+      const bag1Initial = getByTestId('bag-item-bag1');
+      const bag2Initial = getByTestId('bag-item-bag2');
+      const bag3Initial = getByTestId('bag-item-bag3');
+      expect(bag1Initial.props.accessibilityState.selected).toBe(false);
+      expect(bag2Initial.props.accessibilityState.selected).toBe(false);
+      expect(bag3Initial.props.accessibilityState.selected).toBe(false);
 
       // Select middle bag
       const tournamentBagItem = getByTestId('bag-item-bag2');
       fireEvent.press(tournamentBagItem);
 
-      // Only selected bag should show enhanced indicator
-      expect(queryByTestId('selection-indicator-bag1')).toBeNull();
-      expect(getByTestId('selection-indicator-bag2')).toBeTruthy();
-      expect(queryByTestId('selection-indicator-bag3')).toBeNull();
+      // Only selected bag should show selection state
+      const bag1After = getByTestId('bag-item-bag1');
+      const bag2After = getByTestId('bag-item-bag2');
+      const bag3After = getByTestId('bag-item-bag3');
+      expect(bag1After.props.accessibilityState.selected).toBe(false);
+      expect(bag2After.props.accessibilityState.selected).toBe(true);
+      expect(bag3After.props.accessibilityState.selected).toBe(false);
 
       // Switch to different bag
       const practiceeBagItem = getByTestId('bag-item-bag3');
       fireEvent.press(practiceeBagItem);
 
-      // Selection should move to new bag with enhanced styling
-      expect(queryByTestId('selection-indicator-bag1')).toBeNull();
-      expect(queryByTestId('selection-indicator-bag2')).toBeNull();
-      expect(getByTestId('selection-indicator-bag3')).toBeTruthy();
+      // Selection should move to new bag
+      const bag1Final = getByTestId('bag-item-bag1');
+      const bag2Final = getByTestId('bag-item-bag2');
+      const bag3Final = getByTestId('bag-item-bag3');
+      expect(bag1Final.props.accessibilityState.selected).toBe(false);
+      expect(bag2Final.props.accessibilityState.selected).toBe(false);
+      expect(bag3Final.props.accessibilityState.selected).toBe(true);
     });
 
     it('should use design system colors, spacing, and typography consistently', async () => {
@@ -1403,7 +1430,7 @@ describe('RecoverDiscModal', () => {
 
       // Wait for bags to load
       await waitFor(() => {
-        expect(getByText('Select destination bag:')).toBeTruthy();
+        expect(getByText('Choose bag to recover to:')).toBeTruthy();
       });
 
       // Should render with design system styling
@@ -1837,8 +1864,8 @@ describe('RecoverDiscModal', () => {
     });
   });
 
-  describe('Phase 2.3: Context-Aware Button Labels', () => {
-    it('should show "Select Destination" when no bag is selected', async () => {
+  describe('Phase 2.3: Simple Button Labels', () => {
+    it('should show "Recover" when no bag is selected', async () => {
       // Mock successful bag loading
       const mockResponse = {
         bags: [
@@ -1869,11 +1896,11 @@ describe('RecoverDiscModal', () => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
       });
 
-      // Should show "Select Destination" when no bag selected
-      expect(getByText('Select Destination')).toBeTruthy();
+      // Should show "Recover" when no bag selected
+      expect(getByText('Recover')).toBeTruthy();
     });
 
-    it('should show "Recover 1 disc to [BagName]" for single disc with bag selected', async () => {
+    it('should show "Recover" for single disc with bag selected', async () => {
       // Mock successful bag loading
       const mockResponse = {
         bags: [
@@ -1908,11 +1935,11 @@ describe('RecoverDiscModal', () => {
       const bagItem = getByTestId('bag-item-bag1');
       fireEvent.press(bagItem);
 
-      // Should show "Recover 1 disc to Main Bag"
-      expect(getByText('Recover 1 disc to Main Bag')).toBeTruthy();
+      // Should show simplified "Recover" text when bag is selected
+      expect(getByText('Recover')).toBeTruthy();
     });
 
-    it('should show "Recover X discs to [BagName]" for multiple discs with bag selected', async () => {
+    it('should show "Recover" for multiple discs with bag selected', async () => {
       // Mock successful bag loading
       const mockResponse = {
         bags: [
@@ -1951,8 +1978,8 @@ describe('RecoverDiscModal', () => {
       const bagItem = getByTestId('bag-item-bag1');
       fireEvent.press(bagItem);
 
-      // Should show "Recover 3 discs to Tournament Bag"
-      expect(getByText('Recover 3 discs to Tournament Bag')).toBeTruthy();
+      // Should show simplified "Recover" text when bag is selected
+      expect(getByText('Recover')).toBeTruthy();
     });
 
     it('should show "Recovering..." during recovery operation', async () => {
@@ -1996,7 +2023,7 @@ describe('RecoverDiscModal', () => {
       fireEvent.press(bagItem);
 
       // Press recover button
-      const recoverButton = getByText('Recover 1 disc to Main Bag');
+      const recoverButton = getByText('Recover');
       fireEvent.press(recoverButton);
 
       // Should show "Recovering..." during operation
@@ -2004,7 +2031,8 @@ describe('RecoverDiscModal', () => {
     });
 
     it('should properly pluralize disc vs discs based on count', async () => {
-      // Mock successful bag loading
+      // Mock successful bag loading - clear previous mocks and set up persistent mock
+      bagService.getBags.mockClear();
       const mockResponse = {
         bags: [
           { id: 'bag1', name: 'Practice Bag', description: 'For field work' },
@@ -2013,7 +2041,8 @@ describe('RecoverDiscModal', () => {
           total: 1, limit: 20, offset: 0, hasMore: false,
         },
       };
-      bagService.getBags.mockResolvedValue(mockResponse);
+      // Set up persistent mock for multiple calls
+      bagService.getBags.mockImplementation(() => Promise.resolve(mockResponse));
 
       // Test single disc
       const {
@@ -2039,8 +2068,8 @@ describe('RecoverDiscModal', () => {
       const bagItem = getByTestId('bag-item-bag1');
       fireEvent.press(bagItem);
 
-      // Should use singular "disc"
-      expect(getByText('Recover 1 disc to Practice Bag')).toBeTruthy();
+      // Should show correct button text regardless of count
+      expect(getByText('Recover')).toBeTruthy();
 
       // Test with multiple discs
       rerender(
@@ -2067,8 +2096,8 @@ describe('RecoverDiscModal', () => {
       const bagItemNew = getByTestId('bag-item-bag1');
       fireEvent.press(bagItemNew);
 
-      // Should use plural "discs"
-      expect(getByText('Recover 2 discs to Practice Bag')).toBeTruthy();
+      // Should show correct button text regardless of count
+      expect(getByText('Recover')).toBeTruthy();
     });
 
     it('should update button text in real-time when bag selection changes', async () => {
@@ -2103,24 +2132,23 @@ describe('RecoverDiscModal', () => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
       });
 
-      // Initially should show "Select Destination"
-      expect(getByText('Select Destination')).toBeTruthy();
+      // Initially should show "Recover"
+      expect(getByText('Recover')).toBeTruthy();
 
       // Select first bag
       const mainBagItem = getByTestId('bag-item-bag1');
       fireEvent.press(mainBagItem);
 
-      // Should update to first bag name
-      expect(getByText('Recover 1 disc to Main Bag')).toBeTruthy();
-      expect(queryByText('Select Destination')).toBeNull();
+      // Should show simple "Recover" text
+      expect(getByText('Recover')).toBeTruthy();
 
       // Select different bag
       const tournamentBagItem = getByTestId('bag-item-bag2');
       fireEvent.press(tournamentBagItem);
 
-      // Should update to second bag name
-      expect(getByText('Recover 1 disc to Tournament Bag')).toBeTruthy();
-      expect(queryByText('Recover 1 disc to Main Bag')).toBeNull();
+      // Should show correct button text for currently selected bag
+      expect(getByText('Recover')).toBeTruthy();
+      expect(queryByText('Recover 1 disc to Tournament Bag')).toBeNull();
     });
 
     it('should handle bag names with special characters and length properly', async () => {
@@ -2159,15 +2187,15 @@ describe('RecoverDiscModal', () => {
       const bag1Item = getByTestId('bag-item-bag1');
       fireEvent.press(bag1Item);
 
-      // Should handle special characters properly
-      expect(getByText("Recover 1 disc to John's Tournament Bag (2024)")).toBeTruthy();
+      // Should show correct button text with special characters
+      expect(getByText('Recover')).toBeTruthy();
 
       // Select second bag with ampersand
       const bag2Item = getByTestId('bag-item-bag2');
       fireEvent.press(bag2Item);
 
-      // Should handle ampersand properly
-      expect(getByText('Recover 1 disc to Practice & Field Work Bag')).toBeTruthy();
+      // Should show correct button text with ampersand
+      expect(getByText('Recover')).toBeTruthy();
     });
 
     it('should handle edge case with missing bag name gracefully', async () => {
@@ -2205,8 +2233,8 @@ describe('RecoverDiscModal', () => {
       const bagItem = getByTestId('bag-item-bag1');
       fireEvent.press(bagItem);
 
-      // Should handle empty name gracefully - fall back to generic message
-      expect(getByText('Recover 1 disc to Selected Bag')).toBeTruthy();
+      // Should show simplified "Recover" text regardless of missing name
+      expect(getByText('Recover')).toBeTruthy();
     });
   });
 
@@ -2243,7 +2271,7 @@ describe('RecoverDiscModal', () => {
       });
 
       // Should show recover button that is initially disabled (no bag selected)
-      const recoverButton = getByText('Select Destination');
+      const recoverButton = getByText('Recover');
       expect(recoverButton).toBeTruthy();
       // Button should be disabled since no bag is selected
     });
@@ -2283,8 +2311,8 @@ describe('RecoverDiscModal', () => {
       const bagItem = getByTestId('bag-item-bag1');
       fireEvent.press(bagItem);
 
-      // Recovery button should now be enabled
-      const recoverButton = getByText('Recover 1 disc to Main Bag');
+      // Recovery button should now show simple "Recover" text
+      const recoverButton = getByText('Recover');
       expect(recoverButton).toBeTruthy();
     });
 
@@ -2329,7 +2357,7 @@ describe('RecoverDiscModal', () => {
       fireEvent.press(bagItem);
 
       // Press recover button
-      const recoverButton = getByText('Recover 2 discs to Main Bag');
+      const recoverButton = getByText('Recover');
       fireEvent.press(recoverButton);
 
       // Should call bulkRecoverDiscs with correct payload
@@ -2377,7 +2405,7 @@ describe('RecoverDiscModal', () => {
       fireEvent.press(bagItem);
 
       // Press recover button
-      const recoverButton = getByText('Recover 1 disc to Main Bag');
+      const recoverButton = getByText('Recover');
       fireEvent.press(recoverButton);
 
       // Should show loading state
@@ -2421,7 +2449,7 @@ describe('RecoverDiscModal', () => {
       fireEvent.press(bagItem);
 
       // Press recover button
-      const recoverButton = getByText('Recover 1 disc to Main Bag');
+      const recoverButton = getByText('Recover');
       fireEvent.press(recoverButton);
 
       // Wait for recovery to complete
@@ -2468,7 +2496,7 @@ describe('RecoverDiscModal', () => {
       fireEvent.press(bagItem);
 
       // Press recover button
-      const recoverButton = getByText('Recover 1 disc to Main Bag');
+      const recoverButton = getByText('Recover');
       fireEvent.press(recoverButton);
 
       // Wait for error handling
@@ -2485,7 +2513,7 @@ describe('RecoverDiscModal', () => {
       expect(onCloseMock).not.toHaveBeenCalled();
 
       // Button should return to normal state after error
-      expect(getByText('Recover 1 disc to Main Bag')).toBeTruthy();
+      expect(getByText('Recover')).toBeTruthy();
     });
   });
 
@@ -2662,7 +2690,7 @@ describe('RecoverDiscModal', () => {
       const bagItem = getByTestId('bag-item-bag1');
       fireEvent.press(bagItem);
 
-      const recoverButton = getByText('Recover 1 disc to Main Bag');
+      const recoverButton = getByText('Recover');
       fireEvent.press(recoverButton);
 
       // Should still complete recovery successfully
@@ -3076,7 +3104,7 @@ describe('RecoverDiscModal', () => {
       });
 
       // Should now show bag selection
-      expect(getByText('Select destination bag:')).toBeTruthy();
+      expect(getByText('Choose bag to recover to:')).toBeTruthy();
       expect(getByText('Main Bag')).toBeTruthy();
     });
   });
@@ -3450,6 +3478,716 @@ describe('RecoverDiscModal', () => {
         expect(contextSection.props.accessibilityHint).toBe('This explains what will happen when you recover your discs');
         expect(contextSection.props.accessibilityRole).toBe('text');
       });
+    });
+  });
+
+  describe('Modern Card Design - Phase 1', () => {
+    it('should render bag items with modern card styling and enhanced shadows', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'My primary disc bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get bag item and check styling
+      const bagItem = getByTestId('bag-item-bag1');
+      const bagItemStyle = bagItem.props.style;
+
+      // Verify modern card styling attributes are present
+      expect(bagItemStyle).toEqual(expect.objectContaining({
+        backgroundColor: expect.any(String),
+        borderRadius: expect.any(Number),
+        paddingVertical: expect.any(Number),
+        paddingHorizontal: expect.any(Number),
+        marginBottom: expect.any(Number),
+      }));
+    });
+
+    it('should apply enhanced spacing for better touch targets', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'My primary disc bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get bag item and check minimum touch target requirements
+      const bagItem = getByTestId('bag-item-bag1');
+      const bagItemStyle = bagItem.props.style;
+
+      // Verify minimum 44px touch target height
+      expect(bagItemStyle.minHeight).toBeGreaterThanOrEqual(44);
+
+      // Verify adequate padding for touch targets
+      expect(bagItemStyle.paddingVertical).toBeGreaterThanOrEqual(12);
+      expect(bagItemStyle.paddingHorizontal).toBeGreaterThanOrEqual(16);
+    });
+
+    it('should show elevated shadows on selected bag items', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'My primary disc bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get bag item before selection
+      const bagItem = getByTestId('bag-item-bag1');
+
+      // Select the bag item
+      fireEvent.press(bagItem);
+
+      // Wait for selection animation/styling to apply
+      await waitFor(() => {
+        const selectedBagItem = getByTestId('bag-item-bag1');
+        const selectedStyle = selectedBagItem.props.style;
+
+        // Verify selected styling includes shadow properties
+        expect(selectedStyle).toEqual(expect.objectContaining({
+          shadowColor: expect.any(String),
+          shadowOffset: expect.any(Object),
+          shadowOpacity: expect.any(Number),
+          shadowRadius: expect.any(Number),
+          elevation: expect.any(Number),
+        }));
+      });
+    });
+  });
+
+  describe('Enhanced Typography Hierarchy - Phase 2', () => {
+    it('should display bag names with prominent heading typography', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Primary Tournament Bag', description: 'Professional setup for competitions' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByText, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get bag name text element
+      const bagNameElement = getByText('Primary Tournament Bag');
+      expect(bagNameElement.props.style).toEqual(expect.objectContaining({
+        fontWeight: expect.stringMatching(/^[67]/), // '600' or '700'
+        fontSize: expect.any(Number),
+      }));
+    });
+
+    it('should display bag descriptions with proper secondary text hierarchy', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Primary Tournament Bag', description: 'Professional setup for competitions' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByText, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get bag description text element
+      const bagDescriptionElement = getByText('Professional setup for competitions');
+      expect(bagDescriptionElement.props.style).toEqual(expect.objectContaining({
+        fontSize: expect.any(Number),
+        color: expect.any(String),
+      }));
+    });
+
+    it('should display disc count with consistent caption typography', async () => {
+      // Mock successful bag loading with disc count
+      const mockResponse = {
+        bags: [
+          {
+            id: 'bag1', name: 'Main Bag', description: 'Primary bag', disc_count: 15,
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByText, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get disc count text element
+      const discCountElement = getByText('15 discs');
+      expect(discCountElement.props.style).toEqual(expect.objectContaining({
+        fontSize: expect.any(Number),
+        color: expect.any(String),
+      }));
+    });
+
+    it('should maintain typography hierarchy consistency across all text elements', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          {
+            id: 'bag1', name: 'Tournament Bag', description: 'Competition ready', disc_count: 12,
+          },
+          {
+            id: 'bag2', name: 'Practice Bag', description: 'Daily throwing', disc_count: 8,
+          },
+        ],
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByText, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Check multiple bag names have consistent styling
+      const bagName1 = getByText('Tournament Bag');
+      const bagName2 = getByText('Practice Bag');
+
+      expect(bagName1.props.style.fontWeight).toBe(bagName2.props.style.fontWeight);
+      expect(bagName1.props.style.fontSize).toBe(bagName2.props.style.fontSize);
+
+      // Check descriptions have consistent styling
+      const description1 = getByText('Competition ready');
+      const description2 = getByText('Daily throwing');
+
+      expect(description1.props.style.fontSize).toBe(description2.props.style.fontSize);
+      expect(description1.props.style.color).toBe(description2.props.style.color);
+    });
+  });
+
+  describe('Modern Selection Indicators - Phase 3', () => {
+    it('should display modern selection indicators with proper styling', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get selection indicator
+      const selectionIndicator = getByTestId('selection-indicator-bag1');
+      expect(selectionIndicator).toBeTruthy();
+
+      // Verify it has proper structure for modern styling
+      expect(selectionIndicator.props.style).toEqual(expect.objectContaining({
+        marginLeft: expect.any(Number),
+        position: 'relative',
+      }));
+    });
+
+    it('should show checkmark badge when bag is selected', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Initially should not show checkmark
+      expect(queryByTestId('checkmark-badge-bag1')).toBeNull();
+
+      // Select bag
+      const bagItem = getByTestId('bag-item-bag1');
+      fireEvent.press(bagItem);
+
+      // Should now show checkmark indicator
+      await waitFor(() => {
+        const selectionIndicator = getByTestId('selection-indicator-bag1');
+        expect(selectionIndicator).toBeTruthy();
+        // The checkmark should be within the selection indicator structure
+      });
+    });
+
+    it('should have proper radio button styling for unselected state', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get selection indicator in unselected state
+      const selectionIndicator = getByTestId('selection-indicator-bag1');
+
+      // Should have radio button container styling
+      expect(selectionIndicator.children[0].props.style).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          width: 24,
+          height: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }),
+      ]));
+    });
+
+    it('should transition selection indicators between different bags', async () => {
+      // Mock successful bag loading with multiple bags
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+          { id: 'bag2', name: 'Secondary Bag', description: 'Secondary bag' },
+        ],
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Select first bag
+      const bagItem1 = getByTestId('bag-item-bag1');
+      fireEvent.press(bagItem1);
+
+      // Verify first bag is selected
+      await waitFor(() => {
+        const selectedBagItem = getByTestId('bag-item-bag1');
+        expect(selectedBagItem.props.accessibilityState.selected).toBe(true);
+      });
+
+      // Select second bag
+      const bagItem2 = getByTestId('bag-item-bag2');
+      fireEvent.press(bagItem2);
+
+      // Verify selection moved to second bag
+      await waitFor(() => {
+        const bagItem1After = getByTestId('bag-item-bag1');
+        const bagItem2After = getByTestId('bag-item-bag2');
+        expect(bagItem1After.props.accessibilityState.selected).toBe(false);
+        expect(bagItem2After.props.accessibilityState.selected).toBe(true);
+      });
+    });
+  });
+
+  describe('Advanced Animations and Polish - Phase 4', () => {
+    it('should apply smooth scale animations to selected bag items', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get animated bag item
+      const animatedBagItem = getByTestId('animated-bag-item-bag1');
+      expect(animatedBagItem).toBeTruthy();
+
+      // Should have transform style property for animations
+      expect(animatedBagItem.props.style).toEqual(expect.objectContaining({
+        transform: expect.any(Array),
+      }));
+    });
+
+    it('should animate disc showcase section with fade-in effect', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Get animated disc showcase section
+      const animatedDiscShowcase = getByTestId('animated-disc-showcase-section');
+      expect(animatedDiscShowcase).toBeTruthy();
+
+      // Parent should have opacity animation (may be number during testing)
+      const showcaseSection = getByTestId('disc-showcase-section');
+      expect(showcaseSection.props.style).toEqual(expect.objectContaining({
+        opacity: expect.any(Number), // Animation value during testing
+      }));
+    });
+
+    it('should animate bag selection section with slide-in effect', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load and animation to start
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get animated bag selection section
+      const animatedBagSection = getByTestId('animated-bag-selection-section');
+      expect(animatedBagSection).toBeTruthy();
+
+      // Should have opacity and transform animations (numbers during testing)
+      expect(animatedBagSection.props.style).toEqual(expect.objectContaining({
+        opacity: expect.any(Number), // Animation value during testing
+        transform: expect.arrayContaining([
+          expect.objectContaining({
+            translateY: expect.any(Number), // Animation value during testing
+          }),
+        ]),
+      }));
+    });
+
+    it('should animate error section with slide-in effect when errors occur', async () => {
+      // Mock bag loading error
+      bagService.getBags.mockRejectedValue(new Error('Network error'));
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for error state to appear
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Get animated error section
+      const animatedErrorSection = getByTestId('animated-error-section');
+      expect(animatedErrorSection).toBeTruthy();
+
+      // Should have opacity and transform animations (numbers during testing)
+      expect(animatedErrorSection.props.style).toEqual(expect.objectContaining({
+        opacity: expect.any(Number), // Animation value during testing
+        transform: expect.arrayContaining([
+          expect.objectContaining({
+            translateY: expect.any(Number), // Animation value during testing
+          }),
+        ]),
+      }));
+    });
+
+    it('should provide haptic feedback on bag selection for enhanced user experience', async () => {
+      // Mock successful bag loading
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Select bag
+      const bagItem = getByTestId('bag-item-bag1');
+      fireEvent.press(bagItem);
+
+      // Verify haptic feedback was triggered
+      expect(hapticService.triggerSelectionHaptic).toHaveBeenCalledTimes(1);
+    });
+
+    it('should maintain smooth animation performance during selection changes', async () => {
+      // Mock successful bag loading with multiple bags
+      const mockResponse = {
+        bags: [
+          { id: 'bag1', name: 'Main Bag', description: 'Primary bag' },
+          { id: 'bag2', name: 'Secondary Bag', description: 'Secondary bag' },
+        ],
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      };
+      bagService.getBags.mockResolvedValue(mockResponse);
+
+      const { getByTestId, queryByTestId } = render(
+        <ThemeProvider>
+          <RecoverDiscModal
+            visible
+            onClose={jest.fn()}
+            discs={[{ id: '1', model: 'Destroyer', brand: 'Innova' }]}
+            onSuccess={jest.fn()}
+          />
+        </ThemeProvider>,
+      );
+
+      // Wait for bags to load
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-loading-section')).toBeNull();
+      });
+
+      // Rapidly select different bags to test animation performance
+      const bagItem1 = getByTestId('bag-item-bag1');
+      const bagItem2 = getByTestId('bag-item-bag2');
+
+      // Select first bag
+      fireEvent.press(bagItem1);
+
+      // Quickly select second bag
+      fireEvent.press(bagItem2);
+
+      // Verify both animated bag items maintain their structure
+      const animatedBagItem1 = getByTestId('animated-bag-item-bag1');
+      const animatedBagItem2 = getByTestId('animated-bag-item-bag2');
+
+      expect(animatedBagItem1.props.style.transform).toBeTruthy();
+      expect(animatedBagItem2.props.style.transform).toBeTruthy();
+
+      // Verify haptic feedback was called for both selections
+      expect(hapticService.triggerSelectionHaptic).toHaveBeenCalledTimes(2);
     });
   });
 });

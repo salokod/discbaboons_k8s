@@ -34,6 +34,7 @@ import BulkActionBar from '../../components/bags/BulkActionBar';
 import BagDetailHeader from '../../components/bags/BagDetailHeader';
 import MoveDiscModal from '../../components/modals/MoveDiscModal';
 import BulkMoveModal from '../../components/modals/BulkMoveModal';
+import MarkAsLostModal from '../../components/modals/MarkAsLostModal';
 import FilterPanel from '../../design-system/components/FilterPanel';
 import SortPanel from '../../design-system/components/SortPanel';
 import { useBagRefreshListener, useBagRefreshContext } from '../../context/BagRefreshContext';
@@ -73,6 +74,10 @@ function BagDetailScreen({ route, navigation }) {
 
   // Bulk move modal state
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
+
+  // Mark as lost modal state
+  const [showMarkLostModal, setShowMarkLostModal] = useState(false);
+  const [selectedLostDiscs, setSelectedLostDiscs] = useState([]);
 
   // Navigation handler
   const handleBack = useCallback(() => {
@@ -345,6 +350,12 @@ function BagDetailScreen({ route, navigation }) {
     setShowMoveModal(true);
   }, []);
 
+  // Handle mark disc as lost operation
+  const handleMarkDiscAsLost = useCallback((disc) => {
+    setSelectedLostDiscs([disc]);
+    setShowMarkLostModal(true);
+  }, []);
+
   // Handle successful move
   const handleMoveSuccess = useCallback(async () => {
     setShowMoveModal(false);
@@ -372,7 +383,23 @@ function BagDetailScreen({ route, navigation }) {
     setShowBulkMoveModal(false);
   }, []);
 
-  // Right swipe action handler - Edit and Remove only
+  // Handle mark as lost modal close
+  const handleMarkLostModalClose = useCallback(() => {
+    setShowMarkLostModal(false);
+    setSelectedLostDiscs([]);
+  }, []);
+
+  // Handle successful mark as lost
+  const handleMarkLostSuccess = useCallback(async () => {
+    setShowMarkLostModal(false);
+    setSelectedLostDiscs([]);
+    // Refresh bag data to show updated contents
+    await loadBagData();
+    // Also refresh the bag list since disc counts may have changed
+    triggerBagListRefresh();
+  }, [loadBagData, triggerBagListRefresh]);
+
+  // Right swipe action handler - Edit, Mark Lost, and Remove
   const handleDiscSwipeRight = useCallback((disc) => {
     const actions = [
       {
@@ -380,6 +407,13 @@ function BagDetailScreen({ route, navigation }) {
         label: 'Edit',
         color: colors.primary,
         icon: 'create-outline',
+      },
+      {
+        id: 'mark-lost',
+        label: 'Mark Lost',
+        color: '#FF9500', // Orange theme color for lost disc state
+        icon: 'alert-circle-outline',
+        onPress: () => handleMarkDiscAsLost(disc),
       },
       {
         id: 'delete',
@@ -422,7 +456,7 @@ function BagDetailScreen({ route, navigation }) {
     ];
 
     return actions;
-  }, [loadBagData, bag?.name, triggerBagListRefresh, colors]);
+  }, [loadBagData, bag?.name, triggerBagListRefresh, colors, handleMarkDiscAsLost]);
 
   // Left swipe action handler - Move only
   const handleDiscSwipeLeft = useCallback((disc) => {
@@ -712,6 +746,7 @@ function BagDetailScreen({ route, navigation }) {
           enterMultiSelectMode();
           toggleSelection(item.id);
         }}
+        testID={`swipeable-disc-row-${item.id}`}
       />
     );
   };
@@ -801,6 +836,15 @@ function BagDetailScreen({ route, navigation }) {
           currentBagId={bagId}
           currentBagName={bag?.name || 'Current Bag'}
           onSuccess={handleBulkMoveSuccess}
+        />
+
+        {/* Mark as Lost Modal */}
+        <MarkAsLostModal
+          visible={showMarkLostModal}
+          onClose={handleMarkLostModalClose}
+          discs={selectedLostDiscs}
+          currentBagId={bagId}
+          onSuccess={handleMarkLostSuccess}
         />
 
         {/* Bulk Action Bar */}

@@ -40,6 +40,7 @@ jest.mock('../../src/services/bagService', () => ({
     ],
   })),
   removeDiscFromBag: jest.fn(() => Promise.resolve()),
+  getLostDiscCountForBag: jest.fn().mockResolvedValue(0),
 }));
 
 // Mock ThemeContext

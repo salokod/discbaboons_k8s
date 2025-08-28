@@ -20,6 +20,7 @@ jest.mock('../../src/services/bagService', () => ({
     name: 'Test Bag',
     bag_contents: [],
   })),
+  getLostDiscCountForBag: jest.fn().mockResolvedValue(0),
 }));
 
 // Theme context is handled by testUtils

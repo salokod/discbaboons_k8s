@@ -15,11 +15,13 @@ import {
   ScrollView,
   FlatList,
   Animated,
+  Vibration,
 } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import { getBags, bulkRecoverDiscs } from '../../services/bagService';
@@ -31,6 +33,7 @@ function RecoverDiscModal({
   visible, onClose, onSuccess, discs, targetBagId, // eslint-disable-line no-unused-vars
 }) {
   const colors = useThemeColors();
+  const { triggerBagRefresh, triggerBagListRefresh } = useBagRefreshContext();
   const [isLoadingBags, setIsLoadingBags] = useState(true);
   const [bags, setBags] = useState([]);
   const [selectedBagId, setSelectedBagId] = useState(null);
@@ -45,6 +48,7 @@ function RecoverDiscModal({
   const errorSectionOpacity = useState(new Animated.Value(0))[0];
   const errorSectionTranslateY = useState(new Animated.Value(20))[0];
   const [bagScaleValues] = useState({});
+  const [bagSelectionAnimations] = useState({});
 
   // Skeleton loading animation values
   const skeletonShimmerValue = useState(new Animated.Value(0))[0];
@@ -112,6 +116,9 @@ function RecoverDiscModal({
         if (!bagScaleValues[bag.id]) {
           bagScaleValues[bag.id] = new Animated.Value(1);
         }
+        if (!bagSelectionAnimations[bag.id]) {
+          bagSelectionAnimations[bag.id] = new Animated.Value(0);
+        }
       });
 
       // Start bag section slide in animation after bags load
@@ -154,6 +161,7 @@ function RecoverDiscModal({
     }
   }, [
     bagScaleValues,
+    bagSelectionAnimations,
     bagSectionOpacity,
     bagSectionTranslateY,
     errorSectionOpacity,
@@ -228,29 +236,54 @@ function RecoverDiscModal({
     loadBags();
   };
 
-  // Handle bag selection with animation and haptic feedback
+  // Handle bag selection with enhanced animation and haptic feedback
   const handleBagSelection = (bagId) => {
     // Trigger selection haptic feedback
     triggerSelectionHaptic();
 
-    // Reset previous selection animation
-    if (selectedBagId && bagScaleValues[selectedBagId]) {
-      Animated.timing(bagScaleValues[selectedBagId], {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+    // Additional platform-specific haptic feedback
+    if (Platform.OS === 'ios') {
+      // iOS specific haptic feedback is handled by triggerSelectionHaptic
+    } else {
+      // Android vibration feedback
+      Vibration.vibrate(50);
+    }
+
+    // Reset previous selection animations
+    if (selectedBagId && bagScaleValues[selectedBagId] && bagSelectionAnimations[selectedBagId]) {
+      Animated.parallel([
+        Animated.spring(bagScaleValues[selectedBagId], {
+          toValue: 1,
+          friction: 8,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bagSelectionAnimations[selectedBagId], {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
 
     setSelectedBagId(bagId);
 
-    // Animate new selection
-    if (bagScaleValues[bagId]) {
-      Animated.timing(bagScaleValues[bagId], {
-        toValue: 1.02,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+    // Animate new selection with spring animation and selection indicator
+    if (bagScaleValues[bagId] && bagSelectionAnimations[bagId]) {
+      Animated.parallel([
+        Animated.spring(bagScaleValues[bagId], {
+          toValue: 1.005, // Reduced from 1.02 to prevent overflow
+          friction: 6,
+          tension: 120,
+          useNativeDriver: true,
+        }),
+        Animated.spring(bagSelectionAnimations[bagId], {
+          toValue: 1,
+          friction: 6,
+          tension: 120,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   };
 
@@ -269,6 +302,12 @@ function RecoverDiscModal({
         contentIds,
         targetBagId: selectedBagId,
       });
+
+      // Trigger refresh for destination bag after successful recovery
+      triggerBagRefresh(selectedBagId);
+
+      // Trigger bag list refresh to update disc counts
+      triggerBagListRefresh();
 
       // Success - trigger haptic feedback, call callback and close modal
       triggerSuccessHaptic();
@@ -338,27 +377,15 @@ function RecoverDiscModal({
     return `Recover ${formatNumberForScreenReader(discCount)} ${discText} to ${bagName}`;
   };
 
-  // Generate dynamic button text based on state
+  // Generate simple button text based on state
   const getRecoverButtonText = () => {
     // Show "Recovering..." during operation
     if (isRecovering) {
       return 'Recovering...';
     }
 
-    // Show "Select Destination" when no bag is selected
-    if (!selectedBagId) {
-      return 'Select Destination';
-    }
-
-    // Find the selected bag to get its name
-    const selectedBag = bags.find((bag) => bag.id === selectedBagId);
-    const bagName = selectedBag?.name || 'Selected Bag'; // Fallback for missing bag name
-
-    // Generate context-aware text with proper pluralization
-    const discCount = discs.length;
-    const discText = discCount === 1 ? 'disc' : 'discs';
-
-    return `Recover ${discCount} ${discText} to ${bagName}`;
+    // Show simple "Recover" text regardless of bag selection
+    return 'Recover';
   };
 
   const styles = StyleSheet.create({
@@ -412,21 +439,19 @@ function RecoverDiscModal({
       fontWeight: '600',
     },
     singleDiscDetails: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
       marginTop: spacing.sm,
-    },
-    discBrand: {
-      ...typography.body,
-      color: colors.textSecondary,
-      fontWeight: '500',
-      marginRight: spacing.sm,
     },
     discModel: {
       ...typography.h3,
-      color: colors.primary,
+      color: colors.text,
       fontWeight: '700',
-      flex: 1,
+      marginBottom: 2,
+    },
+    discBrand: {
+      ...typography.body2,
+      color: colors.textLight,
+      fontWeight: '500',
+      fontStyle: 'italic',
     },
     flightNumbers: {
       flexDirection: 'row',
@@ -545,13 +570,18 @@ function RecoverDiscModal({
       paddingBottom: spacing.xs,
     },
     bagItem: {
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.xs,
-      backgroundColor: colors.background,
-      borderRadius: 12,
+      paddingVertical: spacing.lg, // Increased from spacing.md for 44px minimum touch target
+      paddingHorizontal: spacing.lg, // Increased from spacing.md for better touch targets
+      marginBottom: spacing.sm, // Increased from spacing.xs for better spacing
+      marginHorizontal: spacing.xs, // Add small horizontal margin to prevent overflow
+      backgroundColor: colors.surface,
+      borderRadius: Platform.select({
+        ios: 12,
+        android: 16,
+      }),
       borderWidth: 2,
       borderColor: 'transparent',
+      minHeight: 44, // Ensure minimum 44px touch target
     },
     bagName: {
       ...typography.h4,
@@ -565,19 +595,39 @@ function RecoverDiscModal({
     },
     bagItemSelected: {
       borderColor: colors.primary,
-      borderWidth: 2,
-      backgroundColor: `${colors.primary}10`,
+      borderWidth: 3, // Increased from 2 for stronger visual differentiation
+      backgroundColor: `${colors.primary}18`, // More visible background tint
+      shadowColor: colors.primary,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3, // Android shadow
     },
     bagItemContent: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+    },
+    bagItemIcon: {
+      marginRight: spacing.md,
     },
     bagItemText: {
       flex: 1,
     },
     selectionIndicator: {
       marginLeft: spacing.sm,
+      position: 'relative',
+    },
+    checkmarkContainer: {
+      width: 24,
+      height: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    checkmarkContainerSelected: {
+      // Additional styling for selected state if needed
     },
     bagDiscCount: {
       ...typography.caption,
@@ -701,17 +751,17 @@ function RecoverDiscModal({
       maxWidth: '30%',
       alignItems: 'center',
     },
-    cardBrand: {
-      ...typography.caption,
-      color: colors.textSecondary,
-      fontWeight: '500',
-      textAlign: 'center',
-      marginBottom: spacing.xs,
-    },
     cardModel: {
       ...typography.captionSmall,
       color: colors.text,
       fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: spacing.xs,
+    },
+    cardBrand: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      fontWeight: '500',
       textAlign: 'center',
     },
     moreDiscsIndicator: {
@@ -814,8 +864,8 @@ function RecoverDiscModal({
                 />
                 <Text style={styles.recoveryContextText} testID="recovery-context-text">
                   {discs.length === 1
-                    ? 'This will move your lost disc back into your selected bag where you can track it again.'
-                    : 'This will move your lost discs back into your selected bag where you can track them again.'}
+                    ? 'This will return your lost disc back into your selected bag where you can track it again.'
+                    : 'This will return your lost discs back into your selected bag where you can track them again.'}
                 </Text>
               </View>
             )}
@@ -844,11 +894,11 @@ function RecoverDiscModal({
                   {discs.length === 1 && (
                   <>
                     <View style={styles.singleDiscDetails}>
-                      <Text testID="disc-brand" style={styles.discBrand}>
-                        {discs[0].brand}
-                      </Text>
                       <Text testID="disc-model" style={styles.discModel}>
                         {discs[0].model}
+                      </Text>
+                      <Text testID="disc-brand" style={styles.discBrand}>
+                        {discs[0].brand}
                       </Text>
                     </View>
                     {discs[0].speed !== undefined && discs[0].glide !== undefined
@@ -902,11 +952,11 @@ function RecoverDiscModal({
                       keyExtractor={(item) => item.id}
                       renderItem={({ item }) => (
                         <View style={styles.discCard} testID={`disc-card-${item.id}`}>
-                          <Text style={styles.cardBrand} testID={`card-brand-${item.id}`}>
-                            {item.brand}
-                          </Text>
                           <Text style={styles.cardModel} testID={`card-model-${item.id}`}>
                             {item.model}
+                          </Text>
+                          <Text style={styles.cardBrand} testID={`card-brand-${item.id}`}>
+                            {item.brand}
                           </Text>
                         </View>
                       )}
@@ -982,7 +1032,7 @@ function RecoverDiscModal({
                 testID="animated-bag-selection-section"
               >
                 <Text style={styles.bagSelectionTitle}>
-                  Select destination bag:
+                  Choose bag to recover to:
                 </Text>
                 <ScrollView
                   style={styles.bagListScroll}
@@ -1013,6 +1063,12 @@ function RecoverDiscModal({
                         accessibilityState={{ selected: selectedBagId === bag.id }}
                       >
                         <View style={styles.bagItemContent}>
+                          <Icon
+                            name="bag-outline"
+                            size={24}
+                            color={selectedBagId === bag.id ? colors.primary : colors.textLight}
+                            style={styles.bagItemIcon}
+                          />
                           <View style={styles.bagItemText}>
                             <Text style={styles.bagName}>{bag.name}</Text>
                             {bag.description && (
@@ -1026,11 +1082,30 @@ function RecoverDiscModal({
                             </Text>
                             )}
                           </View>
-                          {selectedBagId === bag.id && (
                           <View style={styles.selectionIndicator} testID={`selection-indicator-${bag.id}`}>
-                            <Icon name="checkmark-circle" size={24} color={colors.primary} />
+                            <Animated.View
+                              style={[
+                                styles.checkmarkContainer,
+                                selectedBagId === bag.id && styles.checkmarkContainerSelected,
+                                bagSelectionAnimations[bag.id] && {
+                                  transform: [{
+                                    scale: bagSelectionAnimations[bag.id]
+                                      ? bagSelectionAnimations[bag.id].interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [1, 1.1],
+                                      }) : 1,
+                                  }],
+                                },
+                              ]}
+                            >
+                              {selectedBagId === bag.id && (
+                                <Icon name="checkmark-circle" size={24} color={colors.primary} />
+                              )}
+                              {selectedBagId !== bag.id && (
+                                <Icon name="ellipse-outline" size={24} color={colors.border} />
+                              )}
+                            </Animated.View>
                           </View>
-                          )}
                         </View>
                       </TouchableOpacity>
                     </Animated.View>

@@ -145,7 +145,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
 
       // Look for the swipeable-disc-row testID which indicates SwipeableDiscRow is being used
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
     });
   });
@@ -160,7 +160,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test validates that the SwipeableDiscRow receives a swipe handler
@@ -259,7 +259,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects that Alert.alert will be called before removeDiscFromBag
@@ -273,7 +273,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects Alert.alert to be called with title and message
@@ -290,7 +290,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects Alert.alert to be called with buttons array where Cancel is first
@@ -312,7 +312,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects Alert.alert to be called with Remove button that triggers deletion
@@ -334,7 +334,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects that error handling is preserved when Remove is pressed
@@ -367,7 +367,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects Alert message to use disc_master fallback
@@ -383,7 +383,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // Mock Alert.alert to simulate user pressing Remove button
@@ -407,7 +407,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // Mock Alert.alert to simulate user pressing Cancel button
@@ -431,7 +431,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // Simulate the delete action being triggered
@@ -479,7 +479,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test validates that the move action is included in swipe actions
@@ -492,7 +492,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects that when move is triggered, modal receives correct props
@@ -505,7 +505,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects that after a successful move, bag data is refreshed
@@ -518,7 +518,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects that modal is closed after move operation
@@ -531,7 +531,7 @@ describe('BagDetailScreen SwipeableDiscRow Integration', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('swipeable-disc-row')).toBeTruthy();
+        expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
       });
 
       // This test expects that modal can be closed without performing move

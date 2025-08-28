@@ -138,17 +138,19 @@ describe('BagsListScreen - Lost Discs Header Button', () => {
       ? Object.assign({}, ...buttonStyle.filter(Boolean))
       : buttonStyle || {};
 
-    expect(flatStyle.minWidth).toBe(44);
-    expect(flatStyle.height).toBe(44);
+    expect(flatStyle.minHeight).toBe(44);
+    // Button now uses paddingVertical and paddingHorizontal instead of fixed dimensions
+    expect(flatStyle.paddingVertical).toBeDefined();
+    expect(flatStyle.paddingHorizontal).toBeDefined();
   });
 
   describe('Slice 1: Button Text Visibility', () => {
     it('should display "Lost Discs" text in the button', async () => {
-      const { getByText } = renderScreen();
+      const { getByText, getByTestId } = renderScreen();
 
-      // Wait for bags to load
+      // Wait for bags to load and the button to appear
       await waitFor(() => {
-        expect(mockGetBags).toHaveBeenCalled();
+        expect(getByTestId('lost-discs-header-button')).toBeTruthy();
       });
 
       // Check that "Lost Discs" text is displayed
@@ -255,8 +257,7 @@ describe('BagsListScreen - Lost Discs Header Button', () => {
         : buttonStyle || {};
 
       // Should maintain minimum touch target size
-      expect(flatStyle.height).toBeGreaterThanOrEqual(44);
-      expect(flatStyle.minWidth).toBeGreaterThanOrEqual(44);
+      expect(flatStyle.minHeight).toBeGreaterThanOrEqual(44);
 
       // Should have horizontal padding to accommodate text
       expect(flatStyle.paddingHorizontal).toBeGreaterThan(0);
@@ -292,7 +293,7 @@ describe('BagsListScreen - Lost Discs Header Button', () => {
       // Find the Icon component and check properties
       const iconElement = lostDiscsButton.findByType(require('@react-native-vector-icons/ionicons').default);
       expect(iconElement.props.size).toBe(24);
-      expect(iconElement.props.color).toBe('#FF9500');
+      expect(iconElement.props.color).toBe('#FFFFFF'); // White color on filled button
     });
   });
 
@@ -310,13 +311,22 @@ describe('BagsListScreen - Lost Discs Header Button', () => {
       const lostDiscsButton = getByTestId('lost-discs-header-button');
       const iconElement = lostDiscsButton.findByType(require('@react-native-vector-icons/ionicons').default);
 
-      // Check consistent orange color (#FF9500)
+      // Check consistent white text/icon on warning background
       const flatTextStyle = Array.isArray(textStyle)
         ? Object.assign({}, ...textStyle.filter(Boolean))
         : textStyle || {};
 
-      expect(flatTextStyle.color).toBe('#FF9500');
-      expect(iconElement.props.color).toBe('#FF9500');
+      expect(flatTextStyle.color).toBe('#FFFFFF'); // White text on filled button
+      expect(iconElement.props.color).toBe('#FFFFFF'); // White icon on filled button
+
+      // Check button has warning background
+      const buttonStyle = lostDiscsButton.props.style;
+      const flatButtonStyle = Array.isArray(buttonStyle)
+        ? Object.assign({}, ...buttonStyle.filter(Boolean))
+        : buttonStyle || {};
+
+      // Should have warning background color (theme-aware)
+      expect(flatButtonStyle.backgroundColor).toBeDefined();
     });
 
     it('should have refined padding and spacing for better visual balance', async () => {
@@ -390,10 +400,11 @@ describe('BagsListScreen - Lost Discs Header Button', () => {
         ? Object.assign({}, ...buttonStyle.filter(Boolean))
         : buttonStyle || {};
 
-      // Should have subtle border for visual definition
-      expect(flatStyle.borderWidth).toBeGreaterThan(0);
-      expect(flatStyle.borderColor).toBeDefined();
-      expect(typeof flatStyle.borderColor).toBe('string');
+      // Filled design has shadows/elevation instead of borders
+      expect(flatStyle.shadowOffset).toBeDefined();
+      expect(flatStyle.shadowOpacity).toBeDefined();
+      expect(flatStyle.shadowRadius).toBeDefined();
+      expect(flatStyle.elevation).toBeDefined();
     });
 
     it('should have press state styling through activeOpacity', async () => {

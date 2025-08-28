@@ -61,6 +61,9 @@ const SwipeableDiscRow = React.forwardRef(({
     moveButton: {
       backgroundColor: colors.info,
     },
+    markLostButton: {
+      backgroundColor: '#FF9500', // Orange theme color for lost disc state
+    },
     removeButton: {
       backgroundColor: colors.error,
     },
@@ -97,6 +100,7 @@ const SwipeableDiscRow = React.forwardRef(({
     }
 
     const editAction = swipeActions.find((action) => action.id === 'edit');
+    const markLostAction = swipeActions.find((action) => action.id === 'mark-lost');
     const deleteAction = swipeActions.find((action) => action.id === 'delete');
 
     return (
@@ -120,6 +124,21 @@ const SwipeableDiscRow = React.forwardRef(({
               color={colors.surface}
             />
             <Text style={styles.actionText}>Edit</Text>
+          </TouchableOpacity>
+        )}
+        {markLostAction && (
+          <TouchableOpacity
+            testID="mark-lost-button"
+            style={[styles.actionButton, styles.markLostButton]}
+            onPress={markLostAction.onPress}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name="alert-circle-outline"
+              size={24}
+              color={colors.surface}
+            />
+            <Text style={styles.actionText}>Mark Lost</Text>
           </TouchableOpacity>
         )}
         {/* Move action is excluded from right swipe - now only available on left swipe */}
