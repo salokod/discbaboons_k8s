@@ -19,6 +19,7 @@ import { updateDiscInBag } from '../../../src/services/bagService';
 // Mock the entire bagService module
 jest.mock('../../../src/services/bagService', () => ({
   updateDiscInBag: jest.fn(),
+  getLostDiscCountForBag: jest.fn().mockResolvedValue(0),
 }));
 
 // Get the mocked function
@@ -164,7 +165,7 @@ describe('EditDiscScreen Save Functionality', () => {
       const mockGoBack = jest.fn();
       mockUpdateDiscInBag.mockImplementation(
         () => new Promise((resolve) => {
-          setTimeout(resolve, 100);
+          setTimeout(resolve, 500); // Increased timeout to ensure we can catch the loading state
         }),
       );
 
@@ -179,16 +180,14 @@ describe('EditDiscScreen Save Functionality', () => {
       const customNameInput = getByDisplayValue('My Destroyer');
       fireEvent.changeText(customNameInput, 'Updated Destroyer');
 
-      // Press save button
+      // Press save button - don't wait for the press action to complete
       const saveButton = getByTestId('save-button');
-      await act(async () => {
-        fireEvent.press(saveButton);
-      });
+      fireEvent.press(saveButton);
 
-      // Should show loading state
+      // Should show loading state immediately after button press
       await waitFor(() => {
         expect(getByText('Saving...')).toBeTruthy();
-      });
+      }, { timeout: 100 }); // Quick timeout since loading state should appear immediately
 
       // Wait for save to complete
       await waitFor(() => {

@@ -14,9 +14,21 @@ jest.mock('../../../src/services/bagService', () => ({
   bulkRecoverDiscs: jest.fn(),
 }));
 
+// Mock the BagRefreshContext for all tests
+const mockTriggerBagRefresh = jest.fn();
+const mockTriggerBagListRefresh = jest.fn();
+jest.mock('../../../src/context/BagRefreshContext', () => ({
+  useBagRefreshContext: jest.fn(() => ({
+    triggerBagRefresh: mockTriggerBagRefresh,
+    triggerBagListRefresh: mockTriggerBagListRefresh,
+  })),
+}));
+
 describe('RecoverDiscModal Theme Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTriggerBagRefresh.mockClear();
+    mockTriggerBagListRefresh.mockClear();
   });
 
   it('should use theme colors instead of hardcoded colors', () => {
@@ -132,7 +144,7 @@ describe('RecoverDiscModal Theme Integration', () => {
       expect(getByText('Recovering 1 disc:')).toBeTruthy();
 
       // Wait for bags to load and then check for the text
-      await expect(findByText('Select destination bag:')).resolves.toBeTruthy();
+      await expect(findByText('Choose bag to recover to:')).resolves.toBeTruthy();
     });
 
     it('should use proper text color for close button icon', () => {
