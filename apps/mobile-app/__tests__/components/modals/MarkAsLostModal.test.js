@@ -296,7 +296,7 @@ describe('MarkAsLostModal', () => {
       fireEvent.press(getByTestId('mark-lost-button'));
 
       await waitFor(() => {
-        expect(mockBulkMarkDiscsAsLost).toHaveBeenCalledWith(['disc-1', 'disc-2'], true, '');
+        expect(mockBulkMarkDiscsAsLost).toHaveBeenCalledWith(['disc-1', 'disc-2'], '');
       });
 
       await waitFor(() => {

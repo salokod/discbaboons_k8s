@@ -1228,7 +1228,7 @@ describe('BagService Functions', () => {
         json: async () => successResponse,
       });
 
-      const result = await bulkMarkDiscsAsLost(['content-1', 'content-2'], true, 'Lost during tournament');
+      const result = await bulkMarkDiscsAsLost(['content-1', 'content-2'], 'Lost during tournament');
 
       expect(result).toEqual(successResponse);
       expect(fetch).toHaveBeenCalledWith(
@@ -1240,9 +1240,8 @@ describe('BagService Functions', () => {
             Authorization: 'Bearer mock-access-token',
           }),
           body: JSON.stringify({
-            contentIds: ['content-1', 'content-2'],
-            isLost: true,
-            notes: 'Lost during tournament',
+            content_ids: ['content-1', 'content-2'],
+            lost_notes: 'Lost during tournament',
           }),
         }),
       );
@@ -1299,7 +1298,7 @@ describe('BagService Functions', () => {
       await expect(bulkMarkDiscsAsLost(['content-1'])).rejects.toThrow('Something went wrong. Please try again.');
     });
 
-    it('should default isLost to true and notes to empty string', async () => {
+    it('should default notes to empty string when not provided', async () => {
       const successResponse = {
         success: true,
         markedLostCount: 1,
@@ -1316,18 +1315,17 @@ describe('BagService Functions', () => {
         'http://localhost:8080/api/bags/discs/bulk-mark-lost',
         expect.objectContaining({
           body: JSON.stringify({
-            contentIds: ['content-1'],
-            isLost: true,
-            notes: '',
+            content_ids: ['content-1'],
+            lost_notes: null,
           }),
         }),
       );
     });
 
-    it('should support marking discs as found', async () => {
+    it('should only mark discs as lost (no isLost parameter needed)', async () => {
       const successResponse = {
         success: true,
-        markedFoundCount: 1,
+        markedLostCount: 1,
       };
 
       fetch.mockResolvedValueOnce({
@@ -1335,15 +1333,14 @@ describe('BagService Functions', () => {
         json: async () => successResponse,
       });
 
-      await bulkMarkDiscsAsLost(['content-1'], false);
+      await bulkMarkDiscsAsLost(['content-1'], 'Lost at hole 18');
 
       expect(fetch).toHaveBeenCalledWith(
         'http://localhost:8080/api/bags/discs/bulk-mark-lost',
         expect.objectContaining({
           body: JSON.stringify({
-            contentIds: ['content-1'],
-            isLost: false,
-            notes: '',
+            content_ids: ['content-1'],
+            lost_notes: 'Lost at hole 18',
           }),
         }),
       );

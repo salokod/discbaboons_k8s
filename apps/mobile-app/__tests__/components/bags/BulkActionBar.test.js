@@ -22,6 +22,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={0}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -36,6 +37,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={0}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible={false}
           />
         </ThemeProvider>,
@@ -50,6 +52,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -58,12 +61,28 @@ describe('BulkActionBar', () => {
       expect(getByText('Move 3')).toBeTruthy();
     });
 
+    it('should display Mark as Lost button with count', () => {
+      const { getByText } = render(
+        <ThemeProvider>
+          <BulkActionBar
+            selectedCount={3}
+            onMove={jest.fn()}
+            onMarkLost={jest.fn()}
+            visible
+          />
+        </ThemeProvider>,
+      );
+
+      expect(getByText('Mark 3 as Lost')).toBeTruthy();
+    });
+
     it('should show count of 0 when no items selected', () => {
       const { getByText } = render(
         <ThemeProvider>
           <BulkActionBar
             selectedCount={0}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -80,6 +99,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={0}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -94,12 +114,43 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
       );
 
       expect(getByTestId('bulk-move-button').props.accessibilityState.disabled).toBe(false);
+    });
+
+    it('should disable Mark as Lost button when selectedCount is 0', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <BulkActionBar
+            selectedCount={0}
+            onMove={jest.fn()}
+            onMarkLost={jest.fn()}
+            visible
+          />
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('bulk-mark-lost-button').props.accessibilityState.disabled).toBe(true);
+    });
+
+    it('should enable Mark as Lost button when selectedCount is greater than 0', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <BulkActionBar
+            selectedCount={3}
+            onMove={jest.fn()}
+            onMarkLost={jest.fn()}
+            visible
+          />
+        </ThemeProvider>,
+      );
+
+      expect(getByTestId('bulk-mark-lost-button').props.accessibilityState.disabled).toBe(false);
     });
   });
 
@@ -111,6 +162,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={mockOnMove}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -120,22 +172,43 @@ describe('BulkActionBar', () => {
       expect(mockOnMove).toHaveBeenCalledTimes(1);
     });
 
+    it('should call onMarkLost when Mark as Lost button is pressed', () => {
+      const mockOnMarkLost = jest.fn();
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <BulkActionBar
+            selectedCount={3}
+            onMove={jest.fn()}
+            onMarkLost={mockOnMarkLost}
+            visible
+          />
+        </ThemeProvider>,
+      );
+
+      fireEvent.press(getByTestId('bulk-mark-lost-button'));
+      expect(mockOnMarkLost).toHaveBeenCalledTimes(1);
+    });
+
     it('should not call callbacks when buttons are disabled', () => {
       const mockOnMove = jest.fn();
+      const mockOnMarkLost = jest.fn();
 
       const { getByTestId } = render(
         <ThemeProvider>
           <BulkActionBar
             selectedCount={0}
             onMove={mockOnMove}
+            onMarkLost={mockOnMarkLost}
             visible
           />
         </ThemeProvider>,
       );
 
       fireEvent.press(getByTestId('bulk-move-button'));
+      fireEvent.press(getByTestId('bulk-mark-lost-button'));
 
       expect(mockOnMove).not.toHaveBeenCalled();
+      expect(mockOnMarkLost).not.toHaveBeenCalled();
     });
   });
 
@@ -146,6 +219,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={1}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -158,6 +232,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={5}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -172,6 +247,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -184,6 +260,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible={false}
           />
         </ThemeProvider>,
@@ -200,6 +277,7 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
@@ -207,6 +285,7 @@ describe('BulkActionBar', () => {
 
       expect(getByTestId('bulk-action-bar')).toBeTruthy();
       expect(getByTestId('bulk-move-button')).toBeTruthy();
+      expect(getByTestId('bulk-mark-lost-button')).toBeTruthy();
     });
 
     it('should have correct accessibility states for disabled buttons', () => {
@@ -215,12 +294,14 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={0}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
       );
 
       expect(getByTestId('bulk-move-button').props.accessibilityState.disabled).toBe(true);
+      expect(getByTestId('bulk-mark-lost-button').props.accessibilityState.disabled).toBe(true);
     });
 
     it('should have correct accessibility states for enabled buttons', () => {
@@ -229,12 +310,14 @@ describe('BulkActionBar', () => {
           <BulkActionBar
             selectedCount={3}
             onMove={jest.fn()}
+            onMarkLost={jest.fn()}
             visible
           />
         </ThemeProvider>,
       );
 
       expect(getByTestId('bulk-move-button').props.accessibilityState.disabled).toBe(false);
+      expect(getByTestId('bulk-mark-lost-button').props.accessibilityState.disabled).toBe(false);
     });
   });
 });

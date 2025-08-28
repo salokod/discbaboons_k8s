@@ -2,7 +2,7 @@
  * BagDetailScreen Mark Lost Integration Tests
  */
 
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import BagDetailScreen from '../../../src/screens/bags/BagDetailScreen';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
@@ -15,6 +15,19 @@ jest.mock('../../../src/services/hapticService', () => ({
   triggerSuccessHaptic: jest.fn(),
   triggerErrorHaptic: jest.fn(),
 }));
+
+// Mock react-native-gesture-handler to render swipe actions
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    Swipeable: jest.fn(({ children, renderRightActions }) => {
+      const rightActions = renderRightActions ? renderRightActions() : null;
+      return React.createElement(View, null, children, rightActions);
+    }),
+  };
+});
 
 // Mock MarkAsLostModal
 jest.mock('../../../src/components/modals/MarkAsLostModal', () => {
@@ -117,7 +130,7 @@ describe('BagDetailScreen Mark Lost Integration', () => {
     const mockRoute = { params: { bagId: 'bag-1' } };
     const mockNavigation = { goBack: jest.fn() };
 
-    const { getByTestId, queryByTestId } = renderWithProviders(
+    const { getAllByTestId, queryByTestId, getByTestId } = renderWithProviders(
       <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
     );
 
@@ -128,18 +141,22 @@ describe('BagDetailScreen Mark Lost Integration', () => {
     // Initially modal should not be visible
     expect(queryByTestId('mark-lost-modal')).toBeNull();
 
-    // This will be implemented when we add the actual swipe action
-    // fireEvent.press(getByTestId('mark-lost-swipe-action'));
-    // await waitFor(() => {
-    //   expect(getByTestId('mark-lost-modal')).toBeTruthy();
-    // });
+    // Find and press the first mark lost button within the swipe actions
+    const markLostButtons = getAllByTestId('mark-lost-button');
+    fireEvent.press(markLostButtons[0]);
+
+    // Modal should now be visible with the correct disc
+    await waitFor(() => {
+      expect(getByTestId('mark-lost-modal')).toBeTruthy();
+      expect(getByTestId('modal-disc-count')).toHaveTextContent('1 discs');
+    });
   });
 
-  it('should refresh bag data after successful mark lost operation', async () => {
+  it('should close modal and refresh data after successful mark lost operation', async () => {
     const mockRoute = { params: { bagId: 'bag-1' } };
     const mockNavigation = { goBack: jest.fn() };
 
-    const { getByTestId } = renderWithProviders(
+    const { getAllByTestId, queryByTestId, getByTestId } = renderWithProviders(
       <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
     );
 
@@ -147,7 +164,24 @@ describe('BagDetailScreen Mark Lost Integration', () => {
       expect(getByTestId('swipeable-disc-row-disc-1')).toBeTruthy();
     });
 
-    // This will be tested when the actual integration is complete
-    expect(bagService.getBag).toHaveBeenCalledWith('bag-1');
+    // Trigger mark lost action to open modal
+    const markLostButtons = getAllByTestId('mark-lost-button');
+    fireEvent.press(markLostButtons[0]);
+
+    await waitFor(() => {
+      expect(getByTestId('mark-lost-modal')).toBeTruthy();
+    });
+
+    // Trigger success action in modal
+    const successButton = getByTestId('mock-success');
+    fireEvent.press(successButton);
+
+    // Modal should close and bag data should refresh
+    await waitFor(() => {
+      expect(queryByTestId('mark-lost-modal')).toBeNull();
+    });
+
+    // Should have called getBag twice - initial load and refresh
+    expect(bagService.getBag).toHaveBeenCalledTimes(2);
   });
 });
