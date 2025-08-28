@@ -393,11 +393,23 @@ function BagDetailScreen({ route, navigation }) {
   const handleMarkLostSuccess = useCallback(async () => {
     setShowMarkLostModal(false);
     setSelectedLostDiscs([]);
+
+    // If in multi-select mode, exit it after successful bulk action
+    if (isMultiSelectMode && selectedIds.size > 0) {
+      exitMultiSelectMode();
+    }
+
     // Refresh bag data to show updated contents
     await loadBagData();
     // Also refresh the bag list since disc counts may have changed
     triggerBagListRefresh();
-  }, [loadBagData, triggerBagListRefresh]);
+  }, [
+    loadBagData,
+    triggerBagListRefresh,
+    isMultiSelectMode,
+    selectedIds.size,
+    exitMultiSelectMode,
+  ]);
 
   // Right swipe action handler - Edit, Mark Lost, and Remove
   const handleDiscSwipeRight = useCallback((disc) => {
@@ -496,6 +508,15 @@ function BagDetailScreen({ route, navigation }) {
   const handleBulkMove = useCallback(() => {
     setShowBulkMoveModal(true);
   }, []);
+
+  const handleBulkMarkLost = useCallback(() => {
+    if (!bag?.bag_contents || selectedIds.size === 0) return;
+
+    // Get selected discs
+    const selectedDiscs = bag.bag_contents.filter((disc) => selectedIds.has(disc.id));
+    setSelectedLostDiscs(selectedDiscs);
+    setShowMarkLostModal(true);
+  }, [bag?.bag_contents, selectedIds]);
 
   // Count active filters for display
   const activeFilterCount = useMemo(() => Object.keys(filters).filter(
@@ -731,6 +752,7 @@ function BagDetailScreen({ route, navigation }) {
           onToggleSelection={toggleSelection}
           onSwipeRight={handleDiscSwipeRight}
           onSwipeLeft={handleDiscSwipeLeft}
+          testID={`swipeable-disc-row-${item.id}`}
         />
       );
     }
@@ -743,6 +765,8 @@ function BagDetailScreen({ route, navigation }) {
         bagId={bag?.id || bagId || 'unknown'}
         bagName={bag?.name || 'Unknown Bag'}
         onLongPress={() => {
+          // Enter multi-select mode and select the item
+          // (haptic feedback will be triggered by toggleSelection)
           enterMultiSelectMode();
           toggleSelection(item.id);
         }}
@@ -851,6 +875,7 @@ function BagDetailScreen({ route, navigation }) {
         <BulkActionBar
           selectedCount={selectedCount}
           onMove={handleBulkMove}
+          onMarkLost={handleBulkMarkLost}
           visible={isMultiSelectMode}
         />
       </AppContainer>

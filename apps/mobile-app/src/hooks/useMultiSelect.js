@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { triggerSelectionHaptic } from '../services/hapticService';
 
 function useMultiSelect() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
@@ -14,6 +15,9 @@ function useMultiSelect() {
   const selectedCount = useMemo(() => selectedIds.size, [selectedIds]);
 
   const toggleSelection = useCallback((id) => {
+    // Trigger haptic feedback for selection/deselection
+    triggerSelectionHaptic();
+
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {

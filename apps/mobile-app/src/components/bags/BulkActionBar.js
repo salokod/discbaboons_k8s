@@ -17,7 +17,7 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 
 function BulkActionBar({
-  selectedCount, onMove, visible,
+  selectedCount, onMove, onMarkLost, visible,
 }) {
   const colors = useThemeColors();
 
@@ -53,6 +53,10 @@ function BulkActionBar({
       backgroundColor: isDisabled ? colors.surfaceVariant : colors.info,
       borderRadius: 8,
     },
+    markLostButton: {
+      backgroundColor: isDisabled ? colors.surfaceVariant : colors.error,
+      borderRadius: 8,
+    },
     buttonText: {
       ...typography.body2,
       color: isDisabled ? colors.onSurfaceVariant : colors.onPrimary,
@@ -83,6 +87,17 @@ function BulkActionBar({
         <Text style={styles.buttonText}>{`Move ${selectedCount}`}</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        testID="bulk-mark-lost-button"
+        style={[styles.button, styles.markLostButton]}
+        onPress={() => handlePress(onMarkLost)}
+        accessibilityState={{ disabled: isDisabled }}
+        accessibilityRole="button"
+      >
+        <Icon name="warning-outline" size={20} style={styles.iconStyle} />
+        <Text style={styles.buttonText}>{`Mark ${selectedCount} as Lost`}</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
@@ -90,6 +105,7 @@ function BulkActionBar({
 BulkActionBar.propTypes = {
   selectedCount: PropTypes.number.isRequired,
   onMove: PropTypes.func.isRequired,
+  onMarkLost: PropTypes.func.isRequired,
   visible: PropTypes.bool.isRequired,
 };
 

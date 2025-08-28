@@ -308,7 +308,7 @@ describe('BagDetailScreen Performance', () => {
     it('should handle multi-select mode layout calculations', async () => {
       getBag.mockResolvedValue(mockLargeBagData);
 
-      const { getByTestId, getByText } = renderWithTheme(
+      const { getByTestId } = renderWithTheme(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
@@ -317,7 +317,7 @@ describe('BagDetailScreen Performance', () => {
       });
 
       // Enter multi-select mode
-      fireEvent.press(getByText('Select'));
+      fireEvent.press(getByTestId('select-button'));
 
       await waitFor(() => {
         expect(getByTestId('main-disc-list')).toBeTruthy();
@@ -406,7 +406,7 @@ describe('BagDetailScreen Performance', () => {
     it('should adapt configuration for multi-select mode', async () => {
       getBag.mockResolvedValue(mockLargeBagData);
 
-      const { getByTestId, getByText } = renderWithTheme(
+      const { getByTestId } = renderWithTheme(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
@@ -415,7 +415,7 @@ describe('BagDetailScreen Performance', () => {
       });
 
       // Enter multi-select mode
-      fireEvent.press(getByText('Select'));
+      fireEvent.press(getByTestId('select-button'));
 
       await waitFor(() => {
         expect(getByTestId('main-disc-list')).toBeTruthy();

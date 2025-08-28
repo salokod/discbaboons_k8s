@@ -51,7 +51,7 @@ function MarkAsLostModal({
       } else {
         // Multiple discs - use bulk API
         const contentIds = discs.map((disc) => disc.id);
-        await bulkMarkDiscsAsLost(contentIds, true, notes);
+        await bulkMarkDiscsAsLost(contentIds, notes);
       }
 
       // Trigger refresh for source bag after successful mark lost

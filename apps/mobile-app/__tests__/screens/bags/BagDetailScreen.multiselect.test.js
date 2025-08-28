@@ -48,6 +48,18 @@ jest.mock('../../../src/components/modals/MoveDiscModal', () => function MockMov
   return <View testID="move-modal" />;
 });
 
+jest.mock('../../../src/components/modals/BulkMoveModal', () => function MockBulkMoveModal({ visible }) {
+  if (!visible) return null;
+  const { View } = require('react-native');
+  return <View testID="bulk-move-modal" />;
+});
+
+jest.mock('../../../src/components/modals/MarkAsLostModal', () => function MockMarkAsLostModal({ visible }) {
+  if (!visible) return null;
+  const { View } = require('react-native');
+  return <View testID="mark-lost-modal" />;
+});
+
 // Mock navigation
 const mockNavigation = {
   navigate: jest.fn(),
@@ -288,9 +300,35 @@ describe('BagDetailScreen Multi-Select Integration', () => {
       fireEvent.press(checkboxes[0]);
       fireEvent.press(checkboxes[1]);
 
-      // Bulk action bar should show correct counts
+      // Bulk action bar should show correct counts for both actions
       await waitFor(() => {
         expect(getByText('Move 2')).toBeTruthy();
+        expect(getByText('Mark 2 as Lost')).toBeTruthy();
+      });
+    });
+
+    it('should handle bulk mark lost action', async () => {
+      const { getByText, getByTestId, getAllByTestId } = renderWithTheme(
+        <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      // Enter multi-select mode and select discs
+      await waitFor(() => {
+        expect(getByText('Your Discs (3)')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('select-button'));
+
+      const checkboxes = getAllByTestId('selection-checkbox');
+      fireEvent.press(checkboxes[0]);
+      fireEvent.press(checkboxes[1]);
+
+      // Press bulk mark lost
+      fireEvent.press(getByTestId('bulk-mark-lost-button'));
+
+      // Should show mark as lost modal with selected discs
+      await waitFor(() => {
+        expect(getByTestId('mark-lost-modal')).toBeTruthy();
       });
     });
 
@@ -391,11 +429,14 @@ describe('BagDetailScreen Multi-Select Integration', () => {
 
       // Bulk action buttons should show 0 count and be disabled
       expect(getByText('Move 0')).toBeTruthy();
+      expect(getByText('Mark 0 as Lost')).toBeTruthy();
 
       // Buttons should have disabled accessibility state
       const moveButton = getByTestId('bulk-move-button');
+      const markLostButton = getByTestId('bulk-mark-lost-button');
 
       expect(moveButton.props.accessibilityState.disabled).toBe(true);
+      expect(markLostButton.props.accessibilityState.disabled).toBe(true);
     });
   });
 

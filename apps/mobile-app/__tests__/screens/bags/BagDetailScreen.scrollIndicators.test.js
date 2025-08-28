@@ -3,7 +3,7 @@
  * Tests for scroll indicator visibility and the blue box artifact fix
  */
 
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import BagDetailScreen from '../../../src/screens/bags/BagDetailScreen';
 import { ThemeProvider } from '../../../src/context/ThemeContext';
 import { BagRefreshProvider } from '../../../src/context/BagRefreshContext';
@@ -262,7 +262,7 @@ describe('BagDetailScreen Scroll Indicators', () => {
     });
 
     it('should apply scroll indicator settings in multi-select mode', async () => {
-      const { getByTestId, getByText } = renderWithTheme(
+      const { getByTestId } = renderWithTheme(
         <BagDetailScreen route={mockRoute} navigation={mockNavigation} />,
       );
 
@@ -270,9 +270,10 @@ describe('BagDetailScreen Scroll Indicators', () => {
         expect(getByTestId('main-disc-list')).toBeTruthy();
       });
 
-      // Enter multi-select mode
-      const selectButton = getByText('Select');
+      // Enter multi-select mode using the select button testID
+      const selectButton = getByTestId('select-button');
       expect(selectButton).toBeTruthy();
+      fireEvent.press(selectButton);
 
       // In multi-select mode, scroll indicators should still be hidden
       const flatList = getByTestId('main-disc-list');

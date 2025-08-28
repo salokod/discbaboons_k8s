@@ -61,6 +61,29 @@ function BagDetailHeader({
     return `Your Discs (${totalCount})`;
   }, [bag?.bag_contents, activeFilterCount, sort.field, filteredDiscCount]);
 
+  // Determine if Select button should be prominent
+  const shouldShowProminentSelect = React.useMemo(() => {
+    const discCount = filteredDiscCount !== undefined
+      ? filteredDiscCount
+      : (bag?.bag_contents?.length || 0);
+    // Make Select button prominent when there are 3+ discs (good for bulk operations)
+    return discCount >= 3;
+  }, [filteredDiscCount, bag?.bag_contents?.length]);
+
+  // Generate contextual hint text for multi-select discovery
+  const multiSelectHint = React.useMemo(() => {
+    const discCount = filteredDiscCount !== undefined
+      ? filteredDiscCount
+      : (bag?.bag_contents?.length || 0);
+    if (discCount >= 5) {
+      return 'Tip: Use Select to move or mark multiple discs at once';
+    }
+    if (discCount >= 3) {
+      return 'Long press any disc or tap Select to choose multiple';
+    }
+    return null;
+  }, [filteredDiscCount, bag?.bag_contents?.length]);
+
   const styles = StyleSheet.create({
     container: {
       paddingHorizontal: spacing.lg,
@@ -186,6 +209,35 @@ function BagDetailHeader({
       fontWeight: '600',
       fontSize: 12,
     },
+    // Prominent Select Button Styling
+    prominentSelectButton: {
+      backgroundColor: `${colors.primary}15`,
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
+    prominentSelectButtonText: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    // Contextual Discovery Hint Styling
+    contextualHint: {
+      backgroundColor: `${colors.info}08`,
+      borderRadius: Platform.select({
+        ios: 8,
+        android: 10,
+      }),
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.info,
+    },
+    contextualHintText: {
+      ...typography.caption,
+      color: colors.info,
+      fontStyle: 'italic',
+      fontSize: 11,
+      lineHeight: 16,
+    },
   });
 
   return (
@@ -216,6 +268,15 @@ function BagDetailHeader({
             )
           </Text>
         </TouchableOpacity>
+      )}
+
+      {/* Contextual Discovery Hint */}
+      {!isMultiSelectMode && multiSelectHint && (
+        <View style={styles.contextualHint}>
+          <Text style={styles.contextualHintText}>
+            {multiSelectHint}
+          </Text>
+        </View>
       )}
 
       {/* Quick Actions */}
@@ -272,11 +333,26 @@ function BagDetailHeader({
 
           <TouchableOpacity
             testID="select-button"
-            style={styles.actionButton}
+            style={[
+              styles.actionButton,
+              shouldShowProminentSelect && styles.prominentSelectButton,
+            ]}
             onPress={onEnterMultiSelect}
           >
-            <Icon name="checkmark-circle-outline" size={16} color={colors.textLight} />
-            <Text style={styles.actionButtonText}>Select</Text>
+            <Icon
+              name="checkmark-circle-outline"
+              size={16}
+              color={shouldShowProminentSelect ? colors.primary : colors.textLight}
+            />
+            <Text
+              style={[
+                styles.actionButtonText,
+                shouldShowProminentSelect && styles.prominentSelectButtonText,
+              ]}
+            >
+              Select
+              {shouldShowProminentSelect ? ' Multiple' : ''}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (

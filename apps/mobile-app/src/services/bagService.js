@@ -873,14 +873,13 @@ export async function moveDiscBetweenBags(sourceBagId, targetBagId, contentIds) 
 }
 
 /**
- * Mark multiple discs as lost or found (bulk mark lost)
- * @param {Array} contentIds - Array of bag content IDs to mark as lost/found
- * @param {boolean} isLost - True to mark as lost, false to mark as found
+ * Mark multiple discs as lost (bulk mark lost)
+ * @param {Array} contentIds - Array of bag content IDs to mark as lost
  * @param {string} notes - Optional notes about where/how discs were lost
  * @returns {Promise<Object>} Success response with marked count
  * @throws {Error} Bulk mark lost failed error with message
  */
-export async function bulkMarkDiscsAsLost(contentIds, isLost = true, notes = '') {
+export async function bulkMarkDiscsAsLost(contentIds, notes = '') {
   // Validate inputs before making API call
   if (!contentIds || !Array.isArray(contentIds)) {
     throw new Error('Content IDs are required');
@@ -902,9 +901,8 @@ export async function bulkMarkDiscsAsLost(contentIds, isLost = true, notes = '')
       method: 'PATCH',
       headers,
       body: JSON.stringify({
-        contentIds,
-        isLost,
-        notes,
+        content_ids: contentIds,
+        lost_notes: notes || null,
       }),
       signal: controller.signal,
     });

@@ -14,7 +14,7 @@ import { spacing } from '../../design-system/spacing';
 
 function SelectableDiscRow({
   disc, bagId, bagName, isMultiSelectMode, isSelected, onToggleSelection,
-  onSwipeRight, onSwipeLeft, actions,
+  onSwipeRight, onSwipeLeft, actions, testID,
 }) {
   const colors = useThemeColors();
 
@@ -63,6 +63,7 @@ function SelectableDiscRow({
           onSwipeLeft={onSwipeLeft}
           actions={actions}
           hideFlightPath={isMultiSelectMode}
+          testID={testID}
         />
       </View>
     </View>
@@ -106,12 +107,14 @@ SelectableDiscRow.propTypes = {
     color: PropTypes.string.isRequired,
     onPress: PropTypes.func,
   })),
+  testID: PropTypes.string,
 };
 
 SelectableDiscRow.defaultProps = {
   onSwipeRight: undefined,
   onSwipeLeft: undefined,
   actions: undefined,
+  testID: undefined,
 };
 
 SelectableDiscRow.displayName = 'SelectableDiscRow';
