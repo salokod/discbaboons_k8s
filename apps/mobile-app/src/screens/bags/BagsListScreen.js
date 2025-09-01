@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Alert,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -24,7 +25,8 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import EmptyBagsScreen from './EmptyBagsScreen';
 import BagCard from '../../components/bags/BagCard';
-import { getBags } from '../../services/bagService';
+import BagActionsMenu from '../../components/bags/BagActionsMenu';
+import { getBags, deleteBag } from '../../services/bagService';
 
 function BagsListScreen({ navigation }) {
   const colors = useThemeColors();
@@ -32,6 +34,8 @@ function BagsListScreen({ navigation }) {
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedBag, setSelectedBag] = useState(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   // Load bags from API
   const loadBags = useCallback(async (isRefreshing = false) => {
@@ -83,6 +87,72 @@ function BagsListScreen({ navigation }) {
   const handleLostDiscsPress = useCallback(() => {
     navigation?.navigate('LostDiscs', { navigationSource: 'BagsList' });
   }, [navigation]);
+
+  // Handle menu button press
+  const handleMenuPress = useCallback((bag) => {
+    setSelectedBag(bag);
+    setShowActionsMenu(true);
+  }, []);
+
+  // Handle menu close
+  const handleMenuClose = useCallback(() => {
+    setShowActionsMenu(false);
+    setSelectedBag(null);
+  }, []);
+
+  // Handle edit bag
+  const handleEditBag = useCallback(() => {
+    if (selectedBag) {
+      navigation?.navigate('EditBag', { bag: selectedBag });
+    }
+    handleMenuClose();
+  }, [selectedBag, navigation, handleMenuClose]);
+
+  // Handle delete bag
+  const handleDeleteBag = useCallback(() => {
+    if (!selectedBag) return;
+
+    Alert.alert(
+      'Delete Bag',
+      `Are you sure you want to delete '${selectedBag.name}'? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteBag(selectedBag.id);
+              // Reload bags after successful deletion
+              loadBags();
+            } catch (error) {
+              // Handle different error types
+              if (error.message?.includes('contains discs') || error.message?.includes('Cannot delete')) {
+                Alert.alert(
+                  'Cannot Delete Bag',
+                  `Cannot delete '${selectedBag.name}' because it contains discs. Please move or remove all discs first.`,
+                );
+              } else if (error.message?.includes('not found') && error.status === 404) {
+                // 404 means bag was already deleted - silently refresh the list
+                loadBags();
+              } else if (error.message?.includes('internet') || error.message?.includes('connection') || error.message?.includes('connect')) {
+                Alert.alert(
+                  'Delete Failed',
+                  'Unable to delete bag. Please check your connection and try again.',
+                );
+              } else {
+                Alert.alert(
+                  'Delete Failed',
+                  error.message || 'Something went wrong. Please try again.',
+                );
+              }
+            }
+            handleMenuClose();
+          },
+        },
+      ],
+    );
+  }, [selectedBag, loadBags, handleMenuClose]);
 
   const styles = StyleSheet.create({
     container: {
@@ -215,6 +285,7 @@ function BagsListScreen({ navigation }) {
     <BagCard
       bag={item}
       onPress={() => handleBagPress(item)}
+      onMenuPress={handleMenuPress}
     />
   );
 
@@ -241,6 +312,13 @@ function BagsListScreen({ navigation }) {
       >
         <Text style={styles.createButtonText}>+</Text>
       </TouchableOpacity>
+
+      <BagActionsMenu
+        visible={showActionsMenu}
+        onClose={handleMenuClose}
+        onEdit={handleEditBag}
+        onDelete={handleDeleteBag}
+      />
     </SafeAreaView>
   );
 }

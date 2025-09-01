@@ -351,7 +351,6 @@ function BagDetailHeader({
               ]}
             >
               Select
-              {shouldShowProminentSelect ? ' Multiple' : ''}
             </Text>
           </TouchableOpacity>
         </View>
