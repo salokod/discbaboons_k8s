@@ -17,6 +17,7 @@ import {
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
@@ -38,6 +39,7 @@ const PRIVACY_OPTIONS = [
 
 function CreateBagScreen({ navigation, onCreateBag }) {
   const colors = useThemeColors();
+  const { triggerBagListRefresh } = useBagRefreshContext();
   const [bagName, setBagName] = useState('');
   const [description, setDescription] = useState('');
   const [privacy, setPrivacy] = useState('private');
@@ -165,6 +167,9 @@ function CreateBagScreen({ navigation, onCreateBag }) {
 
       // Call the optional callback prop with the created bag data
       onCreateBag?.(createdBag);
+
+      // Trigger bag list refresh to show the new bag
+      triggerBagListRefresh();
 
       // Navigate to bag detail after successful creation
       navigation?.replace('BagDetail', { bagId: createdBag.id });
