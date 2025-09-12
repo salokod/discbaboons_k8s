@@ -70,4 +70,28 @@ describe('BagCard', () => {
     fireEvent.press(getByTestId('bag-card'));
     expect(mockOnPress).toHaveBeenCalledWith(mockBag);
   });
+
+  it('should accept onEdit callback prop', () => {
+    const mockOnEdit = jest.fn();
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <BagCard bag={mockBag} onEdit={mockOnEdit} />
+      </ThemeProvider>,
+    );
+
+    expect(getByTestId('bag-card')).toBeTruthy();
+    // Test just verifies the prop is accepted and component renders
+  });
+
+  it('should accept onDelete callback prop', () => {
+    const mockOnDelete = jest.fn();
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <BagCard bag={mockBag} onDelete={mockOnDelete} />
+      </ThemeProvider>,
+    );
+
+    expect(getByTestId('bag-card')).toBeTruthy();
+    // Test just verifies the prop is accepted and component renders
+  });
 });

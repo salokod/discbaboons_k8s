@@ -25,6 +25,11 @@ jest.mock('../../../src/services/bagService', () => ({
   getBags: jest.fn(),
 }));
 
+// Mock React Navigation
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: jest.fn(),
+}));
+
 describe('BagsListScreen', () => {
   let mockUseAuth;
   let mockGetBags;

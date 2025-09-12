@@ -3,7 +3,7 @@
  */
 
 import {
-  memo, useState, useEffect, useCallback,
+  memo, useState, useEffect, useCallback, useRef,
 } from 'react';
 import {
   SafeAreaView,
@@ -17,14 +17,16 @@ import {
   Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import EmptyBagsScreen from './EmptyBagsScreen';
-import BagCard from '../../components/bags/BagCard';
-import { getBags } from '../../services/bagService';
+import SwipeableBagCard from '../../components/bags/SwipeableBagCard';
+import DeleteBagConfirmationModal from '../../components/modals/DeleteBagConfirmationModal';
+import { getBags, deleteBag } from '../../services/bagService';
 
 function BagsListScreen({ navigation }) {
   const colors = useThemeColors();
@@ -32,6 +34,10 @@ function BagsListScreen({ navigation }) {
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [bagToDelete, setBagToDelete] = useState(null);
+  const [deletingBag, setDeletingBag] = useState(false);
+  const swipeableRefs = useRef({});
 
   // Load bags from API
   const loadBags = useCallback(async (isRefreshing = false) => {
@@ -64,6 +70,15 @@ function BagsListScreen({ navigation }) {
     return cleanup;
   }, [addBagListListener, loadBags]);
 
+  // Close all swipes when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      Object.values(swipeableRefs.current).forEach((ref) => {
+        ref?.close?.();
+      });
+    }, []),
+  );
+
   // Handle refresh
   const handleRefresh = useCallback(() => {
     loadBags(true);
@@ -83,6 +98,39 @@ function BagsListScreen({ navigation }) {
   const handleLostDiscsPress = useCallback(() => {
     navigation?.navigate('LostDiscs', { navigationSource: 'BagsList' });
   }, [navigation]);
+
+  // Handle edit bag
+  const handleEditBag = useCallback((bag) => {
+    navigation?.navigate('EditBag', { bagId: bag.id, bag });
+  }, [navigation]);
+
+  // Handle delete bag
+  const handleDeleteBag = useCallback((bag) => {
+    setBagToDelete(bag);
+    setDeleteModalVisible(true);
+  }, []);
+
+  // Handle confirm delete
+  const handleConfirmDelete = useCallback(async (bag) => {
+    try {
+      setDeletingBag(true);
+      await deleteBag(bag.id);
+      await loadBags(); // Refresh the list
+      setDeleteModalVisible(false);
+      setBagToDelete(null);
+    } catch (error) {
+      // Error handling could be enhanced with toast notifications
+      // TODO: Add proper error handling with user feedback
+    } finally {
+      setDeletingBag(false);
+    }
+  }, [loadBags]);
+
+  // Handle cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setDeleteModalVisible(false);
+    setBagToDelete(null);
+  }, []);
 
   const styles = StyleSheet.create({
     container: {
@@ -212,9 +260,14 @@ function BagsListScreen({ navigation }) {
 
   // Render bag item
   const renderBagItem = ({ item }) => (
-    <BagCard
+    <SwipeableBagCard
+      ref={(ref) => {
+        swipeableRefs.current[item.id] = ref;
+      }}
       bag={item}
       onPress={() => handleBagPress(item)}
+      onEdit={handleEditBag}
+      onDelete={handleDeleteBag}
     />
   );
 
@@ -241,6 +294,14 @@ function BagsListScreen({ navigation }) {
       >
         <Text style={styles.createButtonText}>+</Text>
       </TouchableOpacity>
+
+      <DeleteBagConfirmationModal
+        visible={deleteModalVisible}
+        bag={bagToDelete}
+        loading={deletingBag}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </SafeAreaView>
   );
 }
