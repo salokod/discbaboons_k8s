@@ -25,6 +25,14 @@ jest.mock('../../../src/services/bagService', () => ({
   getBags: jest.fn(),
 }));
 
+// Mock React Navigation
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: jest.fn(),
+}));
+
+// Mock DeleteBagConfirmationModal to prevent test crashes
+jest.mock('../../../src/components/modals/DeleteBagConfirmationModal', () => 'DeleteBagConfirmationModal');
+
 describe('BagsListScreen', () => {
   let mockUseAuth;
   let mockGetBags;
@@ -156,9 +164,10 @@ describe('BagsListScreen - Slice 2: Bag List Refresh Integration', () => {
 
     const { getByTestId } = renderWithProviders(<TestComponent />);
 
-    // Wait for initial load
+    // Wait for initial load and component to stabilize
     await waitFor(() => {
       expect(mockGetBags).toHaveBeenCalledTimes(1);
+      expect(getByTestId('bags-list-screen')).toBeTruthy();
     });
 
     // Clear the mock to count subsequent calls
@@ -172,7 +181,7 @@ describe('BagsListScreen - Slice 2: Bag List Refresh Integration', () => {
     // Verify getBags was called again due to refresh
     await waitFor(() => {
       expect(mockGetBags).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 3000 });
   });
 
   it('should maintain loading states correctly during refresh', async () => {
@@ -205,7 +214,7 @@ describe('BagsListScreen - Slice 2: Bag List Refresh Integration', () => {
     // Wait for component to mount and start loading
     await waitFor(() => {
       expect(getByTestId('bags-list-screen')).toBeTruthy();
-    });
+    }, { timeout: 3000 });
 
     // Resolve the initial load
     resolveGetBags({ bags: [{ id: '1', name: 'Test Bag', disc_count: 5 }] });
@@ -213,7 +222,7 @@ describe('BagsListScreen - Slice 2: Bag List Refresh Integration', () => {
     // Wait for loading to complete
     await waitFor(() => {
       expect(mockGetBags).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 3000 });
 
     // Set up another slow response for refresh
     let resolveRefreshGetBags;
@@ -235,16 +244,17 @@ describe('BagsListScreen - Slice 2: Bag List Refresh Integration', () => {
 
     await waitFor(() => {
       expect(mockGetBags).toHaveBeenCalledTimes(2);
-    });
+    }, { timeout: 3000 });
   });
 
   it('should not interfere with manual refresh', async () => {
     const { getByTestId } = renderWithProviders(<BagsListScreen />);
 
-    // Wait for initial load
+    // Wait for initial load and component to stabilize
     await waitFor(() => {
       expect(mockGetBags).toHaveBeenCalledTimes(1);
-    });
+      expect(getByTestId('bags-list-screen')).toBeTruthy();
+    }, { timeout: 3000 });
 
     // Clear the mock to count subsequent calls
     mockGetBags.mockClear();

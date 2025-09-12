@@ -19,7 +19,9 @@ const PRIVACY_ICONS = {
   public: 'globe-outline',
 };
 
-function BagCard({ bag, onPress }) {
+function BagCard({
+  bag, onPress,
+}) {
   const colors = useThemeColors();
 
   // Convert API response format to display format
@@ -31,7 +33,6 @@ function BagCard({ bag, onPress }) {
 
   const styles = StyleSheet.create({
     cardTouchable: {
-      marginBottom: spacing.md,
     },
     cardContent: {
       paddingVertical: spacing.md,
