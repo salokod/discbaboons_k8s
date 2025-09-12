@@ -301,6 +301,11 @@ function BagsListScreen({ navigation }) {
         loading={deletingBag}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+        navigation={navigation}
+        onMoveComplete={() => {
+          // Refresh bag list after move
+          loadBags();
+        }}
       />
     </SafeAreaView>
   );
