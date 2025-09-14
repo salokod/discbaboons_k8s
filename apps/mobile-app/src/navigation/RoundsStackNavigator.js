@@ -1,5 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import RoundsScreen from '../screens/rounds/RoundsScreen';
+import RoundsListScreen from '../screens/rounds/RoundsListScreen';
+import CreateRoundScreen from '../screens/rounds/CreateRoundScreen';
+import RoundDetailScreen from '../screens/rounds/RoundDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -11,7 +13,9 @@ export default function RoundsStackNavigator() {
         headerShown: false, // Will be handled by the tab navigator
       }}
     >
-      <Stack.Screen name="RoundsList" component={RoundsScreen} />
+      <Stack.Screen name="RoundsList" component={RoundsListScreen} />
+      <Stack.Screen name="CreateRound" component={CreateRoundScreen} />
+      <Stack.Screen name="RoundDetail" component={RoundDetailScreen} />
     </Stack.Navigator>
   );
 }
