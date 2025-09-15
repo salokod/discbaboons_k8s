@@ -196,18 +196,19 @@ export async function getRounds(params = {}) {
       throw new Error(data.message || 'Unable to connect. Please check your internet.');
     }
 
-    // Validate response format matches API documentation
-    if (!data.success || !Array.isArray(data.rounds)) {
+    // Validate response format - backend doesn't include 'success' field
+    if (!data || !Array.isArray(data.rounds)) {
       throw new Error('Invalid response from server');
     }
 
+    // Backend returns pagination fields at root level, not in a pagination object
     return {
       rounds: data.rounds,
-      pagination: data.pagination || {
-        total: data.rounds.length,
-        limit: 20,
-        offset: 0,
-        hasMore: false,
+      pagination: {
+        total: data.total || data.rounds.length,
+        limit: data.limit || 20,
+        offset: data.offset || 0,
+        hasMore: data.hasMore || false,
       },
     };
   } catch (error) {

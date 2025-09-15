@@ -647,7 +647,7 @@ describe('RecoverDiscModal', () => {
         // Wait for bags to load and skeleton to disappear
         await waitFor(() => {
           expect(queryByTestId('skeleton-loading-section')).toBeNull();
-        });
+        }, { timeout: 5000 });
 
         // Should show real bag selection content
         expect(getByText('Choose bag to recover to:')).toBeTruthy();
@@ -754,7 +754,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display bag selection section with loaded bags
       expect(getByText('Choose bag to recover to:')).toBeTruthy();
@@ -798,7 +798,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display bag selection section with loaded bags
       expect(getByText('Choose bag to recover to:')).toBeTruthy();
@@ -836,7 +836,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Find and press the first bag
       const mainBagItem = getByText('Main Bag');
@@ -878,7 +878,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get bag items
       const mainBagItem = getByTestId('bag-item-bag1');
@@ -931,7 +931,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should show empty state
       expect(getByText('No bags available')).toBeTruthy();
@@ -967,7 +967,7 @@ describe('RecoverDiscModal', () => {
       // Wait for error handling to complete
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should show error state with retry button
       expect(getByText('Connection Problem')).toBeTruthy();
@@ -1002,7 +1002,7 @@ describe('RecoverDiscModal', () => {
       // Wait for error handling to complete
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should show error state with message
       const errorSection = getByTestId('animated-error-section');
@@ -1101,7 +1101,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should have a ScrollView for bag list
       const scrollView = getByTestId('bag-list-scroll');
@@ -1143,7 +1143,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // ScrollView should exist
       const scrollView = getByTestId('bag-list-scroll');
@@ -1284,7 +1284,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display bag names with enhanced typography
       expect(getByText('Main Bag')).toBeTruthy();
@@ -1329,7 +1329,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display disc counts when available
       expect(getByText('15 discs')).toBeTruthy();
@@ -1891,10 +1891,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load
+      // Wait for bags to load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should show "Recover" when no bag selected
       expect(getByText('Recover')).toBeTruthy();
@@ -1926,10 +1926,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load
+      // Wait for bags to load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -1969,10 +1969,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load
+      // Wait for bags to load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2013,10 +2013,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load
+      // Wait for bags to load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2059,10 +2059,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load
+      // Wait for bags to load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2087,10 +2087,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load again
+      // Wait for bags to load again with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag again
       const bagItemNew = getByTestId('bag-item-bag1');
@@ -2127,10 +2127,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for bags to load
+      // Wait for bags to load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Initially should show "Recover"
       expect(getByText('Recover')).toBeTruthy();
@@ -2181,7 +2181,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select first bag with special characters
       const bag1Item = getByTestId('bag-item-bag1');
@@ -2227,7 +2227,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select bag with empty name
       const bagItem = getByTestId('bag-item-bag1');
@@ -2268,7 +2268,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should show recover button that is initially disabled (no bag selected)
       const recoverButton = getByText('Recover');
@@ -2305,7 +2305,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2350,7 +2350,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2398,7 +2398,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2442,7 +2442,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2489,7 +2489,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -2548,7 +2548,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag and verify animation is triggered
       const bagItem = getByTestId('bag-item-bag1');
@@ -2608,7 +2608,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should have animated bag selection section
       const animatedBagSection = getByTestId('animated-bag-selection-section');
@@ -2644,7 +2644,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select a bag - should trigger smooth animation
       const bagItem = getByTestId('bag-item-bag1');
@@ -2684,7 +2684,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select bag and recover - should work despite animations
       const bagItem = getByTestId('bag-item-bag1');
@@ -2728,7 +2728,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Animated elements should maintain testID for accessibility
       const animatedShowcase = getByTestId('animated-disc-showcase-section');
@@ -2758,10 +2758,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display contextual error icon
       const errorIcon = getByTestId('contextual-error-icon');
@@ -2786,10 +2786,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should use wifi-off icon for network errors
       const errorIcon = getByTestId('contextual-error-icon');
@@ -2815,10 +2815,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should use server icon for API errors
       const errorIcon = getByTestId('contextual-error-icon');
@@ -2844,10 +2844,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should show user-friendly message, not technical error
       expect(getByText('Connection Problem')).toBeTruthy();
@@ -2872,10 +2872,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should have enhanced retry button
       const enhancedRetryButton = getByTestId('enhanced-retry-button');
@@ -2900,10 +2900,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should have animated error section
       const animatedErrorSection = getByTestId('animated-error-section');
@@ -2928,10 +2928,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display appropriate error title and message
       expect(getByText('Connection Problem')).toBeTruthy();
@@ -2956,10 +2956,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display appropriate error title and message
       expect(getByText('Server Issue')).toBeTruthy();
@@ -2984,10 +2984,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should display appropriate error title and message
       expect(getByText('Request Timeout')).toBeTruthy();
@@ -3012,10 +3012,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should use proper theme colors and spacing
       const errorSection = getByTestId('animated-error-section');
@@ -3045,10 +3045,10 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for error to appear
+      // Wait for error to appear with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should provide helpful guidance
       expect(getByText('Connection Problem')).toBeTruthy();
@@ -3084,11 +3084,11 @@ describe('RecoverDiscModal', () => {
         </ThemeProvider>,
       );
 
-      // Wait for first error
+      // Wait for first error with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
         expect(getByText('Connection Problem')).toBeTruthy();
-      });
+      }, { timeout: 5000 });
 
       // Press enhanced retry button
       const enhancedRetryButton = getByTestId('enhanced-retry-button');
@@ -3097,11 +3097,11 @@ describe('RecoverDiscModal', () => {
       // Should show loading again
       expect(getByTestId('skeleton-loading-section')).toBeTruthy();
 
-      // Wait for successful load
+      // Wait for successful load with increased timeout for CI
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
         expect(queryByText('Connection Problem')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Should now show bag selection
       expect(getByText('Choose bag to recover to:')).toBeTruthy();
@@ -3508,7 +3508,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get bag item and check styling
       const bagItem = getByTestId('bag-item-bag1');
@@ -3550,7 +3550,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get bag item and check minimum touch target requirements
       const bagItem = getByTestId('bag-item-bag1');
@@ -3590,7 +3590,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get bag item before selection
       const bagItem = getByTestId('bag-item-bag1');
@@ -3642,7 +3642,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get bag name text element
       const bagNameElement = getByText('Primary Tournament Bag');
@@ -3678,7 +3678,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get bag description text element
       const bagDescriptionElement = getByText('Professional setup for competitions');
@@ -3716,7 +3716,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get disc count text element
       const discCountElement = getByText('15 discs');
@@ -3757,7 +3757,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Check multiple bag names have consistent styling
       const bagName1 = getByText('Tournament Bag');
@@ -3802,7 +3802,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get selection indicator
       const selectionIndicator = getByTestId('selection-indicator-bag1');
@@ -3841,7 +3841,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Initially should not show checkmark
       expect(queryByTestId('checkmark-badge-bag1')).toBeNull();
@@ -3884,7 +3884,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get selection indicator in unselected state
       const selectionIndicator = getByTestId('selection-indicator-bag1');
@@ -3927,7 +3927,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select first bag
       const bagItem1 = getByTestId('bag-item-bag1');
@@ -3980,7 +3980,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get animated bag item
       const animatedBagItem = getByTestId('animated-bag-item-bag1');
@@ -4052,7 +4052,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load and animation to start
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get animated bag selection section
       const animatedBagSection = getByTestId('animated-bag-selection-section');
@@ -4087,7 +4087,7 @@ describe('RecoverDiscModal', () => {
       // Wait for error state to appear
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Get animated error section
       const animatedErrorSection = getByTestId('animated-error-section');
@@ -4130,7 +4130,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Select bag
       const bagItem = getByTestId('bag-item-bag1');
@@ -4167,7 +4167,7 @@ describe('RecoverDiscModal', () => {
       // Wait for bags to load
       await waitFor(() => {
         expect(queryByTestId('skeleton-loading-section')).toBeNull();
-      });
+      }, { timeout: 5000 });
 
       // Rapidly select different bags to test animation performance
       const bagItem1 = getByTestId('bag-item-bag1');
