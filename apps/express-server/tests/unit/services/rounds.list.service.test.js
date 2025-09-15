@@ -44,7 +44,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId);
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT COUNT(*) FROM rounds WHERE created_by_id = $1'),
+      expect.stringContaining('SELECT COUNT(DISTINCT r.id) FROM rounds r LEFT JOIN courses c ON r.course_id = c.id LEFT JOIN users u ON r.created_by_id = u.id WHERE created_by_id = $1'),
       [userId],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
@@ -343,7 +343,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { limit, offset });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT COUNT(*) FROM rounds WHERE created_by_id = $1'),
+      expect.stringContaining('SELECT COUNT(DISTINCT r.id) FROM rounds r LEFT JOIN courses c ON r.course_id = c.id LEFT JOIN users u ON r.created_by_id = u.id WHERE created_by_id = $1'),
       [userId],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(

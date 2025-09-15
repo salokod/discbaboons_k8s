@@ -71,8 +71,33 @@ const roundsListService = async (userId, filters = {}) => {
     params.push(`%${validatedFilters.name}%`);
   }
 
+  // Add date range filters if provided
+  if (validatedFilters.start_date) {
+    const startDate = new Date(validatedFilters.start_date);
+    if (Number.isNaN(startDate.getTime())) {
+      const error = new Error('start_date must be a valid date in YYYY-MM-DD format');
+      error.name = 'ValidationError';
+      throw error;
+    }
+    whereConditions.push(`r.created_at >= $${params.length + 1}`);
+    params.push(startDate.toISOString());
+  }
+
+  if (validatedFilters.end_date) {
+    const endDate = new Date(validatedFilters.end_date);
+    if (Number.isNaN(endDate.getTime())) {
+      const error = new Error('end_date must be a valid date in YYYY-MM-DD format');
+      error.name = 'ValidationError';
+      throw error;
+    }
+    // Add 1 day to include the entire end date
+    endDate.setDate(endDate.getDate() + 1);
+    whereConditions.push(`r.created_at < $${params.length + 1}`);
+    params.push(endDate.toISOString());
+  }
+
   // Get total count first (for pagination metadata) - use current params before adding limit/offset
-  const countQuery = `SELECT COUNT(*) FROM rounds WHERE ${whereConditions.join(' AND ')}`;
+  const countQuery = `SELECT COUNT(DISTINCT r.id) FROM rounds r LEFT JOIN courses c ON r.course_id = c.id LEFT JOIN users u ON r.created_by_id = u.id WHERE ${whereConditions.join(' AND ')}`;
   const countResult = await queryOne(countQuery, [...params]); // Use copy of params
   const total = parseInt(countResult.count, 10);
 
@@ -84,14 +109,18 @@ const roundsListService = async (userId, filters = {}) => {
   params.push(offset);
 
   const query = `
-    SELECT 
+    SELECT
       r.*,
+      c.name AS course_name,
+      u.username AS created_by_username,
       COUNT(rp.id) AS player_count
     FROM rounds r
+    LEFT JOIN courses c ON r.course_id = c.id
+    LEFT JOIN users u ON r.created_by_id = u.id
     LEFT JOIN round_players rp ON r.id = rp.round_id
     WHERE ${whereConditions.join(' AND ')}
-    GROUP BY r.id
-    ORDER BY r.created_at DESC 
+    GROUP BY r.id, c.name, u.username
+    ORDER BY r.created_at DESC
     LIMIT $${params.length - 1} OFFSET $${params.length}
   `;
 

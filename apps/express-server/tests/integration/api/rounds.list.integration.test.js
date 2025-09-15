@@ -25,6 +25,12 @@ describe('GET /api/rounds - Integration', () => {
   let createdCourseIds = [];
   let createdRoundIds = [];
 
+  // GOOD: Integration concern - module exports check
+  test('should export app instance properly', () => {
+    expect(app).toBeDefined();
+    expect(typeof app).toBe('function');
+  });
+
   beforeEach(async () => {
     // Reset arrays for parallel test safety
     createdUserIds = [];
@@ -251,6 +257,19 @@ describe('GET /api/rounds - Integration', () => {
     expect(res.body.rounds[0]).toMatchObject({
       id: round1.round.id,
       name: expect.stringContaining(searchTerm),
+    });
+  });
+
+  // GOOD: Integration concern - error handling middleware
+  test('should handle invalid date range filter gracefully', async () => {
+    const res = await request(app)
+      .get('/api/rounds?start_date=invalid-date')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'start_date must be a valid date in YYYY-MM-DD format',
     });
   });
 
