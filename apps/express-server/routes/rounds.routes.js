@@ -1,5 +1,6 @@
 import express from 'express';
 import roundsCreateController from '../controllers/rounds.create.controller.js';
+import roundsListController from '../controllers/rounds.list.controller.js';
 import getRoundController from '../controllers/rounds.get.controller.js';
 import addPlayerController from '../controllers/rounds.addPlayer.controller.js';
 import listPlayersController from '../controllers/rounds.listPlayers.controller.js';
@@ -21,6 +22,7 @@ import sideBetsSuggestionsController from '../controllers/sideBets.suggestions.c
 import roundsCompleteController from '../controllers/rounds.complete.controller.js';
 import authenticateToken from '../middleware/auth.middleware.js';
 import {
+  roundsListRateLimit,
   roundsCreateRateLimit,
   roundsDetailsRateLimit,
   roundsUpdateRateLimit,
@@ -35,6 +37,9 @@ import {
 } from '../middleware/roundsRequestLimit.middleware.js';
 
 const router = express.Router();
+
+// GET /api/rounds - List user's rounds (requires authentication)
+router.get('/', roundsListRateLimit, authenticateToken, roundsListController);
 
 // POST /api/rounds - Create new round (requires authentication)
 router.post('/', roundsCreateRateLimit, roundsRequestLimit, authenticateToken, roundsCreateController);
