@@ -2,14 +2,21 @@ import { render } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import CommunityStackNavigator from '../CommunityStackNavigator';
 
-// Mock the screen components
-jest.mock('../../screens/community/CommunityScreen', () => {
+// Mock the friends-related components
+jest.mock('../../screens/friends/FriendsScreen', () => {
   const ReactLocal = require('react');
   const { Text } = require('react-native');
-  return function CommunityScreen() {
-    return ReactLocal.createElement(Text, { testID: 'community-screen' }, 'CommunityScreen');
+  return function FriendsScreen() {
+    return ReactLocal.createElement(Text, { testID: 'friends-screen' }, 'FriendsScreen');
   };
 });
+
+jest.mock('../../context/FriendsContext', () => ({
+  FriendsProvider: ({ children }) => {
+    const ReactLocal = require('react');
+    return ReactLocal.createElement(ReactLocal.Fragment, null, children);
+  },
+}));
 
 describe('CommunityStackNavigator', () => {
   const renderWithNavigation = (component) => render(
@@ -26,7 +33,7 @@ describe('CommunityStackNavigator', () => {
   it('should render without crashing', () => {
     const { getByTestId } = renderWithNavigation(<CommunityStackNavigator />);
 
-    // Should render the initial screen (Community)
-    expect(getByTestId('community-screen')).toBeTruthy();
+    // Should render the initial screen (Friends)
+    expect(getByTestId('friends-screen')).toBeTruthy();
   });
 });
