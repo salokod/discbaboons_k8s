@@ -11,7 +11,7 @@ import { FriendsProvider, useFriends } from '../FriendsContext';
 // Test component to consume the context
 function TestComponent() {
   const {
-    friends, loading, error, dispatch,
+    friends, requests, loading, error, dispatch,
   } = useFriends();
 
   // Expose dispatch for testing
@@ -22,6 +22,9 @@ function TestComponent() {
   return (
     <>
       <Text testID="friends-count">{friends.list.length}</Text>
+      <Text testID="incoming-requests-count">{requests.incoming.length}</Text>
+      <Text testID="outgoing-requests-count">{requests.outgoing.length}</Text>
+      <Text testID="requests-badge">{requests.badge}</Text>
       <Text testID="loading">{loading.toString()}</Text>
       <Text testID="error">{error || 'no-error'}</Text>
     </>
@@ -41,6 +44,9 @@ describe('FriendsContext', () => {
     );
 
     expect(getByTestId('friends-count')).toHaveTextContent('0');
+    expect(getByTestId('incoming-requests-count')).toHaveTextContent('0');
+    expect(getByTestId('outgoing-requests-count')).toHaveTextContent('0');
+    expect(getByTestId('requests-badge')).toHaveTextContent('0');
     expect(getByTestId('loading')).toHaveTextContent('false');
     expect(getByTestId('error')).toHaveTextContent('no-error');
   });
@@ -156,5 +162,57 @@ describe('FriendsContext', () => {
 
     expect(getByTestId('loading')).toHaveTextContent('true');
     expect(getByTestId('error')).toHaveTextContent('no-error');
+  });
+
+  it('should handle FETCH_REQUESTS_SUCCESS action', () => {
+    const { getByTestId } = render(
+      <FriendsProvider>
+        <TestComponent />
+      </FriendsProvider>,
+    );
+
+    const mockIncomingRequests = [
+      {
+        id: 456,
+        requester_id: 789,
+        recipient_id: 123,
+        status: 'pending',
+        requester: {
+          id: 789,
+          username: 'johndoe',
+          profile_image: null,
+        },
+        created_at: '2024-01-15T10:30:00.000Z',
+      },
+    ];
+
+    const mockOutgoingRequests = [
+      {
+        id: 789,
+        requester_id: 123,
+        recipient_id: 456,
+        status: 'pending',
+        recipient: {
+          id: 456,
+          username: 'janedoe',
+          profile_image: null,
+        },
+        created_at: '2024-01-15T10:30:00.000Z',
+      },
+    ];
+
+    act(() => {
+      global.testDispatch({
+        type: 'FETCH_REQUESTS_SUCCESS',
+        payload: {
+          incoming: mockIncomingRequests,
+          outgoing: mockOutgoingRequests,
+        },
+      });
+    });
+
+    expect(getByTestId('incoming-requests-count')).toHaveTextContent('1');
+    expect(getByTestId('outgoing-requests-count')).toHaveTextContent('1');
+    expect(getByTestId('requests-badge')).toHaveTextContent('1');
   });
 });

@@ -82,6 +82,29 @@ describe('FriendsScreen', () => {
   });
 
   it('should display FriendCard components when data loads', async () => {
+    // Mock friends data for this test
+    friendService.getFriends.mockResolvedValue({
+      friends: [
+        {
+          id: 1,
+          username: 'testfriend',
+          friendship: {
+            id: 1,
+            status: 'accepted',
+            created_at: '2023-01-01T00:00:00Z',
+          },
+          bag_stats: {
+            total_bags: 3,
+            visible_bags: 2,
+            public_bags: 1,
+          },
+        },
+      ],
+      pagination: {
+        total: 1, limit: 20, offset: 0, hasMore: false,
+      },
+    });
+
     const { getByTestId } = renderWithProviders(
       <FriendsScreen navigation={mockNavigation} />,
     );

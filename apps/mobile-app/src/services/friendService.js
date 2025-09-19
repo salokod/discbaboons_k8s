@@ -85,6 +85,192 @@ async function getFriends(options = {}) {
   }
 }
 
+/**
+ * Get friend requests (incoming, outgoing, or all)
+ * @param {string} type - Request type: 'incoming', 'outgoing', or 'all'
+ * @returns {Promise<Object>} Friend requests list
+ * @throws {Error} API error or network error
+ */
+async function getRequests(type = 'all') {
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const url = new URL(`${API_BASE_URL}/api/friends/requests`);
+    url.searchParams.append('type', type);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid request parameters');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to load friend requests');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success || !data.requests) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      requests: data.requests,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Send a friend request to a user
+ * @param {number} userId - Target user ID
+ * @returns {Promise<Object>} Request result
+ * @throws {Error} API error or network error
+ */
+async function sendRequest(userId) {
+  if (!userId || typeof userId !== 'number') {
+    throw new Error('User ID is required and must be a number');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userId }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid request parameters');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to send friend request');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success || !data.request) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      request: data.request,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Respond to a friend request
+ * @param {number} requestId - Request ID
+ * @param {string} action - 'accept' or 'deny'
+ * @returns {Promise<Object>} Response result
+ * @throws {Error} API error or network error
+ */
+async function respondToRequest(requestId, action) {
+  if (!requestId || typeof requestId !== 'number') {
+    throw new Error('Request ID is required and must be a number');
+  }
+
+  if (!action || !['accept', 'deny'].includes(action)) {
+    throw new Error('Action must be either "accept" or "deny"');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/friends/respond`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ requestId, action }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid request parameters');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to respond to friend request');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    // For accept actions, return the new friendship
+    // For deny actions, return success confirmation
+    if (action === 'accept' && data.friendship) {
+      return {
+        friendship: data.friendship,
+      };
+    }
+
+    return {
+      success: true,
+      action,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
 export const friendService = {
   getFriends,
+  getRequests,
+  sendRequest,
+  respondToRequest,
 };

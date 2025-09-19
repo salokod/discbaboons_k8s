@@ -19,6 +19,12 @@ const initialState = {
     lastRefresh: null,
     error: null,
   },
+  requests: {
+    incoming: [],
+    outgoing: [],
+    badge: 0,
+    loading: false,
+  },
   loading: false,
   error: null,
 };
@@ -72,6 +78,17 @@ function friendsReducer(state, action) {
         },
         loading: true,
         error: null,
+      };
+    case 'FETCH_REQUESTS_SUCCESS':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          incoming: action.payload.incoming,
+          outgoing: action.payload.outgoing,
+          badge: action.payload.incoming.length,
+          loading: false,
+        },
       };
     default:
       return state;
