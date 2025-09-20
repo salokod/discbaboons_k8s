@@ -43,6 +43,7 @@ function RoundsListScreen({ navigation }) {
       // For now, just log error and show empty state
       // Log error for debugging but don't expose to user in production
       if (__DEV__) {
+        // eslint-disable-next-line no-console
         console.error('Failed to load rounds:', error);
       }
       setRounds([]);
