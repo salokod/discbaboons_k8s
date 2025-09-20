@@ -10,7 +10,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
+  ScrollView,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/ionicons';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../context/ThemeContext';
 import { useFriends } from '../context/FriendsContext';
@@ -18,6 +20,8 @@ import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
 import { friendService } from '../services/friendService';
 import FriendCard from './FriendCard';
+import IncomingRequestCard from './IncomingRequestCard';
+import OutgoingRequestCard from './OutgoingRequestCard';
 import EmptyState from '../design-system/components/EmptyState';
 
 function BaboonsTabView({ navigation }) {
@@ -107,6 +111,46 @@ function BaboonsTabView({ navigation }) {
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,
     },
+    requestsList: {
+      flex: 1,
+    },
+    requestsScrollView: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+    },
+    sectionHeader: {
+      ...typography.h3,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: spacing.md,
+      marginTop: spacing.md,
+    },
+    firstSectionHeader: {
+      ...typography.h3,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: spacing.md,
+      marginTop: 0,
+    },
+    fab: {
+      position: 'absolute',
+      bottom: spacing.lg,
+      right: spacing.lg,
+      backgroundColor: colors.primary,
+      borderRadius: 32,
+      width: 64,
+      height: 64,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 12,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 6,
+      },
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+    },
   });
 
   const renderBadge = () => {
@@ -125,6 +169,27 @@ function BaboonsTabView({ navigation }) {
   const renderFriendCard = ({ item }) => (
     <FriendCard friend={item} navigation={navigation} />
   );
+
+  const handleAcceptRequest = (requestId) => {
+    dispatch({
+      type: 'ACCEPT_REQUEST_START',
+      payload: { requestId },
+    });
+  };
+
+  const handleDenyRequest = (requestId) => {
+    dispatch({
+      type: 'DENY_REQUEST_START',
+      payload: { requestId },
+    });
+  };
+
+  const handleCancelRequest = (requestId) => {
+    dispatch({
+      type: 'CANCEL_REQUEST_START',
+      payload: { requestId },
+    });
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -155,8 +220,8 @@ function BaboonsTabView({ navigation }) {
             <View testID="friends-tab" style={styles.content}>
               <View testID="friends-empty-state">
                 <EmptyState
-                  title="No Friends Yet"
-                  subtitle="Start building your disc golf community by adding friends!"
+                  title="No Baboons in Your Troop Yet"
+                  subtitle="Start building your disc golf community by adding baboons to your troop!"
                 />
               </View>
             </View>
@@ -174,15 +239,73 @@ function BaboonsTabView({ navigation }) {
             />
           </View>
         );
-      case 'requests':
+      case 'requests': {
+        if (requests.loading) {
+          return (
+            <View testID="requests-tab" style={styles.content}>
+              <Text style={styles.placeholderText}>Loading invites...</Text>
+            </View>
+          );
+        }
+
+        const hasIncoming = requests.incoming.length > 0;
+        const hasOutgoing = requests.outgoing.length > 0;
+
+        if (!hasIncoming && !hasOutgoing) {
+          return (
+            <View testID="requests-tab" style={styles.content}>
+              <View testID="requests-empty-state">
+                <EmptyState
+                  title="No Pending Invites"
+                  subtitle="Your troop invites will appear here. Send invites to grow your baboon community!"
+                />
+              </View>
+            </View>
+          );
+        }
+
         return (
-          <View testID="requests-tab" style={styles.content}>
-            <Text style={styles.placeholderText}>Requests list coming soon</Text>
+          <View testID="requests-tab" style={styles.requestsList}>
+            <ScrollView style={styles.requestsScrollView} showsVerticalScrollIndicator={false}>
+              {hasIncoming && (
+                <View>
+                  <Text style={styles.firstSectionHeader}>Troop Requests</Text>
+                  {requests.incoming.map((request) => (
+                    <IncomingRequestCard
+                      key={request.id}
+                      request={request}
+                      onAccept={handleAcceptRequest}
+                      onDeny={handleDenyRequest}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {hasOutgoing && (
+                <View>
+                  <Text style={hasIncoming ? styles.sectionHeader : styles.firstSectionHeader}>
+                    Pending Invites
+                  </Text>
+                  {requests.outgoing.map((request) => (
+                    <OutgoingRequestCard
+                      key={request.id}
+                      request={request}
+                      onCancel={handleCancelRequest}
+                    />
+                  ))}
+                </View>
+              )}
+            </ScrollView>
           </View>
         );
+      }
       default:
         return null;
     }
+  };
+
+  const handleFindBaboons = () => {
+    navigation.navigate('BaboonSearch');
   };
 
   return (
@@ -194,7 +317,7 @@ function BaboonsTabView({ navigation }) {
           testID="friends-tab-button"
         >
           <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
-            Friends
+            Troop
           </Text>
         </TouchableOpacity>
 
@@ -204,13 +327,25 @@ function BaboonsTabView({ navigation }) {
           testID="requests-tab-button"
         >
           <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-            Requests
+            Invites
           </Text>
           {renderBadge()}
         </TouchableOpacity>
       </View>
 
       {renderContent()}
+
+      {/* Search FAB - only show on friends tab */}
+      {activeTab === 'friends' && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleFindBaboons}
+          testID="find-baboons-button"
+          accessibilityLabel="Find baboons to join your troop"
+        >
+          <Icon name="people-outline" size={28} color={colors.surface} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

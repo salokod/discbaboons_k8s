@@ -3,7 +3,7 @@
  * Test suite for basic friends list screen functionality
  */
 
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import FriendsScreen from '../FriendsScreen';
 import { FriendsProvider } from '../../../context/FriendsContext';
@@ -139,5 +139,28 @@ describe('FriendsScreen', () => {
     });
 
     expect(friendService.getFriends).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+  });
+
+  it('should have a search button that navigates to BaboonSearch screen', () => {
+    const { getByTestId } = renderWithProviders(
+      <FriendsScreen navigation={mockNavigation} />,
+    );
+
+    // Test that a search button/FAB exists
+    const searchButton = getByTestId('find-baboons-button');
+    expect(searchButton).toBeTruthy();
+  });
+
+  it('should navigate to BaboonSearch screen when search button is pressed', () => {
+    const { getByTestId } = renderWithProviders(
+      <FriendsScreen navigation={mockNavigation} />,
+    );
+
+    // Find and press the search button
+    const searchButton = getByTestId('find-baboons-button');
+    fireEvent.press(searchButton);
+
+    // Verify navigation was called correctly
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('BaboonSearch');
   });
 });

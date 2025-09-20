@@ -56,10 +56,10 @@ const profileUpdateRateLimit = rateLimit({
 // Rate limiting for profile search (strict for public endpoint)
 const profileSearchRateLimit = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 20, // 20 searches per 10 minutes per IP
+  max: 60, // 60 searches per 10 minutes per IP
   message: {
     success: false,
-    message: 'Too many profile search requests, please try again in 10 minutes',
+    message: 'Too many profile search requests (limit: 60 per 10 minutes), please try again later',
   },
   standardHeaders: true,
   legacyHeaders: false,

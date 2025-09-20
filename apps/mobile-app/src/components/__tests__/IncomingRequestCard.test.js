@@ -41,7 +41,7 @@ describe('IncomingRequestCard', () => {
     expect(IncomingRequestCard).toBeDefined();
   });
 
-  it('should display sender context and username', () => {
+  it('should display sender context and username with baboon terminology', () => {
     renderWithTheme(
       <IncomingRequestCard
         request={mockRequest}
@@ -51,10 +51,10 @@ describe('IncomingRequestCard', () => {
     );
 
     expect(screen.getByText('johndoe')).toBeOnTheScreen();
-    expect(screen.getByText(/wants to be friends/i)).toBeOnTheScreen();
+    expect(screen.getByText(/wants to join your troop/i)).toBeOnTheScreen();
   });
 
-  it('should display accept and deny buttons', () => {
+  it('should display welcome and decline buttons with baboon terminology', () => {
     renderWithTheme(
       <IncomingRequestCard
         request={mockRequest}
@@ -63,11 +63,11 @@ describe('IncomingRequestCard', () => {
       />,
     );
 
-    expect(screen.getByText('Accept')).toBeOnTheScreen();
-    expect(screen.getByText('Deny')).toBeOnTheScreen();
+    expect(screen.getByText('Welcome')).toBeOnTheScreen();
+    expect(screen.getByText('Decline')).toBeOnTheScreen();
   });
 
-  it('should call onAccept when accept button is pressed', () => {
+  it('should call onAccept when welcome button is pressed', () => {
     renderWithTheme(
       <IncomingRequestCard
         request={mockRequest}
@@ -81,7 +81,7 @@ describe('IncomingRequestCard', () => {
     expect(mockOnAccept).toHaveBeenCalledWith(456);
   });
 
-  it('should call onDeny when deny button is pressed', () => {
+  it('should call onDeny when decline button is pressed', () => {
     renderWithTheme(
       <IncomingRequestCard
         request={mockRequest}

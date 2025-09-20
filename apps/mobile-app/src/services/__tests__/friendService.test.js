@@ -176,13 +176,20 @@ describe('friendService', () => {
           Authorization: `Bearer ${mockTokens.accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: 456 }),
+        body: JSON.stringify({ recipientId: 456 }),
         signal: expect.any(AbortSignal),
       });
 
       expect(result).toEqual({
         request: mockResponse.request,
       });
+    });
+  });
+
+  describe('searchUsers', () => {
+    it('should export searchUsers function', () => {
+      expect(friendService.searchUsers).toBeDefined();
+      expect(typeof friendService.searchUsers).toBe('function');
     });
   });
 

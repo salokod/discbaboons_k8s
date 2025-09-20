@@ -104,7 +104,7 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
           <View style={styles.requestInfo}>
             <Text style={styles.username}>{request.requester.username}</Text>
             <Text style={styles.requestText}>
-              wants to be friends
+              wants to join your troop
             </Text>
 
             <View style={styles.actionButtons}>
@@ -113,9 +113,9 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
                 style={styles.acceptButton}
                 onPress={handleAccept}
                 accessible
-                accessibilityLabel={`Accept friend request from ${request.requester.username}`}
+                accessibilityLabel={`Welcome ${request.requester.username} to your troop`}
               >
-                <Text style={[styles.buttonText, styles.acceptButtonText]}>Accept</Text>
+                <Text style={[styles.buttonText, styles.acceptButtonText]}>Welcome</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -123,9 +123,9 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
                 style={styles.denyButton}
                 onPress={handleDeny}
                 accessible
-                accessibilityLabel={`Deny friend request from ${request.requester.username}`}
+                accessibilityLabel={`Decline troop invite from ${request.requester.username}`}
               >
-                <Text style={[styles.buttonText, styles.denyButtonText]}>Deny</Text>
+                <Text style={[styles.buttonText, styles.denyButtonText]}>Decline</Text>
               </TouchableOpacity>
             </View>
           </View>

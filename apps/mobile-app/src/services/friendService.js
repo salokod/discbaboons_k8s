@@ -142,13 +142,13 @@ async function getRequests(type = 'all') {
 
 /**
  * Send a friend request to a user
- * @param {number} userId - Target user ID
+ * @param {number} recipientId - Target user ID
  * @returns {Promise<Object>} Request result
  * @throws {Error} API error or network error
  */
-async function sendRequest(userId) {
-  if (!userId || typeof userId !== 'number') {
-    throw new Error('User ID is required and must be a number');
+async function sendRequest(recipientId) {
+  if (!recipientId || typeof recipientId !== 'number') {
+    throw new Error('Recipient ID is required and must be a number');
   }
 
   // Create an AbortController for timeout handling
@@ -162,7 +162,7 @@ async function sendRequest(userId) {
     const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ recipientId }),
       signal: controller.signal,
     });
 
@@ -190,6 +190,69 @@ async function sendRequest(userId) {
 
     return {
       request: data.request,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * Search for users by username
+ * @param {string} query - Search query
+ * @returns {Promise<Object>} Search results
+ * @throws {Error} API error or network error
+ */
+async function searchUsers(query) {
+  if (!query || typeof query !== 'string') {
+    throw new Error('Search query is required and must be a string');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const url = new URL(`${API_BASE_URL}/api/profile/search`);
+    url.searchParams.append('username', query);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid search query');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to search users');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success || !data.profiles) {
+      throw new Error('Invalid response from server');
+    }
+
+    // Map profiles to users for compatibility
+    return {
+      users: data.profiles.map((profile) => ({
+        ...profile,
+        id: profile.user_id, // Transform user_id to id for FlatList compatibility
+      })),
     };
   } catch (error) {
     clearTimeout(timeoutId);
@@ -273,4 +336,5 @@ export const friendService = {
   getRequests,
   sendRequest,
   respondToRequest,
+  searchUsers,
 };

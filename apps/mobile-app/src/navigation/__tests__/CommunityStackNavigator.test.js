@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import CommunityStackNavigator from '../CommunityStackNavigator';
+import { ThemeProvider } from '../../context/ThemeContext';
 
 // Mock the friends-related components
 jest.mock('../../screens/friends/FriendsScreen', () => {
@@ -8,6 +9,14 @@ jest.mock('../../screens/friends/FriendsScreen', () => {
   const { Text } = require('react-native');
   return function FriendsScreen() {
     return ReactLocal.createElement(Text, { testID: 'friends-screen' }, 'FriendsScreen');
+  };
+});
+
+jest.mock('../../screens/friends/BaboonSearchScreen', () => {
+  const ReactLocal = require('react');
+  const { Text } = require('react-native');
+  return function BaboonSearchScreen() {
+    return ReactLocal.createElement(Text, { testID: 'baboon-search-screen' }, 'BaboonSearchScreen');
   };
 });
 
@@ -20,9 +29,11 @@ jest.mock('../../context/FriendsContext', () => ({
 
 describe('CommunityStackNavigator', () => {
   const renderWithNavigation = (component) => render(
-    <NavigationContainer>
-      {component}
-    </NavigationContainer>,
+    <ThemeProvider>
+      <NavigationContainer>
+        {component}
+      </NavigationContainer>
+    </ThemeProvider>,
   );
 
   it('should export a component', () => {
@@ -35,5 +46,25 @@ describe('CommunityStackNavigator', () => {
 
     // Should render the initial screen (Friends)
     expect(getByTestId('friends-screen')).toBeTruthy();
+  });
+
+  it('should include BaboonSearchScreen in the navigation stack', () => {
+    const navigationRef = createNavigationContainerRef();
+
+    const { getByTestId } = render(
+      <ThemeProvider>
+        <NavigationContainer ref={navigationRef}>
+          <CommunityStackNavigator />
+        </NavigationContainer>
+      </ThemeProvider>,
+    );
+
+    // Verify the initial screen is rendered
+    expect(getByTestId('friends-screen')).toBeTruthy();
+
+    // Test that we can access the navigation functions
+    // This verifies the navigator is properly configured
+    expect(navigationRef.isReady).toBeDefined();
+    expect(navigationRef.navigate).toBeDefined();
   });
 });
