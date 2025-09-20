@@ -184,6 +184,55 @@ describe('friendService', () => {
         request: mockResponse.request,
       });
     });
+
+    it('should pass through specific backend error messages for duplicate friend requests', async () => {
+      const mockTokens = { accessToken: 'mock-access-token' };
+      const mockErrorResponse = {
+        success: false,
+        message: 'Friend request already exists',
+      };
+
+      getTokens.mockResolvedValueOnce(mockTokens);
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => mockErrorResponse,
+      });
+
+      await expect(friendService.sendRequest(456))
+        .rejects
+        .toThrow('Friend request already exists');
+
+      expect(getTokens).toHaveBeenCalledWith();
+      expect(fetch).toHaveBeenCalledWith(`${API_BASE_URL}/api/friends/request`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${mockTokens.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ recipientId: 456 }),
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('should pass through specific backend error messages for authentication failures', async () => {
+      const mockTokens = { accessToken: 'mock-access-token' };
+      const mockErrorResponse = {
+        success: false,
+        message: 'Authentication failed',
+      };
+
+      getTokens.mockResolvedValueOnce(mockTokens);
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => mockErrorResponse,
+      });
+
+      await expect(friendService.sendRequest(456))
+        .rejects
+        .toThrow('Authentication failed');
+    });
   });
 
   describe('searchUsers', () => {

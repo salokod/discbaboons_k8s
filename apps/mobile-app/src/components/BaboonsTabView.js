@@ -53,6 +53,40 @@ function BaboonsTabView({ navigation }) {
     loadFriends();
   }, [dispatch]);
 
+  // Load friend requests on component mount
+  useEffect(() => {
+    const loadRequests = async () => {
+      try {
+        dispatch({ type: 'FETCH_REQUESTS_START' });
+
+        // Load incoming and outgoing requests separately
+        const [incomingResponse, outgoingResponse] = await Promise.all([
+          friendService.getRequests('incoming'),
+          friendService.getRequests('outgoing'),
+        ]);
+
+        dispatch({
+          type: 'FETCH_REQUESTS_SUCCESS',
+          payload: {
+            incoming: incomingResponse.requests,
+            outgoing: outgoingResponse.requests,
+          },
+        });
+      } catch (error) {
+        // Handle error silently for now to not break friends loading
+        dispatch({
+          type: 'FETCH_REQUESTS_SUCCESS',
+          payload: {
+            incoming: [],
+            outgoing: [],
+          },
+        });
+      }
+    };
+
+    loadRequests();
+  }, [dispatch]);
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,

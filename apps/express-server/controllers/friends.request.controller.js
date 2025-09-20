@@ -8,8 +8,11 @@ const friendsRequestController = async (req, res, next) => {
     });
   }
   try {
-    const result = await friendsRequestService(req.user.userId, req.body.recipientId);
-    return res.status(200).json(result);
+    const newRequest = await friendsRequestService(req.user.userId, req.body.recipientId);
+    return res.status(201).json({
+      success: true,
+      request: newRequest,
+    });
   } catch (err) {
     return next(err); // <-- Add return here
   }

@@ -159,10 +159,13 @@ async function sendRequest(recipientId) {
     // Get auth headers with access token
     const headers = await getAuthHeaders();
 
-    const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
+    const requestPayload = { recipientId };
+    const requestUrl = `${API_BASE_URL}/api/friends/request`;
+
+    const response = await fetch(requestUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ recipientId }),
+      body: JSON.stringify(requestPayload),
       signal: controller.signal,
     });
 
@@ -184,10 +187,9 @@ async function sendRequest(recipientId) {
     }
 
     // Validate response format matches API documentation
-    if (!data.success || !data.request) {
+    if (!data.success) {
       throw new Error('Invalid response from server');
     }
-
     return {
       request: data.request,
     };

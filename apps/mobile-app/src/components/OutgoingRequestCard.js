@@ -71,6 +71,9 @@ function OutgoingRequestCard({ request, onCancel }) {
     onCancel(request.id);
   };
 
+  // Safely get recipient username with fallback
+  const recipientUsername = request.recipient?.username || 'Unknown User';
+
   return (
     <View style={styles.container}>
       <Card>
@@ -80,7 +83,7 @@ function OutgoingRequestCard({ request, onCancel }) {
           </View>
 
           <View style={styles.requestInfo}>
-            <Text style={styles.username}>{request.recipient.username}</Text>
+            <Text style={styles.username}>{recipientUsername}</Text>
             <Text style={styles.statusText}>
               Pending
             </Text>
@@ -90,7 +93,7 @@ function OutgoingRequestCard({ request, onCancel }) {
               style={styles.cancelButton}
               onPress={handleCancel}
               accessible
-              accessibilityLabel={`Cancel friend request to ${request.recipient.username}`}
+              accessibilityLabel={`Cancel friend request to ${recipientUsername}`}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -111,7 +114,7 @@ OutgoingRequestCard.propTypes = {
       id: PropTypes.number.isRequired,
       username: PropTypes.string.isRequired,
       profile_image: PropTypes.string,
-    }).isRequired,
+    }),
     created_at: PropTypes.string.isRequired,
   }).isRequired,
   onCancel: PropTypes.func.isRequired,

@@ -71,20 +71,23 @@ describe('POST /api/friends/request - Integration', () => {
       .post('/api/friends/request')
       .set('Authorization', `Bearer ${tokenA}`)
       .send({ recipientId: userB.id })
-      .expect(200);
+      .expect(201);
 
     expect(response.body).toMatchObject({
-      id: expect.any(Number),
-      requester_id: userA.id,
-      recipient_id: userB.id,
-      status: 'pending',
-      created_at: expect.any(String),
+      success: true,
+      request: {
+        id: expect.any(Number),
+        requester_id: userA.id,
+        recipient_id: userB.id,
+        status: 'pending',
+        created_at: expect.any(String),
+      },
     });
 
     // Integration: Verify persistence to database
     const savedRequest = await query(
       'SELECT * FROM friendship_requests WHERE id = $1',
-      [response.body.id],
+      [response.body.request.id],
     );
     expect(savedRequest.rows).toHaveLength(1);
     expect(savedRequest.rows[0]).toMatchObject({
@@ -101,7 +104,7 @@ describe('POST /api/friends/request - Integration', () => {
       .post('/api/friends/request')
       .set('Authorization', `Bearer ${tokenA}`)
       .send({ recipientId: userB.id })
-      .expect(200);
+      .expect(201);
 
     // Duplicate request
     const response = await request(app)
@@ -123,7 +126,7 @@ describe('POST /api/friends/request - Integration', () => {
       .post('/api/friends/request')
       .set('Authorization', `Bearer ${tokenA}`)
       .send({ recipientId: userB.id })
-      .expect(200);
+      .expect(201);
 
     // User B tries to request User A (reverse)
     const response = await request(app)
@@ -145,12 +148,12 @@ describe('POST /api/friends/request - Integration', () => {
       .post('/api/friends/request')
       .set('Authorization', `Bearer ${tokenB}`)
       .send({ recipientId: userA.id })
-      .expect(200);
+      .expect(201);
 
     // Set request as denied directly in DB
     await query(
       'UPDATE friendship_requests SET status = $1 WHERE id = $2',
-      ['denied', firstRequest.body.id],
+      ['denied', firstRequest.body.request.id],
     );
 
     // Now User A can request User B
@@ -158,12 +161,15 @@ describe('POST /api/friends/request - Integration', () => {
       .post('/api/friends/request')
       .set('Authorization', `Bearer ${tokenA}`)
       .send({ recipientId: userB.id })
-      .expect(200);
+      .expect(201);
 
     expect(response.body).toMatchObject({
-      requester_id: userA.id,
-      recipient_id: userB.id,
-      status: 'pending',
+      success: true,
+      request: {
+        requester_id: userA.id,
+        recipient_id: userB.id,
+        status: 'pending',
+      },
     });
   });
 
@@ -174,12 +180,12 @@ describe('POST /api/friends/request - Integration', () => {
       .post('/api/friends/request')
       .set('Authorization', `Bearer ${tokenB}`)
       .send({ recipientId: userA.id })
-      .expect(200);
+      .expect(201);
 
     // Set request as accepted directly in DB
     await query(
       'UPDATE friendship_requests SET status = $1 WHERE id = $2',
-      ['accepted', firstRequest.body.id],
+      ['accepted', firstRequest.body.request.id],
     );
 
     // Now User A cannot request User B (they're already friends)

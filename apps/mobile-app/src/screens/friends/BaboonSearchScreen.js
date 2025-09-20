@@ -17,19 +17,24 @@ import Icon from '@react-native-vector-icons/ionicons';
 import PropTypes from 'prop-types';
 import { useState, useCallback } from 'react';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useFriends } from '../../context/FriendsContext';
 import AppContainer from '../../components/AppContainer';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import EmptyState from '../../design-system/components/EmptyState';
+import Toast from '../../components/common/Toast';
 import { friendService } from '../../services/friendService';
 
 function BaboonSearchScreen() {
   const colors = useThemeColors();
+  const { dispatch } = useFriends();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const handleSearch = useCallback(async () => {
     const query = searchQuery.trim();
@@ -60,14 +65,60 @@ function BaboonSearchScreen() {
     handleSearch();
   }, [handleSearch]);
 
+  const mapErrorMessage = (errorMessage) => {
+    // Map backend error messages to user-friendly baboon-themed messages
+    const errorMappings = {
+      'Friend request already exists': "You've already sent an invite to this baboon",
+      'Authentication failed': 'Please log in again to send invites',
+    };
+
+    return errorMappings[errorMessage] || 'Failed to send invite. Please try again.';
+  };
+
+  const refreshRequests = useCallback(async () => {
+    try {
+      dispatch({ type: 'FETCH_REQUESTS_START' });
+
+      // Load incoming and outgoing requests separately
+      const [incomingResponse, outgoingResponse] = await Promise.all([
+        friendService.getRequests('incoming'),
+        friendService.getRequests('outgoing'),
+      ]);
+
+      dispatch({
+        type: 'FETCH_REQUESTS_SUCCESS',
+        payload: {
+          incoming: incomingResponse.requests,
+          outgoing: outgoingResponse.requests,
+        },
+      });
+    } catch (refreshError) {
+      // Handle error silently to not interfere with the invite flow
+      dispatch({
+        type: 'FETCH_REQUESTS_SUCCESS',
+        payload: {
+          incoming: [],
+          outgoing: [],
+        },
+      });
+    }
+  }, [dispatch]);
+
   const handleSendInvite = useCallback(async (userId) => {
     try {
       await friendService.sendRequest(userId);
-      // You could add a success message or update the UI here
+
+      setToastMessage('Invite sent successfully!');
+      setToastVisible(true);
+
+      // Refresh requests to show the new outgoing request
+      await refreshRequests();
     } catch (err) {
-      // Handle error - could show a toast or alert
+      const userFriendlyMessage = mapErrorMessage(err.message);
+      setToastMessage(userFriendlyMessage);
+      setToastVisible(true);
     }
-  }, []);
+  }, [refreshRequests]);
 
   const styles = StyleSheet.create({
     container: {
@@ -165,12 +216,6 @@ function BaboonSearchScreen() {
       textAlign: 'center',
       padding: spacing.md,
     },
-    noResultsText: {
-      ...typography.body,
-      color: colors.textLight,
-      textAlign: 'center',
-      padding: spacing.md,
-    },
   });
 
   const renderUserItem = ({ item: user }) => (
@@ -203,7 +248,17 @@ function BaboonSearchScreen() {
     }
 
     if (hasSearched && searchResults.length === 0) {
-      return <Text style={styles.noResultsText}>No baboons found matching your search</Text>;
+      return (
+        <EmptyState
+          title="No baboons found"
+          subtitle="Your friend might have their profile set to private. Ask them to check their Profile Settings and enable 'Show name in search results' to join your troop!"
+          actionLabel="Try Another Search"
+          onAction={() => {
+            setSearchQuery('');
+            setHasSearched(false);
+          }}
+        />
+      );
     }
 
     if (hasSearched && searchResults.length > 0) {
@@ -255,6 +310,12 @@ function BaboonSearchScreen() {
         <View style={styles.content}>
           {renderContent()}
         </View>
+
+        <Toast
+          message={toastMessage}
+          visible={toastVisible}
+          onHide={() => setToastVisible(false)}
+        />
       </SafeAreaView>
     </AppContainer>
   );

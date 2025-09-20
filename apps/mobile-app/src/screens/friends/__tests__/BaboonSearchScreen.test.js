@@ -19,6 +19,7 @@ jest.mock('../../../services/friendService', () => ({
   friendService: {
     searchUsers: jest.fn(),
     sendRequest: jest.fn(),
+    getRequests: jest.fn(),
   },
 }));
 
@@ -202,6 +203,167 @@ describe('BaboonSearchScreen', () => {
     });
   });
 
+  it('should show success toast when invite is sent successfully', async () => {
+    friendService.searchUsers.mockResolvedValue({
+      users: [
+        { id: 1, username: 'testbaboon1', email: 'test1@example.com' },
+      ],
+    });
+    friendService.sendRequest.mockResolvedValue({
+      request: { id: 123, recipient_id: 1, status: 'pending' },
+    });
+
+    renderWithProviders(<BaboonSearchScreen navigation={mockNavigation} />);
+
+    const searchInput = screen.getByTestId('search-input');
+    const searchButton = screen.getByTestId('search-button');
+
+    fireEvent.changeText(searchInput, 'testbaboon');
+    fireEvent.press(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Send Invite')).toBeOnTheScreen();
+    });
+
+    const sendInviteButton = screen.getByText('Send Invite');
+    fireEvent.press(sendInviteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Invite sent successfully!')).toBeOnTheScreen();
+    });
+  });
+
+  it('should show error toast when invite sending fails', async () => {
+    friendService.searchUsers.mockResolvedValue({
+      users: [
+        { id: 1, username: 'testbaboon1', email: 'test1@example.com' },
+      ],
+    });
+    friendService.sendRequest.mockRejectedValue(new Error('Network error'));
+
+    renderWithProviders(<BaboonSearchScreen navigation={mockNavigation} />);
+
+    const searchInput = screen.getByTestId('search-input');
+    const searchButton = screen.getByTestId('search-button');
+
+    fireEvent.changeText(searchInput, 'testbaboon');
+    fireEvent.press(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Send Invite')).toBeOnTheScreen();
+    });
+
+    const sendInviteButton = screen.getByText('Send Invite');
+    fireEvent.press(sendInviteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to send invite. Please try again.')).toBeOnTheScreen();
+    });
+  });
+
+  it('should show user-friendly error message for duplicate friend request', async () => {
+    friendService.searchUsers.mockResolvedValue({
+      users: [
+        { id: 1, username: 'testbaboon1', email: 'test1@example.com' },
+      ],
+    });
+    friendService.sendRequest.mockRejectedValue(new Error('Friend request already exists'));
+
+    renderWithProviders(<BaboonSearchScreen navigation={mockNavigation} />);
+
+    const searchInput = screen.getByTestId('search-input');
+    const searchButton = screen.getByTestId('search-button');
+
+    fireEvent.changeText(searchInput, 'testbaboon');
+    fireEvent.press(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Send Invite')).toBeOnTheScreen();
+    });
+
+    const sendInviteButton = screen.getByText('Send Invite');
+    fireEvent.press(sendInviteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("You've already sent an invite to this baboon")).toBeOnTheScreen();
+    });
+  });
+
+  it('should show user-friendly error message for authentication failure', async () => {
+    friendService.searchUsers.mockResolvedValue({
+      users: [
+        { id: 1, username: 'testbaboon1', email: 'test1@example.com' },
+      ],
+    });
+    friendService.sendRequest.mockRejectedValue(new Error('Authentication failed'));
+
+    renderWithProviders(<BaboonSearchScreen navigation={mockNavigation} />);
+
+    const searchInput = screen.getByTestId('search-input');
+    const searchButton = screen.getByTestId('search-button');
+
+    fireEvent.changeText(searchInput, 'testbaboon');
+    fireEvent.press(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Send Invite')).toBeOnTheScreen();
+    });
+
+    const sendInviteButton = screen.getByText('Send Invite');
+    fireEvent.press(sendInviteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Please log in again to send invites')).toBeOnTheScreen();
+    });
+  });
+
+  it('should refresh friend requests after sending invite successfully', async () => {
+    friendService.searchUsers.mockResolvedValue({
+      users: [
+        { id: 1, username: 'testbaboon1', email: 'test1@example.com' },
+      ],
+    });
+    friendService.sendRequest.mockResolvedValue({
+      request: { id: 123, recipient_id: 1, status: 'pending' },
+    });
+
+    // Mock both incoming and outgoing getRequests calls for the refresh
+    friendService.getRequests.mockImplementation((type) => {
+      if (type === 'incoming') {
+        return Promise.resolve({ requests: [] });
+      }
+      if (type === 'outgoing') {
+        return Promise.resolve({
+          requests: [{ id: 123, recipient_id: 1, status: 'pending' }],
+        });
+      }
+      return Promise.resolve({ requests: [] });
+    });
+
+    renderWithProviders(<BaboonSearchScreen navigation={mockNavigation} />);
+
+    const searchInput = screen.getByTestId('search-input');
+    const searchButton = screen.getByTestId('search-button');
+
+    fireEvent.changeText(searchInput, 'testbaboon');
+    fireEvent.press(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Send Invite')).toBeOnTheScreen();
+    });
+
+    const sendInviteButton = screen.getByText('Send Invite');
+    fireEvent.press(sendInviteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Invite sent successfully!')).toBeOnTheScreen();
+    });
+
+    // Should call getRequests to refresh after successful invite
+    expect(friendService.getRequests).toHaveBeenCalledWith('incoming');
+    expect(friendService.getRequests).toHaveBeenCalledWith('outgoing');
+  });
+
   it('should display loading state while searching', async () => {
     friendService.searchUsers.mockImplementation(
       () => new Promise((resolve) => {
@@ -232,7 +394,8 @@ describe('BaboonSearchScreen', () => {
     fireEvent.press(searchButton);
 
     await waitFor(() => {
-      expect(screen.getByText('No baboons found matching your search')).toBeOnTheScreen();
+      expect(screen.getByText('No baboons found')).toBeOnTheScreen();
+      expect(screen.getByText('Your friend might have their profile set to private. Ask them to check their Profile Settings and enable \'Show name in search results\' to join your troop!')).toBeOnTheScreen();
     });
   });
 

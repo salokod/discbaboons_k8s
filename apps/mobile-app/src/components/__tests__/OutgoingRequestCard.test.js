@@ -75,4 +75,42 @@ describe('OutgoingRequestCard', () => {
 
     expect(mockOnCancel).toHaveBeenCalledWith(789);
   });
+
+  it('should handle missing recipient gracefully', () => {
+    const requestWithoutRecipient = {
+      ...mockRequest,
+      recipient: undefined,
+    };
+
+    renderWithTheme(
+      <OutgoingRequestCard
+        request={requestWithoutRecipient}
+        onCancel={mockOnCancel}
+      />,
+    );
+
+    expect(screen.getByText('Unknown User')).toBeOnTheScreen();
+    expect(screen.getByText('Pending')).toBeOnTheScreen();
+  });
+
+  it('should handle missing recipient username gracefully', () => {
+    const requestWithIncompleteRecipient = {
+      ...mockRequest,
+      recipient: {
+        id: 456,
+        username: undefined,
+        profile_image: null,
+      },
+    };
+
+    renderWithTheme(
+      <OutgoingRequestCard
+        request={requestWithIncompleteRecipient}
+        onCancel={mockOnCancel}
+      />,
+    );
+
+    expect(screen.getByText('Unknown User')).toBeOnTheScreen();
+    expect(screen.getByText('Pending')).toBeOnTheScreen();
+  });
 });

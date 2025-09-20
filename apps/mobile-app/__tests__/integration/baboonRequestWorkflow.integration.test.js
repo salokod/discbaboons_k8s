@@ -268,6 +268,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       // User types in search box
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Verify search service was called
       await waitFor(() => {
@@ -290,6 +291,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Wait for search results to appear
       await waitFor(() => {
@@ -315,6 +317,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Wait for Send Invite buttons to appear
       await waitFor(() => {
@@ -335,6 +338,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Should show loading state
       await waitFor(() => {
@@ -351,9 +355,10 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'nonexistent');
+      fireEvent.press(getByTestId('search-button'));
 
       await waitFor(() => {
-        expect(getByText('No baboons found matching your search')).toBeTruthy();
+        expect(getByText('No baboons found')).toBeTruthy();
       });
     });
 
@@ -366,6 +371,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       await waitFor(() => {
         expect(getByText('Error searching for baboons. Please try again.')).toBeTruthy();
@@ -386,12 +392,14 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       // First search
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
       await waitFor(() => {
         expect(getByText('baboon_buddy')).toBeTruthy();
       });
 
       // Clear search
       fireEvent.changeText(searchInput, '');
+      fireEvent.press(getByTestId('search-button'));
       await waitFor(() => {
         expect(queryByText('baboon_buddy')).toBeFalsy();
         expect(getByText('Find Baboons for Your Troop')).toBeTruthy();
@@ -415,6 +423,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Wait for search results
       await waitFor(() => {
@@ -445,6 +454,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Wait for search results
       await waitFor(() => {
@@ -482,6 +492,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(getByTestId('search-button'));
 
       // Wait for search results
       await waitFor(() => {
@@ -512,6 +523,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
       // User types search query
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'troop_mate');
+      fireEvent.press(getByTestId('search-button'));
 
       // Verify search was triggered
       await waitFor(() => {
@@ -548,6 +560,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'amazing');
+      fireEvent.press(getByTestId('search-button'));
 
       // Verify user details are displayed correctly
       await waitFor(() => {
@@ -595,6 +608,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
       // Step 4: User searches for baboons
       const searchInput = getSearchTestId('search-input');
       fireEvent.changeText(searchInput, 'new_baboon');
+      fireEvent.press(getSearchTestId('search-button'));
 
       // Verify search results appear
       await waitFor(() => {
@@ -641,7 +655,9 @@ describe('Baboon Request Workflow Integration Tests', () => {
 
       // Search for baboons
       const searchInput = getByTestId('search-input');
+      const searchButton = getByTestId('search-button');
       fireEvent.changeText(searchInput, 'baboon');
+      fireEvent.press(searchButton);
 
       // Wait for all results
       await waitFor(() => {
@@ -722,7 +738,9 @@ describe('Baboon Request Workflow Integration Tests', () => {
       );
 
       const searchInput = getByTestId('search-input');
+      const searchButton = getByTestId('search-button');
       fireEvent.changeText(searchInput, 'failing_search');
+      fireEvent.press(searchButton);
 
       await waitFor(() => {
         expect(getByText('Error searching for baboons. Please try again.')).toBeTruthy();
@@ -731,6 +749,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
       // User should still be able to retry
       friendService.searchUsers.mockResolvedValue({ users: [] });
       fireEvent.changeText(searchInput, 'retry_search');
+      fireEvent.press(getByTestId('search-button'));
 
       await waitFor(() => {
         expect(friendService.searchUsers).toHaveBeenCalledWith('retry_search');
@@ -789,7 +808,7 @@ describe('Baboon Request Workflow Integration Tests', () => {
       fireEvent.press(searchButton);
 
       await waitFor(() => {
-        expect(getByText('No baboons found matching your search')).toBeTruthy();
+        expect(getByText('No baboons found')).toBeTruthy();
       });
 
       // User should be able to try different search

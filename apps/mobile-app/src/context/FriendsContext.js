@@ -79,6 +79,14 @@ function friendsReducer(state, action) {
         loading: true,
         error: null,
       };
+    case 'FETCH_REQUESTS_START':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: true,
+        },
+      };
     case 'FETCH_REQUESTS_SUCCESS':
       return {
         ...state,

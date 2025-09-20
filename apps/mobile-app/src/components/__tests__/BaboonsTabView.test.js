@@ -219,6 +219,23 @@ describe('BaboonsTabView', () => {
       expect(screen.getByText('outgoing_user')).toBeOnTheScreen();
     });
 
+    it('should load friend requests on component mount', () => {
+      const mockDispatch = jest.fn();
+      const mockDataWithDispatch = {
+        ...mockFriendsData,
+        dispatch: mockDispatch,
+      };
+
+      useFriends.mockReturnValue(mockDataWithDispatch);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Should dispatch action to load requests on mount
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'FETCH_REQUESTS_START',
+      });
+    });
+
     it('should display loading state when requests are being fetched', () => {
       const mockDataLoading = {
         ...mockFriendsData,
