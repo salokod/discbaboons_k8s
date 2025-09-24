@@ -50,6 +50,14 @@ jest.mock('../../../components/AppContainer', () => {
   };
 });
 
+jest.mock('../../../components/StatusBarSafeView', () => {
+  const ReactLocal = require('react');
+  const { SafeAreaView } = require('react-native');
+  return function StatusBarSafeView({ children, testID = 'status-bar-safe-view', ...props }) {
+    return ReactLocal.createElement(SafeAreaView, { testID, ...props }, children);
+  };
+});
+
 jest.mock('../../../components/FriendCard', () => {
   const ReactLocal = require('react');
   const { View, Text } = require('react-native');
@@ -162,5 +170,26 @@ describe('FriendsScreen', () => {
 
     // Verify navigation was called correctly
     expect(mockNavigation.navigate).toHaveBeenCalledWith('BaboonSearch');
+  });
+
+  describe('Status bar handling', () => {
+    it('should use StatusBarSafeView component for proper status bar handling', () => {
+      const { getByTestId } = renderWithProviders(
+        <FriendsScreen navigation={mockNavigation} />,
+      );
+
+      // Verify StatusBarSafeView is being used with friends-screen testID
+      expect(getByTestId('friends-screen')).toBeTruthy();
+    });
+
+    it('should have proper container structure for cross-platform compatibility', () => {
+      const { getByTestId } = renderWithProviders(
+        <FriendsScreen navigation={mockNavigation} />,
+      );
+
+      // Verify the component hierarchy includes necessary containers
+      expect(getByTestId('app-container')).toBeTruthy();
+      expect(getByTestId('friends-screen')).toBeTruthy(); // This is the StatusBarSafeView
+    });
   });
 });

@@ -65,7 +65,7 @@ describe('GET /api/friends/requests - Integration', () => {
   });
 
   // GOOD: Integration concern - incoming requests query with JOINs
-  test('should return incoming friend requests from database', async () => {
+  test('should return incoming friend requests with requester user data', async () => {
     const response = await request(app)
       .get('/api/friends/requests')
       .set('Authorization', `Bearer ${tokenB}`)
@@ -84,14 +84,16 @@ describe('GET /api/friends/requests - Integration', () => {
       recipient_id: userB.id,
       status: 'pending',
       created_at: expect.any(String),
+      requester: {
+        id: userA.id,
+        username: userA.username,
+        email: userA.email,
+      },
     });
-
-    // Note: API doesn't return JOINed username data
-    // This is expected - usernames should be fetched separately if needed
   });
 
   // GOOD: Integration concern - outgoing requests query with JOINs
-  test('should return outgoing friend requests from database', async () => {
+  test('should return outgoing friend requests with recipient user data', async () => {
     const response = await request(app)
       .get('/api/friends/requests')
       .set('Authorization', `Bearer ${tokenA}`)
@@ -109,14 +111,16 @@ describe('GET /api/friends/requests - Integration', () => {
       requester_id: userA.id,
       recipient_id: userB.id,
       status: 'pending',
+      recipient: {
+        id: userB.id,
+        username: userB.username,
+        email: userB.email,
+      },
     });
-
-    // Note: API doesn't return JOINed username data
-    // This is expected - usernames should be fetched separately if needed
   });
 
   // GOOD: Integration concern - complex query combining incoming and outgoing
-  test('should return all friend requests for user from database', async () => {
+  test('should return all friend requests with appropriate user data', async () => {
     // Create additional request where userB is the requester
     await query(
       'INSERT INTO friendship_requests (requester_id, recipient_id, status, created_at) VALUES ($1, $2, $3, NOW())',
@@ -138,8 +142,27 @@ describe('GET /api/friends/requests - Integration', () => {
     // Should include both incoming (as recipient) and outgoing (as requester)
     const incomingReq = response.body.requests.find((r) => r.recipient_id === userB.id);
     const outgoingReq = response.body.requests.find((r) => r.requester_id === userB.id);
+
     expect(incomingReq).toBeDefined();
     expect(outgoingReq).toBeDefined();
+
+    // Incoming request should have requester data
+    expect(incomingReq).toMatchObject({
+      requester: {
+        id: userA.id,
+        username: userA.username,
+        email: userA.email,
+      },
+    });
+
+    // Outgoing request should have recipient data
+    expect(outgoingReq).toMatchObject({
+      recipient: {
+        id: userC.id,
+        username: userC.username,
+        email: userC.email,
+      },
+    });
   });
 
   // GOOD: Integration concern - empty result set handling

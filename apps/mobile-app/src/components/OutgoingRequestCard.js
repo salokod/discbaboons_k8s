@@ -71,8 +71,8 @@ function OutgoingRequestCard({ request, onCancel }) {
     onCancel(request.id);
   };
 
-  // Safely get recipient username with fallback
-  const recipientUsername = request.recipient?.username || 'Unknown User';
+  // Backend now guarantees recipient data is populated
+  const recipientUsername = request.recipient.username;
 
   return (
     <View style={styles.container}>
@@ -113,8 +113,8 @@ OutgoingRequestCard.propTypes = {
     recipient: PropTypes.shape({
       id: PropTypes.number.isRequired,
       username: PropTypes.string.isRequired,
-      profile_image: PropTypes.string,
-    }),
+      email: PropTypes.string.isRequired,
+    }).isRequired,
     created_at: PropTypes.string.isRequired,
   }).isRequired,
   onCancel: PropTypes.func.isRequired,

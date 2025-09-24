@@ -18,7 +18,7 @@ const mockRequest = {
   requester: {
     id: 789,
     username: 'johndoe',
-    profile_image: null,
+    email: 'johndoe@example.com',
   },
   created_at: '2024-01-15T10:30:00.000Z',
 };

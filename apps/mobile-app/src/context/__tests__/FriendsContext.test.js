@@ -180,7 +180,7 @@ describe('FriendsContext', () => {
         requester: {
           id: 789,
           username: 'johndoe',
-          profile_image: null,
+          email: 'johndoe@example.com',
         },
         created_at: '2024-01-15T10:30:00.000Z',
       },
@@ -195,7 +195,7 @@ describe('FriendsContext', () => {
         recipient: {
           id: 456,
           username: 'janedoe',
-          profile_image: null,
+          email: 'janedoe@example.com',
         },
         created_at: '2024-01-15T10:30:00.000Z',
       },

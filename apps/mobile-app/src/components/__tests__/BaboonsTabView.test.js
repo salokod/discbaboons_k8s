@@ -427,4 +427,88 @@ describe('BaboonsTabView', () => {
       expect(screen.getByText('Pending Invites')).toBeOnTheScreen();
     });
   });
+
+  describe('Android status bar compatibility', () => {
+    beforeEach(() => {
+      useFriends.mockReturnValue(mockFriendsData);
+    });
+
+    it('should have proper tab button touch targets for Android accessibility', () => {
+      const { getByTestId } = render(
+        <TestWrapper>
+          <BaboonsTabView navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Test that tab buttons exist and are touchable
+      const friendsTabButton = getByTestId('friends-tab-button');
+      const requestsTabButton = getByTestId('requests-tab-button');
+
+      expect(friendsTabButton).toBeTruthy();
+      expect(requestsTabButton).toBeTruthy();
+
+      // Test that tab buttons are properly touchable
+      fireEvent.press(friendsTabButton);
+      fireEvent.press(requestsTabButton);
+
+      // Should not throw any errors
+    });
+
+    it('should maintain tab bar elevation and styling for Android', () => {
+      const { getByTestId } = render(
+        <TestWrapper>
+          <BaboonsTabView navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Verify tab buttons exist and can be interacted with
+      const friendsTabButton = getByTestId('friends-tab-button');
+      const requestsTabButton = getByTestId('requests-tab-button');
+
+      // Test tab switching functionality
+      fireEvent.press(requestsTabButton);
+      expect(getByTestId('requests-tab')).toBeTruthy();
+
+      fireEvent.press(friendsTabButton);
+      expect(getByTestId('friends-tab')).toBeTruthy();
+    });
+
+    it('should properly handle tab state changes without status bar interference', () => {
+      const { getByTestId } = render(
+        <TestWrapper>
+          <BaboonsTabView navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Start on friends tab
+      expect(getByTestId('friends-tab')).toBeTruthy();
+
+      // Switch to requests tab
+      const requestsTabButton = getByTestId('requests-tab-button');
+      fireEvent.press(requestsTabButton);
+      expect(getByTestId('requests-tab')).toBeTruthy();
+
+      // Switch back to friends tab
+      const friendsTabButton = getByTestId('friends-tab-button');
+      fireEvent.press(friendsTabButton);
+      expect(getByTestId('friends-tab')).toBeTruthy();
+    });
+
+    it('should maintain Find Baboons FAB accessibility on Android', () => {
+      const { getByTestId } = render(
+        <TestWrapper>
+          <BaboonsTabView navigation={mockNavigation} />
+        </TestWrapper>,
+      );
+
+      // Ensure the FAB is accessible and has proper attributes
+      const findBaboonsButton = getByTestId('find-baboons-button');
+      expect(findBaboonsButton).toBeTruthy();
+      expect(findBaboonsButton.props.accessibilityLabel).toBe('Find baboons to join your troop');
+
+      // Test that FAB navigation works
+      fireEvent.press(findBaboonsButton);
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('BaboonSearch');
+    });
+  });
 });

@@ -18,7 +18,7 @@ const mockRequest = {
   recipient: {
     id: 456,
     username: 'janedoe',
-    profile_image: null,
+    email: 'janedoe@example.com',
   },
   created_at: '2024-01-15T10:30:00.000Z',
 };
@@ -74,43 +74,5 @@ describe('OutgoingRequestCard', () => {
     fireEvent.press(screen.getByTestId('cancel-button'));
 
     expect(mockOnCancel).toHaveBeenCalledWith(789);
-  });
-
-  it('should handle missing recipient gracefully', () => {
-    const requestWithoutRecipient = {
-      ...mockRequest,
-      recipient: undefined,
-    };
-
-    renderWithTheme(
-      <OutgoingRequestCard
-        request={requestWithoutRecipient}
-        onCancel={mockOnCancel}
-      />,
-    );
-
-    expect(screen.getByText('Unknown User')).toBeOnTheScreen();
-    expect(screen.getByText('Pending')).toBeOnTheScreen();
-  });
-
-  it('should handle missing recipient username gracefully', () => {
-    const requestWithIncompleteRecipient = {
-      ...mockRequest,
-      recipient: {
-        id: 456,
-        username: undefined,
-        profile_image: null,
-      },
-    };
-
-    renderWithTheme(
-      <OutgoingRequestCard
-        request={requestWithIncompleteRecipient}
-        onCancel={mockOnCancel}
-      />,
-    );
-
-    expect(screen.getByText('Unknown User')).toBeOnTheScreen();
-    expect(screen.getByText('Pending')).toBeOnTheScreen();
   });
 });

@@ -36,6 +36,8 @@ GET /api/friends/requests
 ## Response
 
 ### Success (200 OK)
+
+#### Incoming Requests (type=incoming)
 ```json
 {
   "success": true,
@@ -46,7 +48,56 @@ GET /api/friends/requests
       "recipient_id": 456,
       "status": "pending",
       "created_at": "2024-01-15T10:30:00.000Z",
-      "updated_at": "2024-01-15T10:30:00.000Z"
+      "updated_at": "2024-01-15T10:30:00.000Z",
+      "requester": {
+        "id": 789,
+        "username": "sender_user",
+        "email": "sender@example.com"
+      }
+    }
+  ]
+}
+```
+
+#### Outgoing Requests (type=outgoing)
+```json
+{
+  "success": true,
+  "requests": [
+    {
+      "id": 124,
+      "requester_id": 456,
+      "recipient_id": 321,
+      "status": "pending",
+      "created_at": "2024-01-14T09:15:00.000Z",
+      "updated_at": "2024-01-14T09:15:00.000Z",
+      "recipient": {
+        "id": 321,
+        "username": "target_user",
+        "email": "target@example.com"
+      }
+    }
+  ]
+}
+```
+
+#### All Requests (type=all)
+```json
+{
+  "success": true,
+  "requests": [
+    {
+      "id": 123,
+      "requester_id": 789,
+      "recipient_id": 456,
+      "status": "pending",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "updated_at": "2024-01-15T10:30:00.000Z",
+      "requester": {
+        "id": 789,
+        "username": "sender_user",
+        "email": "sender@example.com"
+      }
     },
     {
       "id": 124,
@@ -54,7 +105,12 @@ GET /api/friends/requests
       "recipient_id": 321,
       "status": "pending",
       "created_at": "2024-01-14T09:15:00.000Z",
-      "updated_at": "2024-01-14T09:15:00.000Z"
+      "updated_at": "2024-01-14T09:15:00.000Z",
+      "recipient": {
+        "id": 321,
+        "username": "target_user",
+        "email": "target@example.com"
+      }
     }
   ]
 }
@@ -116,15 +172,26 @@ GET /api/friends/requests
 | `status` | string | Always "pending" (only pending requests returned) |
 | `created_at` | string (ISO 8601) | Request creation timestamp |
 | `updated_at` | string (ISO 8601) | Last modification timestamp |
+| `requester` | object | **Included for incoming requests**: Requester user profile |
+| `recipient` | object | **Included for outgoing requests**: Recipient user profile |
+
+### User Profile Object (requester/recipient)
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | User ID |
+| `username` | string | User's username |
+| `email` | string | User's email address |
 
 ## Service Implementation
 **File:** `services/friends.requests.service.js`
 
 ### Key Features
 - **Type-Based Filtering**: Supports incoming, outgoing, and combined views
+- **Enhanced User Data**: Includes user profile information via SQL JOINs
 - **Pending Only**: Only returns pending requests (not accepted/denied)
 - **Chronological Order**: Results ordered by creation date (newest first)
 - **Efficient Queries**: Uses indexed queries for optimal performance
+- **Context-Aware**: Returns appropriate user data based on request direction
 
 ### Query Logic by Type
 
@@ -170,7 +237,7 @@ curl -X GET "http://localhost:3000/api/friends/requests?type=all" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### Response Example
+### Response Example (Incoming Request)
 ```json
 {
   "success": true,
@@ -181,7 +248,12 @@ curl -X GET "http://localhost:3000/api/friends/requests?type=all" \
       "recipient_id": 456,
       "status": "pending",
       "created_at": "2024-01-15T10:30:00.000Z",
-      "updated_at": "2024-01-15T10:30:00.000Z"
+      "updated_at": "2024-01-15T10:30:00.000Z",
+      "requester": {
+        "id": 789,
+        "username": "disc_thrower_2024",
+        "email": "thrower@example.com"
+      }
     }
   ]
 }

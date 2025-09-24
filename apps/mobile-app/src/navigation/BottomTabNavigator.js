@@ -4,7 +4,8 @@
  */
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../context/ThemeContext';
 import BagsStackNavigator from './BagsStackNavigator';
@@ -47,6 +48,7 @@ const getTabBarIcon = (route, focused, color) => {
 
 export default function BottomTabNavigator() {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   return (
     <View testID="bottom-tab-navigator" style={styles.container}>
@@ -58,15 +60,9 @@ export default function BottomTabNavigator() {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
             borderTopWidth: 1,
-            paddingBottom: Platform.select({
-              ios: 20, // Account for home indicator on iOS
-              android: 10,
-            }),
+            paddingBottom: Math.max(insets.bottom, 8), // Use dynamic safe area with minimum padding
             paddingTop: 8,
-            height: Platform.select({
-              ios: 85, // Proper height for iOS with safe area
-              android: 70,
-            }),
+            height: Math.max(insets.bottom + 60, 70), // Dynamic height based on safe area
             shadowColor: colors.text,
             shadowOffset: {
               width: 0,

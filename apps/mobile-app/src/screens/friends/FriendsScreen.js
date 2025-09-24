@@ -4,11 +4,11 @@
  */
 
 import {
-  SafeAreaView,
   StyleSheet,
 } from 'react-native';
 import { useThemeColors } from '../../context/ThemeContext';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import BaboonsTabView from '../../components/BaboonsTabView';
 
 function FriendsScreen({ navigation }) {
@@ -23,9 +23,9 @@ function FriendsScreen({ navigation }) {
 
   return (
     <AppContainer>
-      <SafeAreaView testID="friends-screen" style={styles.container}>
+      <StatusBarSafeView testID="friends-screen" style={styles.container}>
         <BaboonsTabView navigation={navigation} />
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

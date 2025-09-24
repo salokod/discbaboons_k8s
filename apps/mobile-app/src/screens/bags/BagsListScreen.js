@@ -6,7 +6,6 @@ import {
   memo, useState, useEffect, useCallback, useRef,
 } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   FlatList,
@@ -21,6 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useBagRefreshContext } from '../../context/BagRefreshContext';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import EmptyBagsScreen from './EmptyBagsScreen';
@@ -213,12 +213,12 @@ function BagsListScreen({ navigation }) {
   // Show loading state on first load
   if (loading && !refreshing && bags.length === 0) {
     return (
-      <SafeAreaView testID="bags-list-screen" style={styles.container}>
+      <StatusBarSafeView testID="bags-list-screen" style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.bagCount, { marginTop: spacing.md }]}>Loading bags...</Text>
         </View>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
@@ -272,7 +272,7 @@ function BagsListScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView testID="bags-list-screen" style={styles.container}>
+    <StatusBarSafeView testID="bags-list-screen" style={styles.container}>
       <FlatList
         data={bags}
         renderItem={renderBagItem}
@@ -307,7 +307,7 @@ function BagsListScreen({ navigation }) {
           loadBags();
         }}
       />
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

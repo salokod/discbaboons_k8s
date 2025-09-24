@@ -7,6 +7,22 @@ import { render, act } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { ThemeProvider } from '../../src/context/ThemeContext';
 
+// Mock react-native-safe-area-context for integration tests
+jest.mock('react-native-safe-area-context', () => {
+  const { View } = require('react-native');
+
+  return {
+    SafeAreaProvider: ({ children }) => children,
+    SafeAreaView: View, // Mock SafeAreaView as a regular View
+    useSafeAreaInsets: jest.fn(() => ({
+      top: 44,
+      bottom: 34,
+      left: 0,
+      right: 0,
+    })),
+  };
+});
+
 /**
  * Renders a component with theme provider and waits for async initialization
  */

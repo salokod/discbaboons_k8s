@@ -6,7 +6,6 @@ import {
   memo, useState, useEffect, useCallback,
 } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -18,6 +17,7 @@ import {
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
 import { spacing } from '../../design-system/spacing';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import EmptyRoundsScreen from './EmptyRoundsScreen';
 import { getRounds } from '../../services/roundService';
 import RoundCard from '../../components/rounds/RoundCard';
@@ -131,20 +131,20 @@ function RoundsListScreen({ navigation }) {
   // Show loading state on first load
   if (loading && rounds.length === 0) {
     return (
-      <SafeAreaView testID="rounds-list-screen" style={styles.container}>
+      <StatusBarSafeView testID="rounds-list-screen" style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[{ color: colors.textLight, marginTop: spacing.md }]}>
             Loading rounds...
           </Text>
         </View>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
   // Show rounds list with header
   return (
-    <SafeAreaView testID="rounds-list-screen" style={styles.container}>
+    <StatusBarSafeView testID="rounds-list-screen" style={styles.container}>
       <FlatList
         testID="rounds-list"
         data={rounds}
@@ -174,7 +174,7 @@ function RoundsListScreen({ navigation }) {
       >
         <Text style={styles.createButtonText}>+</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 
