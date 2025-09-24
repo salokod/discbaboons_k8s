@@ -11,6 +11,7 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  Platform,
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
 import PropTypes from 'prop-types';
@@ -96,6 +97,28 @@ function BaboonsTabView({ navigation }) {
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      ...Platform.select({
+        android: {
+          // Ensure proper elevation and touch targets on Android
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 1,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+        },
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 1,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+        },
+      }),
     },
     tab: {
       flex: 1,
@@ -103,6 +126,15 @@ function BaboonsTabView({ navigation }) {
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'center',
+      ...Platform.select({
+        android: {
+          // Ensure minimum touch target size for Android accessibility
+          minHeight: 48,
+        },
+        ios: {
+          minHeight: 44,
+        },
+      }),
     },
     activeTab: {
       borderBottomWidth: 2,
@@ -204,25 +236,67 @@ function BaboonsTabView({ navigation }) {
     <FriendCard friend={item} navigation={navigation} />
   );
 
-  const handleAcceptRequest = (requestId) => {
-    dispatch({
-      type: 'ACCEPT_REQUEST_START',
-      payload: { requestId },
-    });
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      dispatch({
+        type: 'ACCEPT_REQUEST_START',
+        payload: { requestId },
+      });
+
+      await friendService.respondToRequest(requestId, 'accept');
+
+      dispatch({
+        type: 'ACCEPT_REQUEST_SUCCESS',
+        payload: { requestId },
+      });
+    } catch (error) {
+      dispatch({
+        type: 'ACCEPT_REQUEST_ERROR',
+        payload: { requestId, error: error.message },
+      });
+    }
   };
 
-  const handleDenyRequest = (requestId) => {
-    dispatch({
-      type: 'DENY_REQUEST_START',
-      payload: { requestId },
-    });
+  const handleDenyRequest = async (requestId) => {
+    try {
+      dispatch({
+        type: 'DENY_REQUEST_START',
+        payload: { requestId },
+      });
+
+      await friendService.respondToRequest(requestId, 'deny');
+
+      dispatch({
+        type: 'DENY_REQUEST_SUCCESS',
+        payload: { requestId },
+      });
+    } catch (error) {
+      dispatch({
+        type: 'DENY_REQUEST_ERROR',
+        payload: { requestId, error: error.message },
+      });
+    }
   };
 
-  const handleCancelRequest = (requestId) => {
-    dispatch({
-      type: 'CANCEL_REQUEST_START',
-      payload: { requestId },
-    });
+  const handleCancelRequest = async (requestId) => {
+    try {
+      dispatch({
+        type: 'CANCEL_REQUEST_START',
+        payload: { requestId },
+      });
+
+      await friendService.cancelRequest(requestId);
+
+      dispatch({
+        type: 'CANCEL_REQUEST_SUCCESS',
+        payload: { requestId },
+      });
+    } catch (error) {
+      dispatch({
+        type: 'CANCEL_REQUEST_ERROR',
+        payload: { requestId, error: error.message },
+      });
+    }
   };
 
   const renderContent = () => {

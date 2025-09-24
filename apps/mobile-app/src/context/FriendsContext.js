@@ -98,6 +98,93 @@ function friendsReducer(state, action) {
           loading: false,
         },
       };
+    case 'CANCEL_REQUEST_START':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: true,
+        },
+      };
+    case 'CANCEL_REQUEST_SUCCESS':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          outgoing: state.requests.outgoing.filter(
+            (request) => request.id !== action.payload.requestId,
+          ),
+          loading: false,
+        },
+      };
+    case 'CANCEL_REQUEST_ERROR':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: false,
+        },
+      };
+    case 'ACCEPT_REQUEST_START':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: true,
+        },
+      };
+    case 'ACCEPT_REQUEST_SUCCESS':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          incoming: state.requests.incoming.filter(
+            (request) => request.id !== action.payload.requestId,
+          ),
+          badge: state.requests.incoming.filter(
+            (request) => request.id !== action.payload.requestId,
+          ).length,
+          loading: false,
+        },
+      };
+    case 'ACCEPT_REQUEST_ERROR':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: false,
+        },
+      };
+    case 'DENY_REQUEST_START':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: true,
+        },
+      };
+    case 'DENY_REQUEST_SUCCESS':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          incoming: state.requests.incoming.filter(
+            (request) => request.id !== action.payload.requestId,
+          ),
+          badge: state.requests.incoming.filter(
+            (request) => request.id !== action.payload.requestId,
+          ).length,
+          loading: false,
+        },
+      };
+    case 'DENY_REQUEST_ERROR':
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          loading: false,
+        },
+      };
     default:
       return state;
   }

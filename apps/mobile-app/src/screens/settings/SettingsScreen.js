@@ -4,7 +4,6 @@
 
 import { memo, useMemo } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -17,6 +16,7 @@ import {
 import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
@@ -151,7 +151,7 @@ function SettingsScreen({ navigation }) {
 
   return (
     <AppContainer>
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.dismissKeyboard}>
             <ScrollView
@@ -277,7 +277,7 @@ function SettingsScreen({ navigation }) {
             </ScrollView>
           </View>
         </TouchableWithoutFeedback>
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

@@ -263,6 +263,65 @@ async function searchUsers(query) {
 }
 
 /**
+ * Cancel a friend request
+ * @param {number} requestId - Request ID to cancel
+ * @returns {Promise<Object>} Response result
+ * @throws {Error} API error or network error
+ */
+async function cancelRequest(requestId) {
+  if (!requestId || typeof requestId !== 'number') {
+    throw new Error('Request ID is required and must be a number');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/friends/requests/${requestId}`, {
+      method: 'DELETE',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+      if (response.status === 400) {
+        throw new Error(data.message || 'Invalid request parameters');
+      }
+      if (response.status === 404) {
+        throw new Error(data.message || 'Friend request not found');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to cancel friend request');
+    }
+
+    // Validate response format matches API documentation
+    if (!data.success) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      request: data.request,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
  * Respond to a friend request
  * @param {number} requestId - Request ID
  * @param {string} action - 'accept' or 'deny'
@@ -337,6 +396,7 @@ export const friendService = {
   getFriends,
   getRequests,
   sendRequest,
+  cancelRequest,
   respondToRequest,
   searchUsers,
 };

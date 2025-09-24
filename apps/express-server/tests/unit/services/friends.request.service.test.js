@@ -41,7 +41,7 @@ describe('friendsRequestService', () => {
     await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
       [requesterId, recipientId],
     );
   });
@@ -67,7 +67,7 @@ describe('friendsRequestService', () => {
     const result = await friendsRequestService(requesterId, recipientId);
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
       [requesterId, recipientId],
     );
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
@@ -95,7 +95,7 @@ describe('friendsRequestService', () => {
     await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
       [requesterId, recipientId],
     );
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe('friendsRequestService', () => {
     const result = await friendsRequestService(requesterId, recipientId);
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
       [requesterId, recipientId],
     );
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
@@ -152,12 +152,83 @@ describe('friendsRequestService', () => {
     await expect(friendsRequestService(requesterId, recipientId)).rejects.toThrow('Friend request already exists');
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
       [requesterId, recipientId],
     );
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
       'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
       [recipientId, requesterId],
     );
+  });
+
+  test('should allow a new request if direct request was canceled', async () => {
+    const requesterId = chance.integer({ min: 1, max: 1000 });
+    let recipientId = chance.integer({ min: 1, max: 1000 });
+    while (recipientId === requesterId) {
+      recipientId = chance.integer({ min: 1, max: 1000 });
+    }
+    const existingRequestId = chance.integer({ min: 1001, max: 2000 });
+    const fakeUpdatedRequest = {
+      id: existingRequestId,
+      requester_id: requesterId,
+      recipient_id: recipientId,
+      status: 'pending',
+    };
+
+    mockDatabase.queryOne
+      .mockResolvedValueOnce({ id: existingRequestId, status: 'canceled' }) // Direct canceled
+      .mockResolvedValueOnce(null) // No reverse request
+      .mockResolvedValueOnce(fakeUpdatedRequest); // Update existing request
+
+    const result = await friendsRequestService(requesterId, recipientId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [recipientId, requesterId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'UPDATE friendship_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['pending', existingRequestId],
+    );
+    expect(result).toEqual(fakeUpdatedRequest);
+  });
+
+  test('should allow a new request if reverse request was canceled', async () => {
+    const requesterId = chance.integer({ min: 1, max: 1000 });
+    let recipientId = chance.integer({ min: 1, max: 1000 });
+    while (recipientId === requesterId) {
+      recipientId = chance.integer({ min: 1, max: 1000 });
+    }
+    const fakeRequest = {
+      id: chance.integer({ min: 5001, max: 6000 }),
+      requester_id: requesterId,
+      recipient_id: recipientId,
+      status: 'pending',
+    };
+
+    mockDatabase.queryOne
+      .mockResolvedValueOnce(null) // No direct request
+      .mockResolvedValueOnce({ id: chance.integer({ min: 2001, max: 3000 }), status: 'canceled' }) // Reverse canceled
+      .mockResolvedValueOnce(fakeRequest); // Create new request
+
+    const result = await friendsRequestService(requesterId, recipientId);
+
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [requesterId, recipientId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+      [recipientId, requesterId],
+    );
+    expect(mockDatabase.queryOne).toHaveBeenCalledWith(
+      'INSERT INTO friendship_requests (requester_id, recipient_id, status) VALUES ($1, $2, $3) RETURNING *',
+      [requesterId, recipientId, 'pending'],
+    );
+    expect(result).toEqual(fakeRequest);
   });
 });

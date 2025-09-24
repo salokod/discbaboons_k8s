@@ -144,7 +144,7 @@ IncomingRequestCard.propTypes = {
     requester: PropTypes.shape({
       id: PropTypes.number.isRequired,
       username: PropTypes.string.isRequired,
-      profile_image: PropTypes.string,
+      email: PropTypes.string.isRequired,
     }).isRequired,
     created_at: PropTypes.string.isRequired,
   }).isRequired,

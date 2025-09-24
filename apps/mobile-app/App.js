@@ -2,7 +2,7 @@
  * DiscBaboons Mobile App
  */
 
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -237,6 +237,11 @@ function RootNavigator() {
 function App() {
   return (
     <GestureHandlerRootView style={styles.gestureHandlerRoot}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
+      />
       <ThemeProvider>
         <AuthProvider>
           <BagRefreshProvider>

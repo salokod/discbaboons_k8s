@@ -14,8 +14,10 @@
 - **Security-first approach**: Always validate user ownership/permissions in the same database query
 - **Edge cases as separate slices**: Test happy path first, then add edge cases one by one
 - **CRITICAL FOR AGENTS**: Run `npm run verify` after EVERY thin slice implementation
+- **100% VERIFICATION REQUIREMENT**: `npm run verify` MUST pass 100% without any failures, skipped tests, or errors
 - **TEST QUALITY**: NEVER sacrifice test quality or delete tests - write complete, thorough tests
 - **NO SHORTCUTS**: Do not give up on writing tests or skip test cases - maintain high quality standards
+- **QUALITY GATE**: If `npm run verify` doesn't pass 100%, stop and fix the issues before proceeding
 
 ## Testing Standards - Martin Fowler's Testing Pyramid
 - Use Vitest for all tests
@@ -68,9 +70,12 @@ apps/express-server/
 - I like to go slow and learn throughout
 - Try and return the thinnest slice each time, first with test like 'function exists' then the prod code to match that
 - go step by step, and explain / give me opportunities to learn
-- DO NOT run tests or lint commands - human will run these to save tokens
-- DO NOT fix lint issues - human will fix these to save tokens
 - **NEVER start work without confirming with the human first - always ask permission before beginning any task**
+
+## Command Restrictions
+- **ONLY these bash commands are allowed**: `npm run verify` and `npm run lint:fix`
+- **NO OTHER bash commands** should be executed by agents
+- Human will handle all other command execution to save tokens
 
 ## Database
 - Use raw PostgreSQL queries for all database operations
@@ -83,9 +88,9 @@ apps/express-server/
 - Always validate user ownership before allowing operations
 
 ## Commands to Run
-- Tests: `npm test` or specific test files
-- Linting: `npm run lint`
-- **Verification**: `npm run verify` - Run after EVERY implementation slice
+- **Verification**: `npm run verify` - Run after EVERY implementation slice (MUST pass 100%)
+- **Linting**: `npm run lint:fix` - Only auto-fixable linting command allowed
+- **RESTRICTION**: These are the ONLY bash commands agents may execute
 
 ## Agent-Specific Instructions
 
@@ -104,16 +109,20 @@ apps/express-server/
 - Plan for scalability and maintainability
 
 ### For delivery-implementer Agent
-- **CRITICAL**: Run `npm run verify` after EVERY thin slice
+- **CRITICAL**: Run `npm run verify` after EVERY thin slice (MUST pass 100%)
 - **TEST FIRST**: Write the test before implementation
 - **NO SHORTCUTS**: Complete all test cases, don't skip or delete tests
 - **QUALITY**: Maintain high code and test quality standards
+- **ZERO TOLERANCE**: No skipped tests, no failing tests, no errors in verification
 - Follow the thinnest slice approach:
   1. Write failing test for smallest feature
   2. Implement minimal code to pass
-  3. Run `npm run verify`
-  4. Refactor if needed
-  5. Run `npm run verify` again
-  6. Move to next slice
+  3. Run `npm run verify` (must be 100% green)
+  4. If verification fails, fix issues immediately
+  5. Run `npm run lint:fix` if needed
+  6. Refactor if needed
+  7. Run `npm run verify` again (must be 100% green)
+  8. Move to next slice
 - **NEVER** proceed to next slice if current slice has failing tests
 - **ALWAYS** ensure 100% of tests pass before moving forward
+- **COMMAND RESTRICTION**: Only use `npm run verify` and `npm run lint:fix`

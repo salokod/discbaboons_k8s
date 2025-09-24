@@ -17,6 +17,8 @@ You will review React Native code with meticulous attention to:
 - **E2E/UI Tests (Top Layer)**: Ensure minimal but critical user journey tests exist. These should cover essential workflows only.
 - **Test Quality**: Confirm tests focus on behavior and functionality, NOT implementation details. Tests should survive refactoring.
 - **Coverage Gaps**: Identify untested edge cases, error scenarios, and platform-specific behaviors.
+- **CRITICAL**: All tests must pass `npm run verify` with 100% success rate - no skipped or failing tests allowed
+- **ZERO TOLERANCE**: Any test skips or failures must be identified and fixed immediately
 
 ### 2. Cross-Platform Compatibility
 - **Platform-Specific Code**: Verify proper use of Platform.OS and Platform.select() for iOS/Android differences.
@@ -75,6 +77,8 @@ Structure your review as:
 - Current pyramid distribution (approximate percentages)
 - Missing test scenarios for iOS/Android
 - Tests that are too implementation-focused
+- **VERIFICATION STATUS**: Confirm all tests pass `npm run verify` at 100%
+- **SKIPPED TESTS**: Identify and flag any skipped tests that need fixing
 
 ### ⚠️ Critical Issues
 - Untested critical paths

@@ -201,6 +201,115 @@ describe('POST /api/friends/request - Integration', () => {
     });
   });
 
+  // GOOD: Integration concern - canceled request handling
+  test('should allow new request after previous was canceled', async () => {
+    // User A requests User B first
+    const firstRequest = await request(app)
+      .post('/api/friends/request')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ recipientId: userB.id })
+      .expect(201);
+
+    // Set request as canceled directly in DB
+    await query(
+      'UPDATE friendship_requests SET status = $1 WHERE id = $2',
+      ['canceled', firstRequest.body.request.id],
+    );
+
+    // Now User B can request User A (reverse direction)
+    const response = await request(app)
+      .post('/api/friends/request')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ recipientId: userA.id })
+      .expect(201);
+
+    // Integration: Verify database state shows both requests
+    expect(response.body).toMatchObject({
+      success: true,
+      request: {
+        requester_id: userB.id,
+        recipient_id: userA.id,
+        status: 'pending',
+      },
+    });
+
+    // Verify both requests exist in database with correct statuses
+    const allRequests = await query(
+      'SELECT requester_id, recipient_id, status FROM friendship_requests WHERE (requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1)',
+      [userA.id, userB.id],
+    );
+    expect(allRequests.rows).toHaveLength(2);
+
+    const canceledRequest = allRequests.rows.find((r) => r.status === 'canceled');
+    const pendingRequest = allRequests.rows.find((r) => r.status === 'pending');
+
+    expect(canceledRequest).toBeDefined();
+    expect(pendingRequest).toBeDefined();
+    expect(pendingRequest.requester_id).toBe(userB.id);
+    expect(pendingRequest.recipient_id).toBe(userA.id);
+  });
+
+  // GOOD: Integration concern - bidirectional canceled requests handling
+  test('should allow new request from either direction after both users have canceled requests', async () => {
+    // User A requests User B first
+    const firstRequest = await request(app)
+      .post('/api/friends/request')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ recipientId: userB.id })
+      .expect(201);
+
+    // Cancel the first request
+    await query(
+      'UPDATE friendship_requests SET status = $1 WHERE id = $2',
+      ['canceled', firstRequest.body.request.id],
+    );
+
+    // User B requests User A (reverse direction)
+    const secondRequest = await request(app)
+      .post('/api/friends/request')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ recipientId: userA.id })
+      .expect(201);
+
+    // Cancel the second request too
+    await query(
+      'UPDATE friendship_requests SET status = $1 WHERE id = $2',
+      ['canceled', secondRequest.body.request.id],
+    );
+
+    // Now User A should be able to request User B again (same direction as first)
+    const thirdRequest = await request(app)
+      .post('/api/friends/request')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ recipientId: userB.id })
+      .expect(201);
+
+    // Integration: Verify database state shows updated request
+    expect(thirdRequest.body).toMatchObject({
+      success: true,
+      request: {
+        requester_id: userA.id,
+        recipient_id: userB.id,
+        status: 'pending',
+      },
+    });
+
+    // Verify database state: should have 2 requests total (1 canceled, 1 pending)
+    const allRequests = await query(
+      'SELECT requester_id, recipient_id, status FROM friendship_requests WHERE (requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1) ORDER BY id',
+      [userA.id, userB.id],
+    );
+    expect(allRequests.rows).toHaveLength(2);
+
+    const canceledRequest = allRequests.rows.find((r) => r.status === 'canceled');
+    const pendingRequest = allRequests.rows.find((r) => r.status === 'pending');
+
+    expect(canceledRequest).toBeDefined();
+    expect(pendingRequest).toBeDefined();
+    expect(pendingRequest.requester_id).toBe(userA.id);
+    expect(pendingRequest.recipient_id).toBe(userB.id);
+  });
+
   // Note: We do NOT test these validation scenarios in integration tests:
   // - Missing recipientId (unit test concern)
   // - Invalid recipientId format (unit test concern)

@@ -21,10 +21,10 @@ const friendsRequestService = async (requesterId, recipientId) => {
 
   // 3. Check if a request already exists (either direction)
   const existing = await queryOne(
-    'SELECT id FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
+    'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
     [requesterId, recipientId],
   );
-  if (existing) {
+  if (existing && existing.status !== 'denied' && existing.status !== 'canceled') {
     const error = new Error('Friend request already exists');
     error.name = 'ValidationError';
     throw error;
@@ -35,18 +35,27 @@ const friendsRequestService = async (requesterId, recipientId) => {
     'SELECT id, status FROM friendship_requests WHERE requester_id = $1 AND recipient_id = $2',
     [recipientId, requesterId],
   );
-  if (reverse && reverse.status !== 'denied') {
+  if (reverse && reverse.status !== 'denied' && reverse.status !== 'canceled') {
     const error = new Error('Friend request already exists');
     error.name = 'ValidationError';
     throw error;
   }
 
-  // 5. Create new friend request
+  // 5. Create new friend request or reactivate canceled one
+  if (existing && existing.status === 'canceled') {
+    // Update existing canceled request to pending
+    const newRequest = await queryOne(
+      'UPDATE friendship_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['pending', existing.id],
+    );
+    return newRequest;
+  }
+
+  // Insert new request
   const newRequest = await queryOne(
     'INSERT INTO friendship_requests (requester_id, recipient_id, status) VALUES ($1, $2, $3) RETURNING *',
     [requesterId, recipientId, 'pending'],
   );
-
   return newRequest;
 };
 
