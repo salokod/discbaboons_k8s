@@ -11,11 +11,11 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import PropTypes from 'prop-types';
-import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
 import Card from '../design-system/components/Card';
+import Avatar from './Avatar';
 
 function OutgoingRequestCard({ request, onCancel }) {
   const colors = useThemeColors();
@@ -29,15 +29,7 @@ function OutgoingRequestCard({ request, onCancel }) {
       paddingVertical: spacing.lg,
       paddingHorizontal: spacing.md,
       alignItems: 'center',
-    },
-    profileImage: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
+      gap: spacing.md,
     },
     requestInfo: {
       flex: 1,
@@ -78,9 +70,7 @@ function OutgoingRequestCard({ request, onCancel }) {
     <View style={styles.container}>
       <Card>
         <View style={styles.content}>
-          <View style={styles.profileImage}>
-            <Icon name="person" size={24} color={colors.textLight} />
-          </View>
+          <Avatar username={recipientUsername} />
 
           <View style={styles.requestInfo}>
             <Text style={styles.username}>{recipientUsername}</Text>

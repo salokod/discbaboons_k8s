@@ -46,6 +46,13 @@ jest.mock('../src/context/AuthContext', () => ({
 
 jest.mock('../src/context/ThemeContext', () => ({
   ThemeProvider: ({ children }) => children,
+  useTheme: jest.fn(() => ({
+    theme: 'light',
+    activeTheme: 'light',
+    setTheme: jest.fn(),
+    changeTheme: jest.fn(),
+    isLoading: false,
+  })),
   useThemeColors: () => ({
     primary: '#007AFF',
     surface: '#FFFFFF',
@@ -61,6 +68,41 @@ jest.mock('../src/context/BagRefreshContext', () => ({
     removeBagListListener: jest.fn(),
     triggerBagListRefresh: jest.fn(),
   }),
+  useBagRefreshListener: jest.fn(),
+}));
+
+jest.mock('../src/context/FriendsContext', () => ({
+  FriendsProvider: ({ children }) => children,
+  useFriends: jest.fn(() => ({
+    friends: {
+      list: [],
+      pagination: {},
+      loading: false,
+      lastRefresh: null,
+      error: null,
+    },
+    requests: {
+      incoming: [],
+      outgoing: [],
+      badge: 0,
+      loading: false,
+      processingRequests: new Set(),
+    },
+    loading: false,
+    error: null,
+    dispatch: jest.fn(),
+  })),
+}));
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: ({ children }) => children,
+  useSafeAreaInsets: jest.fn(() => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
+  })),
 }));
 
 describe('App Navigation Configuration', () => {

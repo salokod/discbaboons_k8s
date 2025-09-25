@@ -99,3 +99,181 @@ jest.mock('react-native-keychain', () => ({
   AUTHENTICATION_TYPE: {},
   BIOMETRY_TYPE: {},
 }));
+
+// Mock React Navigation to prevent Consumer errors
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+
+  return {
+    ...actual,
+    NavigationContainer: ({ children }) => children,
+    useNavigation: jest.fn(() => ({
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+      setOptions: jest.fn(),
+      addListener: jest.fn(() => jest.fn()),
+      removeListener: jest.fn(),
+      canGoBack: jest.fn(() => false),
+      dispatch: jest.fn(),
+      reset: jest.fn(),
+      isFocused: jest.fn(() => true),
+      getId: jest.fn(() => 'test-screen'),
+    })),
+    useRoute: jest.fn(() => ({
+      key: 'test-route',
+      name: 'TestScreen',
+      params: {},
+    })),
+    useFocusEffect: jest.fn((callback) => {
+      // Execute callback immediately for testing
+      callback();
+    }),
+    useIsFocused: jest.fn(() => true),
+    useTheme: jest.fn(() => ({
+      dark: false,
+      colors: {
+        primary: '#007AFF',
+        background: '#FFFFFF',
+        card: '#FFFFFF',
+        text: '#000000',
+        border: '#C7C7CC',
+        notification: '#FF3B30',
+      },
+    })),
+    DefaultTheme: {
+      dark: false,
+      colors: {
+        primary: '#007AFF',
+        background: '#FFFFFF',
+        card: '#FFFFFF',
+        text: '#000000',
+        border: '#C7C7CC',
+        notification: '#FF3B30',
+      },
+    },
+    DarkTheme: {
+      dark: true,
+      colors: {
+        primary: '#0A84FF',
+        background: '#000000',
+        card: '#1C1C1E',
+        text: '#FFFFFF',
+        border: '#272729',
+        notification: '#FF453A',
+      },
+    },
+    createNavigationContainerRef: jest.fn(() => ({
+      current: {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        getCurrentRoute: jest.fn(() => ({ name: 'TestScreen' })),
+        isReady: jest.fn(() => true),
+      },
+    })),
+  };
+});
+
+// Mock Bottom Tab Navigator
+jest.mock('@react-navigation/bottom-tabs', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+
+  const Tab = {
+    Navigator: ({ children }) => React.createElement(View, { testID: 'tab-navigator-mock' }, [
+      // Render tab bar with labels
+      React.createElement(
+        View,
+        { key: 'tab-bar', testID: 'tab-bar' },
+        React.Children.map(children, (child) => {
+          if (child?.props?.name) {
+            const label = child.props.options?.tabBarLabel || child.props.name;
+            return React.createElement(Text, {
+              key: `tab-label-${child.props.name}`,
+              testID: `tab-label-${child.props.name}`,
+            }, label);
+          }
+          return null;
+        }),
+      ),
+      // Render the screens
+      React.createElement(View, { key: 'screens', testID: 'tab-screens' }, children),
+    ]),
+    Screen: ({
+      component: Component, name, options, ...props
+    }) => {
+      // If there's a component, render it with mock navigation, otherwise render children
+      const mockNavigation = {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        setOptions: jest.fn(),
+        addListener: jest.fn(() => jest.fn()),
+        removeListener: jest.fn(),
+        canGoBack: jest.fn(() => false),
+        dispatch: jest.fn(),
+        reset: jest.fn(),
+        isFocused: jest.fn(() => true),
+        getId: jest.fn(() => 'test-screen'),
+      };
+
+      const content = Component
+        ? React.createElement(Component, {
+          ...props,
+          testID: `tab-screen-${name}`,
+          navigation: mockNavigation,
+        })
+        : React.createElement(View, { testID: `tab-screen-${name}` });
+      return content;
+    },
+  };
+
+  return {
+    createBottomTabNavigator: jest.fn(() => Tab),
+  };
+});
+
+// Mock Native Stack Navigator
+jest.mock('@react-navigation/native-stack', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Stack = {
+    Navigator: ({ children }) => React.createElement(View, { testID: 'stack-navigator' }, children),
+    Screen: ({ component: Component, name, ...props }) => {
+      const mockNavigation = {
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        setOptions: jest.fn(),
+        addListener: jest.fn(() => jest.fn()),
+        removeListener: jest.fn(),
+        canGoBack: jest.fn(() => false),
+        dispatch: jest.fn(),
+        reset: jest.fn(),
+        isFocused: jest.fn(() => true),
+        getId: jest.fn(() => 'test-screen'),
+      };
+
+      const content = Component
+        ? React.createElement(Component, {
+          ...props,
+          testID: `stack-screen-${name}`,
+          navigation: mockNavigation,
+        })
+        : React.createElement(View, { testID: `stack-screen-${name}` });
+      return content;
+    },
+  };
+
+  return {
+    createNativeStackNavigator: jest.fn(() => Stack),
+  };
+});
+
+// Mock StatusBarSafeView component
+jest.mock('./src/components/StatusBarSafeView', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return function StatusBarSafeView({ children, testID, ...props }) {
+    return React.createElement(View, { testID, ...props }, children);
+  };
+});

@@ -64,7 +64,7 @@ describe('CommunityStackNavigator', () => {
 
     // Test that we can access the navigation functions
     // This verifies the navigator is properly configured
-    expect(navigationRef.isReady).toBeDefined();
-    expect(navigationRef.navigate).toBeDefined();
+    expect(typeof navigationRef.current?.isReady).toBe('function');
+    expect(typeof navigationRef.current?.navigate).toBe('function');
   });
 });

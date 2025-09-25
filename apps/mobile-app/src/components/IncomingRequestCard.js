@@ -9,15 +9,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import PropTypes from 'prop-types';
-import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
 import Card from '../design-system/components/Card';
+import Avatar from './Avatar';
 
-function IncomingRequestCard({ request, onAccept, onDeny }) {
+function IncomingRequestCard({
+  request, onAccept, onDeny, isProcessing,
+}) {
   const colors = useThemeColors();
 
   const styles = StyleSheet.create({
@@ -29,15 +32,7 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
       paddingVertical: spacing.lg,
       paddingHorizontal: spacing.md,
       alignItems: 'center',
-    },
-    profileImage: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
+      gap: spacing.md,
     },
     requestInfo: {
       flex: 1,
@@ -59,7 +54,7 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
     },
     acceptButton: {
       flex: 1,
-      backgroundColor: colors.success,
+      backgroundColor: colors.primary,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
       borderRadius: 8,
@@ -67,7 +62,7 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
     },
     denyButton: {
       flex: 1,
-      backgroundColor: colors.border,
+      backgroundColor: colors.error,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
       borderRadius: 8,
@@ -78,10 +73,10 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
       fontWeight: '600',
     },
     acceptButtonText: {
-      color: '#FFFFFF',
+      color: colors.surface,
     },
     denyButtonText: {
-      color: colors.text,
+      color: colors.surface,
     },
   });
 
@@ -97,9 +92,7 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
     <View style={styles.container}>
       <Card>
         <View style={styles.content}>
-          <View style={styles.profileImage}>
-            <Icon name="person" size={24} color={colors.textLight} />
-          </View>
+          <Avatar username={request.requester.username} />
 
           <View style={styles.requestInfo}>
             <Text style={styles.username}>{request.requester.username}</Text>
@@ -110,18 +103,24 @@ function IncomingRequestCard({ request, onAccept, onDeny }) {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 testID="accept-button"
-                style={styles.acceptButton}
+                style={[styles.acceptButton, isProcessing && styles.disabledButton]}
                 onPress={handleAccept}
+                disabled={isProcessing}
                 accessible
-                accessibilityLabel={`Welcome ${request.requester.username} to your troop`}
+                accessibilityLabel={`Approve troop request from ${request.requester.username}`}
               >
-                <Text style={[styles.buttonText, styles.acceptButtonText]}>Welcome</Text>
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color={colors.surface} />
+                ) : (
+                  <Text style={[styles.buttonText, styles.acceptButtonText]}>Approve</Text>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 testID="deny-button"
-                style={styles.denyButton}
+                style={[styles.denyButton, isProcessing && styles.disabledButton]}
                 onPress={handleDeny}
+                disabled={isProcessing}
                 accessible
                 accessibilityLabel={`Decline troop invite from ${request.requester.username}`}
               >

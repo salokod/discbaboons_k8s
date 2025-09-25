@@ -2,6 +2,45 @@ import { render } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import BagsStackNavigator from '../BagsStackNavigator';
 
+// Mock ThemeContext
+jest.mock('../../context/ThemeContext', () => ({
+  useTheme: jest.fn(() => ({
+    theme: 'light',
+    activeTheme: 'light',
+    setTheme: jest.fn(),
+    changeTheme: jest.fn(),
+    isLoading: false,
+  })),
+  useThemeColors: jest.fn(() => ({
+    background: '#FAFBFC',
+    surface: '#FFFFFF',
+    text: '#212121',
+    textLight: '#757575',
+    primary: '#ec7032',
+    border: '#E0E0E0',
+  })),
+  ThemeProvider: ({ children }) => children,
+}));
+
+// Mock AuthContext
+jest.mock('../../context/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    user: { username: 'testuser', isAdmin: false },
+  })),
+  AuthProvider: ({ children }) => children,
+}));
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: jest.fn(() => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
+  })),
+  SafeAreaProvider: ({ children }) => children,
+}));
+
 // Mock the screen components
 jest.mock('../../screens/bags/BagsListScreen', () => {
   const ReactLocal = require('react');
@@ -32,6 +71,14 @@ jest.mock('../../screens/bags/EditBagScreen', () => {
   const { Text } = require('react-native');
   return function EditBagScreen() {
     return ReactLocal.createElement(Text, { testID: 'edit-bag-screen' }, 'EditBagScreen');
+  };
+});
+
+jest.mock('../../screens/bags/LostDiscsScreen', () => {
+  const ReactLocal = require('react');
+  const { Text } = require('react-native');
+  return function LostDiscsScreen() {
+    return ReactLocal.createElement(Text, { testID: 'lost-discs-screen' }, 'LostDiscsScreen');
   };
 });
 

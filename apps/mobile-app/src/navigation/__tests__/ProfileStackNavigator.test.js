@@ -2,6 +2,45 @@ import { render } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import ProfileStackNavigator from '../ProfileStackNavigator';
 
+// Mock ThemeContext
+jest.mock('../../context/ThemeContext', () => ({
+  useTheme: jest.fn(() => ({
+    theme: 'light',
+    activeTheme: 'light',
+    setTheme: jest.fn(),
+    changeTheme: jest.fn(),
+    isLoading: false,
+  })),
+  useThemeColors: jest.fn(() => ({
+    background: '#FAFBFC',
+    surface: '#FFFFFF',
+    text: '#212121',
+    textLight: '#757575',
+    primary: '#ec7032',
+    border: '#E0E0E0',
+  })),
+  ThemeProvider: ({ children }) => children,
+}));
+
+// Mock AuthContext
+jest.mock('../../context/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    user: { username: 'testuser', isAdmin: true },
+  })),
+  AuthProvider: ({ children }) => children,
+}));
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: jest.fn(() => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
+  })),
+  SafeAreaProvider: ({ children }) => children,
+}));
+
 // Mock the screen components
 jest.mock('../../screens/settings/SettingsScreen', () => {
   const ReactLocal = require('react');
@@ -48,6 +87,22 @@ jest.mock('../../screens/discs/AdminDiscScreen', () => {
   const { Text } = require('react-native');
   return function AdminDiscScreen() {
     return ReactLocal.createElement(Text, { testID: 'admin-disc-screen' }, 'AdminDiscScreen');
+  };
+});
+
+jest.mock('../../screens/PrivacyPolicyScreen', () => {
+  const ReactLocal = require('react');
+  const { Text } = require('react-native');
+  return function PrivacyPolicyScreen() {
+    return ReactLocal.createElement(Text, { testID: 'privacy-policy-screen' }, 'PrivacyPolicyScreen');
+  };
+});
+
+jest.mock('../../screens/TermsOfServiceScreen', () => {
+  const ReactLocal = require('react');
+  const { Text } = require('react-native');
+  return function TermsOfServiceScreen() {
+    return ReactLocal.createElement(Text, { testID: 'terms-of-service-screen' }, 'TermsOfServiceScreen');
   };
 });
 

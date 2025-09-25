@@ -90,7 +90,31 @@ jest.mock('../../context/BagRefreshContext', () => ({
   BagRefreshProvider: ({ children }) => children,
 }));
 
-describe.skip('BottomTabNavigator Integration', () => {
+// Mock FriendsContext
+jest.mock('../../context/FriendsContext', () => ({
+  FriendsProvider: ({ children }) => children,
+  useFriends: jest.fn(() => ({
+    friends: {
+      list: [],
+      pagination: {},
+      loading: false,
+      lastRefresh: null,
+      error: null,
+    },
+    requests: {
+      incoming: [],
+      outgoing: [],
+      badge: 0,
+      loading: false,
+      processingRequests: new Set(),
+    },
+    loading: false,
+    error: null,
+    dispatch: jest.fn(),
+  })),
+}));
+
+describe('BottomTabNavigator Integration', () => {
   const { useAuth } = require('../../context/AuthContext');
 
   const renderWithProviders = (user = { username: 'testuser', isAdmin: false }) => {

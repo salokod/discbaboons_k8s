@@ -75,4 +75,17 @@ describe('OutgoingRequestCard', () => {
 
     expect(mockOnCancel).toHaveBeenCalledWith(789);
   });
+
+  it('should display Avatar component with username initial', () => {
+    renderWithTheme(
+      <OutgoingRequestCard
+        request={mockRequest}
+        onCancel={mockOnCancel}
+      />,
+    );
+
+    // Should show the Avatar component with user initial
+    expect(screen.getByTestId('avatar')).toBeOnTheScreen();
+    expect(screen.getByText('J')).toBeOnTheScreen(); // First letter of 'janedoe'
+  });
 });
