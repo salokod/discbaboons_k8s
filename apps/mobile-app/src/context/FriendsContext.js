@@ -24,6 +24,7 @@ const initialState = {
     outgoing: [],
     badge: 0,
     loading: false,
+    processingRequests: new Set(), // Track which requests are being processed
   },
   loading: false,
   error: null,
@@ -125,17 +126,33 @@ function friendsReducer(state, action) {
           loading: false,
         },
       };
-    case 'ACCEPT_REQUEST_START':
-      return {
-        ...state,
-        requests: {
-          ...state.requests,
-          loading: true,
-        },
+    case 'ACCEPT_REQUEST_OPTIMISTIC': {
+      // Find the request being accepted to convert to friend
+      const acceptedRequest = state.requests.incoming.find(
+        (request) => request.id === action.payload.requestId,
+      );
+      if (!acceptedRequest) {
+        return state; // Request not found, no change
+      }
+
+      // Create friend object from the request
+      const newFriend = {
+        id: acceptedRequest.requester.id,
+        username: acceptedRequest.requester.username,
+        email: acceptedRequest.requester.email,
+        created_at: new Date().toISOString(),
       };
-    case 'ACCEPT_REQUEST_SUCCESS':
+
+      // Add to processing requests and update state
+      const updatedProcessingRequests = new Set(state.requests.processingRequests);
+      updatedProcessingRequests.add(action.payload.requestId);
+
       return {
         ...state,
+        friends: {
+          ...state.friends,
+          list: [...state.friends.list, newFriend],
+        },
         requests: {
           ...state.requests,
           incoming: state.requests.incoming.filter(
@@ -144,17 +161,76 @@ function friendsReducer(state, action) {
           badge: state.requests.incoming.filter(
             (request) => request.id !== action.payload.requestId,
           ).length,
-          loading: false,
+          processingRequests: updatedProcessingRequests,
         },
       };
-    case 'ACCEPT_REQUEST_ERROR':
+    }
+    case 'ACCEPT_REQUEST_START':
       return {
         ...state,
         requests: {
           ...state.requests,
-          loading: false,
+          loading: true,
         },
       };
+    case 'ACCEPT_REQUEST_SUCCESS': {
+      // Clear the processing state for this request
+      const successProcessingRequests = new Set(state.requests.processingRequests);
+      successProcessingRequests.delete(action.payload.requestId);
+
+      return {
+        ...state,
+        requests: {
+          ...state.requests,
+          processingRequests: successProcessingRequests,
+          loading: false,
+        },
+        error: null, // Clear any previous errors
+      };
+    }
+    case 'ACCEPT_REQUEST_ERROR': {
+      // Revert optimistic update: restore the request and remove the friend
+      const requestToRestore = action.payload.originalRequest;
+      if (!requestToRestore) {
+        // No original request data, just update loading state
+        const noRequestProcessingRequests = new Set(state.requests.processingRequests);
+        noRequestProcessingRequests.delete(action.payload.requestId);
+
+        return {
+          ...state,
+          requests: {
+            ...state.requests,
+            loading: false,
+            processingRequests: noRequestProcessingRequests,
+          },
+          error: action.payload.error || 'Failed to accept friend request',
+        };
+      }
+
+      // Clear the processing state for this request
+      const errorProcessingRequests = new Set(state.requests.processingRequests);
+      errorProcessingRequests.delete(action.payload.requestId);
+
+      return {
+        ...state,
+        friends: {
+          ...state.friends,
+          // Remove the optimistically added friend
+          list: state.friends.list.filter(
+            (friend) => friend.id !== requestToRestore.requester.id,
+          ),
+        },
+        requests: {
+          ...state.requests,
+          // Restore the original request
+          incoming: [...state.requests.incoming, requestToRestore],
+          badge: state.requests.incoming.length + 1,
+          loading: false,
+          processingRequests: errorProcessingRequests,
+        },
+        error: action.payload.error || 'Failed to accept friend request',
+      };
+    }
     case 'DENY_REQUEST_START':
       return {
         ...state,

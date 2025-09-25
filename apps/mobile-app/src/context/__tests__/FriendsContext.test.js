@@ -215,4 +215,80 @@ describe('FriendsContext', () => {
     expect(getByTestId('outgoing-requests-count')).toHaveTextContent('1');
     expect(getByTestId('requests-badge')).toHaveTextContent('1');
   });
+
+  it('should handle ACCEPT_REQUEST_SUCCESS action and add friend to list', () => {
+    const { getByTestId } = render(
+      <FriendsProvider>
+        <TestComponent />
+      </FriendsProvider>,
+    );
+
+    // First set up some incoming requests
+    const mockIncomingRequests = [
+      {
+        id: 456,
+        requester_id: 789,
+        recipient_id: 123,
+        status: 'pending',
+        requester: {
+          id: 789,
+          username: 'johndoe',
+          email: 'johndoe@example.com',
+        },
+        created_at: '2024-01-15T10:30:00.000Z',
+      },
+    ];
+
+    act(() => {
+      global.testDispatch({
+        type: 'FETCH_REQUESTS_SUCCESS',
+        payload: {
+          incoming: mockIncomingRequests,
+          outgoing: [],
+        },
+      });
+    });
+
+    expect(getByTestId('incoming-requests-count')).toHaveTextContent('1');
+    expect(getByTestId('friends-count')).toHaveTextContent('0');
+
+    // Now accept the request with optimistic update first
+    const acceptedFriend = {
+      id: 789,
+      username: 'johndoe',
+      friendship: {
+        id: 123,
+        status: 'accepted',
+        created_at: '2024-01-15T10:30:00.000Z',
+      },
+      bag_stats: {
+        total_bags: 0,
+        visible_bags: 0,
+        public_bags: 0,
+      },
+    };
+
+    // First dispatch optimistic update (adds friend, removes request)
+    act(() => {
+      global.testDispatch({
+        type: 'ACCEPT_REQUEST_OPTIMISTIC',
+        payload: { requestId: 456 },
+      });
+    });
+
+    // Then dispatch success (clears processing state)
+    act(() => {
+      global.testDispatch({
+        type: 'ACCEPT_REQUEST_SUCCESS',
+        payload: {
+          requestId: 456,
+          friend: acceptedFriend,
+        },
+      });
+    });
+
+    expect(getByTestId('incoming-requests-count')).toHaveTextContent('0');
+    expect(getByTestId('requests-badge')).toHaveTextContent('0');
+    expect(getByTestId('friends-count')).toHaveTextContent('1');
+  });
 });

@@ -12,6 +12,7 @@ import {
   FlatList,
   ScrollView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
 import PropTypes from 'prop-types';
@@ -159,7 +160,7 @@ function BaboonsTabView({ navigation }) {
     },
     badgeText: {
       ...typography.caption,
-      color: '#FFFFFF',
+      color: colors.surface,
       fontSize: 12,
       fontWeight: '600',
     },
@@ -237,22 +238,44 @@ function BaboonsTabView({ navigation }) {
   );
 
   const handleAcceptRequest = async (requestId) => {
-    try {
-      dispatch({
-        type: 'ACCEPT_REQUEST_START',
-        payload: { requestId },
-      });
+    // Find the original request before removing it
+    const originalRequest = requests.incoming.find((request) => request.id === requestId);
 
+    // Optimistic update - immediately add friend and remove request
+    dispatch({
+      type: 'ACCEPT_REQUEST_OPTIMISTIC',
+      payload: { requestId },
+    });
+
+    try {
+      // Call API in background
       await friendService.respondToRequest(requestId, 'accept');
 
+      // API call succeeded - clear processing state
       dispatch({
         type: 'ACCEPT_REQUEST_SUCCESS',
         payload: { requestId },
       });
+
+      // Reload friends list to get the updated data
+      dispatch({ type: 'FETCH_FRIENDS_START' });
+      const response = await friendService.getFriends({ limit: 20, offset: 0 });
+      dispatch({
+        type: 'FETCH_FRIENDS_SUCCESS',
+        payload: {
+          friends: response.friends,
+          pagination: response.pagination,
+        },
+      });
     } catch (error) {
+      // API call failed - need to revert the optimistic update
       dispatch({
         type: 'ACCEPT_REQUEST_ERROR',
-        payload: { requestId, error: error.message },
+        payload: {
+          requestId,
+          error: error.message,
+          originalRequest,
+        },
       });
     }
   };
@@ -295,6 +318,54 @@ function BaboonsTabView({ navigation }) {
       dispatch({
         type: 'CANCEL_REQUEST_ERROR',
         payload: { requestId, error: error.message },
+      });
+    }
+  };
+
+  const handleRefreshFriends = async () => {
+    try {
+      dispatch({ type: 'REFRESH_FRIENDS' });
+      const response = await friendService.getFriends({ limit: 20, offset: 0 });
+      dispatch({
+        type: 'FETCH_FRIENDS_SUCCESS',
+        payload: {
+          friends: response.friends,
+          pagination: response.pagination,
+        },
+      });
+    } catch (error) {
+      dispatch({
+        type: 'FETCH_FRIENDS_ERROR',
+        payload: { message: error.message },
+      });
+    }
+  };
+
+  const handleRefreshRequests = async () => {
+    try {
+      dispatch({ type: 'FETCH_REQUESTS_START' });
+
+      // Load incoming and outgoing requests separately
+      const [incomingResponse, outgoingResponse] = await Promise.all([
+        friendService.getRequests('incoming'),
+        friendService.getRequests('outgoing'),
+      ]);
+
+      dispatch({
+        type: 'FETCH_REQUESTS_SUCCESS',
+        payload: {
+          incoming: incomingResponse.requests,
+          outgoing: outgoingResponse.requests,
+        },
+      });
+    } catch (error) {
+      // Handle error silently for now to not break requests loading
+      dispatch({
+        type: 'FETCH_REQUESTS_SUCCESS',
+        payload: {
+          incoming: [],
+          outgoing: [],
+        },
       });
     }
   };
@@ -344,6 +415,14 @@ function BaboonsTabView({ navigation }) {
               renderItem={renderFriendCard}
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
+              refreshControl={(
+                <RefreshControl
+                  refreshing={friends.loading}
+                  onRefresh={handleRefreshFriends}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+                />
+              )}
             />
           </View>
         );
@@ -374,7 +453,19 @@ function BaboonsTabView({ navigation }) {
 
         return (
           <View testID="requests-tab" style={styles.requestsList}>
-            <ScrollView style={styles.requestsScrollView} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              testID="requests-scroll-view"
+              style={styles.requestsScrollView}
+              showsVerticalScrollIndicator={false}
+              refreshControl={(
+                <RefreshControl
+                  refreshing={requests.loading}
+                  onRefresh={handleRefreshRequests}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+                />
+              )}
+            >
               {hasIncoming && (
                 <View>
                   <Text style={styles.firstSectionHeader}>Troop Requests</Text>

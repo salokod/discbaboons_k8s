@@ -54,7 +54,7 @@ describe('IncomingRequestCard', () => {
     expect(screen.getByText(/wants to join your troop/i)).toBeOnTheScreen();
   });
 
-  it('should display welcome and decline buttons with baboon terminology', () => {
+  it('should display approve and decline buttons with baboon terminology', () => {
     renderWithTheme(
       <IncomingRequestCard
         request={mockRequest}
@@ -63,11 +63,11 @@ describe('IncomingRequestCard', () => {
       />,
     );
 
-    expect(screen.getByText('Welcome')).toBeOnTheScreen();
+    expect(screen.getByText('Approve')).toBeOnTheScreen();
     expect(screen.getByText('Decline')).toBeOnTheScreen();
   });
 
-  it('should call onAccept when welcome button is pressed', () => {
+  it('should call onAccept when approve button is pressed', () => {
     renderWithTheme(
       <IncomingRequestCard
         request={mockRequest}
@@ -93,5 +93,19 @@ describe('IncomingRequestCard', () => {
     fireEvent.press(screen.getByTestId('deny-button'));
 
     expect(mockOnDeny).toHaveBeenCalledWith(456);
+  });
+
+  it('should display Avatar component with username initial', () => {
+    renderWithTheme(
+      <IncomingRequestCard
+        request={mockRequest}
+        onAccept={mockOnAccept}
+        onDeny={mockOnDeny}
+      />,
+    );
+
+    // Should show the Avatar component with user initial
+    expect(screen.getByTestId('avatar')).toBeOnTheScreen();
+    expect(screen.getByText('J')).toBeOnTheScreen(); // First letter of 'johndoe'
   });
 });

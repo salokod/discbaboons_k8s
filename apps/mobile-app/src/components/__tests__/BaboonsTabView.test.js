@@ -4,7 +4,7 @@
  */
 
 import {
-  render, screen, fireEvent,
+  render, screen, fireEvent, act,
 } from '@testing-library/react-native';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { useFriends } from '../../context/FriendsContext';
@@ -17,6 +17,16 @@ jest.mock('@react-native-vector-icons/ionicons', () => 'Icon');
 jest.mock('../../context/FriendsContext', () => ({
   ...jest.requireActual('../../context/FriendsContext'),
   useFriends: jest.fn(),
+}));
+
+// Mock the friend service
+jest.mock('../../services/friendService', () => ({
+  friendService: {
+    getFriends: jest.fn(),
+    getRequests: jest.fn(),
+    respondToRequest: jest.fn(),
+    cancelRequest: jest.fn(),
+  },
 }));
 
 const mockNavigation = {
@@ -286,7 +296,7 @@ describe('BaboonsTabView', () => {
       fireEvent.press(screen.getByTestId('accept-button'));
 
       expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'ACCEPT_REQUEST_START',
+        type: 'ACCEPT_REQUEST_OPTIMISTIC',
         payload: { requestId: 1 },
       });
     });
@@ -509,6 +519,401 @@ describe('BaboonsTabView', () => {
       // Test that FAB navigation works
       fireEvent.press(findBaboonsButton);
       expect(mockNavigation.navigate).toHaveBeenCalledWith('BaboonSearch');
+    });
+  });
+
+  describe('Friends list refresh after actions', () => {
+    it('should reload friends list after successful accept', async () => {
+      // Mock the friend service
+      const mockFriendService = require('../../services/friendService');
+      mockFriendService.friendService.respondToRequest = jest.fn().mockResolvedValue({
+        friendship: { id: 123, status: 'accepted' },
+      });
+      mockFriendService.friendService.getFriends = jest.fn().mockResolvedValue({
+        friends: [
+          {
+            id: 789,
+            username: 'johndoe',
+            friendship: {
+              id: 123,
+              status: 'accepted',
+              created_at: '2024-01-15T10:30:00.000Z',
+            },
+            bag_stats: {
+              total_bags: 0,
+              visible_bags: 0,
+              public_bags: 0,
+            },
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const mockDispatch = jest.fn();
+      const mockDataWithIncoming = {
+        ...mockFriendsData,
+        dispatch: mockDispatch,
+        requests: {
+          ...mockFriendsData.requests,
+          incoming: [
+            {
+              id: 456,
+              requester_id: 789,
+              recipient_id: 123,
+              status: 'pending',
+              requester: {
+                id: 789,
+                username: 'johndoe',
+                profile_image: null,
+              },
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ],
+        },
+      };
+
+      useFriends.mockReturnValue(mockDataWithIncoming);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Clear the initial calls from useEffect
+      mockDispatch.mockClear();
+      mockFriendService.friendService.getFriends.mockClear();
+
+      fireEvent.press(screen.getByTestId('requests-tab-button'));
+
+      // Accept the request
+      const acceptButton = screen.getByTestId('accept-button');
+
+      // Use act to handle async operation
+      await act(async () => {
+        fireEvent.press(acceptButton);
+        // Wait a bit for promises to resolve
+        await new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        });
+      });
+
+      // Should dispatch ACCEPT_REQUEST_OPTIMISTIC
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'ACCEPT_REQUEST_OPTIMISTIC',
+        payload: { requestId: 456 },
+      });
+
+      // Should dispatch FETCH_FRIENDS_START to reload friends after the accept
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'FETCH_FRIENDS_START',
+      });
+
+      // Should call the API to respond to request
+      expect(mockFriendService.friendService.respondToRequest).toHaveBeenCalledWith(456, 'accept');
+
+      // Should call the API to reload friends after the accept
+      expect(mockFriendService.friendService.getFriends).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 0,
+      });
+    });
+
+    it('should refresh badge count after deny', async () => {
+      // Mock the friend service
+      const mockFriendService = require('../../services/friendService');
+      mockFriendService.friendService.respondToRequest = jest.fn().mockResolvedValue({
+        success: true,
+        action: 'deny',
+      });
+
+      const mockDispatch = jest.fn();
+      const mockDataWithIncoming = {
+        ...mockFriendsData,
+        dispatch: mockDispatch,
+        requests: {
+          ...mockFriendsData.requests,
+          incoming: [
+            {
+              id: 456,
+              requester_id: 789,
+              recipient_id: 123,
+              status: 'pending',
+              requester: {
+                id: 789,
+                username: 'johndoe',
+                profile_image: null,
+              },
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ],
+          badge: 1,
+        },
+      };
+
+      useFriends.mockReturnValue(mockDataWithIncoming);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Clear the initial calls from useEffect
+      mockDispatch.mockClear();
+
+      fireEvent.press(screen.getByTestId('requests-tab-button'));
+
+      // Deny the request
+      const denyButton = screen.getByTestId('deny-button');
+
+      // Use act to handle async operation
+      await act(async () => {
+        fireEvent.press(denyButton);
+        // Wait a bit for promises to resolve
+        await new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        });
+      });
+
+      // Should dispatch DENY_REQUEST_START
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'DENY_REQUEST_START',
+        payload: { requestId: 456 },
+      });
+
+      // Should dispatch DENY_REQUEST_SUCCESS with the updated badge count
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'DENY_REQUEST_SUCCESS',
+        payload: { requestId: 456 },
+      });
+
+      // Should call the API to deny request
+      expect(mockFriendService.friendService.respondToRequest).toHaveBeenCalledWith(456, 'deny');
+    });
+  });
+
+  describe('Pull-to-Refresh functionality', () => {
+    it('should have RefreshControl on friends list', () => {
+      const mockDataWithFriends = {
+        ...mockFriendsData,
+        friends: {
+          ...mockFriendsData.friends,
+          list: [
+            {
+              id: 789,
+              username: 'testfriend',
+              friendship: {
+                id: 123,
+                status: 'accepted',
+                created_at: '2024-01-15T10:30:00.000Z',
+              },
+              bag_stats: {
+                total_bags: 5,
+                visible_bags: 3,
+                public_bags: 1,
+              },
+            },
+          ],
+        },
+      };
+
+      useFriends.mockReturnValue(mockDataWithFriends);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Should be on friends tab by default
+      const friendsList = screen.getByTestId('friends-list');
+      expect(friendsList).toBeOnTheScreen();
+
+      // The FlatList should have a RefreshControl
+      expect(friendsList.props.refreshControl).toBeDefined();
+    });
+
+    it('should trigger refresh on pull-to-refresh for friends list', async () => {
+      // Mock the friend service
+      const mockFriendService = require('../../services/friendService');
+      mockFriendService.friendService.getFriends = jest.fn().mockResolvedValue({
+        friends: [
+          {
+            id: 789,
+            username: 'testfriend',
+            friendship: {
+              id: 123,
+              status: 'accepted',
+              created_at: '2024-01-15T10:30:00.000Z',
+            },
+            bag_stats: {
+              total_bags: 5,
+              visible_bags: 3,
+              public_bags: 1,
+            },
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const mockDispatch = jest.fn();
+      const mockDataWithFriends = {
+        ...mockFriendsData,
+        dispatch: mockDispatch,
+        friends: {
+          ...mockFriendsData.friends,
+          list: [
+            {
+              id: 789,
+              username: 'testfriend',
+              friendship: {
+                id: 123,
+                status: 'accepted',
+                created_at: '2024-01-15T10:30:00.000Z',
+              },
+              bag_stats: {
+                total_bags: 5,
+                visible_bags: 3,
+                public_bags: 1,
+              },
+            },
+          ],
+        },
+      };
+
+      useFriends.mockReturnValue(mockDataWithFriends);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Clear initial calls
+      mockDispatch.mockClear();
+      mockFriendService.friendService.getFriends.mockClear();
+
+      const friendsList = screen.getByTestId('friends-list');
+
+      // Simulate pull-to-refresh
+      await act(async () => {
+        friendsList.props.refreshControl.props.onRefresh();
+        await new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        });
+      });
+
+      // Should dispatch refresh action
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'REFRESH_FRIENDS',
+      });
+
+      // Should call the API to get friends
+      expect(mockFriendService.friendService.getFriends).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 0,
+      });
+    });
+
+    it('should have RefreshControl on requests tab', () => {
+      const mockDataWithRequests = {
+        ...mockFriendsData,
+        requests: {
+          ...mockFriendsData.requests,
+          incoming: [
+            {
+              id: 456,
+              requester_id: 789,
+              recipient_id: 123,
+              status: 'pending',
+              requester: {
+                id: 789,
+                username: 'johndoe',
+                profile_image: null,
+              },
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ],
+          outgoing: [
+            {
+              id: 789,
+              requester_id: 123,
+              recipient_id: 456,
+              status: 'pending',
+              recipient: {
+                id: 456,
+                username: 'janedoe',
+                profile_image: null,
+              },
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ],
+        },
+      };
+
+      useFriends.mockReturnValue(mockDataWithRequests);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Switch to requests tab
+      fireEvent.press(screen.getByTestId('requests-tab-button'));
+
+      // Should be on requests tab
+      const requestsScrollView = screen.getByTestId('requests-scroll-view');
+      expect(requestsScrollView).toBeOnTheScreen();
+
+      // The ScrollView should have a RefreshControl
+      expect(requestsScrollView.props.refreshControl).toBeDefined();
+    });
+
+    it('should trigger refresh on pull-to-refresh for requests tab', async () => {
+      // Mock the friend service
+      const mockFriendService = require('../../services/friendService');
+      mockFriendService.friendService.getRequests = jest.fn()
+        .mockResolvedValueOnce({ requests: [] }) // For incoming
+        .mockResolvedValueOnce({ requests: [] }); // For outgoing
+
+      const mockDispatch = jest.fn();
+      const mockDataWithRequests = {
+        ...mockFriendsData,
+        dispatch: mockDispatch,
+        requests: {
+          ...mockFriendsData.requests,
+          incoming: [
+            {
+              id: 456,
+              requester_id: 789,
+              recipient_id: 123,
+              status: 'pending',
+              requester: {
+                id: 789,
+                username: 'johndoe',
+                profile_image: null,
+              },
+              created_at: '2024-01-01T00:00:00Z',
+            },
+          ],
+        },
+      };
+
+      useFriends.mockReturnValue(mockDataWithRequests);
+
+      renderWithProviders(<BaboonsTabView navigation={mockNavigation} />);
+
+      // Clear initial calls
+      mockDispatch.mockClear();
+      mockFriendService.friendService.getRequests.mockClear();
+
+      // Switch to requests tab
+      fireEvent.press(screen.getByTestId('requests-tab-button'));
+
+      const requestsScrollView = screen.getByTestId('requests-scroll-view');
+
+      // Simulate pull-to-refresh
+      await act(async () => {
+        requestsScrollView.props.refreshControl.props.onRefresh();
+        await new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        });
+      });
+
+      // Should dispatch refresh action
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'FETCH_REQUESTS_START',
+      });
+
+      // Should call the API to get incoming and outgoing requests
+      expect(mockFriendService.friendService.getRequests).toHaveBeenCalledWith('incoming');
+      expect(mockFriendService.friendService.getRequests).toHaveBeenCalledWith('outgoing');
     });
   });
 });

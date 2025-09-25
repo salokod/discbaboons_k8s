@@ -41,22 +41,93 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn().mockResolvedValue(),
 }));
 
+// Mock FriendsContext
+jest.mock('../../src/context/FriendsContext', () => ({
+  FriendsProvider: ({ children }) => children,
+  useFriends: jest.fn(() => ({
+    friends: {
+      list: [],
+      pagination: {},
+      loading: false,
+      lastRefresh: null,
+      error: null,
+    },
+    requests: {
+      incoming: [],
+      outgoing: [],
+      badge: 0,
+      loading: false,
+      processingRequests: new Set(),
+    },
+    loading: false,
+    error: null,
+    dispatch: jest.fn(),
+  })),
+}));
+
+// Mock all stack navigators to avoid complex rendering
+jest.mock('../../src/navigation/BagsStackNavigator', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return function BagsStackNavigator() {
+    return React.createElement(Text, { testID: 'bags-stack' }, 'BagsStack');
+  };
+});
+
+jest.mock('../../src/navigation/RoundsStackNavigator', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return function RoundsStackNavigator() {
+    return React.createElement(Text, { testID: 'rounds-stack' }, 'RoundsStack');
+  };
+});
+
+jest.mock('../../src/navigation/CommunityStackNavigator', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return function CommunityStackNavigator() {
+    return React.createElement(Text, { testID: 'community-stack' }, 'CommunityStack');
+  };
+});
+
+jest.mock('../../src/navigation/ProfileStackNavigator', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return function ProfileStackNavigator() {
+    return React.createElement(Text, { testID: 'profile-stack' }, 'ProfileStack');
+  };
+});
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: ({ children }) => children,
+  useSafeAreaInsets: jest.fn(() => ({
+    top: 44,
+    bottom: 34,
+    left: 0,
+    right: 0,
+  })),
+}));
+
 // Test wrapper with providers
 function TestWrapper({ children }) {
+  const { SafeAreaProvider } = require('react-native-safe-area-context');
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <BagRefreshProvider>
-          <NavigationContainer>
-            {children}
-          </NavigationContainer>
-        </BagRefreshProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <BagRefreshProvider>
+            <NavigationContainer>
+              {children}
+            </NavigationContainer>
+          </BagRefreshProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
-describe.skip('Theme Error Wrapping in Navigation', () => {
+describe('Theme Error Wrapping in Navigation', () => {
   it('should render BottomTabNavigator without error boundaries (settings moved to Profile tab)', () => {
     const { queryByTestId } = render(
       <TestWrapper>
