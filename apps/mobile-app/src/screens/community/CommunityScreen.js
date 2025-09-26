@@ -5,7 +5,6 @@
 
 import { memo } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -15,6 +14,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 
 function CommunityScreen() {
   const colors = useThemeColors();
@@ -49,7 +49,7 @@ function CommunityScreen() {
 
   return (
     <AppContainer>
-      <SafeAreaView testID="community-screen" style={styles.container}>
+      <StatusBarSafeView testID="community-screen" style={styles.container}>
         <View style={styles.content}>
           <Icon
             name="people-outline"
@@ -63,7 +63,7 @@ function CommunityScreen() {
             This feature is currently in development.
           </Text>
         </View>
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

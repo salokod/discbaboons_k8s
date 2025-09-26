@@ -6,9 +6,10 @@ import {
   useState, useCallback, useMemo, useRef, useEffect,
 } from 'react';
 import {
-  SafeAreaView, Platform, StyleSheet, View, Text, TouchableWithoutFeedback, Keyboard,
+  Platform, StyleSheet, View, Text, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import AppContainer from '../components/AppContainer';
+import StatusBarSafeView from '../components/StatusBarSafeView';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { useThemeColors } from '../context/ThemeContext';
@@ -187,7 +188,7 @@ function ForgotPasswordScreen({ navigation }) {
   }), [colors]);
 
   return (
-    <SafeAreaView style={staticStyles.safeArea} testID="forgot-password-screen">
+    <StatusBarSafeView style={staticStyles.safeArea} testID="forgot-password-screen">
       <AppContainer>
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
           <View style={staticStyles.content}>
@@ -263,7 +264,7 @@ function ForgotPasswordScreen({ navigation }) {
           </View>
         </TouchableWithoutFeedback>
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

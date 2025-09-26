@@ -5,10 +5,11 @@
 
 import { useMemo } from 'react';
 import {
-  SafeAreaView, Platform, StyleSheet, View, Text, ScrollView,
+  Platform, StyleSheet, View, Text, ScrollView,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import AppContainer from '../components/AppContainer';
+import StatusBarSafeView from '../components/StatusBarSafeView';
 import Button from '../components/Button';
 import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
@@ -147,7 +148,7 @@ function TermsOfServiceScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="terms-of-service-screen">
+    <StatusBarSafeView style={styles.safeArea} testID="terms-of-service-screen">
       <AppContainer>
         <ScrollView
           style={styles.scrollView}
@@ -277,7 +278,7 @@ function TermsOfServiceScreen({ navigation }) {
           </View>
         </ScrollView>
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

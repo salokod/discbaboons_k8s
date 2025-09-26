@@ -5,7 +5,6 @@
 
 import { useState, useEffect, memo } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -23,6 +22,7 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { getProfile, updateProfile } from '../../services/profile';
 import AccountSettingsSkeleton from '../../components/settings/AccountSettingsSkeleton';
 
@@ -220,7 +220,7 @@ function AccountSettingsScreen({ navigation }) {
 
   return (
     <AppContainer>
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <NavigationHeader
           title="Account Settings"
           onBack={handleBack}
@@ -415,7 +415,7 @@ function AccountSettingsScreen({ navigation }) {
           </TouchableOpacity>
 
         </ScrollView>
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

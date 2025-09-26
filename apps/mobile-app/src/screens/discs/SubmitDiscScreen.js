@@ -11,7 +11,6 @@ import {
   Alert,
   Platform,
   ScrollView,
-  SafeAreaView,
   TouchableWithoutFeedback,
   Keyboard,
   TouchableOpacity,
@@ -24,6 +23,7 @@ import Icon from '@react-native-vector-icons/ionicons';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
@@ -396,7 +396,7 @@ function SubmitDiscScreen({ navigation }) {
     && turn !== null && fade !== null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <StatusBarSafeView style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <AppContainer>
           <ScrollView
@@ -560,7 +560,7 @@ function SubmitDiscScreen({ navigation }) {
           </ScrollView>
         </AppContainer>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

@@ -4,7 +4,6 @@
 
 import { memo, useMemo } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -17,6 +16,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 
 function AdminDashboardScreen({ navigation }) {
   const colors = useThemeColors();
@@ -126,7 +126,7 @@ function AdminDashboardScreen({ navigation }) {
 
   return (
     <AppContainer>
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -191,7 +191,7 @@ function AdminDashboardScreen({ navigation }) {
           </View>
 
         </ScrollView>
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

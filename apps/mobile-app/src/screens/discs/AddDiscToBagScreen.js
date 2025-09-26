@@ -6,7 +6,6 @@
 
 import { memo, useState, useRef } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -25,6 +24,7 @@ import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { addDiscToBag } from '../../services/bagService';
@@ -454,19 +454,19 @@ function AddDiscToBagScreen({ navigation, route }) {
 
   if (!disc) {
     return (
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <AppContainer>
           <View style={[styles.scrollContent, styles.centeredContainer]}>
             <Text style={typography.h3}>No disc selected</Text>
             <Button title="Go Back" onPress={() => navigation.goBack()} />
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
   return (
-    <SafeAreaView testID="add-disc-to-bag-screen" style={styles.container}>
+    <StatusBarSafeView testID="add-disc-to-bag-screen" style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} style={styles.dismissKeyboard}>
         <AppContainer>
           <ScrollView
@@ -871,7 +871,7 @@ function AddDiscToBagScreen({ navigation, route }) {
           </ScrollView>
         </AppContainer>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

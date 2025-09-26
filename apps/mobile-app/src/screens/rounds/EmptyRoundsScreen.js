@@ -4,11 +4,12 @@
 
 import { memo } from 'react';
 import {
-  SafeAreaView, StyleSheet,
+  StyleSheet,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import EmptyState from '../../design-system/components/EmptyState';
 
 function EmptyRoundsScreen({ navigation, onCreateFirstRound }) {
@@ -27,7 +28,7 @@ function EmptyRoundsScreen({ navigation, onCreateFirstRound }) {
   };
 
   return (
-    <SafeAreaView testID="empty-rounds-screen" style={styles.container}>
+    <StatusBarSafeView testID="empty-rounds-screen" style={styles.container}>
       <AppContainer>
         <EmptyState
           title="No rounds yet"
@@ -36,7 +37,7 @@ function EmptyRoundsScreen({ navigation, onCreateFirstRound }) {
           onAction={handleCreateFirstRound}
         />
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 
