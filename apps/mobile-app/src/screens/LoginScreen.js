@@ -3,7 +3,7 @@
  */
 
 import {
-  View, StyleSheet, Image, Text, TouchableOpacity, ScrollView, SafeAreaView, Platform,
+  View, StyleSheet, Image, Text, TouchableOpacity, ScrollView, Platform,
   TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import { useState, useMemo, useRef } from 'react';
@@ -12,6 +12,7 @@ import { useThemeColors } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { spacing } from '../design-system/spacing';
 import { typography } from '../design-system/typography';
+import StatusBarSafeView from '../components/StatusBarSafeView';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { login as authLogin, handleNetworkError } from '../services/authService';
@@ -320,7 +321,7 @@ function LoginScreen({
   });
 
   return (
-    <SafeAreaView testID="login-screen" style={styles.safeArea}>
+    <StatusBarSafeView testID="login-screen" style={styles.safeArea}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
           style={styles.container}
@@ -484,7 +485,7 @@ function LoginScreen({
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

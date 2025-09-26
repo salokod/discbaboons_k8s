@@ -8,7 +8,6 @@ import {
   memo, useState, useEffect, useCallback, useMemo,
 } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -27,6 +26,7 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
 import Button from '../../components/Button';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { getBag, removeDiscFromBag, getLostDiscCountForBag } from '../../services/bagService';
 import SwipeableDiscRow from '../../components/bags/SwipeableDiscRow';
 import SelectableDiscRow from '../../components/bags/SelectableDiscRow';
@@ -704,21 +704,21 @@ function BagDetailScreen({ route, navigation }) {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView testID="bag-detail-screen" style={styles.container}>
+      <StatusBarSafeView testID="bag-detail-screen" style={styles.container}>
         <AppContainer>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading bag details...</Text>
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <SafeAreaView testID="bag-detail-screen" style={styles.container}>
+      <StatusBarSafeView testID="bag-detail-screen" style={styles.container}>
         <AppContainer>
           <View style={styles.errorContainer}>
             <Icon
@@ -735,7 +735,7 @@ function BagDetailScreen({ route, navigation }) {
             />
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
@@ -777,7 +777,7 @@ function BagDetailScreen({ route, navigation }) {
 
   // Success state with bag data
   return (
-    <SafeAreaView testID="bag-detail-screen" style={styles.container}>
+    <StatusBarSafeView testID="bag-detail-screen" style={styles.container}>
       <AppContainer>
         <NavigationHeader
           title={bag?.name || 'Bag Details'}
@@ -879,7 +879,7 @@ function BagDetailScreen({ route, navigation }) {
           visible={isMultiSelectMode}
         />
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

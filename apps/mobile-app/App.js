@@ -240,7 +240,6 @@ function App() {
       <StatusBar
         barStyle="dark-content"
         backgroundColor="transparent"
-        translucent
       />
       <ThemeProvider>
         <AuthProvider>

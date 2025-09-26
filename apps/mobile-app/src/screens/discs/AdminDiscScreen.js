@@ -7,7 +7,6 @@ import {
   memo, useState, useEffect, useCallback,
 } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -22,6 +21,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import EmptyState from '../../design-system/components/EmptyState';
 import Button from '../../components/Button';
 import DenialConfirmationModal from '../../components/modals/DenialConfirmationModal';
@@ -359,19 +359,19 @@ function AdminDiscScreen({ navigation }) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <AppContainer>
           <View style={styles.loadingContainer}>
             <Icon name="hourglass-outline" size={48} color={colors.textLight} />
             <Text style={styles.loadingText}>Loading pending submissions...</Text>
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
   return (
-    <SafeAreaView testID="admin-disc-screen" style={styles.container}>
+    <StatusBarSafeView testID="admin-disc-screen" style={styles.container}>
       <AppContainer>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -500,7 +500,7 @@ function AdminDiscScreen({ navigation }) {
           onCancel={handleDenialCancel}
         />
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

@@ -4,13 +4,14 @@
 
 import { memo } from 'react';
 import {
-  SafeAreaView, StyleSheet, View, Text, Alert, Platform,
+  StyleSheet, View, Text, Alert, Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
 import { spacing } from '../../design-system/spacing';
 import { typography } from '../../design-system/typography';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import EmptyState from '../../design-system/components/EmptyState';
 import Button from '../../components/Button';
 import { getTokens } from '../../services/tokenStorage';
@@ -62,7 +63,7 @@ function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
   };
 
   return (
-    <SafeAreaView testID="empty-bags-screen" style={styles.container}>
+    <StatusBarSafeView testID="empty-bags-screen" style={styles.container}>
       <AppContainer>
         <EmptyState
           title="Organize Your Disc Golf Collection"
@@ -82,7 +83,7 @@ function EmptyBagsScreen({ navigation, onCreateFirstBag }) {
           />
         </View>
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

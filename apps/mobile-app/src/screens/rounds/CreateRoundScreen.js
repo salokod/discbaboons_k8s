@@ -4,7 +4,6 @@
 
 import { memo, useState, useCallback } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -20,6 +19,7 @@ import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import CourseSelectionModal from '../../components/CourseSelectionModal';
@@ -169,7 +169,7 @@ function CreateRoundScreen({ navigation }) {
   }, []);
 
   return (
-    <SafeAreaView testID="create-round-screen" style={styles.container}>
+    <StatusBarSafeView testID="create-round-screen" style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} style={styles.dismissKeyboard}>
         <AppContainer>
           <ScrollView
@@ -268,7 +268,7 @@ function CreateRoundScreen({ navigation }) {
         onClose={handleCloseCourseModal}
         onSelectCourse={handleCourseSelect}
       />
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

@@ -5,7 +5,6 @@
 
 import { memo } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   ScrollView,
@@ -14,6 +13,7 @@ import {
 import { useThemeColors } from '../../context/ThemeContext';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../AppContainer';
+import StatusBarSafeView from '../StatusBarSafeView';
 import SkeletonLoader from './SkeletonLoader';
 
 function AccountSettingsSkeleton() {
@@ -80,7 +80,7 @@ function AccountSettingsSkeleton() {
 
   return (
     <AppContainer>
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -210,7 +210,7 @@ function AccountSettingsSkeleton() {
           />
 
         </ScrollView>
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

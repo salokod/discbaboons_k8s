@@ -6,10 +6,11 @@ import {
   useState, useCallback, useMemo, useEffect,
 } from 'react';
 import {
-  SafeAreaView, Platform, StyleSheet, View, Text, TouchableWithoutFeedback, Keyboard,
+  Platform, StyleSheet, View, Text, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import AppContainer from '../components/AppContainer';
+import StatusBarSafeView from '../components/StatusBarSafeView';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { useThemeColors } from '../context/ThemeContext';
@@ -153,7 +154,7 @@ function ForgotUsernameScreen({ navigation }) {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.safeArea} testID="forgot-username-screen">
+      <StatusBarSafeView style={styles.safeArea} testID="forgot-username-screen">
         <AppContainer>
           <View style={styles.content}>
             <Text style={styles.title}>Recover Username</Text>
@@ -209,7 +210,7 @@ function ForgotUsernameScreen({ navigation }) {
             )}
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     </TouchableWithoutFeedback>
   );
 }

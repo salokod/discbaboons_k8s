@@ -5,7 +5,6 @@
 
 import { memo, useState, useRef } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -23,6 +22,7 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { updateBag } from '../../services/bagService';
@@ -200,7 +200,7 @@ function EditBagScreen({ route, navigation }) {
   const isValid = bagName.trim().length > 0;
 
   return (
-    <SafeAreaView testID="edit-bag-screen" style={styles.container}>
+    <StatusBarSafeView testID="edit-bag-screen" style={styles.container}>
       <NavigationHeader
         title="Edit Bag"
         onBack={() => navigation?.goBack()}
@@ -327,7 +327,7 @@ function EditBagScreen({ route, navigation }) {
           </ScrollView>
         </AppContainer>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

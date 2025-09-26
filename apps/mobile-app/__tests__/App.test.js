@@ -3,6 +3,7 @@
  */
 
 import { render } from '@testing-library/react-native';
+import { StatusBar } from 'react-native';
 import App from '../App';
 
 // Mock React Navigation
@@ -71,6 +72,21 @@ describe('App', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('StatusBar Configuration', () => {
+    it('should not use translucent StatusBar to prevent Android overlap', () => {
+      /* eslint-disable camelcase */
+      const { UNSAFE_root } = render(<App />);
+
+      // Find StatusBar component in the rendered tree
+      const statusBarFound = UNSAFE_root.findAllByType(StatusBar);
+      /* eslint-enable camelcase */
+      expect(statusBarFound).toHaveLength(1);
+
+      const statusBar = statusBarFound[0];
+      expect(statusBar.props.translucent).toBeFalsy();
+    });
   });
 
   it('should render NavigationContainer', () => {

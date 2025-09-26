@@ -8,7 +8,6 @@ import {
   memo, useState, useEffect, useCallback, useMemo,
 } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -25,6 +24,7 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import SearchBar from '../../design-system/components/SearchBar';
 import DiscRow from '../../components/bags/DiscRow';
 import RecoverDiscModal from '../../components/modals/RecoverDiscModal';
@@ -370,7 +370,7 @@ function LostDiscsScreen({ route, navigation }) {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView testID="lost-discs-screen" style={styles.container}>
+      <StatusBarSafeView testID="lost-discs-screen" style={styles.container}>
         <AppContainer>
           <NavigationHeader
             title="Lost Discs"
@@ -382,14 +382,14 @@ function LostDiscsScreen({ route, navigation }) {
             <Text style={styles.loadingText}>Loading lost discs...</Text>
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <SafeAreaView testID="lost-discs-screen" style={styles.container}>
+      <StatusBarSafeView testID="lost-discs-screen" style={styles.container}>
         <AppContainer>
           <NavigationHeader
             title="Lost Discs"
@@ -408,13 +408,13 @@ function LostDiscsScreen({ route, navigation }) {
             </Text>
           </View>
         </AppContainer>
-      </SafeAreaView>
+      </StatusBarSafeView>
     );
   }
 
   // Success state with lost discs data
   return (
-    <SafeAreaView testID="lost-discs-screen" style={styles.container}>
+    <StatusBarSafeView testID="lost-discs-screen" style={styles.container}>
       <AppContainer>
         <NavigationHeader
           title="Lost Discs"
@@ -470,7 +470,7 @@ function LostDiscsScreen({ route, navigation }) {
           }}
         />
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

@@ -5,10 +5,11 @@
 
 import { useMemo } from 'react';
 import {
-  SafeAreaView, Platform, StyleSheet, View, Text, ScrollView, Linking,
+  Platform, StyleSheet, View, Text, ScrollView, Linking,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import AppContainer from '../components/AppContainer';
+import StatusBarSafeView from '../components/StatusBarSafeView';
 import Button from '../components/Button';
 import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
@@ -167,7 +168,7 @@ Thank you for your time!`;
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="support-screen">
+    <StatusBarSafeView style={styles.safeArea} testID="support-screen">
       <AppContainer>
         <ScrollView
           style={styles.scrollView}
@@ -254,7 +255,7 @@ Thank you for your time!`;
           </View>
         </ScrollView>
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

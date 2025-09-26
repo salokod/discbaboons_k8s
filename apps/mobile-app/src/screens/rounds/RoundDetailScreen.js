@@ -5,7 +5,6 @@
 
 import { memo, useCallback } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -18,6 +17,7 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 
 function RoundDetailScreen({ route, navigation }) {
   const colors = useThemeColors();
@@ -136,7 +136,7 @@ function RoundDetailScreen({ route, navigation }) {
   }, []);
 
   return (
-    <SafeAreaView testID="round-detail-screen" style={styles.container}>
+    <StatusBarSafeView testID="round-detail-screen" style={styles.container}>
       <AppContainer>
         <NavigationHeader
           testID="round-detail-header"
@@ -213,7 +213,7 @@ function RoundDetailScreen({ route, navigation }) {
           )}
         </ScrollView>
       </AppContainer>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

@@ -4,7 +4,6 @@
 
 import { memo, useState, useRef } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -21,6 +20,7 @@ import { useBagRefreshContext } from '../../context/BagRefreshContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { createBag } from '../../services/bagService';
@@ -188,7 +188,7 @@ function CreateBagScreen({ navigation, onCreateBag }) {
   const isValid = bagName.trim().length > 0;
 
   return (
-    <SafeAreaView testID="create-bag-screen" style={styles.container}>
+    <StatusBarSafeView testID="create-bag-screen" style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} style={styles.dismissKeyboard}>
         <AppContainer>
           <ScrollView
@@ -310,7 +310,7 @@ function CreateBagScreen({ navigation, onCreateBag }) {
           </ScrollView>
         </AppContainer>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 

@@ -3,8 +3,8 @@
  * Screen for searching and discovering other baboons to add to your troop
  */
 
+import { useState, useCallback } from 'react';
 import {
-  SafeAreaView,
   View,
   TextInput,
   StyleSheet,
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
 import PropTypes from 'prop-types';
-import { useState, useCallback } from 'react';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { useThemeColors } from '../../context/ThemeContext';
 import { useFriends } from '../../context/FriendsContext';
 import AppContainer from '../../components/AppContainer';
@@ -284,7 +284,7 @@ function BaboonSearchScreen() {
 
   return (
     <AppContainer>
-      <SafeAreaView style={styles.container}>
+      <StatusBarSafeView style={styles.container}>
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <TextInput
@@ -316,7 +316,7 @@ function BaboonSearchScreen() {
           visible={toastVisible}
           onHide={() => setToastVisible(false)}
         />
-      </SafeAreaView>
+      </StatusBarSafeView>
     </AppContainer>
   );
 }

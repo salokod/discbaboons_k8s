@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   TouchableOpacity,
   Platform,
 } from 'react-native';
@@ -29,6 +28,7 @@ import SearchActionBar from '../../components/SearchActionBar';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
+import StatusBarSafeView from '../../components/StatusBarSafeView';
 import { searchDiscs } from '../../services/discService';
 
 // RangeInput component removed - now using sliders instead
@@ -589,7 +589,7 @@ function DiscSearchScreen({ navigation, route }) {
   ]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
+    <StatusBarSafeView style={[styles.container, { backgroundColor: colors.surface }]}>
       <FlatList
         data={discs}
         renderItem={renderDiscItem}
@@ -633,7 +633,7 @@ function DiscSearchScreen({ navigation, route }) {
         currentSort={sort}
       />
 
-    </SafeAreaView>
+    </StatusBarSafeView>
   );
 }
 
