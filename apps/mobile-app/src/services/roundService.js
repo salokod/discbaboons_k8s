@@ -302,3 +302,41 @@ export async function getRoundDetails(roundId) {
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Add players (friends and guests) to a round
+ * @param {string} roundId - Round ID
+ * @param {Object} players - Players to add
+ * @returns {Promise<Object>} Response result
+ * @throws {Error} API error or network error
+ */
+export async function addPlayersToRound(roundId, players) {
+  if (!roundId || !roundId.trim()) {
+    throw new Error('Round ID is required');
+  }
+
+  if (!players || !Array.isArray(players) || players.length === 0) {
+    throw new Error('At least one player is required');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}/players`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ players }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to add players: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - please check your connection and try again');
+    }
+    throw error;
+  }
+}

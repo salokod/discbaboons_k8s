@@ -20,10 +20,12 @@ import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import StatusBarSafeView from '../../components/StatusBarSafeView';
+import NavigationHeader from '../../components/NavigationHeader';
+import ParticipantSelector from '../../components/ParticipantSelector';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import CourseSelectionModal from '../../components/CourseSelectionModal';
-import { createRound } from '../../services/roundService';
+import { createRound, addPlayersToRound } from '../../services/roundService';
 
 function CreateRoundScreen({ navigation }) {
   const colors = useThemeColors();
@@ -31,6 +33,8 @@ function CreateRoundScreen({ navigation }) {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [guests, setGuests] = useState([]);
 
   const styles = StyleSheet.create({
     container: {
@@ -44,22 +48,6 @@ function CreateRoundScreen({ navigation }) {
       flexGrow: 1,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.xl,
-    },
-    header: {
-      marginBottom: spacing.xl * 1.5,
-      alignItems: 'center',
-    },
-    headerTitle: {
-      ...typography.h1,
-      color: colors.text,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-    },
-    headerSubtitle: {
-      ...typography.body,
-      color: colors.textLight,
-      textAlign: 'center',
-      lineHeight: 22,
     },
     formContainer: {
       flex: 1,
@@ -129,9 +117,32 @@ function CreateRoundScreen({ navigation }) {
 
       const newRound = await createRound(roundData);
 
+      // Add participants if any selected
+      if (selectedFriends.length > 0 || guests.some((g) => g.name && g.name.trim())) {
+        try {
+          const players = [
+            ...selectedFriends.map((friend) => ({ userId: friend.id })),
+            ...guests
+              .filter((guest) => guest.name && guest.name.trim())
+              .map((guest) => ({ guestName: guest.name.trim() })),
+          ];
+
+          await addPlayersToRound(newRound.id, players);
+        } catch (participantError) {
+          // Don't block navigation if participant addition fails
+          Alert.alert(
+            'Round Created',
+            'Round was created successfully, but some participants could not be added. You can add them later from the round details.',
+            [{ text: 'OK' }],
+          );
+        }
+      }
+
       // Clear form first
       setRoundName('');
       setSelectedCourse(null);
+      setSelectedFriends([]);
+      setGuests([]);
 
       // Navigate to round detail screen with the new round data
       if (navigation?.navigate) {
@@ -151,7 +162,7 @@ function CreateRoundScreen({ navigation }) {
     } finally {
       setIsLoading(false);
     }
-  }, [roundName, selectedCourse, isLoading, navigation]);
+  }, [roundName, selectedCourse, isLoading, navigation, selectedFriends, guests]);
 
   // Validation helper - disable create button if required fields are missing or loading
   const isCreateDisabled = !roundName.trim() || !selectedCourse || isLoading;
@@ -168,22 +179,26 @@ function CreateRoundScreen({ navigation }) {
     setShowCourseModal(false);
   }, []);
 
+  const handleBack = useCallback(() => {
+    if (navigation?.goBack) {
+      navigation.goBack();
+    }
+  }, [navigation]);
+
   return (
     <StatusBarSafeView testID="create-round-screen" style={styles.container}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} style={styles.dismissKeyboard}>
-        <AppContainer>
+      <AppContainer>
+        <NavigationHeader
+          title="Create New Round"
+          onBack={handleBack}
+          backAccessibilityLabel="Cancel round creation"
+        />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} style={styles.dismissKeyboard}>
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Header Section */}
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Create New Round</Text>
-              <Text style={styles.headerSubtitle}>
-                Start tracking your disc golf round with course selection and round details
-              </Text>
-            </View>
 
             {/* Form Container */}
             <View testID="round-form" style={styles.formContainer}>
@@ -202,6 +217,8 @@ function CreateRoundScreen({ navigation }) {
                   testID="select-course-button"
                   style={styles.courseButton}
                   onPress={handleOpenCourseModal}
+                  accessibilityLabel="Select course for round"
+                  accessibilityHint="Choose which disc golf course to play"
                 >
                   <View style={styles.courseButtonContent}>
                     <Text style={styles.courseButtonText}>
@@ -227,6 +244,14 @@ function CreateRoundScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
+              {/* Participants Section */}
+              <ParticipantSelector
+                selectedFriends={selectedFriends}
+                guests={guests}
+                onFriendsChange={setSelectedFriends}
+                onGuestsChange={setGuests}
+              />
+
               {/* Round Name Section */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -245,6 +270,8 @@ function CreateRoundScreen({ navigation }) {
                   onChangeText={setRoundName}
                   autoCapitalize="words"
                   returnKeyType="done"
+                  accessibilityLabel="Round name"
+                  accessibilityHint="Enter a name for your disc golf round"
                 />
               </View>
 
@@ -259,8 +286,8 @@ function CreateRoundScreen({ navigation }) {
               </View>
             </View>
           </ScrollView>
-        </AppContainer>
-      </TouchableWithoutFeedback>
+        </TouchableWithoutFeedback>
+      </AppContainer>
 
       {/* Course Selection Modal */}
       <CourseSelectionModal

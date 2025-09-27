@@ -2,7 +2,9 @@
  * RoundService Tests
  */
 
-import { createRound, getRounds, getRoundDetails } from '../../src/services/roundService';
+import {
+  createRound, getRounds, getRoundDetails, addPlayersToRound,
+} from '../../src/services/roundService';
 import { getTokens } from '../../src/services/tokenStorage';
 
 // Mock the environment config
@@ -366,6 +368,13 @@ describe('RoundService Functions', () => {
       });
 
       await expect(getRoundDetails('round-123')).rejects.toThrow('Invalid response from server');
+    });
+  });
+
+  describe('addPlayersToRound', () => {
+    it('should export an addPlayersToRound function', () => {
+      expect(addPlayersToRound).toBeDefined();
+      expect(typeof addPlayersToRound).toBe('function');
     });
   });
 });
