@@ -77,9 +77,8 @@ describe('CreateRoundScreen', () => {
     // Should render the main screen container
     expect(getByTestId('create-round-screen')).toBeTruthy();
 
-    // Should have header with title and subtitle
+    // Should have header with title (now using NavigationHeader)
     expect(getByText('Create New Round')).toBeTruthy();
-    expect(getByText(/Start tracking your disc golf round/)).toBeTruthy();
 
     // Should have form container
     expect(getByTestId('round-form')).toBeTruthy();
