@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import RoundsListScreen from '../RoundsListScreen';
+import RoundsListScreen, { categorizeRounds, createSections } from '../RoundsListScreen';
 import { getRounds } from '../../../services/roundService';
 
 // Mock navigation
@@ -157,12 +157,12 @@ describe('RoundsListScreen', () => {
       expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
     });
 
-    // Wait for rounds list to appear
+    // Wait for rounds section list to appear
     await waitFor(() => {
       // Should NOT show empty state when rounds exist
       expect(queryByTestId('empty-state')).toBeNull();
-      // Should show rounds list instead
-      expect(getByTestId('rounds-list')).toBeTruthy();
+      // Should show rounds section list instead (when rounds exist, use SectionList)
+      expect(getByTestId('rounds-section-list')).toBeTruthy();
     });
 
     // Should still show FAB button for creating new rounds
@@ -218,12 +218,12 @@ describe('RoundsListScreen', () => {
 
     // Wait for loading to complete
     await waitFor(() => {
-      expect(getByTestId('rounds-list')).toBeTruthy();
+      expect(getByTestId('rounds-section-list')).toBeTruthy();
     });
 
-    // Verify FlatList has ListHeaderComponent (header scrolls with content)
-    const flatList = getByTestId('rounds-list');
-    expect(flatList).toBeTruthy();
+    // Verify SectionList has ListHeaderComponent (header scrolls with content)
+    const sectionList = getByTestId('rounds-section-list');
+    expect(sectionList).toBeTruthy();
   });
 
   it('should add 12px spacing between round cards', async () => {
@@ -247,12 +247,12 @@ describe('RoundsListScreen', () => {
 
     // Wait for loading to complete
     await waitFor(() => {
-      expect(getByTestId('rounds-list')).toBeTruthy();
+      expect(getByTestId('rounds-section-list')).toBeTruthy();
     });
 
-    // This test verifies the FlatList exists and renders round items
+    // This test verifies the SectionList exists and renders round items
     // The actual spacing is tested in RoundCard component tests
-    expect(getByTestId('rounds-list')).toBeTruthy();
+    expect(getByTestId('rounds-section-list')).toBeTruthy();
   });
 
   it('should manage refresh state', async () => {
@@ -316,7 +316,458 @@ describe('RoundsListScreen', () => {
     // Wait for refresh to complete and verify updated data
     await waitFor(() => {
       expect(getRounds).toHaveBeenCalledTimes(2);
-      expect(getByText('1 round')).toBeTruthy();
+      expect(getByTestId('header-count')).toHaveTextContent('1 round');
+    });
+  });
+
+  describe('Categorized Sections', () => {
+    it('should categorize rounds into active and completed groups', () => {
+      const mockRounds = [
+        { id: '1', status: 'in_progress', name: 'Active Round 1' },
+        { id: '2', status: 'completed', name: 'Completed Round 1' },
+        { id: '3', status: 'in_progress', name: 'Active Round 2' },
+        { id: '4', status: 'cancelled', name: 'Cancelled Round 1' },
+      ];
+
+      const result = categorizeRounds(mockRounds);
+
+      expect(result.activeRounds).toHaveLength(2);
+      expect(result.activeRounds[0].status).toBe('in_progress');
+      expect(result.activeRounds[1].status).toBe('in_progress');
+
+      expect(result.completedRounds).toHaveLength(2);
+      expect(result.completedRounds.some((r) => r.status === 'completed')).toBe(true);
+      expect(result.completedRounds.some((r) => r.status === 'cancelled')).toBe(true);
+    });
+
+    it('should handle empty rounds array', () => {
+      const result = categorizeRounds([]);
+
+      expect(result.activeRounds).toHaveLength(0);
+      expect(result.completedRounds).toHaveLength(0);
+    });
+
+    it('should handle all rounds being active', () => {
+      const mockRounds = [
+        { id: '1', status: 'in_progress' },
+        { id: '2', status: 'in_progress' },
+      ];
+
+      const result = categorizeRounds(mockRounds);
+
+      expect(result.activeRounds).toHaveLength(2);
+      expect(result.completedRounds).toHaveLength(0);
+    });
+
+    it('should handle all rounds being completed', () => {
+      const mockRounds = [
+        { id: '1', status: 'completed' },
+        { id: '2', status: 'cancelled' },
+      ];
+
+      const result = categorizeRounds(mockRounds);
+
+      expect(result.activeRounds).toHaveLength(0);
+      expect(result.completedRounds).toHaveLength(2);
+    });
+  });
+
+  describe('createSections', () => {
+    it('should create sections array structure with active and completed rounds', () => {
+      const activeRounds = [
+        { id: '1', status: 'in_progress', name: 'Active Round 1' },
+        { id: '2', status: 'in_progress', name: 'Active Round 2' },
+      ];
+      const completedRounds = [
+        { id: '3', status: 'completed', name: 'Completed Round 1' },
+        { id: '4', status: 'cancelled', name: 'Cancelled Round 1' },
+      ];
+
+      const sections = createSections({ activeRounds, completedRounds });
+
+      expect(sections).toHaveLength(2);
+
+      // Check Active Rounds section
+      expect(sections[0]).toEqual({
+        title: 'Active Rounds',
+        data: activeRounds,
+        key: 'active',
+      });
+
+      // Check Completed Rounds section
+      expect(sections[1]).toEqual({
+        title: 'Completed Rounds',
+        data: completedRounds,
+        key: 'completed',
+      });
+    });
+
+    it('should handle empty active rounds array', () => {
+      const activeRounds = [];
+      const completedRounds = [
+        { id: '1', status: 'completed', name: 'Completed Round 1' },
+      ];
+
+      const sections = createSections({ activeRounds, completedRounds });
+
+      expect(sections).toHaveLength(2);
+      expect(sections[0].data).toHaveLength(0);
+      expect(sections[1].data).toHaveLength(1);
+    });
+
+    it('should handle empty completed rounds array', () => {
+      const activeRounds = [
+        { id: '1', status: 'in_progress', name: 'Active Round 1' },
+      ];
+      const completedRounds = [];
+
+      const sections = createSections({ activeRounds, completedRounds });
+
+      expect(sections).toHaveLength(2);
+      expect(sections[0].data).toHaveLength(1);
+      expect(sections[1].data).toHaveLength(0);
+    });
+
+    it('should handle both arrays being empty', () => {
+      const activeRounds = [];
+      const completedRounds = [];
+
+      const sections = createSections({ activeRounds, completedRounds });
+
+      expect(sections).toHaveLength(2);
+      expect(sections[0].data).toHaveLength(0);
+      expect(sections[1].data).toHaveLength(0);
+    });
+  });
+
+  describe('SectionList Migration', () => {
+    it('should render SectionList instead of FlatList when rounds exist', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Active Round',
+            course_name: 'Test Course',
+            status: 'in_progress',
+          },
+          {
+            id: 'round-2',
+            name: 'Completed Round',
+            course_name: 'Test Course',
+            status: 'completed',
+          },
+        ],
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByTestId, queryByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('rounds-section-list')).toBeTruthy();
+        // Should NOT have the old FlatList
+        expect(queryByTestId('rounds-list')).toBeNull();
+      });
+    });
+
+    it('should preserve RefreshControl functionality in SectionList', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            status: 'in_progress',
+            name: 'Test Round',
+            course_name: 'Test Course',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('rounds-section-list')).toBeTruthy();
+      });
+
+      const sectionList = getByTestId('rounds-section-list');
+      expect(sectionList.props.refreshControl).toBeDefined();
+    });
+
+    it('should preserve ListHeaderComponent functionality in SectionList', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            status: 'in_progress',
+            name: 'Test Round',
+            course_name: 'Test Course',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByText, getByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByText('My Rounds')).toBeTruthy();
+        expect(getByTestId('header-count')).toHaveTextContent('1 round');
+      });
+    });
+
+    it('should use FlatList when no rounds exist (empty state)', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByTestId, queryByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should show FlatList for empty state
+        expect(getByTestId('rounds-list')).toBeTruthy();
+        // Should NOT show SectionList when empty
+        expect(queryByTestId('rounds-section-list')).toBeNull();
+      });
+    });
+  });
+
+  describe('Section Headers', () => {
+    it('should display section headers with correct titles and counts', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Active Round',
+            course_name: 'Test Course',
+            status: 'in_progress',
+          },
+          {
+            id: 'round-2',
+            name: 'Completed Round',
+            course_name: 'Test Course',
+            status: 'completed',
+          },
+          {
+            id: 'round-3',
+            name: 'Cancelled Round',
+            course_name: 'Test Course',
+            status: 'cancelled',
+          },
+        ],
+        pagination: {
+          total: 3, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByText } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should show Active Rounds section header with count
+        expect(getByText('Active Rounds')).toBeTruthy();
+        expect(getByText('1 round')).toBeTruthy();
+
+        // Should show Completed Rounds section header with count
+        expect(getByText('Completed Rounds')).toBeTruthy();
+        expect(getByText('2 rounds')).toBeTruthy();
+      });
+    });
+
+    it('should show correct pluralization for section counts', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Active Round 1',
+            course_name: 'Test Course',
+            status: 'in_progress',
+          },
+          {
+            id: 'round-2',
+            name: 'Active Round 2',
+            course_name: 'Test Course',
+            status: 'in_progress',
+          },
+        ],
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByText, getByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should show Active Rounds section header with plural count
+        expect(getByText('Active Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-active')).toHaveTextContent('2 rounds');
+
+        // Should show Completed Rounds section header with zero count
+        expect(getByText('Completed Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-completed')).toHaveTextContent('0 rounds');
+      });
+    });
+
+    it('should display section headers even when sections are empty', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Completed Round',
+            course_name: 'Test Course',
+            status: 'completed',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByText, getByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should show Active Rounds header even when empty
+        expect(getByText('Active Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-active')).toHaveTextContent('0 rounds');
+
+        // Should show Completed Rounds header with count
+        expect(getByText('Completed Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-completed')).toHaveTextContent('1 round');
+      });
+    });
+  });
+
+  describe('Empty Section States', () => {
+    it('should show EmptyRoundsScreen only when both sections are empty', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByTestId, queryByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should show FlatList with empty component (not SectionList)
+        expect(getByTestId('rounds-list')).toBeTruthy();
+        expect(queryByTestId('rounds-section-list')).toBeNull();
+        expect(getByTestId('empty-state')).toBeTruthy();
+      });
+    });
+
+    it('should show section headers with zero counts when individual sections are empty', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Completed Round',
+            course_name: 'Test Course',
+            status: 'completed',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByText, getByTestId, queryByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should use SectionList (not FlatList)
+        expect(getByTestId('rounds-section-list')).toBeTruthy();
+        expect(queryByTestId('rounds-list')).toBeNull();
+
+        // Should NOT show empty state
+        expect(queryByTestId('empty-state')).toBeNull();
+
+        // Should show both section headers
+        expect(getByText('Active Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-active')).toHaveTextContent('0 rounds');
+        expect(getByText('Completed Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-completed')).toHaveTextContent('1 round');
+      });
+    });
+
+    it('should render sections with empty data arrays correctly', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Active Round',
+            course_name: 'Test Course',
+            status: 'in_progress',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { getByText, getByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should use SectionList
+        expect(getByTestId('rounds-section-list')).toBeTruthy();
+
+        // Should show Active Rounds section with count
+        expect(getByText('Active Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-active')).toHaveTextContent('1 round');
+
+        // Should show Completed Rounds section with zero count
+        expect(getByText('Completed Rounds')).toBeTruthy();
+        expect(getByTestId('section-count-completed')).toHaveTextContent('0 rounds');
+      });
+    });
+
+    it('should not show empty state when using SectionList even if some sections are empty', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [
+          {
+            id: 'round-1',
+            name: 'Active Round',
+            course_name: 'Test Course',
+            status: 'in_progress',
+          },
+        ],
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = renderWithNavigation(
+        <RoundsListScreen navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should NOT show empty state component
+        expect(queryByTestId('empty-state')).toBeNull();
+      });
     });
   });
 });
