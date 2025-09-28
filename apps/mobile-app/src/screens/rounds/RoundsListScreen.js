@@ -191,4 +191,7 @@ RoundsListScreen.defaultProps = {
 // Add display name for React DevTools
 RoundsListScreen.displayName = 'RoundsListScreen';
 
-export default memo(RoundsListScreen);
+const MemoizedRoundsListScreen = memo(RoundsListScreen);
+MemoizedRoundsListScreen.displayName = 'RoundsListScreen';
+
+export default MemoizedRoundsListScreen;

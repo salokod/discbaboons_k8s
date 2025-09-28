@@ -64,6 +64,11 @@ describe('RoundsListScreen', () => {
     });
   });
 
+  it('should export component with memo and displayName', () => {
+    expect(RoundsListScreen.displayName).toBe('RoundsListScreen');
+    expect(RoundsListScreen).toBeDefined();
+  });
+
   it('should render without rounds and show empty state', async () => {
     const { getByTestId, getByText } = renderWithNavigation(
       <RoundsListScreen navigation={mockNavigation} />,
