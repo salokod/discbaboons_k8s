@@ -24,6 +24,7 @@ import EmptyRoundsScreen from './EmptyRoundsScreen';
 import { getRounds } from '../../services/roundService';
 import RoundCard from '../../components/rounds/RoundCard';
 import RoundsListHeader from '../../components/rounds/RoundsListHeader';
+import PaginationControls from '../../components/PaginationControls';
 
 /**
  * Categorize rounds into active and completed groups
@@ -66,16 +67,27 @@ function RoundsListScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+
   // Load rounds from API
-  const loadRounds = useCallback(async (isRefreshing = false) => {
+  const loadRounds = useCallback(async (page = 1, showLoader = true) => {
     try {
-      if (isRefreshing) {
-        setRefreshing(true);
-      } else {
+      if (showLoader) {
         setLoading(true);
+      } else {
+        setRefreshing(true);
       }
-      const result = await getRounds({ limit: 20, offset: 0 });
+
+      const offset = (page - 1) * 20;
+      const result = await getRounds({ limit: 20, offset });
       setRounds(result.rounds || []);
+
+      // Calculate and set totalPages from pagination data
+      setTotalPages(Math.ceil(result.pagination.total / 20) || 1);
+      setCurrentPage(page);
     } catch (error) {
       // For now, just log error and show empty state
       // Log error for debugging but don't expose to user in production
@@ -163,7 +175,23 @@ function RoundsListScreen({ navigation }) {
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
-    loadRounds(true);
+    loadRounds(1, false);
+  }, [loadRounds]);
+
+  // Handle page change for pagination
+  const handlePageChange = useCallback(async (newPage) => {
+    try {
+      setIsLoadingPage(true);
+      await loadRounds(newPage, false);
+    } catch (error) {
+      // On error, preserve current page and show error feedback
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load page:', error);
+      }
+    } finally {
+      setIsLoadingPage(false);
+    }
   }, [loadRounds]);
 
   // Navigate to create round
@@ -265,6 +293,15 @@ function RoundsListScreen({ navigation }) {
         >
           <Text style={styles.createButtonText}>+</Text>
         </TouchableOpacity>
+
+        {totalPages > 1 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            isLoading={isLoadingPage}
+          />
+        )}
       </StatusBarSafeView>
     );
   }
@@ -304,6 +341,15 @@ function RoundsListScreen({ navigation }) {
       >
         <Text style={styles.createButtonText}>+</Text>
       </TouchableOpacity>
+
+      {totalPages > 1 && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          isLoading={isLoadingPage}
+        />
+      )}
     </StatusBarSafeView>
   );
 }
