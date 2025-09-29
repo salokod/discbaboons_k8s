@@ -274,12 +274,18 @@ export async function getRoundDetails(roundId) {
       throw new Error(data.message || 'Unable to connect. Please check your internet.');
     }
 
-    // Validate response format matches API documentation
-    if (!data || !data.success || !data.round) {
+    // Handle both wrapped and direct response formats
+    // Backend can return either { success: true, round: {...} } or direct round object
+    let roundData;
+    if (data && data.success && data.round) {
+      // Wrapped format
+      roundData = data.round;
+    } else if (data && data.id) {
+      // Direct format - backend returns round object directly
+      roundData = data;
+    } else {
       throw new Error('Invalid response from server');
     }
-
-    const roundData = data.round;
 
     // Validate essential fields
     if (!roundData.id) {

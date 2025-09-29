@@ -3,12 +3,16 @@
  * Shows detailed view of a round with course information and players
  */
 
-import { memo, useCallback } from 'react';
+import {
+  memo, useCallback, useState, useEffect,
+} from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -18,15 +22,71 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import NavigationHeader from '../../components/NavigationHeader';
 import StatusBarSafeView from '../../components/StatusBarSafeView';
+import { getRoundDetails } from '../../services/roundService';
 
 function RoundDetailScreen({ route, navigation }) {
   const colors = useThemeColors();
-  const { round } = route?.params || {};
+  const { roundId } = route?.params || {};
+
+  // State management for data fetching
+  const [round, setRound] = useState(null);
+  const [loading, setLoading] = useState(Boolean(roundId));
+  const [error, setError] = useState(null);
+
+  // Fetch round data
+  const fetchRoundData = useCallback(async () => {
+    if (!roundId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const roundData = await getRoundDetails(roundId);
+      setRound(roundData);
+    } catch (err) {
+      setError(err.message || 'Failed to load round details');
+    } finally {
+      setLoading(false);
+    }
+  }, [roundId]);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchRoundData();
+  }, [fetchRoundData]);
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing.lg,
+    },
+    errorText: {
+      ...typography.body,
+      color: colors.textLight,
+      textAlign: 'center',
+      marginBottom: spacing.md,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+    },
+    retryButtonText: {
+      ...typography.body,
+      color: colors.white,
+      fontWeight: '600',
     },
     scrollContent: {
       paddingHorizontal: spacing.lg,
@@ -121,7 +181,7 @@ function RoundDetailScreen({ route, navigation }) {
         hour: '2-digit',
         minute: '2-digit',
       });
-    } catch (error) {
+    } catch (err) {
       return 'Invalid date';
     }
   }, []);
@@ -144,14 +204,34 @@ function RoundDetailScreen({ route, navigation }) {
           onBack={handleBack}
         />
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {round && (
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator testID="loading-indicator" size="large" color={colors.primary} />
+          </View>
+        )}
+
+        {!loading && error && (
+          <View testID="error-state" style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              testID="retry-button"
+              style={styles.retryButton}
+              onPress={fetchRoundData}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !error && (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {round && (
             <>
               {/* Round Information Card */}
-              <View style={styles.roundCard}>
+              <View testID="round-overview-card" style={styles.roundCard}>
                 <Text style={styles.roundName}>{round.name}</Text>
 
                 {round.course && (
@@ -210,8 +290,9 @@ function RoundDetailScreen({ route, navigation }) {
                 )}
               </View>
             </>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
+        )}
       </AppContainer>
     </StatusBarSafeView>
   );
@@ -221,21 +302,6 @@ RoundDetailScreen.propTypes = {
   route: PropTypes.shape({
     params: PropTypes.shape({
       roundId: PropTypes.string,
-      round: PropTypes.shape({
-        id: PropTypes.string,
-        name: PropTypes.string,
-        status: PropTypes.string,
-        start_time: PropTypes.string,
-        course: PropTypes.shape({
-          name: PropTypes.string,
-          location: PropTypes.string,
-          holes: PropTypes.number,
-        }),
-        players: PropTypes.arrayOf(PropTypes.shape({
-          id: PropTypes.string,
-          name: PropTypes.string,
-        })),
-      }),
     }),
   }),
   navigation: PropTypes.shape({
@@ -252,4 +318,7 @@ RoundDetailScreen.defaultProps = {
 // Add display name for React DevTools
 RoundDetailScreen.displayName = 'RoundDetailScreen';
 
-export default memo(RoundDetailScreen);
+const MemoizedRoundDetailScreen = memo(RoundDetailScreen);
+MemoizedRoundDetailScreen.displayName = 'RoundDetailScreen';
+
+export default MemoizedRoundDetailScreen;

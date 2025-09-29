@@ -356,6 +356,37 @@ describe('RoundService Functions', () => {
       await expect(getRoundDetails('nonexistent-round')).rejects.toThrow('Round not found');
     });
 
+    it('should handle direct response format from backend', async () => {
+      // Backend returns round data directly (not wrapped in success/round structure)
+      const directResponse = {
+        id: 'round-123',
+        course_id: 'course-456',
+        name: 'Morning Round',
+        start_time: '2024-01-15T08:00:00Z',
+        status: 'completed',
+        players: [
+          {
+            id: 'player-1',
+            username: 'testuser1',
+            is_creator: true,
+          },
+        ],
+        pars: {
+          1: 3,
+          2: 4,
+        },
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => directResponse,
+      });
+
+      const result = await getRoundDetails('round-123');
+
+      expect(result).toEqual(directResponse);
+    });
+
     it('should handle invalid response format', async () => {
       const invalidResponse = {
         // Missing success field and round field
