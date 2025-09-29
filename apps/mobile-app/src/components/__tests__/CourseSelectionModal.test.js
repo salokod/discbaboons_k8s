@@ -1,5 +1,5 @@
 import {
-  render, screen, fireEvent, waitFor,
+  render, screen, fireEvent, waitFor, act,
 } from '@testing-library/react-native';
 import { ThemeProvider } from '../../context/ThemeContext';
 import CourseSelectionModal from '../CourseSelectionModal';
@@ -97,19 +97,27 @@ describe('CourseSelectionModal', () => {
       </ThemeProvider>,
     );
 
-    // Should show loading state
-    expect(screen.getByText('Loading courses...')).toBeTruthy();
-
-    // Resolve the search
-    resolveSearch({
-      courses: [],
-      pagination: {
-        total: 0, limit: 20, offset: 0, hasMore: false,
-      },
+    // Step 1: Verify loading state is displayed
+    await waitFor(() => {
+      expect(screen.getByText('Loading courses...')).toBeTruthy();
     });
 
+    // Step 2: Resolve the promise within act to ensure proper React batching
+    await act(async () => {
+      resolveSearch({
+        courses: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+    });
+
+    // Step 3: Wait for BOTH conditions - loading gone AND empty state shown
     await waitFor(() => {
       expect(screen.queryByText('Loading courses...')).toBeNull();
+      expect(screen.getByText('No courses found')).toBeTruthy();
+    }, {
+      timeout: 3000, // Explicit timeout for CI environments
     });
   });
 
