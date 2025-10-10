@@ -274,12 +274,18 @@ export async function getRoundDetails(roundId) {
       throw new Error(data.message || 'Unable to connect. Please check your internet.');
     }
 
-    // Validate response format matches API documentation
-    if (!data || !data.success || !data.round) {
+    // Handle both wrapped and direct response formats
+    // Backend can return either { success: true, round: {...} } or direct round object
+    let roundData;
+    if (data && data.success && data.round) {
+      // Wrapped format
+      roundData = data.round;
+    } else if (data && data.id) {
+      // Direct format - backend returns round object directly
+      roundData = data;
+    } else {
       throw new Error('Invalid response from server');
     }
-
-    const roundData = data.round;
 
     // Validate essential fields
     if (!roundData.id) {
@@ -297,6 +303,78 @@ export async function getRoundDetails(roundId) {
     }
 
     return roundData;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Get round leaderboard with player standings
+ * @param {string} roundId - Round ID to retrieve leaderboard for
+ * @returns {Promise<Array>} Leaderboard data with player standings
+ * @throws {Error} Get leaderboard failed error with message
+ */
+export async function getRoundLeaderboard(roundId) {
+  // Validate inputs before making API call
+  if (!roundId || typeof roundId !== 'string') {
+    throw new Error('Round ID is required');
+  }
+
+  const trimmedId = roundId.trim();
+  if (trimmedId.length === 0) {
+    throw new Error('Round ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}/leaderboard`, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid round ID format');
+      }
+      if (response.status === 404) {
+        // Round not found
+        throw new Error(data.message || 'Round not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format - backend returns { players: [...], roundSettings: {...} }
+    if (!data || !Array.isArray(data.players)) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      players: data.players,
+      roundSettings: data.roundSettings || {},
+    };
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller
@@ -338,5 +416,284 @@ export async function addPlayersToRound(roundId, players) {
       throw new Error('Request timeout - please check your connection and try again');
     }
     throw error;
+  }
+}
+
+/**
+ * Pause a round
+ * @param {string} roundId - Round ID to pause
+ * @returns {Promise<Object>} Updated round data
+ * @throws {Error} Request failed error with message
+ */
+export async function pauseRound(roundId) {
+  // Validate inputs before making API call
+  if (!roundId || typeof roundId !== 'string') {
+    throw new Error('Round ID is required');
+  }
+
+  const trimmedId = roundId.trim();
+  if (trimmedId.length === 0) {
+    throw new Error('Round ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ status: 'in_progress' }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid request');
+      }
+      if (response.status === 404) {
+        // Round not found
+        throw new Error(data.message || 'Round not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate and unwrap response format - backend returns { success: true, data: {...} }
+    if (!data || !data.success || !data.data || !data.data.id) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data.data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Complete a round
+ * @param {string} roundId - Round ID to complete
+ * @returns {Promise<Object>} Updated round data
+ * @throws {Error} Request failed error with message
+ */
+export async function completeRound(roundId) {
+  // Validate inputs before making API call
+  if (!roundId || typeof roundId !== 'string') {
+    throw new Error('Round ID is required');
+  }
+
+  const trimmedId = roundId.trim();
+  if (trimmedId.length === 0) {
+    throw new Error('Round ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ status: 'completed' }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid request');
+      }
+      if (response.status === 404) {
+        // Round not found
+        throw new Error(data.message || 'Round not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate and unwrap response format - backend returns { success: true, data: {...} }
+    if (!data || !data.success || !data.data || !data.data.id) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data.data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Get pars for all holes in a round
+ * @param {string} roundId - Round ID to retrieve pars for
+ * @returns {Promise<Object>} Pars object with hole numbers as keys
+ * @throws {Error} Get pars failed error with message
+ */
+export async function getRoundPars(roundId) {
+  // Validate inputs before making API call
+  if (!roundId || typeof roundId !== 'string') {
+    throw new Error('Round ID is required');
+  }
+
+  const trimmedId = roundId.trim();
+  if (trimmedId.length === 0) {
+    throw new Error('Round ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}/pars`, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid round ID format');
+      }
+      if (response.status === 404) {
+        // Round not found
+        throw new Error(data.message || 'Round not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Return pars object directly
+    return data || {};
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Submit scores for a round
+ * @param {string} roundId - Round ID to submit scores for
+ * @param {Array} scores - Array of score objects {hole, player_id, score}
+ * @returns {Promise<Object>} Submit result
+ * @throws {Error} Submit scores failed error with message
+ */
+export async function submitScores(roundId, scores) {
+  // Validate inputs before making API call
+  if (!roundId || typeof roundId !== 'string') {
+    throw new Error('Round ID is required');
+  }
+
+  const trimmedId = roundId.trim();
+  if (trimmedId.length === 0) {
+    throw new Error('Round ID is required');
+  }
+
+  if (!scores || !Array.isArray(scores)) {
+    throw new Error('Scores array is required');
+  }
+
+  if (scores.length === 0) {
+    throw new Error('Scores array cannot be empty');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}/scores`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ scores }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid score data');
+      }
+      if (response.status === 404) {
+        // Round not found
+        throw new Error(data.message || 'Round not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
   }
 }

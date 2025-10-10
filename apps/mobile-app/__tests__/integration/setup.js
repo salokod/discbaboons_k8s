@@ -123,6 +123,15 @@ jest.mock('react-native', () => {
       const items = data ? data.map((item, index) => renderItem({ item, index })) : [];
       return React.createElement('FlatList', { testID, style, ...props }, items);
     },
+    SectionList: ({
+      testID, sections, renderItem, renderSectionHeader, style, ...props
+    }) => {
+      const sectionItems = sections ? sections.flatMap((section) => [
+        renderSectionHeader ? renderSectionHeader({ section }) : null,
+        ...section.data.map((item, index) => renderItem({ item, index, section })),
+      ]) : [];
+      return React.createElement('SectionList', { testID, style, ...props }, sectionItems);
+    },
     Image: ({
       testID, source, style, ...props
     }) => React.createElement('Image', {

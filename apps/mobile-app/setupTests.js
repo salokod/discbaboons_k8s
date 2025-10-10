@@ -37,6 +37,7 @@ jest.mock('react-native-reanimated', () => {
       ...actualReanimated.default,
       // Add any additional mocks if needed
     },
+    runOnJS: jest.fn((fn) => fn),
   };
 });
 
@@ -50,12 +51,23 @@ jest.mock('react-native-gesture-handler', () => {
     return React.createElement(View, null, children, rightActions);
   }
 
+  const mockGesture = {
+    Pan: jest.fn(() => mockGesture),
+    Tap: jest.fn(() => mockGesture),
+    onEnd: jest.fn(() => mockGesture),
+    onStart: jest.fn(() => mockGesture),
+    onUpdate: jest.fn(() => mockGesture),
+    runOnJS: jest.fn((fn) => fn),
+  };
+
   return {
     Swipeable: MockSwipeable,
     // Include other gesture handler components if needed
     PanGestureHandler: View,
     TapGestureHandler: View,
     GestureHandlerRootView: View,
+    GestureDetector: ({ children }) => React.createElement(View, null, children),
+    Gesture: mockGesture,
     State: {},
     Directions: {},
   };

@@ -39,6 +39,18 @@ jest.mock('../src/screens/discs/SubmitDiscScreen', () => {
   };
 });
 
+jest.mock('../src/screens/rounds/ScorecardRedesignScreen', () => {
+  const { View, Text } = require('react-native');
+
+  return function MockScorecardRedesignScreen() {
+    return (
+      <View testID="scorecard-redesign-screen">
+        <Text>Scorecard Redesign Screen</Text>
+      </View>
+    );
+  };
+});
+
 jest.mock('../src/context/AuthContext', () => ({
   AuthProvider: ({ children }) => children,
   useAuth: () => ({ isAuthenticated: true }),

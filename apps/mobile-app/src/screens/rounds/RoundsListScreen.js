@@ -61,6 +61,33 @@ export function createSections({ activeRounds, completedRounds }) {
   ];
 }
 
+/**
+ * Get navigation target based on round status
+ * @param {Object} round - Round object with status
+ * @returns {Object} - { screen, params } navigation target
+ */
+export function getNavigationTarget(round) {
+  if (round.status === 'in_progress') {
+    return {
+      screen: 'ScorecardRedesign',
+      params: { roundId: round.id },
+    };
+  }
+
+  if (round.status === 'completed' || round.status === 'cancelled') {
+    return {
+      screen: 'RoundSummary',
+      params: { roundId: round.id },
+    };
+  }
+
+  // Default to RoundDetail for unknown statuses
+  return {
+    screen: 'RoundDetail',
+    params: { roundId: round.id },
+  };
+}
+
 function RoundsListScreen({ navigation }) {
   const colors = useThemeColors();
   const [rounds, setRounds] = useState([]);
@@ -205,20 +232,26 @@ function RoundsListScreen({ navigation }) {
   ), [rounds.length]);
 
   // Render individual round item for FlatList
-  const renderRoundItem = useCallback(({ item: round }) => (
-    <RoundCard
-      round={round}
-      onPress={() => navigation?.navigate('RoundDetail', { roundId: round.id })}
-    />
-  ), [navigation]);
+  const renderRoundItem = useCallback(({ item: round }) => {
+    const target = getNavigationTarget(round);
+    return (
+      <RoundCard
+        round={round}
+        onPress={() => navigation?.navigate(target.screen, target.params)}
+      />
+    );
+  }, [navigation]);
 
   // Render individual round item for SectionList
-  const renderSectionItem = useCallback(({ item: round }) => (
-    <RoundCard
-      round={round}
-      onPress={() => navigation?.navigate('RoundDetail', { roundId: round.id })}
-    />
-  ), [navigation]);
+  const renderSectionItem = useCallback(({ item: round }) => {
+    const target = getNavigationTarget(round);
+    return (
+      <RoundCard
+        round={round}
+        onPress={() => navigation?.navigate(target.screen, target.params)}
+      />
+    );
+  }, [navigation]);
 
   // Render empty list item when no rounds
   const renderEmptyComponent = useCallback(() => (
