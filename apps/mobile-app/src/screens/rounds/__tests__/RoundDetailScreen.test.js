@@ -1,7 +1,7 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import RoundDetailScreen from '../RoundDetailScreen';
-import { getRoundDetails } from '../../../services/roundService';
+import { getRoundDetails, getRoundLeaderboard } from '../../../services/roundService';
 
 // Mock navigation
 const mockNavigation = {
@@ -42,6 +42,7 @@ const mockRoute = {
 // Mock roundService
 jest.mock('../../../services/roundService', () => ({
   getRoundDetails: jest.fn(),
+  getRoundLeaderboard: jest.fn(),
 }));
 
 // Mock dependencies
@@ -87,6 +88,56 @@ jest.mock('../../../components/NavigationHeader', () => {
   };
 });
 
+jest.mock('../../../components/rounds/PlayerStandingsCard', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return function PlayerStandingsCard({ players, loading, error }) {
+    if (loading) {
+      return React.createElement(
+        View,
+        { testID: 'player-standings-card-loading' },
+        React.createElement(Text, null, 'Loading leaderboard...'),
+      );
+    }
+    if (error) {
+      return React.createElement(
+        View,
+        { testID: 'player-standings-card-error' },
+        React.createElement(Text, null, error),
+      );
+    }
+    return React.createElement(
+      View,
+      { testID: 'player-standings-card' },
+      players.map((player) => React.createElement(
+        Text,
+        { key: player.id, testID: `player-${player.id}` },
+        player.display_name || player.username,
+      )),
+    );
+  };
+});
+
+jest.mock('../../../components/rounds/ScoreSummaryCard', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return function ScoreSummaryCard({ leaderboard }) {
+    return React.createElement(
+      View,
+      { testID: 'score-summary-card' },
+      React.createElement(Text, null, `Score Summary: ${leaderboard.length} players`),
+    );
+  };
+});
+
+jest.mock('../../../components/rounds/RoundActionsMenu', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return function RoundActionsMenu() {
+    return React.createElement(View, { testID: 'round-actions-menu' });
+  };
+});
+
 describe('RoundDetailScreen', () => {
   const renderWithNavigation = (component) => render(
     <NavigationContainer>
@@ -97,6 +148,7 @@ describe('RoundDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getRoundDetails.mockClear();
+    getRoundLeaderboard.mockClear();
   });
 
   // SLICE 1: Screen Foundation & Navigation Tests
@@ -169,6 +221,11 @@ describe('RoundDetailScreen', () => {
 
   // SLICE 2: Round Data Fetching Tests
   describe('Slice 2: Round Data Fetching', () => {
+    beforeEach(() => {
+      // Mock leaderboard to prevent hanging tests
+      getRoundLeaderboard.mockResolvedValue({ players: [], roundSettings: {} });
+    });
+
     it('should call getRoundDetails with correct roundId on mount', async () => {
       getRoundDetails.mockResolvedValue({
         id: 'round-123',
@@ -350,6 +407,7 @@ describe('RoundDetailScreen', () => {
 
     beforeEach(() => {
       getRoundDetails.mockResolvedValue(mockRoundWithDetails);
+      getRoundLeaderboard.mockResolvedValue({ players: [], roundSettings: {} });
     });
 
     it('should render RoundOverviewCard component', async () => {
@@ -469,6 +527,315 @@ describe('RoundDetailScreen', () => {
       // Should still show date section but with fallback text
       const dateElement = await findByTestId('round-date');
       expect(dateElement).toBeTruthy();
+    });
+  });
+
+  // SLICE 4: Leaderboard Integration Tests
+  describe('Slice 4: Leaderboard Integration', () => {
+    const mockRoundWithDetails = {
+      id: 'round-123',
+      name: 'Morning Championship',
+      status: 'in_progress',
+      start_time: '2023-12-01T09:00:00Z',
+      course: {
+        id: 'course-456',
+        name: 'Pine Valley Golf Course',
+        location: 'Pine Valley, NJ',
+        holes: 18,
+      },
+      players: [],
+    };
+
+    const mockLeaderboard = [
+      {
+        id: 1,
+        username: 'player1',
+        display_name: 'Alice',
+        position: 1,
+        total_score: -3,
+      },
+      {
+        id: 2,
+        username: 'player2',
+        display_name: 'Bob',
+        position: 2,
+        total_score: 1,
+      },
+    ];
+
+    beforeEach(() => {
+      getRoundDetails.mockResolvedValue(mockRoundWithDetails);
+      getRoundLeaderboard.mockResolvedValue({ players: mockLeaderboard, roundSettings: {} });
+    });
+
+    it('should call getRoundLeaderboard with roundId on mount', async () => {
+      renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(getRoundLeaderboard).toHaveBeenCalledWith('round-123');
+      });
+    });
+
+    it('should render PlayerStandingsCard with leaderboard data', async () => {
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Should show player standings card
+      await findByTestId('player-standings-card');
+    });
+
+    it('should display all players in leaderboard', async () => {
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Should show both players
+      await findByTestId('player-1');
+      await findByTestId('player-2');
+    });
+
+    it('should show loading state while fetching leaderboard', async () => {
+      getRoundDetails.mockResolvedValue(mockRoundWithDetails);
+      getRoundLeaderboard.mockImplementation(() => new Promise(() => {})); // Never resolves
+
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Wait for round to load, then check leaderboard loading state
+      await findByTestId('round-overview-card');
+
+      // Should show loading state in standings card
+      await findByTestId('player-standings-card-loading');
+    });
+
+    it('should handle leaderboard fetch errors', async () => {
+      getRoundLeaderboard.mockRejectedValue(new Error('Failed to load leaderboard'));
+
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Should show error state
+      await findByTestId('player-standings-card-error');
+    });
+
+    it('should handle empty leaderboard', async () => {
+      getRoundLeaderboard.mockResolvedValue({ players: [], roundSettings: {} });
+
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Should still render the standings card
+      await findByTestId('player-standings-card');
+    });
+
+    it('should not call leaderboard API when roundId is missing', () => {
+      const emptyRoute = {
+        params: {},
+      };
+
+      renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={emptyRoute}
+        />,
+      );
+
+      expect(getRoundLeaderboard).not.toHaveBeenCalled();
+    });
+  });
+
+  // SLICE B1: Remove "Enter Scores" button
+  describe('Slice B1: Enter Scores Button Removal', () => {
+    const mockRoundWithDetails = {
+      id: 'round-123',
+      name: 'Morning Round',
+      status: 'in_progress',
+      start_time: '2023-12-01T09:00:00Z',
+      course: {
+        id: 'course-456',
+        name: 'Test Course',
+        location: 'Test City',
+        holes: 18,
+      },
+      players: [],
+    };
+
+    beforeEach(() => {
+      getRoundDetails.mockResolvedValue(mockRoundWithDetails);
+      getRoundLeaderboard.mockResolvedValue({ players: [], roundSettings: {} });
+    });
+
+    it('should NOT render Enter Scores button for in_progress rounds', async () => {
+      const { queryByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Wait for round to load
+      await waitFor(() => {
+        expect(getRoundDetails).toHaveBeenCalled();
+      });
+
+      // Button should NOT exist
+      expect(queryByTestId('enter-scores-button')).toBeNull();
+    });
+
+    it('should NOT render Enter Scores button for completed rounds', async () => {
+      const completedRound = {
+        ...mockRoundWithDetails,
+        status: 'completed',
+      };
+      getRoundDetails.mockResolvedValue(completedRound);
+
+      const { queryByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Wait for round to load
+      await waitFor(() => {
+        expect(getRoundDetails).toHaveBeenCalled();
+      });
+
+      // Button should NOT exist
+      expect(queryByTestId('enter-scores-button')).toBeNull();
+    });
+  });
+
+  // SLICE B2: Conditionally hide ScoreSummaryCard
+  describe('Slice B2: ScoreSummaryCard Conditional Rendering', () => {
+    const mockLeaderboard = [
+      {
+        id: 1,
+        username: 'player1',
+        display_name: 'Alice',
+        position: 1,
+        total_score: -3,
+      },
+    ];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should NOT render ScoreSummaryCard for in_progress rounds', async () => {
+      const inProgressRound = {
+        id: 'round-123',
+        name: 'Morning Round',
+        status: 'in_progress',
+        start_time: '2023-12-01T09:00:00Z',
+        course: {
+          id: 'course-456',
+          name: 'Test Course',
+          location: 'Test City',
+          holes: 18,
+        },
+        players: [],
+      };
+
+      getRoundDetails.mockResolvedValue(inProgressRound);
+      getRoundLeaderboard.mockResolvedValue({ players: mockLeaderboard, roundSettings: {} });
+
+      const { queryByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // Wait for data to load
+      await waitFor(() => {
+        expect(getRoundDetails).toHaveBeenCalled();
+      });
+
+      // ScoreSummaryCard should NOT render
+      expect(queryByTestId('score-summary-card')).toBeNull();
+    });
+
+    it('should render ScoreSummaryCard for completed rounds', async () => {
+      const completedRound = {
+        id: 'round-123',
+        name: 'Morning Round',
+        status: 'completed',
+        start_time: '2023-12-01T09:00:00Z',
+        course: {
+          id: 'course-456',
+          name: 'Test Course',
+          location: 'Test City',
+          holes: 18,
+        },
+        players: [],
+      };
+
+      getRoundDetails.mockResolvedValue(completedRound);
+      getRoundLeaderboard.mockResolvedValue({ players: mockLeaderboard, roundSettings: {} });
+
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // ScoreSummaryCard should render
+      await findByTestId('score-summary-card');
+    });
+
+    it('should render ScoreSummaryCard for cancelled rounds', async () => {
+      const cancelledRound = {
+        id: 'round-123',
+        name: 'Morning Round',
+        status: 'cancelled',
+        start_time: '2023-12-01T09:00:00Z',
+        course: {
+          id: 'course-456',
+          name: 'Test Course',
+          location: 'Test City',
+          holes: 18,
+        },
+        players: [],
+      };
+
+      getRoundDetails.mockResolvedValue(cancelledRound);
+      getRoundLeaderboard.mockResolvedValue({ players: mockLeaderboard, roundSettings: {} });
+
+      const { findByTestId } = renderWithNavigation(
+        <RoundDetailScreen
+          navigation={mockNavigation}
+          route={mockRoute}
+        />,
+      );
+
+      // ScoreSummaryCard should render
+      await findByTestId('score-summary-card');
     });
   });
 });
