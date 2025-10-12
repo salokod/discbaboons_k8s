@@ -147,6 +147,34 @@ describe('GET /api/rounds - Integration', () => {
     });
   });
 
+  // GOOD: Integration concern - user should see rounds they're participating in
+  test('should return rounds where user is a participant', async () => {
+    // Create another user who will create the round
+    const creator = await createTestUser({ prefix: 'creator' });
+    createdUserIds.push(creator.user.id);
+
+    // Creator creates a round
+    const round = await createTestRound(creator.user.id, course.id, { prefix: 'invited' });
+    createdRoundIds.push(round.round.id);
+
+    // Add current user as a participant to the round
+    const { addPlayerToRound } = await import('../test-helpers.js');
+    await addPlayerToRound(round.round.id, user.id);
+
+    // Current user should see this round in their list
+    const res = await request(app)
+      .get('/api/rounds')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.total).toBe(1);
+    expect(res.body.rounds).toHaveLength(1);
+    expect(res.body.rounds[0]).toMatchObject({
+      id: round.round.id,
+      created_by_id: creator.user.id,
+    });
+  });
+
   // GOOD: Integration concern - DB filtering works
   test('should filter rounds by status', async () => {
     const round1 = await createTestRound(user.id, course.id, { prefix: 'active' });
