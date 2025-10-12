@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Platform, FlatList,
+  View, Text, TouchableOpacity, StyleSheet, Platform, FlatList, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -52,6 +52,7 @@ function RoundsListScreen({ navigation: navigationProp }) {
   const colors = useThemeColors();
   const [loading, setLoading] = useState(true);
   const [rounds, setRounds] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchRounds = async () => {
@@ -65,6 +66,20 @@ function RoundsListScreen({ navigation: navigationProp }) {
 
     fetchRounds();
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const result = await getRounds();
+      setRounds(result.rounds);
+    } catch (error) {
+      // Silent failure - keep existing rounds visible
+      // eslint-disable-next-line no-console
+      console.log('Refresh failed:', error.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleRoundPress = (round) => {
     if (round.status === 'in_progress') {
@@ -122,6 +137,14 @@ function RoundsListScreen({ navigation: navigationProp }) {
         data={rounds}
         renderItem={renderRoundCard}
         keyExtractor={(item) => item.id}
+        refreshControl={(
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        )}
       />
     </StatusBarSafeView>
   );

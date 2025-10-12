@@ -463,6 +463,36 @@ Keep existing rounds visible during refresh. Only replace on success.
 4. Pull to refresh
 5. Verify new round appears
 
+### ✅ Slice 2 Completion Status (2025-01-12)
+
+**Implemented:**
+- Pull-to-refresh with RefreshControl component
+- Refreshing state management (`refreshing` state variable)
+- Existing rounds persist during refresh (rounds stay visible on API failure)
+- Theme color integration (tintColor + colors for iOS/Android)
+- Silent error handling (console.log instead of error screen)
+
+**Not Implemented:**
+- Toast notification on refresh error (deferred - uses console.log instead per line 78)
+
+**Test Results:**
+- Total tests: 25 (RoundsListScreen tests)
+- Pass rate: 100%
+- New tests added: 6 (refresh control tests)
+
+**Files Modified:**
+- `apps/mobile-app/src/screens/rounds/RoundsListScreen.js` (lines 55, 70-82, 140-147)
+- `apps/mobile-app/src/screens/rounds/__tests__/RoundsListScreen.test.js` (refresh tests)
+
+**Implementation Details:**
+- RefreshControl added to FlatList (lines 140-147)
+- `handleRefresh` function with try-catch for silent failures (lines 70-82)
+- Theme colors applied via `colors.primary` for both iOS (tintColor) and Android (colors array)
+- Preserves existing rounds on error - users never see empty state during failed refresh
+- Uses eslint-disable comment for intentional console.log (acceptable for silent monitoring)
+
+**Next Step**: Ready to proceed to Slice 3 (Empty State for No Rounds) when approved by user.
+
 ---
 
 ## Slice 3: Empty State for No Rounds

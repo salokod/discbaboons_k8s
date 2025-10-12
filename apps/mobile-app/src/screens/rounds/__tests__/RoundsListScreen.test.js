@@ -526,4 +526,226 @@ describe('RoundsListScreen', () => {
       expect(button.props.style.borderRadius).toBe(expectedRadius);
     });
   });
+
+  describe('Pull to Refresh - Slice 2.1: Refreshing state', () => {
+    it('should have refreshing state initialized to false', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const flatList = queryByTestId('rounds-flatlist');
+      expect(flatList.props.refreshControl.props.refreshing).toBe(false);
+    });
+  });
+
+  describe('Pull to Refresh - Slice 2.2: onRefresh handler', () => {
+    it('should call getRounds when onRefresh is triggered', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      getRounds.mockClear();
+
+      const flatList = getByTestId('rounds-flatlist');
+      await flatList.props.refreshControl.props.onRefresh();
+
+      expect(getRounds).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Pull to Refresh - Slice 2.3: Refreshing state during refresh', () => {
+    it('should set refreshing to true during refresh', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
+      // Initial load
+      getRounds.mockResolvedValueOnce({
+        rounds: mockRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      // Setup promise for refresh
+      let resolveGetRounds;
+      const getRoundsPromise = new Promise((resolve) => {
+        resolveGetRounds = resolve;
+      });
+
+      getRounds.mockReturnValue(getRoundsPromise);
+
+      const flatList = getByTestId('rounds-flatlist');
+      const refreshPromise = flatList.props.refreshControl.props.onRefresh();
+
+      await waitFor(() => {
+        expect(getByTestId('rounds-flatlist').props.refreshControl.props.refreshing).toBe(true);
+      });
+
+      resolveGetRounds({
+        rounds: mockRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      await refreshPromise;
+
+      await waitFor(() => {
+        expect(getByTestId('rounds-flatlist').props.refreshControl.props.refreshing).toBe(false);
+      });
+    });
+  });
+
+  describe('Pull to Refresh - Slice 2.4: Keep existing rounds visible', () => {
+    it('should keep existing rounds visible during refresh', async () => {
+      const initialRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
+      const updatedRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+        {
+          id: 'round-2', name: 'Round 2', course_id: 'course-2', course_name: 'Course 2', status: 'in_progress', start_time: '2024-01-15T11:00:00Z', player_count: 3, skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValueOnce({
+        rounds: initialRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('round-card-round-1')).toBeTruthy();
+
+      let resolveRefresh;
+      const refreshPromise = new Promise((resolve) => {
+        resolveRefresh = resolve;
+      });
+
+      getRounds.mockReturnValue(refreshPromise);
+
+      const flatList = getByTestId('rounds-flatlist');
+      const onRefreshPromise = flatList.props.refreshControl.props.onRefresh();
+
+      await waitFor(() => {
+        expect(getByTestId('rounds-flatlist').props.refreshControl.props.refreshing).toBe(true);
+      });
+
+      expect(getByTestId('round-card-round-1')).toBeTruthy();
+
+      resolveRefresh({
+        rounds: updatedRounds,
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      await onRefreshPromise;
+
+      await waitFor(() => {
+        expect(getByTestId('round-card-round-1')).toBeTruthy();
+        expect(getByTestId('round-card-round-2')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Pull to Refresh - Slice 2.5: Theme primary color', () => {
+    it('should use theme primary color for refresh indicator', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const flatList = getByTestId('rounds-flatlist');
+
+      expect(flatList.props.refreshControl).toBeDefined();
+      expect(flatList.props.refreshControl.props.tintColor).toBe('#007AFF');
+    });
+  });
+
+  describe('Pull to Refresh - Slice 2.6: Error handling', () => {
+    it('should keep existing rounds visible when refresh fails', async () => {
+      const existingRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValueOnce({
+        rounds: existingRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('round-card-round-1')).toBeTruthy();
+
+      getRounds.mockRejectedValueOnce(new Error('Network error'));
+
+      const flatList = getByTestId('rounds-flatlist');
+
+      await flatList.props.refreshControl.props.onRefresh();
+
+      expect(getByTestId('round-card-round-1')).toBeTruthy();
+      expect(getByTestId('rounds-flatlist').props.refreshControl.props.refreshing).toBe(false);
+    });
+  });
 });
