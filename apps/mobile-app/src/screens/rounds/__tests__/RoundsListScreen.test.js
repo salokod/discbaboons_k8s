@@ -1,530 +1,289 @@
+/**
+ * RoundsListScreen Tests
+ */
+
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import RoundsListScreen, { categorizeRounds, createSections, getNavigationTarget } from '../RoundsListScreen';
+import { Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import RoundsListScreen from '../RoundsListScreen';
 import { getRounds } from '../../../services/roundService';
-
-// Mock navigation
-const mockNavigation = {
-  navigate: jest.fn(),
-};
-
-// Mock dependencies
-jest.mock('../../../context/ThemeContext', () => ({
-  useThemeColors: () => ({
-    background: '#FFFFFF',
-    surface: '#FFFFFF',
-    text: '#000000',
-    textLight: '#666666',
-    primary: '#007AFF',
-    border: '#E1E1E1',
-    white: '#FFFFFF',
-    warning: '#FF9500',
-    black: '#000000',
-  }),
-}));
 
 // Mock roundService
 jest.mock('../../../services/roundService', () => ({
   getRounds: jest.fn(),
-  createRound: jest.fn(),
-  getRoundDetails: jest.fn(),
 }));
 
-jest.mock('../../../design-system/components/EmptyState', () => {
+// Mock React Navigation
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: jest.fn(),
+}));
+
+// Mock ThemeContext
+jest.mock('../../../context/ThemeContext', () => ({
+  useThemeColors: jest.fn(() => ({
+    background: '#FFFFFF',
+    surface: '#FFFFFF',
+    text: '#000000',
+    textLight: '#8E8E93',
+    primary: '#007AFF',
+    white: '#FFFFFF',
+  })),
+}));
+
+// Mock SkeletonCard component
+jest.mock('../../../components/rounds/SkeletonCard', () => {
   const ReactLocal = require('react');
-  const { Text } = require('react-native');
-  return function EmptyState({ title, subtitle, actionLabel }) {
-    return ReactLocal.createElement(Text, { testID: 'empty-state' }, `${title} | ${subtitle} | ${actionLabel}`);
+  const { View } = require('react-native');
+  return function SkeletonCard() {
+    return ReactLocal.createElement(View, { testID: 'skeleton-card' });
   };
 });
 
-jest.mock('../../../components/AppContainer', () => {
+// Mock StatusBarSafeView
+jest.mock('../../../components/StatusBarSafeView', () => {
   const ReactLocal = require('react');
   const { View } = require('react-native');
-  return function AppContainer({ children }) {
-    return ReactLocal.createElement(View, { testID: 'app-container' }, children);
+  return function StatusBarSafeView({ children }) {
+    return ReactLocal.createElement(View, { testID: 'status-bar-safe-view' }, children);
+  };
+});
+
+// Mock RoundCard component
+jest.mock('../../../components/rounds/RoundCard', () => {
+  const ReactLocal = require('react');
+  const { TouchableOpacity } = require('react-native');
+  return function RoundCard({ round, onPress }) {
+    return ReactLocal.createElement(TouchableOpacity, {
+      testID: `round-card-${round.id}`,
+      onPress: () => onPress?.(round),
+    });
+  };
+});
+
+// Mock Icon component
+jest.mock('@react-native-vector-icons/ionicons', () => {
+  const ReactLocal = require('react');
+  const { View } = require('react-native');
+  return function Icon({ name, size, color }) {
+    return ReactLocal.createElement(View, {
+      testID: 'icon',
+      'data-name': name,
+      'data-size': size,
+      'data-color': color,
+    });
   };
 });
 
 describe('RoundsListScreen', () => {
-  const renderWithNavigation = (component) => render(
-    <NavigationContainer>
-      {component}
-    </NavigationContainer>,
-  );
-
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default mock - return empty rounds for most tests
+    // Default mock implementation
     getRounds.mockResolvedValue({
       rounds: [],
       pagination: {
-        total: 0, limit: 20, offset: 0, hasMore: false,
+        total: 0,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
       },
     });
-  });
-
-  it('should export component with memo and displayName', () => {
-    expect(RoundsListScreen.displayName).toBe('RoundsListScreen');
-    expect(RoundsListScreen).toBeDefined();
-  });
-
-  it('should render without rounds and show empty state', async () => {
-    const { getByTestId, getByText } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Should render the main screen container
-    expect(getByTestId('rounds-list-screen')).toBeTruthy();
-
-    // Wait for loading to complete and empty state to show
-    await waitFor(() => {
-      expect(getByTestId('empty-state')).toBeTruthy();
-    });
-
-    // Should show empty state with appropriate message
-    expect(getByText(/No rounds yet/)).toBeTruthy();
-  });
-
-  it('should show header even when empty', async () => {
-    const { getByText } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(getByText('My Rounds')).toBeTruthy();
-      expect(getByText('0 rounds')).toBeTruthy();
+    // Setup navigation mock
+    useNavigation.mockReturnValue({
+      navigate: mockNavigate,
     });
   });
 
-  it('should render FAB button and be tappable', async () => {
-    const { getByTestId } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(getByTestId('empty-state')).toBeTruthy();
-    });
-
-    // Should render the FAB button
-    expect(getByTestId('rounds-fab-button')).toBeTruthy();
-
-    // FAB button should be tappable
-    const fabButton = getByTestId('rounds-fab-button');
-    expect(fabButton).toBeTruthy();
-
-    // Test that it can be pressed (this will test the onPress handler)
-    fireEvent.press(fabButton);
-
-    // Should have called navigation to CreateRound
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('CreateRound');
+  it('should export RoundsListScreen component', () => {
+    expect(RoundsListScreen).toBeTruthy();
   });
 
-  it('should display rounds list when rounds exist', async () => {
-    // Override the default mock to return some rounds
+  it('should show 3 SkeletonCard components while loading', () => {
+    const { getAllByTestId } = render(<RoundsListScreen />);
+
+    const skeletonCards = getAllByTestId('skeleton-card');
+    expect(skeletonCards).toHaveLength(3);
+  });
+
+  it('should call getRounds on component mount', async () => {
+    render(<RoundsListScreen />);
+
+    await waitFor(() => {
+      expect(getRounds).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('should render FlatList with RoundCard for each round', async () => {
+    const mockRounds = [
+      {
+        id: 'round-1',
+        name: 'Morning Round',
+        course_id: 'course-1',
+        course_name: 'Test Course',
+        status: 'in_progress',
+        start_time: '2024-01-15T10:00:00Z',
+        player_count: 2,
+        skins_enabled: false,
+      },
+      {
+        id: 'round-2',
+        name: 'Evening Round',
+        course_id: 'course-2',
+        course_name: 'Another Course',
+        status: 'completed',
+        start_time: '2024-01-16T18:00:00Z',
+        player_count: 4,
+        skins_enabled: true,
+        skins_value: 5,
+      },
+    ];
+
     getRounds.mockResolvedValue({
-      rounds: [
-        {
-          id: 'round-1',
-          name: 'Morning Round',
-          course_name: 'Maple Hill',
-          status: 'completed',
-        },
-        {
-          id: 'round-2',
-          name: 'Evening Round',
-          course_name: 'Pine Valley',
-          status: 'in_progress',
-        },
-      ],
+      rounds: mockRounds,
       pagination: {
-        total: 2, limit: 20, offset: 0, hasMore: false,
+        total: 2,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
       },
     });
 
-    const { getByTestId, queryByTestId } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
+    const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
-    // Should render the main screen container
-    expect(getByTestId('rounds-list-screen')).toBeTruthy();
-
-    // Wait for loading to complete and API to be called
+    // Wait for loading to finish
     await waitFor(() => {
-      expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+      expect(queryByTestId('skeleton-card')).toBeNull();
     });
 
-    // Wait for rounds section list to appear
-    await waitFor(() => {
-      // Should NOT show empty state when rounds exist
-      expect(queryByTestId('empty-state')).toBeNull();
-      // Should show rounds section list instead (when rounds exist, use SectionList)
-      expect(getByTestId('rounds-section-list')).toBeTruthy();
-    });
+    // Verify FlatList is rendered
+    expect(getByTestId('rounds-flatlist')).toBeTruthy();
 
-    // Should still show FAB button for creating new rounds
-    expect(getByTestId('rounds-fab-button')).toBeTruthy();
+    // Verify RoundCard components are rendered for each round
+    expect(getByTestId('round-card-round-1')).toBeTruthy();
+    expect(getByTestId('round-card-round-2')).toBeTruthy();
   });
 
-  it('should show header with correct count when rounds exist', async () => {
-    // Override the default mock to return some rounds
+  it('should navigate to RoundDetail when card is pressed', async () => {
+    const mockRounds = [
+      {
+        id: 'round-123',
+        name: 'Test Round',
+        course_id: 'course-1',
+        course_name: 'Test Course',
+        status: 'in_progress',
+        start_time: '2024-01-15T10:00:00Z',
+        player_count: 2,
+        skins_enabled: false,
+      },
+    ];
+
     getRounds.mockResolvedValue({
-      rounds: [
-        {
-          id: 'round-1',
-          name: 'Morning Round',
-          course_name: 'Maple Hill',
-          status: 'completed',
-        },
-        {
-          id: 'round-2',
-          name: 'Evening Round',
-          course_name: 'Pine Valley',
-          status: 'in_progress',
-        },
-      ],
+      rounds: mockRounds,
       pagination: {
-        total: 2, limit: 20, offset: 0, hasMore: false,
+        total: 1,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
       },
     });
 
-    const { getByText } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
+    const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
-    // Wait for loading to complete
+    // Wait for loading to finish
     await waitFor(() => {
-      expect(getByText('My Rounds')).toBeTruthy();
+      expect(queryByTestId('skeleton-card')).toBeNull();
+    });
+
+    // Press the round card
+    const roundCard = getByTestId('round-card-round-123');
+    fireEvent.press(roundCard);
+
+    // Verify navigation was called with correct params
+    // Should navigate to ScorecardRedesign for in_progress rounds
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('ScorecardRedesign', {
+      roundId: 'round-123',
+    });
+  });
+
+  describe('Header Create Button - Slice 1: Render without onCreatePress prop', () => {
+    it('should render without onCreatePress prop', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      // Should render without errors
+      expect(queryByTestId('rounds-flatlist')).toBeTruthy();
+    });
+  });
+
+  describe('Header Create Button - Slice 2: Render Create Button', () => {
+    it('should render header with title, count, and create button', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+        {
+          id: 'round-2', name: 'Round 2', course_id: 'course-2', course_name: 'Course 2', status: 'completed', start_time: '2024-01-16T18:00:00Z', player_count: 4, skins_enabled: true, skins_value: 5,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 2, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Your Rounds')).toBeTruthy();
       expect(getByText('2 rounds')).toBeTruthy();
-    });
-  });
-
-  it('should use ListHeaderComponent so header scrolls with content', async () => {
-    getRounds.mockResolvedValue({
-      rounds: [{
-        id: 'round-1', name: 'Test Round', course_name: 'Test Course', status: 'completed',
-      }],
-      pagination: {
-        total: 1, limit: 20, offset: 0, hasMore: false,
-      },
+      expect(queryByTestId('create-round-header-button')).toBeTruthy();
     });
 
-    const { getByTestId } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(getByTestId('rounds-section-list')).toBeTruthy();
-    });
-
-    // Verify SectionList has ListHeaderComponent (header scrolls with content)
-    const sectionList = getByTestId('rounds-section-list');
-    expect(sectionList).toBeTruthy();
-  });
-
-  it('should add 12px spacing between round cards', async () => {
-    getRounds.mockResolvedValue({
-      rounds: [
+    it('should display singular "round" for count of 1', async () => {
+      const mockRounds = [
         {
-          id: 'round-1', name: 'Round 1', course_name: 'Course 1', status: 'completed',
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
         },
-        {
-          id: 'round-2', name: 'Round 2', course_name: 'Course 2', status: 'in_progress',
-        },
-      ],
-      pagination: {
-        total: 2, limit: 20, offset: 0, hasMore: false,
-      },
-    });
-
-    const { getByTestId } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(getByTestId('rounds-section-list')).toBeTruthy();
-    });
-
-    // This test verifies the SectionList exists and renders round items
-    // The actual spacing is tested in RoundCard component tests
-    expect(getByTestId('rounds-section-list')).toBeTruthy();
-  });
-
-  it('should manage refresh state', async () => {
-    getRounds.mockResolvedValue({
-      rounds: [],
-      pagination: {
-        total: 0, limit: 20, offset: 0, hasMore: false,
-      },
-    });
-
-    const { getByTestId } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Wait for initial load to complete
-    await waitFor(() => {
-      expect(getByTestId('rounds-list')).toBeTruthy();
-    });
-
-    // Check that the list has RefreshControl
-    const flatList = getByTestId('rounds-list');
-    expect(flatList.props.refreshControl).toBeDefined();
-  });
-
-  it('should support pull-to-refresh functionality', async () => {
-    // Initial load with no rounds
-    getRounds.mockResolvedValueOnce({
-      rounds: [],
-      pagination: {
-        total: 0, limit: 20, offset: 0, hasMore: false,
-      },
-    });
-
-    const { getByTestId, getByText } = renderWithNavigation(
-      <RoundsListScreen navigation={mockNavigation} />,
-    );
-
-    // Wait for initial load to complete
-    await waitFor(() => {
-      expect(getByTestId('rounds-list')).toBeTruthy();
-      expect(getByText('0 rounds')).toBeTruthy();
-    });
-
-    // Mock the refresh to return rounds
-    getRounds.mockResolvedValueOnce({
-      rounds: [{
-        id: 'new-round', name: 'New Round', course_name: 'Test Course', status: 'completed',
-      }],
-      pagination: {
-        total: 1, limit: 20, offset: 0, hasMore: false,
-      },
-    });
-
-    // Simulate pull-to-refresh
-    const flatList = getByTestId('rounds-list');
-    const { refreshControl } = flatList.props;
-
-    // Trigger onRefresh
-    await refreshControl.props.onRefresh();
-
-    // Wait for refresh to complete and verify updated data
-    await waitFor(() => {
-      expect(getRounds).toHaveBeenCalledTimes(2);
-      expect(getByTestId('header-count')).toHaveTextContent('1 round');
-    });
-  });
-
-  describe('Categorized Sections', () => {
-    it('should categorize rounds into active and completed groups', () => {
-      const mockRounds = [
-        { id: '1', status: 'in_progress', name: 'Active Round 1' },
-        { id: '2', status: 'completed', name: 'Completed Round 1' },
-        { id: '3', status: 'in_progress', name: 'Active Round 2' },
-        { id: '4', status: 'cancelled', name: 'Cancelled Round 1' },
       ];
 
-      const result = categorizeRounds(mockRounds);
-
-      expect(result.activeRounds).toHaveLength(2);
-      expect(result.activeRounds[0].status).toBe('in_progress');
-      expect(result.activeRounds[1].status).toBe('in_progress');
-
-      expect(result.completedRounds).toHaveLength(2);
-      expect(result.completedRounds.some((r) => r.status === 'completed')).toBe(true);
-      expect(result.completedRounds.some((r) => r.status === 'cancelled')).toBe(true);
-    });
-
-    it('should handle empty rounds array', () => {
-      const result = categorizeRounds([]);
-
-      expect(result.activeRounds).toHaveLength(0);
-      expect(result.completedRounds).toHaveLength(0);
-    });
-
-    it('should handle all rounds being active', () => {
-      const mockRounds = [
-        { id: '1', status: 'in_progress' },
-        { id: '2', status: 'in_progress' },
-      ];
-
-      const result = categorizeRounds(mockRounds);
-
-      expect(result.activeRounds).toHaveLength(2);
-      expect(result.completedRounds).toHaveLength(0);
-    });
-
-    it('should handle all rounds being completed', () => {
-      const mockRounds = [
-        { id: '1', status: 'completed' },
-        { id: '2', status: 'cancelled' },
-      ];
-
-      const result = categorizeRounds(mockRounds);
-
-      expect(result.activeRounds).toHaveLength(0);
-      expect(result.completedRounds).toHaveLength(2);
-    });
-  });
-
-  describe('createSections', () => {
-    it('should create sections array structure with active and completed rounds', () => {
-      const activeRounds = [
-        { id: '1', status: 'in_progress', name: 'Active Round 1' },
-        { id: '2', status: 'in_progress', name: 'Active Round 2' },
-      ];
-      const completedRounds = [
-        { id: '3', status: 'completed', name: 'Completed Round 1' },
-        { id: '4', status: 'cancelled', name: 'Cancelled Round 1' },
-      ];
-
-      const sections = createSections({ activeRounds, completedRounds });
-
-      expect(sections).toHaveLength(2);
-
-      // Check Active Rounds section
-      expect(sections[0]).toEqual({
-        title: 'Active Rounds',
-        data: activeRounds,
-        key: 'active',
-      });
-
-      // Check Completed Rounds section
-      expect(sections[1]).toEqual({
-        title: 'Completed Rounds',
-        data: completedRounds,
-        key: 'completed',
-      });
-    });
-
-    it('should handle empty active rounds array', () => {
-      const activeRounds = [];
-      const completedRounds = [
-        { id: '1', status: 'completed', name: 'Completed Round 1' },
-      ];
-
-      const sections = createSections({ activeRounds, completedRounds });
-
-      expect(sections).toHaveLength(2);
-      expect(sections[0].data).toHaveLength(0);
-      expect(sections[1].data).toHaveLength(1);
-    });
-
-    it('should handle empty completed rounds array', () => {
-      const activeRounds = [
-        { id: '1', status: 'in_progress', name: 'Active Round 1' },
-      ];
-      const completedRounds = [];
-
-      const sections = createSections({ activeRounds, completedRounds });
-
-      expect(sections).toHaveLength(2);
-      expect(sections[0].data).toHaveLength(1);
-      expect(sections[1].data).toHaveLength(0);
-    });
-
-    it('should handle both arrays being empty', () => {
-      const activeRounds = [];
-      const completedRounds = [];
-
-      const sections = createSections({ activeRounds, completedRounds });
-
-      expect(sections).toHaveLength(2);
-      expect(sections[0].data).toHaveLength(0);
-      expect(sections[1].data).toHaveLength(0);
-    });
-  });
-
-  describe('SectionList Migration', () => {
-    it('should render SectionList instead of FlatList when rounds exist', async () => {
       getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-          },
-          {
-            id: 'round-2',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-          },
-        ],
-        pagination: {
-          total: 2, limit: 20, offset: 0, hasMore: false,
-        },
-      });
-
-      const { getByTestId, queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('rounds-section-list')).toBeTruthy();
-        // Should NOT have the old FlatList
-        expect(queryByTestId('rounds-list')).toBeNull();
-      });
-    });
-
-    it('should preserve RefreshControl functionality in SectionList', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            status: 'in_progress',
-            name: 'Test Round',
-            course_name: 'Test Course',
-          },
-        ],
+        rounds: mockRounds,
         pagination: {
           total: 1, limit: 20, offset: 0, hasMore: false,
         },
       });
 
-      const { getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
 
       await waitFor(() => {
-        expect(getByTestId('rounds-section-list')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      const sectionList = getByTestId('rounds-section-list');
-      expect(sectionList.props.refreshControl).toBeDefined();
+      expect(getByText('1 round')).toBeTruthy();
     });
+  });
 
-    it('should preserve ListHeaderComponent functionality in SectionList', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            status: 'in_progress',
-            name: 'Test Round',
-            course_name: 'Test Course',
-          },
-        ],
-        pagination: {
-          total: 1, limit: 20, offset: 0, hasMore: false,
-        },
-      });
-
-      const { getByText, getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      await waitFor(() => {
-        expect(getByText('My Rounds')).toBeTruthy();
-        expect(getByTestId('header-count')).toHaveTextContent('1 round');
-      });
-    });
-
-    it('should use FlatList when no rounds exist (empty state)', async () => {
+  describe('Header Create Button - Slice 3: Add testID and accessibility', () => {
+    it('should have accessibility label on create button', async () => {
       getRounds.mockResolvedValue({
         rounds: [],
         pagination: {
@@ -532,131 +291,17 @@ describe('RoundsListScreen', () => {
         },
       });
 
-      const { getByTestId, queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
       await waitFor(() => {
-        // Should show FlatList for empty state
-        expect(getByTestId('rounds-list')).toBeTruthy();
-        // Should NOT show SectionList when empty
-        expect(queryByTestId('rounds-section-list')).toBeNull();
-      });
-    });
-  });
-
-  describe('Section Headers', () => {
-    it('should display section headers with correct titles and counts', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-          },
-          {
-            id: 'round-2',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-          },
-          {
-            id: 'round-3',
-            name: 'Cancelled Round',
-            course_name: 'Test Course',
-            status: 'cancelled',
-          },
-        ],
-        pagination: {
-          total: 3, limit: 20, offset: 0, hasMore: false,
-        },
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      const { getByText } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      await waitFor(() => {
-        // Should show Active Rounds section header with count
-        expect(getByText('Active Rounds')).toBeTruthy();
-        expect(getByText('1 round')).toBeTruthy();
-
-        // Should show Completed Rounds section header with count
-        expect(getByText('Completed Rounds')).toBeTruthy();
-        expect(getByText('2 rounds')).toBeTruthy();
-      });
+      const button = getByTestId('create-round-header-button');
+      expect(button.props.accessibilityLabel).toBe('Create new round');
     });
 
-    it('should show correct pluralization for section counts', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Active Round 1',
-            course_name: 'Test Course',
-            status: 'in_progress',
-          },
-          {
-            id: 'round-2',
-            name: 'Active Round 2',
-            course_name: 'Test Course',
-            status: 'in_progress',
-          },
-        ],
-        pagination: {
-          total: 2, limit: 20, offset: 0, hasMore: false,
-        },
-      });
-
-      const { getByText, getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      await waitFor(() => {
-        // Should show Active Rounds section header with plural count
-        expect(getByText('Active Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-active')).toHaveTextContent('2 rounds');
-
-        // Should show Completed Rounds section header with zero count
-        expect(getByText('Completed Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-completed')).toHaveTextContent('0 rounds');
-      });
-    });
-
-    it('should display section headers even when sections are empty', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-          },
-        ],
-        pagination: {
-          total: 1, limit: 20, offset: 0, hasMore: false,
-        },
-      });
-
-      const { getByText, getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      await waitFor(() => {
-        // Should show Active Rounds header even when empty
-        expect(getByText('Active Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-active')).toHaveTextContent('0 rounds');
-
-        // Should show Completed Rounds header with count
-        expect(getByText('Completed Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-completed')).toHaveTextContent('1 round');
-      });
-    });
-  });
-
-  describe('Pagination State Integration', () => {
-    it('should initialize pagination state with default values', async () => {
+    it('should have accessibility hint on create button', async () => {
       getRounds.mockResolvedValue({
         rounds: [],
         pagination: {
@@ -664,188 +309,19 @@ describe('RoundsListScreen', () => {
         },
       });
 
-      const { getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
-      // Wait for initial load to complete
       await waitFor(() => {
-        expect(getByTestId('rounds-list-screen')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      // Component should initialize without errors, showing pagination state is properly set
-      expect(getByTestId('rounds-list-screen')).toBeTruthy();
-    });
-
-    it('should call loadRounds with default page 1 and calculate totalPages', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [{
-          id: 'round-1', name: 'Test Round', course_name: 'Test Course', status: 'completed',
-        }],
-        pagination: {
-          total: 45, limit: 20, offset: 0, hasMore: true,
-        },
-      });
-
-      renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      // Wait for initial load to complete
-      await waitFor(() => {
-        expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-      });
-
-      // Should have calculated totalPages from pagination.total (45 rounds / 20 per page = 3 pages)
-      // This will be verified by ensuring the component renders without errors
-      expect(getRounds).toHaveBeenCalledTimes(1);
-    });
-
-    it('should call loadRounds with specific page and calculate offset correctly', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [],
-        pagination: {
-          total: 60, limit: 20, offset: 40, hasMore: false,
-        },
-      });
-
-      const { getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      // Wait for initial load to complete
-      await waitFor(() => {
-        expect(getByTestId('rounds-list-screen')).toBeTruthy();
-      });
-
-      // Note: This test verifies the component can handle pagination data properly
-      // The actual page parameter testing will be done when we implement the function modification
-      expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-    });
-
-    it('should handle page changes correctly', async () => {
-      // Mock initial load
-      getRounds.mockResolvedValueOnce({
-        rounds: [{
-          id: 'round-1', name: 'Test Round', course_name: 'Test Course', status: 'completed',
-        }],
-        pagination: {
-          total: 45, limit: 20, offset: 0, hasMore: true,
-        },
-      });
-
-      // Mock page 2 load
-      getRounds.mockResolvedValueOnce({
-        rounds: [{
-          id: 'round-2', name: 'Round 2', course_name: 'Course 2', status: 'in_progress',
-        }],
-        pagination: {
-          total: 45, limit: 20, offset: 20, hasMore: true,
-        },
-      });
-
-      const { getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      // Wait for initial load to complete
-      await waitFor(() => {
-        expect(getByTestId('rounds-list-screen')).toBeTruthy();
-        expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-      });
-
-      // This test verifies that the component can handle multiple API calls
-      // The actual handlePageChange function will be tested when implemented
-      expect(getRounds).toHaveBeenCalledTimes(1);
-    });
-
-    it('should render PaginationControls when totalPages > 1', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [{
-          id: 'round-1', name: 'Test Round', course_name: 'Test Course', status: 'completed',
-        }],
-        pagination: {
-          total: 45, limit: 20, offset: 0, hasMore: true,
-        },
-      });
-
-      const { queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      // Wait for initial load to complete
-      await waitFor(() => {
-        expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-      });
-
-      // This test will pass once PaginationControls is rendered
-      // For now, we test that the component initializes properly with pagination data
-      expect(queryByTestId('rounds-list-screen')).toBeTruthy();
-    });
-
-    it('should not render PaginationControls when totalPages <= 1', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [{
-          id: 'round-1', name: 'Test Round', course_name: 'Test Course', status: 'completed',
-        }],
-        pagination: {
-          total: 15, limit: 20, offset: 0, hasMore: false,
-        },
-      });
-
-      const { queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      // Wait for initial load to complete
-      await waitFor(() => {
-        expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-      });
-
-      // This test will pass once PaginationControls conditional rendering is implemented
-      // For now, we test that the component initializes properly with single page data
-      expect(queryByTestId('rounds-list-screen')).toBeTruthy();
-    });
-
-    it('should reset pagination to page 1 when refresh is triggered', async () => {
-      // Initial load with multiple pages
-      getRounds.mockResolvedValueOnce({
-        rounds: [{
-          id: 'round-1', name: 'Test Round', course_name: 'Test Course', status: 'completed',
-        }],
-        pagination: {
-          total: 45, limit: 20, offset: 0, hasMore: true,
-        },
-      });
-
-      // Refresh should reset to page 1
-      getRounds.mockResolvedValueOnce({
-        rounds: [{
-          id: 'round-2', name: 'New Round', course_name: 'New Course', status: 'in_progress',
-        }],
-        pagination: {
-          total: 25, limit: 20, offset: 0, hasMore: true,
-        },
-      });
-
-      const { queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      // Wait for initial load to complete
-      await waitFor(() => {
-        expect(getRounds).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-      });
-
-      // This test verifies the component properly handles refresh with pagination reset
-      expect(queryByTestId('rounds-list-screen')).toBeTruthy();
+      const button = getByTestId('create-round-header-button');
+      expect(button.props.accessibilityHint).toBe('Start a new round of disc golf');
     });
   });
 
-  describe('Empty Section States', () => {
-    it('should show EmptyRoundsScreen only when both sections are empty', async () => {
-      // Ensure clean mock state
-      getRounds.mockReset();
+  describe('Header Create Button - Slice 4: Wire up navigation callback', () => {
+    it('should navigate to CreateRound when button is pressed', async () => {
       getRounds.mockResolvedValue({
         rounds: [],
         pagination: {
@@ -853,125 +329,68 @@ describe('RoundsListScreen', () => {
         },
       });
 
-      const { getByTestId, queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
       await waitFor(() => {
-        // Should show FlatList with empty component (not SectionList)
-        expect(getByTestId('rounds-list')).toBeTruthy();
-        expect(queryByTestId('rounds-section-list')).toBeNull();
-        expect(getByTestId('empty-state')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
+
+      const button = getByTestId('create-round-header-button');
+      fireEvent.press(button);
+
+      expect(mockNavigate).toHaveBeenCalledWith('CreateRound');
     });
 
-    it('should show section headers with zero counts when individual sections are empty', async () => {
+    it('should navigate to CreateRound on each button press', async () => {
       getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-          },
-        ],
+        rounds: [],
         pagination: {
-          total: 1, limit: 20, offset: 0, hasMore: false,
+          total: 0, limit: 20, offset: 0, hasMore: false,
         },
       });
 
-      const { getByText, getByTestId, queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
       await waitFor(() => {
-        // Should use SectionList (not FlatList)
-        expect(getByTestId('rounds-section-list')).toBeTruthy();
-        expect(queryByTestId('rounds-list')).toBeNull();
-
-        // Should NOT show empty state
-        expect(queryByTestId('empty-state')).toBeNull();
-
-        // Should show both section headers
-        expect(getByText('Active Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-active')).toHaveTextContent('0 rounds');
-        expect(getByText('Completed Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-completed')).toHaveTextContent('1 round');
-      });
-    });
-
-    it('should render sections with empty data arrays correctly', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-          },
-        ],
-        pagination: {
-          total: 1, limit: 20, offset: 0, hasMore: false,
-        },
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      const { getByText, getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const button = getByTestId('create-round-header-button');
+      fireEvent.press(button);
+      fireEvent.press(button);
+      fireEvent.press(button);
 
-      await waitFor(() => {
-        // Should use SectionList
-        expect(getByTestId('rounds-section-list')).toBeTruthy();
-
-        // Should show Active Rounds section with count
-        expect(getByText('Active Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-active')).toHaveTextContent('1 round');
-
-        // Should show Completed Rounds section with zero count
-        expect(getByText('Completed Rounds')).toBeTruthy();
-        expect(getByTestId('section-count-completed')).toHaveTextContent('0 rounds');
-      });
-    });
-
-    it('should not show empty state when using SectionList even if some sections are empty', async () => {
-      getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-1',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-          },
-        ],
-        pagination: {
-          total: 1, limit: 20, offset: 0, hasMore: false,
-        },
-      });
-
-      const { queryByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
-
-      await waitFor(() => {
-        // Should NOT show empty state component
-        expect(queryByTestId('empty-state')).toBeNull();
-      });
+      expect(mockNavigate).toHaveBeenCalledTimes(3);
+      expect(mockNavigate).toHaveBeenCalledWith('CreateRound');
     });
   });
 
-  describe('Round Card Navigation', () => {
-    it('should navigate to ScorecardRedesign when active round card is pressed', async () => {
-      // Mock getRounds to return active round
+  describe('Header Create Button - Slice 5: Apply primary variant', () => {
+    it('should have primary color background', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const button = getByTestId('create-round-header-button');
+      expect(button.props.style.backgroundColor).toBe('#007AFF');
+    });
+  });
+
+  describe('Header Create Button - Slice 6: Always render header', () => {
+    it('should always render header even when onCreatePress is undefined', async () => {
       getRounds.mockResolvedValue({
         rounds: [
           {
-            id: 'round-1',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-            start_time: '2024-01-01T10:00:00Z',
-            player_count: 4,
-            skins_enabled: false,
+            id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
           },
         ],
         pagination: {
@@ -979,84 +398,44 @@ describe('RoundsListScreen', () => {
         },
       });
 
-      const { getByText, getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
 
-      // Wait for rounds to load
       await waitFor(() => {
-        expect(getByText('Active Round')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      // Find and press the round card
-      const roundCard = getByTestId('round-card-touchable');
-      fireEvent.press(roundCard);
-
-      // Verify navigation was called with ScorecardRedesign screen
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('ScorecardRedesign', {
-        roundId: 'round-1',
-      });
+      expect(getByText('Your Rounds')).toBeTruthy();
+      expect(getByText('1 round')).toBeTruthy();
+      expect(queryByTestId('create-round-header-button')).toBeTruthy();
+      expect(queryByTestId('rounds-flatlist')).toBeTruthy();
     });
 
-    it('should navigate to RoundSummary when completed round card is pressed', async () => {
-      // Mock getRounds to return completed round
+    it('should always render header with zero rounds', async () => {
       getRounds.mockResolvedValue({
-        rounds: [
-          {
-            id: 'round-2',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-            start_time: '2024-01-01T10:00:00Z',
-            player_count: 4,
-            skins_enabled: false,
-          },
-        ],
+        rounds: [],
         pagination: {
-          total: 1, limit: 20, offset: 0, hasMore: false,
+          total: 0, limit: 20, offset: 0, hasMore: false,
         },
       });
 
-      const { getByText, getByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
 
-      // Wait for rounds to load
       await waitFor(() => {
-        expect(getByText('Completed Round')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      // Find and press the round card
-      const roundCard = getByTestId('round-card-touchable');
-      fireEvent.press(roundCard);
-
-      // Verify navigation was called with RoundSummary screen
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RoundSummary', {
-        roundId: 'round-2',
-      });
+      expect(getByText('Your Rounds')).toBeTruthy();
+      expect(queryByTestId('create-round-header-button')).toBeTruthy();
     });
 
-    it('should navigate active and completed rounds to different screens', async () => {
-      // Mock getRounds to return multiple test rounds with different statuses
+    it('should render header with multiple rounds', async () => {
       getRounds.mockResolvedValue({
         rounds: [
           {
-            id: 'round-1',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-            start_time: '2024-01-01T10:00:00Z',
-            player_count: 4,
-            skins_enabled: false,
+            id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
           },
           {
-            id: 'round-2',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-            start_time: '2024-01-02T14:00:00Z',
-            player_count: 2,
-            skins_enabled: true,
+            id: 'round-2', name: 'Round 2', course_id: 'course-2', course_name: 'Course 2', status: 'completed', start_time: '2024-01-16T18:00:00Z', player_count: 4, skins_enabled: true,
           },
         ],
         pagination: {
@@ -1064,59 +443,26 @@ describe('RoundsListScreen', () => {
         },
       });
 
-      const { getByText, getAllByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
 
-      // Wait for rounds to load
       await waitFor(() => {
-        expect(getByText('Active Round')).toBeTruthy();
-        expect(getByText('Completed Round')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      // Get all round cards
-      const roundCards = getAllByTestId('round-card-touchable');
-      expect(roundCards).toHaveLength(2);
-
-      // Press the first round card (active)
-      fireEvent.press(roundCards[0]);
-
-      // Verify navigation was called with ScorecardRedesign screen
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('ScorecardRedesign', {
-        roundId: 'round-1',
-      });
-
-      // Clear mock and press the second round card (completed)
-      mockNavigation.navigate.mockClear();
-      fireEvent.press(roundCards[1]);
-
-      // Verify navigation was called with RoundSummary screen
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RoundSummary', {
-        roundId: 'round-2',
-      });
+      expect(getByText('Your Rounds')).toBeTruthy();
+      expect(queryByTestId('create-round-header-button')).toBeTruthy();
     });
+  });
 
-    it('should navigate from both Active and Completed sections to appropriate screens', async () => {
-      // Mock getRounds to return rounds with mixed statuses
+  describe('Header Create Button - Slice 7: Layout and spacing', () => {
+    it('should render header title and count with correct text styles', async () => {
       getRounds.mockResolvedValue({
         rounds: [
           {
-            id: 'active-round',
-            name: 'Active Round',
-            course_name: 'Test Course',
-            status: 'in_progress',
-            start_time: '2024-01-01T10:00:00Z',
-            player_count: 4,
-            skins_enabled: false,
+            id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
           },
           {
-            id: 'completed-round',
-            name: 'Completed Round',
-            course_name: 'Test Course',
-            status: 'completed',
-            start_time: '2024-01-02T14:00:00Z',
-            player_count: 2,
-            skins_enabled: true,
+            id: 'round-2', name: 'Round 2', course_id: 'course-2', course_name: 'Course 2', status: 'completed', start_time: '2024-01-16T18:00:00Z', player_count: 4, skins_enabled: true,
           },
         ],
         pagination: {
@@ -1124,90 +470,60 @@ describe('RoundsListScreen', () => {
         },
       });
 
-      const { getByText, getAllByTestId } = renderWithNavigation(
-        <RoundsListScreen navigation={mockNavigation} />,
-      );
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
 
-      // Wait for rounds to load and verify both sections exist
       await waitFor(() => {
-        expect(getByText('Active Round')).toBeTruthy();
-        expect(getByText('Completed Round')).toBeTruthy();
-        expect(getByText('Active Rounds')).toBeTruthy();
-        expect(getByText('Completed Rounds')).toBeTruthy();
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      // Get all round cards
-      const roundCards = getAllByTestId('round-card-touchable');
-      expect(roundCards).toHaveLength(2);
+      const titleElement = getByText('Your Rounds');
+      const countElement = getByText('2 rounds');
 
-      // Press the active round card (should be first in active section)
-      fireEvent.press(roundCards[0]);
+      // Verify title has bold font and larger size
+      expect(titleElement.props.style.fontWeight).toBe('bold');
+      expect(titleElement.props.style.fontSize).toBe(24);
 
-      // Verify navigation was called with ScorecardRedesign screen for active round
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('ScorecardRedesign', {
-        roundId: 'active-round',
-      });
-
-      // Clear mock and press the completed round card (should be second in completed section)
-      mockNavigation.navigate.mockClear();
-      fireEvent.press(roundCards[1]);
-
-      // Verify navigation was called with RoundSummary screen for completed round
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('RoundSummary', {
-        roundId: 'completed-round',
-      });
-    });
-  });
-
-  describe('getNavigationTarget', () => {
-    it('should return ScorecardRedesign screen for in_progress rounds', () => {
-      const round = { id: 'round-1', status: 'in_progress' };
-      const target = getNavigationTarget(round);
-
-      expect(target).toEqual({
-        screen: 'ScorecardRedesign',
-        params: { roundId: 'round-1' },
-      });
+      // Verify count has correct size
+      expect(countElement.props.style.fontSize).toBe(16);
     });
 
-    it('should return RoundSummary screen for completed rounds', () => {
-      const round = { id: 'round-2', status: 'completed' };
-      const target = getNavigationTarget(round);
-
-      expect(target).toEqual({
-        screen: 'RoundSummary',
-        params: { roundId: 'round-2' },
+    it('should have button with correct dimensions', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
       });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const button = getByTestId('create-round-header-button');
+      expect(button.props.style.width).toBe(44);
+      expect(button.props.style.height).toBe(44);
     });
 
-    it('should return RoundSummary screen for cancelled rounds', () => {
-      const round = { id: 'round-3', status: 'cancelled' };
-      const target = getNavigationTarget(round);
-
-      expect(target).toEqual({
-        screen: 'RoundSummary',
-        params: { roundId: 'round-3' },
+    it('should have platform-specific border radius on button', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
       });
-    });
 
-    it('should return RoundDetail screen for unknown status', () => {
-      const round = { id: 'round-4', status: 'pending' };
-      const target = getNavigationTarget(round);
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
 
-      expect(target).toEqual({
-        screen: 'RoundDetail',
-        params: { roundId: 'round-4' },
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
       });
-    });
 
-    it('should handle missing status by returning RoundDetail', () => {
-      const round = { id: 'round-5' };
-      const target = getNavigationTarget(round);
-
-      expect(target).toEqual({
-        screen: 'RoundDetail',
-        params: { roundId: 'round-5' },
-      });
+      const button = getByTestId('create-round-header-button');
+      // iOS: 12px, Android: 22px
+      const expectedRadius = Platform.OS === 'ios' ? 12 : 22;
+      expect(button.props.style.borderRadius).toBe(expectedRadius);
     });
   });
 });
