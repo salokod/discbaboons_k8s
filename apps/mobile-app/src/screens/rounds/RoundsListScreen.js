@@ -1,406 +1,130 @@
 /**
  * RoundsListScreen Component
+ * Displays a list of user's rounds
  */
 
+import { useState, useEffect } from 'react';
 import {
-  memo, useState, useEffect, useCallback,
-} from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ActivityIndicator,
-  TouchableOpacity,
-  FlatList,
-  SectionList,
-  RefreshControl,
+  View, Text, TouchableOpacity, StyleSheet, Platform, FlatList,
 } from 'react-native';
-import PropTypes from 'prop-types';
-import { useThemeColors } from '../../context/ThemeContext';
-import { spacing } from '../../design-system/spacing';
-import { typography } from '../../design-system/typography';
+import { useNavigation } from '@react-navigation/native';
+import Icon from '@react-native-vector-icons/ionicons';
 import StatusBarSafeView from '../../components/StatusBarSafeView';
-import EmptyRoundsScreen from './EmptyRoundsScreen';
-import { getRounds } from '../../services/roundService';
+import SkeletonCard from '../../components/rounds/SkeletonCard';
 import RoundCard from '../../components/rounds/RoundCard';
-import RoundsListHeader from '../../components/rounds/RoundsListHeader';
-import PaginationControls from '../../components/PaginationControls';
+import { getRounds } from '../../services/roundService';
+import { useThemeColors } from '../../context/ThemeContext';
+import { typography } from '../../design-system/typography';
+import { spacing } from '../../design-system/spacing';
 
-/**
- * Categorize rounds into active and completed groups
- * @param {Array} rounds - Array of round objects
- * @returns {Object} - { activeRounds, completedRounds }
- */
-export function categorizeRounds(rounds) {
-  const activeRounds = rounds.filter((round) => round.status === 'in_progress');
-  const completedRounds = rounds.filter((round) => round.status === 'completed' || round.status === 'cancelled');
+const createStyles = (colors) => StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  roundCount: {
+    ...typography.body,
+    color: colors.textLight,
+    marginTop: spacing.xs,
+  },
+  createRoundButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Platform.OS === 'ios' ? 12 : 22,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
-  return {
-    activeRounds,
-    completedRounds,
-  };
-}
-
-/**
- * Create sections array for SectionList from categorized rounds
- * @param {Object} categorizedRounds - { activeRounds, completedRounds }
- * @returns {Array} - Array of section objects for SectionList
- */
-export function createSections({ activeRounds, completedRounds }) {
-  return [
-    {
-      title: 'Active Rounds',
-      data: activeRounds,
-      key: 'active',
-    },
-    {
-      title: 'Completed Rounds',
-      data: completedRounds,
-      key: 'completed',
-    },
-  ];
-}
-
-/**
- * Get navigation target based on round status
- * @param {Object} round - Round object with status
- * @returns {Object} - { screen, params } navigation target
- */
-export function getNavigationTarget(round) {
-  if (round.status === 'in_progress') {
-    return {
-      screen: 'ScorecardRedesign',
-      params: { roundId: round.id },
-    };
-  }
-
-  if (round.status === 'completed' || round.status === 'cancelled') {
-    return {
-      screen: 'RoundSummary',
-      params: { roundId: round.id },
-    };
-  }
-
-  // Default to RoundDetail for unknown statuses
-  return {
-    screen: 'RoundDetail',
-    params: { roundId: round.id },
-  };
-}
-
-function RoundsListScreen({ navigation }) {
+function RoundsListScreen({ navigation: navigationProp }) {
+  const hookNavigation = useNavigation();
+  const navigation = navigationProp || hookNavigation;
   const colors = useThemeColors();
-  const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [rounds, setRounds] = useState([]);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
-
-  // Load rounds from API
-  const loadRounds = useCallback(async (page = 1, showLoader = true) => {
-    try {
-      if (showLoader) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
+  useEffect(() => {
+    const fetchRounds = async () => {
+      try {
+        const result = await getRounds();
+        setRounds(result.rounds);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const offset = (page - 1) * 20;
-      const result = await getRounds({ limit: 20, offset });
-      setRounds(result.rounds || []);
-
-      // Calculate and set totalPages from pagination data
-      setTotalPages(Math.ceil(result.pagination.total / 20) || 1);
-      setCurrentPage(page);
-    } catch (error) {
-      // For now, just log error and show empty state
-      // Log error for debugging but don't expose to user in production
-      if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to load rounds:', error);
-      }
-      setRounds([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    fetchRounds();
   }, []);
 
-  // Load rounds on mount
-  useEffect(() => {
-    loadRounds();
-  }, [loadRounds]);
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    createButton: {
-      position: 'absolute',
-      bottom: spacing.xl,
-      right: spacing.lg,
-      backgroundColor: colors.primary,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      justifyContent: 'center',
-      alignItems: 'center',
-      elevation: 4,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-    },
-    createButtonText: {
-      fontSize: 24,
-      color: colors.surface,
-    },
-    listContainer: {
-      flex: 1,
-    },
-    listContent: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: 100, // Space for FAB
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    sectionTitle: {
-      ...typography.h3,
-      color: colors.text,
-      fontWeight: '600',
-    },
-    countBadge: {
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-    },
-    countText: {
-      ...typography.caption,
-      color: colors.surface,
-      fontWeight: '600',
-      fontSize: 12,
-    },
-  });
-
-  // Handle refresh
-  const handleRefresh = useCallback(() => {
-    loadRounds(1, false);
-  }, [loadRounds]);
-
-  // Handle page change for pagination
-  const handlePageChange = useCallback(async (newPage) => {
-    try {
-      setIsLoadingPage(true);
-      await loadRounds(newPage, false);
-    } catch (error) {
-      // On error, preserve current page and show error feedback
-      if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to load page:', error);
-      }
-    } finally {
-      setIsLoadingPage(false);
+  const handleRoundPress = (round) => {
+    if (round.status === 'in_progress') {
+      navigation.navigate('ScorecardRedesign', { roundId: round.id });
+    } else if (round.status === 'completed') {
+      navigation.navigate('RoundSummary', { roundId: round.id });
+    } else {
+      navigation.navigate('RoundDetail', { roundId: round.id });
     }
-  }, [loadRounds]);
+  };
 
-  // Navigate to create round
-  const handleCreateFirstRound = useCallback(() => {
-    navigation?.navigate('CreateRound');
-  }, [navigation]);
-
-  // Render header
-  const renderHeader = useCallback(() => (
-    <RoundsListHeader roundCount={rounds.length} />
-  ), [rounds.length]);
-
-  // Render individual round item for FlatList
-  const renderRoundItem = useCallback(({ item: round }) => {
-    const target = getNavigationTarget(round);
+  if (loading) {
     return (
-      <RoundCard
-        round={round}
-        onPress={() => navigation?.navigate(target.screen, target.params)}
-      />
-    );
-  }, [navigation]);
-
-  // Render individual round item for SectionList
-  const renderSectionItem = useCallback(({ item: round }) => {
-    const target = getNavigationTarget(round);
-    return (
-      <RoundCard
-        round={round}
-        onPress={() => navigation?.navigate(target.screen, target.params)}
-      />
-    );
-  }, [navigation]);
-
-  // Render empty list item when no rounds
-  const renderEmptyComponent = useCallback(() => (
-    <EmptyRoundsScreen
-      navigation={navigation}
-      onCreateFirstRound={handleCreateFirstRound}
-    />
-  ), [navigation, handleCreateFirstRound]);
-
-  // Render section header for SectionList
-  const renderSectionHeader = useCallback(({ section }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{section.title}</Text>
-      <View style={styles.countBadge}>
-        <Text
-          style={styles.countText}
-          testID={`section-count-${section.key}`}
-        >
-          {section.data.length}
-          {' '}
-          round
-          {section.data.length === 1 ? '' : 's'}
-        </Text>
-      </View>
-    </View>
-  ), [styles]);
-
-  // Show loading state on first load
-  if (loading && rounds.length === 0) {
-    return (
-      <StatusBarSafeView testID="rounds-list-screen" style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[{ color: colors.textLight, marginTop: spacing.md }]}>
-            Loading rounds...
-          </Text>
-        </View>
+      <StatusBarSafeView>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
       </StatusBarSafeView>
     );
   }
 
-  // If no rounds, show FlatList with empty state
-  if (rounds.length === 0) {
-    return (
-      <StatusBarSafeView testID="rounds-list-screen" style={styles.container}>
-        <FlatList
-          testID="rounds-list"
-          data={rounds}
-          renderItem={renderRoundItem}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmptyComponent}
-          style={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          accessibilityLabel="Rounds list"
-          accessibilityHint="Swipe down to refresh the list of rounds"
-          refreshControl={(
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary}
-              accessibilityLabel="Pull to refresh rounds"
-            />
-          )}
-        />
+  const renderRoundCard = ({ item }) => (
+    <RoundCard round={item} onPress={handleRoundPress} />
+  );
 
-        <TouchableOpacity
-          testID="rounds-fab-button"
-          style={styles.createButton}
-          onPress={() => navigation?.navigate('CreateRound')}
-        >
-          <Text style={styles.createButtonText}>+</Text>
-        </TouchableOpacity>
+  const roundCount = rounds.length;
+  const roundText = roundCount === 1 ? 'round' : 'rounds';
 
-        {totalPages > 1 && (
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            isLoading={isLoadingPage}
-          />
-        )}
-      </StatusBarSafeView>
-    );
-  }
-
-  // If rounds exist, use SectionList with categorized sections
-  const categorizedRounds = categorizeRounds(rounds);
-  const sections = createSections(categorizedRounds);
+  const styles = createStyles(colors);
 
   return (
-    <StatusBarSafeView testID="rounds-list-screen" style={styles.container}>
-      <SectionList
-        testID="rounds-section-list"
-        sections={sections}
-        renderItem={renderSectionItem}
-        renderSectionHeader={renderSectionHeader}
+    <StatusBarSafeView>
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Your Rounds</Text>
+          <Text style={styles.roundCount}>
+            {roundCount}
+            {' '}
+            {roundText}
+          </Text>
+        </View>
+        <TouchableOpacity
+          testID="create-round-header-button"
+          onPress={() => navigation.navigate('CreateRound')}
+          style={styles.createRoundButton}
+          accessibilityLabel="Create new round"
+          accessibilityHint="Start a new round of disc golf"
+          accessibilityRole="button"
+        >
+          <Icon name="add-outline" size={24} color={colors.white} />
+        </TouchableOpacity>
+      </View>
+      <FlatList
+        testID="rounds-flatlist"
+        data={rounds}
+        renderItem={renderRoundCard}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
-        style={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        accessibilityLabel="Categorized rounds list"
-        accessibilityHint="Swipe down to refresh the list of rounds"
-        refreshControl={(
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            accessibilityLabel="Pull to refresh rounds"
-          />
-        )}
       />
-
-      <TouchableOpacity
-        testID="rounds-fab-button"
-        style={styles.createButton}
-        onPress={() => navigation?.navigate('CreateRound')}
-      >
-        <Text style={styles.createButtonText}>+</Text>
-      </TouchableOpacity>
-
-      {totalPages > 1 && (
-        <PaginationControls
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          isLoading={isLoadingPage}
-        />
-      )}
     </StatusBarSafeView>
   );
 }
 
-RoundsListScreen.propTypes = {
-  navigation: PropTypes.shape({
-    navigate: PropTypes.func,
-  }),
-};
-
-RoundsListScreen.defaultProps = {
-  navigation: null,
-};
-
-// Add display name for React DevTools
-RoundsListScreen.displayName = 'RoundsListScreen';
-
-const MemoizedRoundsListScreen = memo(RoundsListScreen);
-MemoizedRoundsListScreen.displayName = 'RoundsListScreen';
-
-export default MemoizedRoundsListScreen;
+export default RoundsListScreen;

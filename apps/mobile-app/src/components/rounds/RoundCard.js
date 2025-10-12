@@ -205,7 +205,7 @@ function RoundCard({ round, onPress }) {
 RoundCard.propTypes = {
   round: PropTypes.shape({
     name: PropTypes.string.isRequired,
-    course_id: PropTypes.string.isRequired,
+    course_id: PropTypes.string,
     course_name: PropTypes.string.isRequired,
     status: PropTypes.string.isRequired,
     start_time: PropTypes.string.isRequired,
@@ -218,7 +218,7 @@ RoundCard.propTypes = {
 };
 
 RoundCard.defaultProps = {
-  onPress: () => {},
+  onPress: undefined,
 };
 
 // Add display name for React DevTools

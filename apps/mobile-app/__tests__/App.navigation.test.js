@@ -106,6 +106,18 @@ jest.mock('../src/context/FriendsContext', () => ({
   })),
 }));
 
+jest.mock('../src/services/roundService', () => ({
+  getRounds: jest.fn(() => Promise.resolve({ success: true, rounds: [] })),
+  getRoundDetails: jest.fn(() => Promise.resolve({ success: true, round: {} })),
+  createRound: jest.fn(),
+  addPlayersToRound: jest.fn(),
+  pauseRound: jest.fn(),
+  completeRound: jest.fn(),
+  getRoundLeaderboard: jest.fn(),
+  getRoundPars: jest.fn(),
+  submitScores: jest.fn(),
+}));
+
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }) => children,
