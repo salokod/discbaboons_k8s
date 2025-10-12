@@ -15,8 +15,7 @@ export default defineConfig({
       ],
     },
     testTimeout: 10000,
-    globals: true,
-    fileParallelism: false, // Run test files serially to avoid database race conditions
+    globals: true
   },
   define: {
     'process.env.NODE_ENV': '"test"',
