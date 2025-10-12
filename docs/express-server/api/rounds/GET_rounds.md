@@ -1,6 +1,6 @@
 # GET /api/rounds
 
-List and filter rounds for the authenticated user.
+List and filter rounds for the authenticated user (includes rounds where the user is the creator or a participant).
 
 ## Authentication Required
 This endpoint requires authentication via Bearer token.
@@ -114,9 +114,9 @@ All query parameters are optional for filtering and pagination:
 ## Business Rules
 
 ### Data Access
-- **User Isolation**: Only returns rounds created by the authenticated user
+- **User Isolation**: Returns rounds where the authenticated user is either the creator OR a participant
 - **Ordering**: Results are ordered by creation date (newest first)
-- **Privacy**: Private rounds are included in user's own results
+- **Privacy**: Private rounds are included if the user is the creator or a participant
 
 ### Filtering
 - **Text Search**: Name filtering uses case-insensitive partial matching (ILIKE)
@@ -196,6 +196,8 @@ GET /api/rounds?name=tournament
 
 - Service layer handles all filtering and pagination logic
 - Database queries use parameterized statements for security
+- Query uses LEFT JOIN with `round_players` table to include rounds where user is a participant
+- WHERE clause checks both `created_by_id` and `round_players.user_id` for user access
 - Count query is executed separately for accurate pagination metadata
 - Text search uses PostgreSQL ILIKE for case-insensitive matching
 - Boolean parameters are converted from strings to actual booleans in the service layer

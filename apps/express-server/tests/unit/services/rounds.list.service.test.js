@@ -44,7 +44,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId);
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT COUNT(*) FROM rounds WHERE created_by_id = $1'),
+      expect.stringContaining('SELECT COUNT(DISTINCT r.id)'),
       [userId],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
@@ -109,7 +109,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { status });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.status = $2'),
       [userId, status, 50, 0],
     );
     expect(result).toEqual({
@@ -143,7 +143,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, {});
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1)'),
       [userId, 50, 0],
     );
     expect(result).toEqual({
@@ -177,7 +177,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { is_private: isPrivate });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.is_private = $2'),
       [userId, isPrivate, 50, 0],
     );
     expect(result).toEqual({
@@ -213,7 +213,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { skins_enabled: skinsEnabled });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.skins_enabled = $2'),
       [userId, skinsEnabled, 50, 0],
     );
     expect(result).toEqual({
@@ -246,7 +246,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { name: nameSearch });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND name ILIKE $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.name ILIKE $2'),
       [userId, `%${nameSearch}%`, 50, 0],
     );
     expect(result).toEqual({
@@ -343,7 +343,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { limit, offset });
 
     expect(mockDatabase.queryOne).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT COUNT(*) FROM rounds WHERE created_by_id = $1'),
+      expect.stringContaining('SELECT COUNT(DISTINCT r.id)'),
       [userId],
     );
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
@@ -403,7 +403,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { is_private: 'true' });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.is_private = $2'),
       [userId, true, 50, 0],
     );
     expect(result.rounds).toEqual(
@@ -428,7 +428,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { is_private: 'false' });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND is_private = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.is_private = $2'),
       [userId, false, 50, 0],
     );
     expect(result.rounds).toEqual(
@@ -453,7 +453,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { skins_enabled: 'true' });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.skins_enabled = $2'),
       [userId, true, 50, 0],
     );
     expect(result.rounds).toEqual(
@@ -478,7 +478,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { skins_enabled: 'false' });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND skins_enabled = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.skins_enabled = $2'),
       [userId, false, 50, 0],
     );
     expect(result.rounds).toEqual(
@@ -504,7 +504,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { status });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.status = $2'),
       [userId, status, 50, 0],
     );
     expect(result.rounds).toEqual(
@@ -530,7 +530,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { status });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.status = $2'),
       [userId, status, 50, 0],
     );
     expect(result.rounds).toEqual(
@@ -556,7 +556,7 @@ describe('roundsListService', () => {
     const result = await roundsListService(userId, { status });
 
     expect(mockDatabase.queryRows).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE created_by_id = $1 AND status = $2'),
+      expect.stringContaining('WHERE (r.created_by_id = $1 OR rp.user_id = $1) AND r.status = $2'),
       [userId, status, 50, 0],
     );
     expect(result.rounds).toEqual(
