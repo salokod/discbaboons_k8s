@@ -1,4 +1,5 @@
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { ThemeProvider } from '../../src/context/ThemeContext';
 import CourseCard from '../../src/components/CourseCard';
 
@@ -57,7 +58,7 @@ describe('CourseCard', () => {
       </ThemeProvider>,
     );
 
-    const courseCard = getByTestId('course-card');
+    const courseCard = getByTestId(`course-card-${mockCourse.id}`);
     expect(courseCard).toBeTruthy();
 
     // Note: onPress handler will be tested when implemented
@@ -119,5 +120,41 @@ describe('CourseCard', () => {
 
     // Note: This test will be enhanced when we add specific test IDs for icons
     expect(root).toBeTruthy();
+  });
+
+  describe('Slice 6.4: Touch Target Accessibility', () => {
+    it('should have minimum 44pt touch target height', () => {
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <CourseCard course={mockCourse} onPress={jest.fn()} />
+        </ThemeProvider>,
+      );
+      const card = getByTestId(`course-card-${mockCourse.id}`);
+
+      // Check if card has minHeight style
+      expect(card.props.style).toEqual(
+        expect.objectContaining({
+          minHeight: expect.any(Number),
+        }),
+      );
+
+      // Verify minHeight is at least 44
+      const flattenedStyle = StyleSheet.flatten(card.props.style);
+      expect(flattenedStyle.minHeight).toBeGreaterThanOrEqual(44);
+    });
+
+    it('should be fully tappable across entire card area', () => {
+      const onPress = jest.fn();
+
+      const { getByTestId } = render(
+        <ThemeProvider>
+          <CourseCard course={mockCourse} onPress={onPress} />
+        </ThemeProvider>,
+      );
+      const card = getByTestId(`course-card-${mockCourse.id}`);
+
+      fireEvent.press(card);
+      expect(onPress).toHaveBeenCalledWith(mockCourse);
+    });
   });
 });
