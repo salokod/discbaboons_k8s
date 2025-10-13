@@ -75,6 +75,25 @@ jest.mock('@react-native-vector-icons/ionicons', () => {
   };
 });
 
+// Mock EmptyState component
+jest.mock('../../../design-system/components/EmptyState', () => {
+  const ReactLocal = require('react');
+  const { View, Text, TouchableOpacity } = require('react-native');
+  return function EmptyState({
+    title, subtitle, actionLabel, onAction,
+  }) {
+    return ReactLocal.createElement(View, { testID: 'empty-state' }, [
+      title && ReactLocal.createElement(Text, { key: 'title', testID: 'empty-state-title' }, title),
+      subtitle && ReactLocal.createElement(Text, { key: 'subtitle', testID: 'empty-state-subtitle' }, subtitle),
+      actionLabel && onAction && ReactLocal.createElement(
+        TouchableOpacity,
+        { key: 'action', testID: 'empty-state-action', onPress: onAction },
+        ReactLocal.createElement(Text, null, actionLabel),
+      ),
+    ]);
+  };
+});
+
 describe('RoundsListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -224,8 +243,8 @@ describe('RoundsListScreen', () => {
         expect(queryByTestId('skeleton-card')).toBeNull();
       });
 
-      // Should render without errors
-      expect(queryByTestId('rounds-flatlist')).toBeTruthy();
+      // Should render without errors - shows EmptyState when no rounds
+      expect(queryByTestId('empty-state')).toBeTruthy();
     });
   });
 
@@ -386,7 +405,7 @@ describe('RoundsListScreen', () => {
   });
 
   describe('Header Create Button - Slice 6: Always render header', () => {
-    it('should always render header even when onCreatePress is undefined', async () => {
+    it('should always render header with one round', async () => {
       getRounds.mockResolvedValue({
         rounds: [
           {
@@ -529,10 +548,16 @@ describe('RoundsListScreen', () => {
 
   describe('Pull to Refresh - Slice 2.1: Refreshing state', () => {
     it('should have refreshing state initialized to false', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
       getRounds.mockResolvedValue({
-        rounds: [],
+        rounds: mockRounds,
         pagination: {
-          total: 0, limit: 20, offset: 0, hasMore: false,
+          total: 1, limit: 20, offset: 0, hasMore: false,
         },
       });
 
@@ -695,10 +720,16 @@ describe('RoundsListScreen', () => {
 
   describe('Pull to Refresh - Slice 2.5: Theme primary color', () => {
     it('should use theme primary color for refresh indicator', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
       getRounds.mockResolvedValue({
-        rounds: [],
+        rounds: mockRounds,
         pagination: {
-          total: 0, limit: 20, offset: 0, hasMore: false,
+          total: 1, limit: 20, offset: 0, hasMore: false,
         },
       });
 
@@ -746,6 +777,206 @@ describe('RoundsListScreen', () => {
 
       expect(getByTestId('round-card-round-1')).toBeTruthy();
       expect(getByTestId('rounds-flatlist').props.refreshControl.props.refreshing).toBe(false);
+    });
+  });
+
+  describe('Empty State - Slice 3.1: Conditional rendering', () => {
+    it('should render EmptyState when rounds array is empty', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(queryByTestId('empty-state')).toBeTruthy();
+    });
+
+    it('should hide FlatList when rounds array is empty', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(queryByTestId('rounds-flatlist')).toBeNull();
+    });
+  });
+
+  describe('Empty State - Slice 3.2: Title and subtitle', () => {
+    it('should display "No Active Rounds" title in EmptyState', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('No Active Rounds')).toBeTruthy();
+    });
+
+    it('should display subtitle in EmptyState', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Start a new round to track your game')).toBeTruthy();
+    });
+  });
+
+  describe('Empty State - Slice 3.3: Action button', () => {
+    it('should display "Create New Round" button in EmptyState', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Create New Round')).toBeTruthy();
+    });
+  });
+
+  describe('Empty State - Slice 3.4: Navigation', () => {
+    it('should navigate to CreateRound when action button is pressed', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const actionButton = getByTestId('empty-state-action');
+      fireEvent.press(actionButton);
+
+      expect(mockNavigate).toHaveBeenCalledWith('CreateRound');
+    });
+  });
+
+  describe('Empty State - Slice 3.5: Not shown when rounds exist', () => {
+    it('should hide EmptyState when rounds exist', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(queryByTestId('empty-state')).toBeNull();
+    });
+
+    it('should show FlatList when rounds exist', async () => {
+      const mockRounds = [
+        {
+          id: 'round-1', name: 'Round 1', course_id: 'course-1', course_name: 'Course 1', status: 'in_progress', start_time: '2024-01-15T10:00:00Z', player_count: 2, skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('rounds-flatlist')).toBeTruthy();
+    });
+  });
+
+  describe('Empty State - Slice 3.6: Header behavior', () => {
+    it('should show header with "0 rounds" when EmptyState is displayed', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Your Rounds')).toBeTruthy();
+      expect(getByText('0 rounds')).toBeTruthy();
+      expect(queryByTestId('empty-state')).toBeTruthy();
+    });
+
+    it('should show create button in header when EmptyState is displayed', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('create-round-header-button')).toBeTruthy();
+      expect(queryByTestId('empty-state')).toBeTruthy();
     });
   });
 });

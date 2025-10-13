@@ -12,6 +12,7 @@ import Icon from '@react-native-vector-icons/ionicons';
 import StatusBarSafeView from '../../components/StatusBarSafeView';
 import SkeletonCard from '../../components/rounds/SkeletonCard';
 import RoundCard from '../../components/rounds/RoundCard';
+import EmptyState from '../../design-system/components/EmptyState';
 import { getRounds } from '../../services/roundService';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
@@ -132,20 +133,29 @@ function RoundsListScreen({ navigation: navigationProp }) {
           <Icon name="add-outline" size={24} color={colors.white} />
         </TouchableOpacity>
       </View>
-      <FlatList
-        testID="rounds-flatlist"
-        data={rounds}
-        renderItem={renderRoundCard}
-        keyExtractor={(item) => item.id}
-        refreshControl={(
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        )}
-      />
+      {rounds.length === 0 ? (
+        <EmptyState
+          title="No Active Rounds"
+          subtitle="Start a new round to track your game"
+          actionLabel="Create New Round"
+          onAction={() => navigation.navigate('CreateRound')}
+        />
+      ) : (
+        <FlatList
+          testID="rounds-flatlist"
+          data={rounds}
+          renderItem={renderRoundCard}
+          keyExtractor={(item) => item.id}
+          refreshControl={(
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          )}
+        />
+      )}
     </StatusBarSafeView>
   );
 }
