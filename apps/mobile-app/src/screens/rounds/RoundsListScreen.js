@@ -45,6 +45,30 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  errorMessage: {
+    ...typography.body,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  retryButton: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
+  },
 });
 
 function RoundsListScreen({ navigation: navigationProp }) {
@@ -54,12 +78,15 @@ function RoundsListScreen({ navigation: navigationProp }) {
   const [loading, setLoading] = useState(true);
   const [rounds, setRounds] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchRounds = async () => {
       try {
         const result = await getRounds();
         setRounds(result.rounds);
+      } catch (err) {
+        setError(err.message || 'Unable to load rounds. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -73,12 +100,25 @@ function RoundsListScreen({ navigation: navigationProp }) {
     try {
       const result = await getRounds();
       setRounds(result.rounds);
-    } catch (error) {
+    } catch (err) {
       // Silent failure - keep existing rounds visible
       // eslint-disable-next-line no-console
-      console.log('Refresh failed:', error.message);
+      console.log('Refresh failed:', err.message);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getRounds();
+      setRounds(result.rounds);
+    } catch (err) {
+      setError(err.message || 'Unable to load rounds. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,6 +150,43 @@ function RoundsListScreen({ navigation: navigationProp }) {
   const roundText = roundCount === 1 ? 'round' : 'rounds';
 
   const styles = createStyles(colors);
+
+  if (error) {
+    return (
+      <StatusBarSafeView>
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Your Rounds</Text>
+            <Text style={styles.roundCount}>
+              {roundCount}
+              {' '}
+              {roundText}
+            </Text>
+          </View>
+          <TouchableOpacity
+            testID="create-round-header-button"
+            onPress={() => navigation.navigate('CreateRound')}
+            style={styles.createRoundButton}
+            accessibilityLabel="Create new round"
+            accessibilityHint="Start a new round of disc golf"
+            accessibilityRole="button"
+          >
+            <Icon name="add-outline" size={24} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+        <View testID="error-state" style={styles.errorContainer}>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity
+            testID="error-retry-button"
+            onPress={handleRetry}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </StatusBarSafeView>
+    );
+  }
 
   return (
     <StatusBarSafeView>

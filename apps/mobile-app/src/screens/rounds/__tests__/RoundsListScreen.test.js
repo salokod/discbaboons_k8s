@@ -979,4 +979,236 @@ describe('RoundsListScreen', () => {
       expect(queryByTestId('empty-state')).toBeTruthy();
     });
   });
+
+  describe('Error Handling - Slice 4.1: Error state variable', () => {
+    it('should not display error state when no error occurs', async () => {
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(queryByTestId('error-state')).toBeNull();
+    });
+  });
+
+  describe('Error Handling - Slice 4.2: Catch initial load errors', () => {
+    it('should set error state when initial getRounds fails', async () => {
+      getRounds.mockRejectedValue(new Error('Network error. Please check your internet connection.'));
+
+      const { queryByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      // Error state should exist now
+      expect(queryByTestId('error-state')).toBeTruthy();
+    });
+
+    it('should store actual backend error message in state', async () => {
+      getRounds.mockRejectedValue(new Error('Too many rounds list requests, please try again in 10 minutes'));
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Too many rounds list requests, please try again in 10 minutes')).toBeTruthy();
+    });
+  });
+
+  describe('Error Handling - Slice 4.3: Display error UI', () => {
+    it('should display error container when error exists', async () => {
+      getRounds.mockRejectedValue(new Error('Something went wrong. Please try again.'));
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('error-state')).toBeTruthy();
+    });
+
+    it('should display backend error message in error state', async () => {
+      getRounds.mockRejectedValue(new Error('Access token required'));
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Access token required')).toBeTruthy();
+    });
+
+    it('should still show header when error occurs', async () => {
+      getRounds.mockRejectedValue(new Error('Network error'));
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByText('Your Rounds')).toBeTruthy();
+      expect(queryByTestId('create-round-header-button')).toBeTruthy();
+    });
+  });
+
+  describe('Error Handling - Slice 4.4: Retry button', () => {
+    it('should display retry button in error state', async () => {
+      getRounds.mockRejectedValue(new Error('Network error'));
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('error-retry-button')).toBeTruthy();
+    });
+
+    it('should call getRounds again when retry button is pressed', async () => {
+      getRounds.mockRejectedValueOnce(new Error('Network error'));
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      getRounds.mockClear();
+      getRounds.mockResolvedValue({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const retryButton = getByTestId('error-retry-button');
+      fireEvent.press(retryButton);
+
+      await waitFor(() => {
+        expect(getRounds).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('Error Handling - Slice 4.5: Clear error on retry', () => {
+    it('should clear error and show rounds after successful retry', async () => {
+      getRounds.mockRejectedValueOnce(new Error('Network error'));
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      expect(getByTestId('error-state')).toBeTruthy();
+
+      const mockRounds = [
+        {
+          id: 'round-1',
+          name: 'Round 1',
+          course_id: 'course-1',
+          course_name: 'Course 1',
+          status: 'in_progress',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      const retryButton = getByTestId('error-retry-button');
+      fireEvent.press(retryButton);
+
+      await waitFor(() => {
+        expect(queryByTestId('error-state')).toBeNull();
+      });
+
+      expect(getByTestId('rounds-flatlist')).toBeTruthy();
+      expect(getByTestId('round-card-round-1')).toBeTruthy();
+    });
+
+    it('should show loading state during retry', async () => {
+      getRounds.mockRejectedValueOnce(new Error('Network error'));
+
+      const { queryByTestId, getByTestId, getAllByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      let resolveRetry;
+      const retryPromise = new Promise((resolve) => {
+        resolveRetry = resolve;
+      });
+
+      getRounds.mockReturnValue(retryPromise);
+
+      const retryButton = getByTestId('error-retry-button');
+      fireEvent.press(retryButton);
+
+      await waitFor(() => {
+        const skeletonCards = getAllByTestId('skeleton-card');
+        expect(skeletonCards).toHaveLength(3);
+      });
+
+      resolveRetry({
+        rounds: [],
+        pagination: {
+          total: 0, limit: 20, offset: 0, hasMore: false,
+        },
+      });
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+    });
+  });
+
+  describe('Error Handling - Slice 4.6: Theme styling', () => {
+    it('should apply theme colors to error message', async () => {
+      getRounds.mockRejectedValue(new Error('Network error'));
+
+      const { queryByTestId, getByText } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const errorText = getByText('Network error');
+      expect(errorText.props.style.color).toBe('#8E8E93');
+    });
+
+    it('should apply primary color to retry button', async () => {
+      getRounds.mockRejectedValue(new Error('Network error'));
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const retryButton = getByTestId('error-retry-button');
+      expect(retryButton.props.style.backgroundColor).toBe('#007AFF');
+    });
+  });
 });
