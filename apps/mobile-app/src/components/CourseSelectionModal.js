@@ -14,7 +14,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -23,8 +22,8 @@ import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../context/ThemeContext';
 import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
-import Button from './Button';
 import CourseCard from './CourseCard';
+import SearchBar from '../design-system/components/SearchBar';
 import { searchCourses } from '../services/courseService';
 
 function CourseSelectionModal({
@@ -37,6 +36,8 @@ function CourseSelectionModal({
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [totalCourses, setTotalCourses] = useState(0);
 
   // Debounce search to avoid too many API calls
   const searchTimeoutRef = useRef(null);
@@ -83,15 +84,23 @@ function CourseSelectionModal({
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    searchInput: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: Platform.select({ ios: 8, android: 12 }),
-      paddingHorizontal: spacing.md,
-      paddingVertical: Platform.select({ ios: spacing.sm, android: spacing.md }),
-      backgroundColor: colors.background,
-      color: colors.text,
-      ...typography.body,
+    searchFeedback: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+      gap: spacing.xs,
+    },
+    searchFeedbackText: {
+      ...typography.caption,
+      color: colors.textLight,
+    },
+    resultCount: {
+      ...typography.caption,
+      color: colors.textLight,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+      marginBottom: spacing.xs,
     },
     scrollContainer: {
       flex: 1,
@@ -100,17 +109,6 @@ function CourseSelectionModal({
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       gap: spacing.sm,
-    },
-    modalActions: {
-      flexDirection: 'row',
-      gap: spacing.md,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    buttonFlex: {
-      flex: 1,
     },
     loadingContainer: {
       flex: 1,
@@ -195,9 +193,11 @@ function CourseSelectionModal({
 
       const result = await searchCourses(params);
       setCourses(result.courses || []);
+      setTotalCourses(result.total || 0);
     } catch (err) {
       setError(err.message || 'Failed to load courses');
       setCourses([]);
+      setTotalCourses(0);
     } finally {
       setLoading(false);
     }
@@ -213,6 +213,7 @@ function CourseSelectionModal({
   // Handle search with debouncing
   const handleSearchChange = useCallback((text) => {
     setSearchQuery(text);
+    setIsSearching(true);
 
     // Clear existing timeout
     if (searchTimeoutRef.current) {
@@ -222,6 +223,7 @@ function CourseSelectionModal({
     // Debounce search API call
     searchTimeoutRef.current = setTimeout(() => {
       loadCourses(text);
+      setIsSearching(false);
     }, 500);
   }, [loadCourses]);
 
@@ -249,21 +251,37 @@ function CourseSelectionModal({
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Course</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity testID="modal-close-button" style={styles.closeButton} onPress={onClose}>
               <Icon name="close" size={24} color={colors.textLight} />
             </TouchableOpacity>
           </View>
 
           {/* Search */}
           <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
+            <SearchBar
               placeholder="Search courses..."
               value={searchQuery}
               onChangeText={handleSearchChange}
-              autoCorrect={false}
-              autoCapitalize="none"
             />
+            {isSearching && (
+              <View testID="search-feedback-indicator" style={styles.searchFeedback}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.searchFeedbackText}>Searching...</Text>
+              </View>
+            )}
+            {!loading && !error && courses.length > 0 && (
+              <Text style={styles.resultCount}>
+                Showing
+                {' '}
+                {courses.length}
+                {' '}
+                of
+                {' '}
+                {totalCourses}
+                {' '}
+                {courses.length === 1 ? 'course' : 'courses'}
+              </Text>
+            )}
           </View>
 
           {/* Course List */}
@@ -322,16 +340,6 @@ function CourseSelectionModal({
               ));
             })()}
           </ScrollView>
-
-          {/* Actions */}
-          <View style={styles.modalActions}>
-            <Button
-              title="Cancel"
-              variant="secondary"
-              onPress={onClose}
-              style={styles.buttonFlex}
-            />
-          </View>
         </View>
       </View>
     </Modal>

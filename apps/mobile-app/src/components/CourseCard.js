@@ -4,7 +4,7 @@
 
 import { memo } from 'react';
 import {
-  Text, TouchableOpacity, View, StyleSheet,
+  Text, TouchableOpacity, View, StyleSheet, Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -20,6 +20,7 @@ function CourseCard({ course, onPress }) {
 
   const styles = StyleSheet.create({
     cardTouchable: {
+      minHeight: Platform.OS === 'ios' ? 44 : 48,
     },
     cardContent: {
       paddingVertical: spacing.md,
@@ -91,7 +92,7 @@ function CourseCard({ course, onPress }) {
 
   return (
     <TouchableOpacity
-      testID="course-card"
+      testID={`course-card-${course.id}`}
       style={styles.cardTouchable}
       onPress={handlePress}
       activeOpacity={0.7}
