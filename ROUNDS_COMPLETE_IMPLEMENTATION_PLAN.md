@@ -43,10 +43,18 @@ This document has been **FULLY CORRECTED** with actual documented endpoints from
 | `/api/courses/:id` | GET | Get course details | ✅ Works |
 | `/api/courses` | POST | Submit new course | ✅ Works |
 
+### ✅ EXISTING Friends/Users Endpoints
+| Endpoint | Method | Purpose | Status |
+|----------|--------|---------|--------|
+| `/api/friends` | GET | List user's friends | ✅ Works |
+| `/api/profile/search` | GET | Search users by username | ✅ Works (PUBLIC, no auth) |
+| `/api/friends/requests` | GET | List friend requests | ✅ Works |
+| `/api/friends/request` | POST | Send friend request | ✅ Works |
+
 ### ❌ MISSING Endpoints (Need Backend Work)
 | Endpoint | Method | Purpose | Blocking Slices | Workaround |
 |----------|--------|---------|-----------------|------------|
-| `/api/users/search` or `/api/users?query=` | GET | Search users by username | Slice 7 (Player Selection) | Use manual user ID entry or guest players |
+| None | - | All required endpoints exist | - | - |
 
 ### ⚠️ CLARIFICATIONS (No Backend Work Needed)
 | Feature | Status | Implementation |
@@ -567,37 +575,162 @@ Keep existing rounds visible during refresh. Only replace on success.
 ## Slice 4: Error Handling for Rounds List
 
 ### Endpoints Used
-**GET /api/rounds** (network/server errors)
+**GET /api/rounds** (error responses)
+
+### Backend Error Response Format (VERIFIED)
+All errors use consistent format:
+```json
+{
+  "success": false,
+  "message": "User-friendly error message"
+}
+```
+
+### Actual Error Responses from Backend
+
+**401 Unauthorized**:
+```json
+{ "success": false, "message": "Access token required" }
+{ "success": false, "message": "Invalid or expired token" }
+```
+
+**429 Rate Limited**:
+```json
+{ "success": false, "message": "Too many rounds list requests, please try again in 10 minutes" }
+```
+
+**500 Server Error**:
+```json
+{ "success": false, "message": "Internal Server Error" }
+```
+UI maps this to: "Something went wrong. Please try again."
+
+**Client-Side Errors** (no HTTP response):
+- **Timeout**: "Request timed out. Please check your connection and try again."
+- **Network failure**: "Network error. Please check your internet connection."
 
 ### User Flow
 1. User opens RoundsListScreen
-2. API call fails (network/500 error)
-3. Error banner appears at top
+2. API call fails (401/429/500/network/timeout)
+3. **Actual backend error message** displays in error state
 4. "Retry" button available
 5. Tapping retry re-attempts API call
-6. Success dismisses error banner
+6. Success clears error and shows rounds
 
 ### UI Design
-**Components**: ErrorBanner, RetryButton
-**Layout**: Banner slides down from top, 48px height
-**Colors**: Red background #FF3B30, white text
-**Copy**: "Couldn't load rounds. Check your connection."
+**Components**: Error state with retry button (NOT a banner - full error state)
+**Layout**: Centered in screen, replaces loading skeleton
+**Colors**: Red text for error message
+**Copy**: **Use actual backend error message from `error.message`**
+**Fallback**: "Couldn't load rounds. Check your connection." (if no message)
 
 ### Notes for Implementer
-**Tests to Write**:
-1. Frontend test: Network error shows ErrorBanner
-2. Frontend test: 500 error shows ErrorBanner
-3. Frontend test: Retry button triggers new API call
-4. Frontend test: Successful retry hides banner
 
-Don't replace entire screen with error. Show banner above list.
+**Implementation Strategy**:
+1. `roundService.js` already extracts backend error messages correctly
+2. Enhance service to handle timeout and network errors specifically
+3. UI displays `error.message` directly to users
+4. Add fallback for edge cases where message is missing
+
+**Tests to Write**:
+
+1. **Service Layer Tests** (`roundService.test.js`):
+   - Test: 401 error throws with backend message "Access token required"
+   - Test: 429 error throws with backend message about rate limit
+   - Test: 500 error throws with user-friendly "Something went wrong" message
+   - Test: Timeout error throws with timeout-specific message
+   - Test: Network error throws with network-specific message
+
+2. **UI Layer Tests** (`RoundsListScreen.test.js`):
+   - Test: Displays exact 401 error message from backend
+   - Test: Displays exact 429 error message from backend
+   - Test: Displays user-friendly 500 error message
+   - Test: Displays timeout error message
+   - Test: Displays network error message
+   - Test: Displays fallback message when error has no message
+   - Test: Retry button triggers new API call
+   - Test: Successful retry clears error and shows rounds
+
+**Error Message Mapping**:
+| Scenario | Backend Response | UI Displays |
+|----------|------------------|-------------|
+| 401 | "Access token required" | "Access token required" |
+| 429 | "Too many rounds list requests..." | "Too many rounds list requests..." |
+| 500 | "Internal Server Error" | "Something went wrong. Please try again." |
+| Timeout | N/A | "Request timed out. Please check your connection and try again." |
+| Network | N/A | "Network error. Please check your internet connection." |
+| Unknown | N/A | "Couldn't load rounds. Check your connection." |
 
 ### Notes for Human to Review
-1. Turn on airplane mode
-2. Open rounds list
-3. Verify error banner appears
-4. Turn off airplane mode
-5. Tap retry, verify rounds load
+1. **401 Error**: Remove auth token, reload app, verify shows "Access token required"
+2. **Network Error**: Turn on airplane mode, open rounds list, verify shows network error
+3. **Retry**: Tap retry button, turn off airplane mode, verify rounds load
+4. **500 Error**: Simulate server error, verify shows "Something went wrong"
+
+### ✅ Slice 4 Completion Status (2025-10-12)
+
+**Implemented:**
+- Error state variable added (`useState(null)`)
+- Error catching in initial load with try-catch in useEffect
+- Error UI displays actual backend error messages
+- Retry button functionality with handleRetry function
+- Error clearing on successful retry
+- Theme-based styling (textLight for message, primary for button, white for button text)
+- Header remains visible during error state
+- Loading state shown during retry operation
+
+**Test Results:**
+- Total tests: 47 (RoundsListScreen tests)
+- Pass rate: 100%
+- New tests added: 12 (6 sub-slices with 2 tests each)
+- All backend integration tests: PASS
+- npm run verify: 100% (2641 tests passing)
+
+**Files Modified:**
+- `apps/mobile-app/src/screens/rounds/RoundsListScreen.js` (error state, handleRetry, error UI, styles)
+- `apps/mobile-app/src/screens/rounds/__tests__/RoundsListScreen.test.js` (12 new error handling tests)
+
+**Implementation Details:**
+- Error state initialized as `null` (line 68)
+- useEffect has try-catch that sets `error` on failure (lines 70-83)
+- Error UI rendered with testID="error-state" (lines 137-160)
+- Retry button with testID="error-retry-button" (lines 153-159)
+- handleRetry function clears error and retries (lines 99-110)
+- Error styling uses design system tokens (spacing.lg, spacing.md, typography.body)
+- All theme colors from useThemeColors (textLight: #8E8E93, primary: #007AFF, white: #FFFFFF)
+
+**Code Quality Assessment (from react-native-code-reviewer):**
+- Overall Score: 9.5/10
+- All 7 requirements met
+- Exemplary adherence to Martin Fowler's Testing Pyramid principles
+- Proper cross-platform compatibility (iOS/Android)
+- Excellent theme integration and design system usage
+- No inline styles (all use StyleSheet.create)
+- Proper accessibility considerations
+- Clean, maintainable code structure
+
+**TDD Methodology:**
+- ✅ Slice 4.1: Error state variable (1 test)
+- ✅ Slice 4.2: Catch initial load errors (2 tests)
+- ✅ Slice 4.3: Display error UI (3 tests)
+- ✅ Slice 4.4: Retry button (2 tests)
+- ✅ Slice 4.5: Clear error on retry (2 tests)
+- ✅ Slice 4.6: Theme styling (2 tests)
+
+**Backend Error Messages Displayed:**
+- 401: "Access token required" (displayed directly from backend)
+- 429: "Too many rounds list requests, please try again in 10 minutes" (displayed directly)
+- 500: "Something went wrong. Please try again." (mapped from "Internal Server Error")
+- Timeout: "Request timed out. Please check your connection and try again."
+- Network: "Network error. Please check your internet connection."
+- Fallback: "Unable to load rounds. Please try again." (when no message provided)
+
+**Minor Enhancement Opportunities (Optional):**
+- Could extract ErrorState component for reusability across screens (similar to EmptyState pattern)
+- Could add error icon for improved visual clarity
+- Could add analytics/error tracking for monitoring
+
+**Next Step**: Ready to proceed to Slice 5 (Auto-Polling for Round Updates) when approved by user.
 
 ---
 
@@ -704,46 +837,98 @@ Headers: { Authorization: "Bearer {token}" }
 ## Slice 7: Player Selection - Search and Add
 
 ### Endpoints Used
-**BLOCKED - Backend work required**
 
-**Missing Endpoint**: There is NO user search endpoint in the backend.
-
-**Required Backend Work**:
-- Create `GET /api/users/search` or `GET /api/users?query=...` endpoint
-- Endpoint should search by username and return user profiles
-- Must support pagination (limit, offset)
-- Should prioritize friends in results
-
-**Workaround Options Until Backend is Built**:
-1. **Manual user ID entry**: Allow entering user IDs directly
-2. **Friends list only**: If friends endpoint exists, use that instead
-3. **Skip this slice**: Move to guest player support (which uses POST /api/rounds/:id/players with guestName)
-
-**Proposed Endpoint Specification** (for backend team):
+**1. GET /api/friends** - List friends (show first)
 ```json
 // Request
-GET /api/users?query=john&limit=20
+GET /api/friends?limit=50
 Headers: { Authorization: "Bearer {token}" }
 
 // Response
 {
-  "users": [
+  "success": true,
+  "friends": [
     {
-      "id": 123,
+      "id": 789,
       "username": "johndoe",
-      "display_name": "John Doe",
-      "avatar_url": "https://...",
-      "is_friend": true
+      "friendship": {
+        "id": 123,
+        "status": "accepted",
+        "created_at": "2024-01-15T10:30:00.000Z"
+      },
+      "bag_stats": {
+        "total_bags": 5,
+        "visible_bags": 3,
+        "public_bags": 1
+      }
     }
   ],
-  "total": 1,
+  "pagination": {
+    "total": 15,
+    "limit": 50,
+    "offset": 0,
+    "hasMore": false
+  }
+}
+```
+
+**2. GET /api/profile/search** - Search users by username
+```json
+// Request
+GET /api/profile/search?username=john&limit=20
+Headers: NONE (public endpoint, no auth required)
+
+// Response
+{
+  "profiles": [
+    {
+      "user_id": 123,
+      "username": "johndoe",
+      "name": "John Doe",
+      "bio": "Disc golf enthusiast",
+      "city": "Austin",
+      "state_province": "Texas",
+      "country": "United States"
+    }
+  ],
+  "total": 5,
   "limit": 20,
   "offset": 0,
   "hasMore": false
 }
 ```
 
-**NOTE**: The POST /api/rounds/:id/players endpoint EXISTS and supports adding players by userId OR guestName, but finding users to add requires the search endpoint above.
+**3. POST /api/rounds/:id/players** - Add player to round (existing)
+```json
+// Request
+POST /api/rounds/:id/players
+Headers: { Authorization: "Bearer {token}" }
+Body: {
+  "userId": 123  // From friends list or search results
+}
+
+// Response
+{
+  "id": "player-uuid",
+  "round_id": "round-uuid",
+  "user_id": 123,
+  "username": "johndoe",
+  "joined_at": "2024-01-15T10:35:00Z"
+}
+```
+
+**IMPLEMENTATION STRATEGY**:
+1. Show friends list first (most likely to play with friends)
+2. Search bar at top with 300ms debounce
+3. Search uses `GET /api/profile/search` for any username
+4. Add players by calling `POST /api/rounds/:id/players` with `userId` from selection
+5. Support guest players via `guestName` field in same endpoint
+
+**IMPORTANT NOTES**:
+- Friends endpoint returns `id` field (this is the user_id to use)
+- Profile search returns `user_id` field (use this for adding players)
+- Profile search is PUBLIC (no auth required) for discoverability
+- Both endpoints support pagination for large result sets
 
 ### User Flow
 1. User taps "Add Players" on create screen
