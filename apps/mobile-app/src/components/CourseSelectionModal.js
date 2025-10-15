@@ -24,7 +24,9 @@ import { typography } from '../design-system/typography';
 import { spacing } from '../design-system/spacing';
 import CourseCard from './CourseCard';
 import SearchBar from '../design-system/components/SearchBar';
+import RecentCoursesSection from './course/RecentCoursesSection';
 import { searchCourses } from '../services/courseService';
+import { useRecentCourses } from '../hooks/useRecentCourses';
 
 function CourseSelectionModal({
   visible,
@@ -41,6 +43,14 @@ function CourseSelectionModal({
 
   // Debounce search to avoid too many API calls
   const searchTimeoutRef = useRef(null);
+
+  // Recent courses hook
+  const {
+    courses: recentCourses,
+    loading: loadingRecent,
+    error: recentError,
+    refresh: refreshRecent,
+  } = useRecentCourses();
 
   const styles = StyleSheet.create({
     modalOverlay: {
@@ -283,6 +293,15 @@ function CourseSelectionModal({
               </Text>
             )}
           </View>
+
+          {/* Recent Courses Section */}
+          <RecentCoursesSection
+            courses={recentCourses}
+            onSelectCourse={handleCourseSelect}
+            loading={loadingRecent}
+            error={recentError}
+            onRetry={refreshRecent}
+          />
 
           {/* Course List */}
           <ScrollView

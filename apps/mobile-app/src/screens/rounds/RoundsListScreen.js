@@ -102,8 +102,7 @@ function RoundsListScreen({ navigation: navigationProp }) {
       setRounds(result.rounds);
     } catch (err) {
       // Silent failure - keep existing rounds visible
-      // eslint-disable-next-line no-console
-      console.log('Refresh failed:', err.message);
+      // Error is intentionally not shown to avoid disrupting user experience
     } finally {
       setRefreshing(false);
     }

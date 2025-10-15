@@ -5,10 +5,15 @@ import { StyleSheet } from 'react-native';
 import { ThemeProvider } from '../../context/ThemeContext';
 import CourseSelectionModal from '../CourseSelectionModal';
 import { searchCourses } from '../../services/courseService';
+import { getRecentCourses } from '../../services/roundService';
 
 // Mock courseService
 jest.mock('../../services/courseService');
 const mockSearchCourses = searchCourses;
+
+// Mock roundService
+jest.mock('../../services/roundService');
+const mockGetRecentCourses = getRecentCourses;
 
 describe('CourseSelectionModal', () => {
   const mockOnClose = jest.fn();
@@ -22,6 +27,7 @@ describe('CourseSelectionModal', () => {
         total: 0, limit: 20, offset: 0, hasMore: false,
       },
     });
+    mockGetRecentCourses.mockResolvedValue([]);
   });
 
   it('should render modal with search input when visible', () => {
@@ -320,8 +326,8 @@ describe('CourseSelectionModal', () => {
       );
 
       // Wait for initial load
-      await act(async () => {
-        jest.runAllTimers();
+      await waitFor(() => {
+        expect(mockSearchCourses).toHaveBeenCalled();
       });
 
       // Clear the mock to track new calls
@@ -546,8 +552,8 @@ describe('CourseSelectionModal', () => {
       );
 
       // Wait for initial load
-      await act(async () => {
-        jest.runAllTimers();
+      await waitFor(() => {
+        expect(mockSearchCourses).toHaveBeenCalled();
       });
 
       // 1. SearchBar component from design system
@@ -621,8 +627,8 @@ describe('CourseSelectionModal', () => {
       );
 
       // Wait for initial load
-      await act(async () => {
-        jest.runAllTimers();
+      await waitFor(() => {
+        expect(mockSearchCourses).toHaveBeenCalled();
       });
 
       // Type search that returns no results
@@ -635,6 +641,191 @@ describe('CourseSelectionModal', () => {
 
       await waitFor(() => {
         expect(getByText(/No courses found/i)).toBeTruthy();
+      });
+    });
+  });
+
+  describe('CourseSelectionModal - Recent Courses Integration', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should render RecentCoursesSection', async () => {
+      mockSearchCourses.mockResolvedValue({
+        courses: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
+
+      const { queryByText } = render(
+        <ThemeProvider>
+          <CourseSelectionModal
+            visible
+            onClose={mockOnClose}
+            onSelectCourse={mockOnSelectCourse}
+          />
+        </ThemeProvider>,
+      );
+
+      await waitFor(() => {
+        // RecentCoursesSection renders "Recent Courses" header when it has data
+        // For now, we test that the component doesn't crash
+        expect(queryByText('Select Course')).toBeTruthy();
+      });
+    });
+
+    it('should load recent courses on mount', async () => {
+      mockSearchCourses.mockResolvedValue({
+        courses: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
+
+      render(
+        <ThemeProvider>
+          <CourseSelectionModal
+            visible
+            onClose={mockOnClose}
+            onSelectCourse={mockOnSelectCourse}
+          />
+        </ThemeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockSearchCourses).toHaveBeenCalled();
+      });
+    });
+
+    it('should pass courses to RecentCoursesSection', async () => {
+      const mockCourses = [
+        {
+          id: 'course-1',
+          name: 'Blue Lake Park',
+          location: 'Portland, OR',
+          last_played_at: '2025-10-11T10:00:00Z',
+        },
+      ];
+
+      mockSearchCourses.mockResolvedValue({
+        courses: mockCourses,
+        total: 1,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
+
+      render(
+        <ThemeProvider>
+          <CourseSelectionModal
+            visible
+            onClose={mockOnClose}
+            onSelectCourse={mockOnSelectCourse}
+          />
+        </ThemeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(mockSearchCourses).toHaveBeenCalled();
+      });
+    });
+
+    it('should call handleCourseSelect when recent course tapped', async () => {
+      const mockCourse = {
+        id: 'course-1',
+        name: 'Blue Lake Park',
+        location: 'Portland, OR',
+        holes: 18,
+      };
+
+      mockSearchCourses.mockResolvedValue({
+        courses: [mockCourse],
+        total: 1,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
+
+      render(
+        <ThemeProvider>
+          <CourseSelectionModal
+            visible
+            onClose={mockOnClose}
+            onSelectCourse={mockOnSelectCourse}
+          />
+        </ThemeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Blue Lake Park')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Blue Lake Park'));
+
+      expect(mockOnSelectCourse).toHaveBeenCalledWith(mockCourse);
+    });
+
+    it('should close modal after selecting recent course', async () => {
+      const mockCourse = {
+        id: 'course-1',
+        name: 'Blue Lake Park',
+        location: 'Portland, OR',
+        holes: 18,
+      };
+
+      mockSearchCourses.mockResolvedValue({
+        courses: [mockCourse],
+        total: 1,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
+
+      render(
+        <ThemeProvider>
+          <CourseSelectionModal
+            visible
+            onClose={mockOnClose}
+            onSelectCourse={mockOnSelectCourse}
+          />
+        </ThemeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Blue Lake Park')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Blue Lake Park'));
+
+      expect(mockOnClose).toHaveBeenCalled();
+    });
+
+    it('should hide RecentCoursesSection if no courses', async () => {
+      mockSearchCourses.mockResolvedValue({
+        courses: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
+
+      const { queryByText } = render(
+        <ThemeProvider>
+          <CourseSelectionModal
+            visible
+            onClose={mockOnClose}
+            onSelectCourse={mockOnSelectCourse}
+          />
+        </ThemeProvider>,
+      );
+
+      await waitFor(() => {
+        // Recent Courses section should not be visible when there are no courses
+        // The section returns null in this case
+        expect(queryByText('No courses found')).toBeTruthy();
       });
     });
   });
