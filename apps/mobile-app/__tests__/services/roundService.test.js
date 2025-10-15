@@ -12,6 +12,7 @@ import {
   completeRound,
   getRoundPars,
   submitScores,
+  getRecentCourses,
 } from '../../src/services/roundService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -855,6 +856,215 @@ describe('RoundService Functions', () => {
       fetch.mockRejectedValueOnce(networkError);
 
       await expect(submitScores('round-123', scores)).rejects.toThrow('Network request failed');
+    });
+  });
+
+  describe('Recent Courses - Cache Utilities', () => {
+    // Mock AsyncStorage
+    let AsyncStorage;
+
+    beforeEach(() => {
+      // Import and mock AsyncStorage
+      AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.getItem = jest.fn();
+      AsyncStorage.setItem = jest.fn();
+    });
+
+    it('should export getRecentCourses function', () => {
+      expect(getRecentCourses).toBeDefined();
+      expect(typeof getRecentCourses).toBe('function');
+    });
+
+    it('should handle cache miss and fetch from API', async () => {
+      // Mock no cache
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      // Mock getRounds to return empty array
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          rounds: [], total: 0, limit: 10, offset: 0, hasMore: false,
+        }),
+      });
+
+      const result = await getRecentCourses();
+
+      // Should fetch from API when cache is not available
+      expect(result).toEqual([]);
+    });
+
+    it('should return cached data when cache is fresh (<24 hours)', async () => {
+      // Mock fresh cache (1 hour old)
+      const freshCache = {
+        userId: 'test-user-123',
+        courses: [
+          { id: 'cached-course-1', name: 'Cached Course 1' },
+          { id: 'cached-course-2', name: 'Cached Course 2' },
+        ],
+        updated_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+      };
+
+      AsyncStorage.getItem.mockResolvedValue(JSON.stringify(freshCache));
+
+      // Mock JWT decode to return matching user
+      const validToken = `header.${btoa(JSON.stringify({ userId: 'test-user-123' }))}.signature`;
+      getTokens.mockResolvedValue({ accessToken: validToken });
+
+      const result = await getRecentCourses();
+
+      // Should return cached data
+      expect(result).toEqual(freshCache.courses);
+      // Should NOT call fetch (no API call)
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should invalidate cache when data is stale (>24 hours old)', async () => {
+      // Mock stale cache (25 hours old)
+      const staleCache = {
+        userId: 'test-user-123',
+        courses: [{ id: 'old-course', name: 'Old Course' }],
+        updated_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), // 25 hours ago
+      };
+
+      AsyncStorage.getItem.mockResolvedValue(JSON.stringify(staleCache));
+
+      // Mock JWT decode to return matching user
+      const validToken = `header.${btoa(JSON.stringify({ userId: 'test-user-123' }))}.signature`;
+      getTokens.mockResolvedValue({ accessToken: validToken });
+
+      // Mock fresh data from API
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          rounds: [{ course_id: 'fresh-course', created_at: new Date().toISOString() }],
+          total: 1,
+          limit: 10,
+          offset: 0,
+          hasMore: false,
+        }),
+      });
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'fresh-course', name: 'Fresh Course' }),
+      });
+
+      const result = await getRecentCourses();
+
+      // Should fetch from API (cache ignored due to staleness)
+      expect(fetch).toHaveBeenCalled();
+      // Should return fresh data, not stale cache
+      expect(result[0].name).toBe('Fresh Course');
+    });
+
+    it('should isolate cache by user ID (ignore different user cache)', async () => {
+      // Mock user1's cache
+      const user1Cache = {
+        userId: 'user-1',
+        courses: [{ id: 'user1-course', name: 'User 1 Course' }],
+        updated_at: new Date().toISOString(), // Fresh cache
+      };
+
+      AsyncStorage.getItem.mockResolvedValue(JSON.stringify(user1Cache));
+
+      // Mock JWT decode to return DIFFERENT user (user-2)
+      const validToken = `header.${btoa(JSON.stringify({ userId: 'user-2' }))}.signature`;
+      getTokens.mockResolvedValue({ accessToken: validToken });
+
+      // Mock fresh data from API
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          rounds: [{ course_id: 'user2-course', created_at: new Date().toISOString() }],
+          total: 1,
+          limit: 10,
+          offset: 0,
+          hasMore: false,
+        }),
+      });
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'user2-course', name: 'User 2 Course' }),
+      });
+
+      const result = await getRecentCourses();
+
+      // Should fetch from API (cache ignored due to user mismatch)
+      expect(fetch).toHaveBeenCalled();
+      // Should return user2's data, not user1's cache
+      expect(result[0].name).toBe('User 2 Course');
+    });
+
+    it('should call setTimeout to schedule cache write operation', async () => {
+      // Save original setTimeout
+      const originalSetTimeout = global.setTimeout;
+
+      // Track setTimeout calls
+      const setTimeoutSpy = jest.fn();
+      global.setTimeout = setTimeoutSpy;
+
+      AsyncStorage.getItem.mockResolvedValue(null); // No cache
+
+      // Mock JWT decode to return user ID
+      const validToken = `header.${btoa(JSON.stringify({ userId: 'test-user-123' }))}.signature`;
+      getTokens.mockImplementation(() => Promise.resolve({ accessToken: validToken }));
+
+      // Mock API responses
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          rounds: [{ course_id: 'new-course', created_at: new Date().toISOString() }],
+          total: 1,
+          limit: 10,
+          offset: 0,
+          hasMore: false,
+        }),
+      });
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'new-course', name: 'New Course' }),
+      });
+
+      await getRecentCourses();
+
+      // Verify setTimeout was called to schedule cache write
+      expect(setTimeoutSpy).toHaveBeenCalled();
+
+      // Verify setTimeout was called with a function (the cache write function)
+      const { calls } = setTimeoutSpy.mock;
+      const cacheWriteCall = calls.find((call) => typeof call[0] === 'function' && call[1] === 0);
+      expect(cacheWriteCall).toBeDefined();
+
+      // Restore original setTimeout
+      global.setTimeout = originalSetTimeout;
+    });
+
+    it('should handle errors gracefully and return empty array', async () => {
+      // Mock cache retrieval failure
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      // Mock getRounds to fail
+      fetch.mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await getRecentCourses();
+
+      // Should return empty array on error (feature is not critical)
+      expect(result).toEqual([]);
+    });
+
+    it('should handle authentication errors gracefully', async () => {
+      // Mock no cache
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      // Mock token as null
+      getTokens.mockResolvedValueOnce(null);
+
+      const result = await getRecentCourses();
+
+      // Should return empty array when not authenticated
+      expect(result).toEqual([]);
     });
   });
 });

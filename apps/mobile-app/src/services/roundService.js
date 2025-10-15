@@ -3,8 +3,10 @@
  * Handles API calls for round management operations
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/environment';
 import { getTokens } from './tokenStorage';
+import { getCourseById } from './courseService';
 
 /**
  * Validate round name format before sending to API
@@ -621,6 +623,153 @@ export async function getRoundPars(roundId) {
   } catch (error) {
     clearTimeout(timeoutId); // Clear timeout on error
     throw error; // Re-throw the error to be handled by caller
+  }
+}
+
+/**
+ * Helper to decode JWT token payload
+ * @param {string} token - JWT token to decode
+ * @returns {Object|null} Decoded payload or null if invalid
+ */
+function decodeJWT(token) {
+  try {
+    // JWT format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    // Decode base64 payload (second part)
+    const payload = parts[1];
+    // Replace URL-safe characters
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    // Decode base64 to string
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
+        .join(''),
+    );
+
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Helper to get current user ID from JWT token
+ * @returns {Promise<string|null>} Current user ID or null
+ */
+async function getCurrentUserId() {
+  try {
+    const tokens = await getTokens();
+    if (!tokens?.accessToken) return null;
+
+    const decoded = decodeJWT(tokens.accessToken);
+    if (!decoded) return null;
+
+    // Try different common JWT user ID fields
+    return decoded.userId || decoded.sub || decoded.user_id || null;
+  } catch (error) {
+    // Silently fail - return null on any error
+    return null;
+  }
+}
+
+/**
+ * Get cached recent courses if fresh (<24h)
+ * @returns {Promise<Array|null>} Cached courses or null if not found/stale
+ */
+async function getCachedRecentCourses() {
+  try {
+    const cachedData = await AsyncStorage.getItem('recent_courses');
+    if (!cachedData) return null;
+
+    const { userId, courses, updated_at: updatedAt } = JSON.parse(cachedData);
+
+    // Check if cache is for current user
+    const currentUserId = await getCurrentUserId();
+    if (userId !== currentUserId) return null;
+
+    // Check if cache is fresh (<24 hours)
+    const cacheAge = Date.now() - new Date(updatedAt).getTime();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    if (cacheAge > TWENTY_FOUR_HOURS) return null;
+
+    return courses;
+  } catch (error) {
+    // Return null on any error (invalid JSON, storage error, etc.)
+    return null;
+  }
+}
+
+/**
+ * Cache recent courses (non-blocking)
+ * @param {Array} courses - Courses to cache
+ */
+function cacheRecentCourses(courses) {
+  // Use setTimeout to make it non-blocking
+  setTimeout(async () => {
+    try {
+      const userId = await getCurrentUserId();
+      await AsyncStorage.setItem('recent_courses', JSON.stringify({
+        userId,
+        courses,
+        updated_at: new Date().toISOString(),
+      }));
+    } catch (error) {
+      // Silently fail - caching is not critical
+    }
+  }, 0);
+}
+
+/**
+ * Get recent courses from user's completed rounds
+ * Fetches 10 most recent completed rounds, extracts unique courses (up to 5)
+ * Caches result in AsyncStorage with 24h TTL
+ *
+ * @returns {Promise<Array>} Array of recent course objects
+ */
+export async function getRecentCourses() {
+  try {
+    // Check cache first
+    const cached = await getCachedRecentCourses();
+    if (cached) return cached;
+
+    // Fetch 10 recent completed rounds (reduced from 20 for performance)
+    const { rounds } = await getRounds({ limit: 10, status: 'completed' });
+
+    // Extract unique course IDs (most recent first)
+    const coursesMap = new Map();
+    rounds.forEach((round) => {
+      if (!coursesMap.has(round.course_id)) {
+        coursesMap.set(round.course_id, {
+          id: round.course_id,
+          last_played_at: round.created_at || round.start_time,
+        });
+      }
+    });
+
+    // Get top 5 unique courses
+    const recentCourseIds = Array.from(coursesMap.keys()).slice(0, 5);
+
+    // Fetch course details (use allSettled for resilience)
+    const coursePromises = recentCourseIds.map((id) => getCourseById(id));
+    const results = await Promise.allSettled(coursePromises);
+
+    const courses = results
+      .filter((result) => result.status === 'fulfilled')
+      .map((result, index) => ({
+        ...result.value,
+        last_played_at: Array.from(coursesMap.values())[index].last_played_at,
+      }));
+
+    // Cache result (non-blocking)
+    cacheRecentCourses(courses);
+
+    return courses;
+  } catch (error) {
+    // Return empty array on any error - this feature is not critical
+    return [];
   }
 }
 

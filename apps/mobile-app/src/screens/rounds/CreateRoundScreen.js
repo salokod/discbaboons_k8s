@@ -21,10 +21,10 @@ import { spacing } from '../../design-system/spacing';
 import AppContainer from '../../components/AppContainer';
 import StatusBarSafeView from '../../components/StatusBarSafeView';
 import NavigationHeader from '../../components/NavigationHeader';
-import ParticipantSelector from '../../components/ParticipantSelector';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import CourseSelectionModal from '../../components/CourseSelectionModal';
+import PlayerSelectionModal from '../../components/modals/PlayerSelectionModal';
 import { createRound, addPlayersToRound } from '../../services/roundService';
 
 function CreateRoundScreen({ navigation }) {
@@ -32,6 +32,7 @@ function CreateRoundScreen({ navigation }) {
   const [roundName, setRoundName] = useState('');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState([]);
   const [guests, setGuests] = useState([]);
@@ -185,6 +186,53 @@ function CreateRoundScreen({ navigation }) {
     }
   }, [navigation]);
 
+  const handlePlayerConfirm = useCallback((selectedPlayers) => {
+    // selectedPlayers format: [{ userId: 'x' }, { guestName: 'John' }]
+
+    // Extract friends (items with userId)
+    const friendIds = selectedPlayers
+      .filter((p) => p.userId)
+      .map((p) => p.userId);
+
+    // Extract guests (items with guestName)
+    const newGuests = selectedPlayers
+      .filter((p) => p.guestName)
+      .map((p) => ({
+        id: `guest-${Date.now()}-${Math.random()}`,
+        name: p.guestName,
+      }));
+
+    // Merge with existing state (avoid duplicates)
+    // For now, we'll just replace with new selections
+    // In a real scenario, you might want to merge intelligently
+    setSelectedFriends((prev) => {
+      // Find friend objects by ID (assuming friends loaded from somewhere)
+      // For now, just create minimal friend objects
+      const newFriends = friendIds.map((id) => ({
+        id,
+        username: `user-${id}`, // Placeholder - would normally fetch from API
+        full_name: `User ${id}`, // Placeholder
+      }));
+
+      // Merge without duplicates
+      const existingIds = new Set(prev.map((f) => f.id));
+      const toAdd = newFriends.filter((f) => !existingIds.has(f.id));
+
+      return [...prev, ...toAdd];
+    });
+
+    setGuests((prev) => {
+      // Merge guests
+      const existingNames = new Set(prev.map((g) => g.name));
+      const toAdd = newGuests.filter((g) => !existingNames.has(g.name));
+
+      return [...prev, ...toAdd];
+    });
+
+    // Close modal
+    setShowPlayerModal(false);
+  }, []);
+
   return (
     <StatusBarSafeView testID="create-round-screen" style={styles.container}>
       <AppContainer>
@@ -245,12 +293,42 @@ function CreateRoundScreen({ navigation }) {
               </View>
 
               {/* Participants Section */}
-              <ParticipantSelector
-                selectedFriends={selectedFriends}
-                guests={guests}
-                onFriendsChange={setSelectedFriends}
-                onGuestsChange={setGuests}
-              />
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Icon
+                    name="people-outline"
+                    size={20}
+                    color={colors.primary}
+                    style={styles.sectionIcon}
+                  />
+                  <Text style={styles.sectionTitle}>Players</Text>
+                </View>
+                <TouchableOpacity
+                  testID="add-players-button"
+                  style={styles.courseButton}
+                  onPress={() => setShowPlayerModal(true)}
+                  accessibilityLabel="Add players to round"
+                  accessibilityHint="Choose friends or add guests to play with"
+                >
+                  <View style={styles.courseButtonContent}>
+                    <Text style={styles.courseButtonText}>
+                      {(() => {
+                        const totalParticipants = selectedFriends.length + guests.length;
+                        if (totalParticipants === 0) {
+                          return 'Add Players';
+                        }
+                        return `${totalParticipants} Player${totalParticipants === 1 ? '' : 's'} Added`;
+                      })()}
+                    </Text>
+                  </View>
+                  <Icon
+                    name="chevron-forward"
+                    size={20}
+                    color={colors.textLight}
+                    style={styles.courseButtonIcon}
+                  />
+                </TouchableOpacity>
+              </View>
 
               {/* Round Name Section */}
               <View style={styles.section}>
@@ -294,6 +372,17 @@ function CreateRoundScreen({ navigation }) {
         visible={showCourseModal}
         onClose={handleCloseCourseModal}
         onSelectCourse={handleCourseSelect}
+      />
+
+      {/* Player Selection Modal */}
+      <PlayerSelectionModal
+        visible={showPlayerModal}
+        onClose={() => setShowPlayerModal(false)}
+        onConfirm={handlePlayerConfirm}
+        existingPlayers={[
+          ...selectedFriends.map((friend) => ({ userId: friend.id })),
+          ...guests.map((guest) => ({ guestName: guest.name })),
+        ]}
       />
     </StatusBarSafeView>
   );

@@ -135,3 +135,50 @@ export async function searchCourses(params = {}) {
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Get a single course by ID
+ * @param {string} courseId - Course ID to retrieve
+ * @returns {Promise<Object>} Course data
+ * @throws {Error} Get course failed error with message
+ */
+export async function getCourseById(courseId) {
+  if (!courseId || typeof courseId !== 'string' || courseId.trim().length === 0) {
+    throw new Error('Course ID is required');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/courses/${courseId}`, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 404) {
+        throw new Error(data.message || 'Course not found');
+      }
+      if (response.status >= 500) {
+        throw new Error('Something went wrong. Please try again.');
+      }
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    return transformCourseData(data);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
