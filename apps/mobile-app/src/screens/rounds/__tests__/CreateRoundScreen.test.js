@@ -324,7 +324,7 @@ describe('CreateRoundScreen', () => {
       }, { timeout: 3000 });
     });
 
-    it('should show error alert on API failure', async () => {
+    it('should show error recovery modal on API failure', async () => {
       const errorMessage = 'Network error - please try again';
       mockCreateRound.mockRejectedValue(new Error(errorMessage));
 
@@ -346,13 +346,88 @@ describe('CreateRoundScreen', () => {
       const createButton = getByTestId('create-round-button');
       fireEvent.press(createButton);
 
-      // Wait for error alert to be shown
+      // Wait for error recovery modal to be shown
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', errorMessage);
+        expect(getByTestId('error-recovery-modal')).toBeTruthy();
       });
 
       // Should not navigate on error
       expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    });
+
+    it('should retry round creation when retry button is pressed in error modal', async () => {
+      // First call fails, second succeeds
+      mockCreateRound
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({ id: 'round-456' });
+
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course and enter round name
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button - this will fail
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for error modal
+      await waitFor(() => {
+        expect(getByTestId('error-recovery-modal')).toBeTruthy();
+      });
+
+      // Press retry button
+      const retryButton = getByTestId('error-modal-retry-button');
+      fireEvent.press(retryButton);
+
+      // Wait for navigation after successful retry
+      await waitFor(() => {
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('ScorecardRedesign', {
+          roundId: 'round-456',
+        });
+      });
+    });
+
+    it('should close error modal when cancel button is pressed', async () => {
+      mockCreateRound.mockRejectedValue(new Error('Network error'));
+
+      const { getByTestId, queryByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course and enter round name
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button - this will fail
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for error modal
+      await waitFor(() => {
+        expect(getByTestId('error-recovery-modal')).toBeTruthy();
+      });
+
+      // Press cancel button
+      const cancelButton = getByTestId('error-modal-cancel-button');
+      fireEvent.press(cancelButton);
+
+      // Modal should be closed
+      await waitFor(() => {
+        expect(queryByTestId('error-recovery-modal')).toBeFalsy();
+      });
     });
 
     it('should send correct camelCase field names in payload', async () => {
@@ -811,9 +886,9 @@ describe('CreateRoundScreen', () => {
       const createButton = getByTestId('create-round-button');
       fireEvent.press(createButton);
 
-      // Wait for error alert
+      // Wait for error recovery modal
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalled();
+        expect(getByTestId('error-recovery-modal')).toBeTruthy();
       });
 
       // Success animation should not appear

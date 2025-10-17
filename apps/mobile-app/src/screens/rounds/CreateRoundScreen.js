@@ -31,7 +31,9 @@ import Button from '../../components/Button';
 import AmountInput from '../../design-system/components/AmountInput';
 import CourseSelectionModal from '../../components/CourseSelectionModal';
 import PlayerSelectionModal from '../../components/modals/PlayerSelectionModal';
+import ErrorRecoveryModal from '../../components/ErrorRecoveryModal';
 import { createRound, addPlayersToRound } from '../../services/roundService';
+import { classifyError } from '../../utils/errorClassifier';
 
 function CreateRoundScreen({ navigation }) {
   const colors = useThemeColors();
@@ -48,6 +50,9 @@ function CreateRoundScreen({ navigation }) {
   const [skinsValue, setSkinsValue] = useState('');
   const [showSkinsValueError, setShowSkinsValueError] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorType, setErrorType] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const navigationTimeoutRef = useRef(null);
 
@@ -278,7 +283,10 @@ function CreateRoundScreen({ navigation }) {
         }
       }, 500);
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to create round. Please try again.');
+      const classified = classifyError(error);
+      setErrorType(classified);
+      setErrorMessage(error.message || 'Failed to create round. Please try again.');
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -293,6 +301,15 @@ function CreateRoundScreen({ navigation }) {
     skinsValue,
     fadeAnim,
   ]);
+
+  const handleErrorRetry = useCallback(() => {
+    setShowErrorModal(false);
+    handleCreateRound();
+  }, [handleCreateRound]);
+
+  const handleErrorCancel = useCallback(() => {
+    setShowErrorModal(false);
+  }, []);
 
   // Validation helper - disable create button only when loading
   const isCreateDisabled = isLoading;
@@ -584,6 +601,15 @@ function CreateRoundScreen({ navigation }) {
           ...selectedFriends.map((friend) => ({ userId: friend.id })),
           ...guests.map((guest) => ({ guestName: guest.name })),
         ]}
+      />
+
+      {/* Error Recovery Modal */}
+      <ErrorRecoveryModal
+        visible={showErrorModal}
+        errorType={errorType}
+        errorMessage={errorMessage}
+        onRetry={handleErrorRetry}
+        onCancel={handleErrorCancel}
       />
 
       {/* Success Animation */}
