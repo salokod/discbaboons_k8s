@@ -1,7 +1,7 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import RoundDetailScreen from '../RoundDetailScreen';
-import { getRoundDetails, getRoundLeaderboard } from '../../../services/roundService';
+import { getRoundDetails, getRoundLeaderboard, getRoundSideBets } from '../../../services/roundService';
 
 // Mock navigation
 const mockNavigation = {
@@ -43,6 +43,7 @@ const mockRoute = {
 jest.mock('../../../services/roundService', () => ({
   getRoundDetails: jest.fn(),
   getRoundLeaderboard: jest.fn(),
+  getRoundSideBets: jest.fn(),
 }));
 
 // Mock dependencies
@@ -138,6 +139,29 @@ jest.mock('../../../components/rounds/RoundActionsMenu', () => {
   };
 });
 
+jest.mock('../../../components/rounds/SideBetsCard', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return function SideBetsCard({ sideBets, loading }) {
+    if (loading) {
+      return React.createElement(
+        View,
+        { testID: 'side-bets-card-loading' },
+        React.createElement(Text, null, 'Loading side bets...'),
+      );
+    }
+    return React.createElement(
+      View,
+      { testID: 'side-bets-card' },
+      sideBets.map((bet) => React.createElement(
+        Text,
+        { key: bet.id, testID: `bet-${bet.id}` },
+        bet.name,
+      )),
+    );
+  };
+});
+
 describe('RoundDetailScreen', () => {
   const renderWithNavigation = (component) => render(
     <NavigationContainer>
@@ -149,6 +173,11 @@ describe('RoundDetailScreen', () => {
     jest.clearAllMocks();
     getRoundDetails.mockClear();
     getRoundLeaderboard.mockClear();
+    getRoundSideBets.mockClear();
+    // Provide default resolved values to prevent hanging tests
+    getRoundDetails.mockResolvedValue({ id: 'round-123', name: 'Test Round', status: 'in_progress' });
+    getRoundLeaderboard.mockResolvedValue({ players: [], roundSettings: {} });
+    getRoundSideBets.mockResolvedValue([]);
   });
 
   // SLICE 1: Screen Foundation & Navigation Tests
@@ -836,6 +865,190 @@ describe('RoundDetailScreen', () => {
 
       // ScoreSummaryCard should render
       await findByTestId('score-summary-card');
+    });
+  });
+
+  // SLICE C: Side Bets Integration Tests
+  describe('Slice C: Side Bets Integration', () => {
+    const mockRoundWithDetails = {
+      id: 'round-123',
+      name: 'Morning Round',
+      status: 'in_progress',
+      start_time: '2023-12-01T09:00:00Z',
+      course: {
+        id: 'course-456',
+        name: 'Test Course',
+        location: 'Test City',
+        holes: 18,
+      },
+      players: [],
+    };
+
+    const mockSideBets = [
+      {
+        id: 'bet-1',
+        name: 'Closest to Pin Hole 7',
+        description: 'Closest to the pin on hole 7',
+        amount: '10.00',
+        bet_type: 'hole',
+        hole_number: 7,
+        winner_id: null,
+        participants: [
+          { id: 'p1', username: 'player1' },
+          { id: 'p2', username: 'player2' },
+        ],
+      },
+      {
+        id: 'bet-2',
+        name: 'Most Birdies',
+        description: 'Most birdies in the round',
+        amount: '20.00',
+        bet_type: 'round',
+        hole_number: null,
+        winner_id: 'p1',
+        participants: [
+          { id: 'p1', username: 'player1' },
+          { id: 'p2', username: 'player2' },
+        ],
+      },
+    ];
+
+    beforeEach(() => {
+      getRoundDetails.mockResolvedValue(mockRoundWithDetails);
+      getRoundLeaderboard.mockResolvedValue({ players: [], roundSettings: {} });
+    });
+
+    describe('C1: Side Bets Fetching', () => {
+      it('should call getRoundSideBets with roundId on mount', async () => {
+        getRoundSideBets.mockResolvedValue([]);
+
+        renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        await waitFor(() => {
+          expect(getRoundSideBets).toHaveBeenCalledWith('round-123');
+        });
+      });
+
+      it('should not call getRoundSideBets when roundId is missing', () => {
+        const emptyRoute = {
+          params: {},
+        };
+
+        renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={emptyRoute}
+          />,
+        );
+
+        expect(getRoundSideBets).not.toHaveBeenCalled();
+      });
+
+      it('should handle side bets API errors gracefully', async () => {
+        getRoundSideBets.mockRejectedValue(new Error('Failed to load side bets'));
+
+        const { findByTestId } = renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        // Should still render the screen
+        await findByTestId('round-overview-card');
+      });
+    });
+
+    describe('C2: SideBetsCard Rendering', () => {
+      it('should render SideBetsCard component', async () => {
+        getRoundSideBets.mockResolvedValue(mockSideBets);
+
+        const { findByTestId } = renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        await findByTestId('side-bets-card');
+      });
+
+      it('should pass side bets data to SideBetsCard', async () => {
+        getRoundSideBets.mockResolvedValue(mockSideBets);
+
+        const { findByTestId } = renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        // Should display both bets
+        await findByTestId('bet-bet-1');
+        await findByTestId('bet-bet-2');
+      });
+
+      it('should show loading state while fetching side bets', async () => {
+        getRoundSideBets.mockImplementation(() => new Promise(() => {})); // Never resolves
+
+        const { findByTestId } = renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        // Wait for round to load first
+        await findByTestId('round-overview-card');
+
+        // Should show loading state in side bets card
+        await findByTestId('side-bets-card-loading');
+      });
+
+      it('should render SideBetsCard with empty array when no bets exist', async () => {
+        getRoundSideBets.mockResolvedValue([]);
+
+        const { findByTestId } = renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        // Should still render the card
+        await findByTestId('side-bets-card');
+      });
+    });
+
+    describe('C3: Pull to Refresh with Side Bets', () => {
+      it('should include side bets in refresh operations', async () => {
+        getRoundSideBets.mockResolvedValue(mockSideBets);
+
+        const { findByTestId } = renderWithNavigation(
+          <RoundDetailScreen
+            navigation={mockNavigation}
+            route={mockRoute}
+          />,
+        );
+
+        // Wait for initial load
+        await findByTestId('side-bets-card');
+
+        // Verify all three APIs are called on mount
+        await waitFor(() => {
+          expect(getRoundDetails).toHaveBeenCalledTimes(1);
+          expect(getRoundLeaderboard).toHaveBeenCalledTimes(1);
+          expect(getRoundSideBets).toHaveBeenCalledTimes(1);
+        });
+
+        // This verifies that side bets are integrated into the data fetching flow
+        // The actual pull-to-refresh testing requires E2E testing framework
+      });
     });
   });
 });

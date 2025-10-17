@@ -26,8 +26,9 @@ import StatusBarSafeView from '../../components/StatusBarSafeView';
 import PlayerStandingsCard from '../../components/rounds/PlayerStandingsCard';
 import RoundActionsMenu from '../../components/rounds/RoundActionsMenu';
 import ScoreSummaryCard from '../../components/rounds/ScoreSummaryCard';
+import SideBetsCard from '../../components/rounds/SideBetsCard';
 import {
-  getRoundDetails, getRoundLeaderboard, pauseRound, completeRound,
+  getRoundDetails, getRoundLeaderboard, pauseRound, completeRound, getRoundSideBets,
 } from '../../services/roundService';
 
 function RoundDetailScreen({ route, navigation }) {
@@ -43,6 +44,10 @@ function RoundDetailScreen({ route, navigation }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(Boolean(roundId));
   const [leaderboardError, setLeaderboardError] = useState(null);
+
+  // State management for side bets
+  const [sideBets, setSideBets] = useState([]);
+  const [sideBetsLoading, setSideBetsLoading] = useState(Boolean(roundId));
 
   // State for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
@@ -81,11 +86,29 @@ function RoundDetailScreen({ route, navigation }) {
     }
   }, [roundId]);
 
+  // Fetch side bets data
+  const fetchSideBetsData = useCallback(async () => {
+    if (!roundId) return;
+
+    setSideBetsLoading(true);
+
+    try {
+      const sideBetsData = await getRoundSideBets(roundId);
+      setSideBets(sideBetsData || []);
+    } catch (err) {
+      // Silently fail - side bets are optional
+      setSideBets([]);
+    } finally {
+      setSideBetsLoading(false);
+    }
+  }, [roundId]);
+
   // Fetch data on mount
   useEffect(() => {
     fetchRoundData();
     fetchLeaderboardData();
-  }, [fetchRoundData, fetchLeaderboardData]);
+    fetchSideBetsData();
+  }, [fetchRoundData, fetchLeaderboardData, fetchSideBetsData]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -312,11 +335,11 @@ function RoundDetailScreen({ route, navigation }) {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchRoundData(), fetchLeaderboardData()]);
+      await Promise.all([fetchRoundData(), fetchLeaderboardData(), fetchSideBetsData()]);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchRoundData, fetchLeaderboardData]);
+  }, [fetchRoundData, fetchLeaderboardData, fetchSideBetsData]);
 
   return (
     <StatusBarSafeView testID="round-detail-screen" style={styles.container}>
@@ -455,6 +478,14 @@ function RoundDetailScreen({ route, navigation }) {
                   loading={leaderboardLoading}
                   error={leaderboardError}
                   showRoundState
+                />
+
+                {/* Side Bets Section */}
+                <SideBetsCard
+                  testID="side-bets-card"
+                  sideBets={sideBets}
+                  loading={sideBetsLoading}
+                  onAddBet={() => {}}
                 />
 
                 {/* Score Summary */}

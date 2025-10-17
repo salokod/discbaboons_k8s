@@ -150,11 +150,11 @@ describe('BagDetailScreen - Contextual Lost Discs Button', () => {
     // Wait for bag data to load
     await waitFor(() => {
       expect(bagService.getBag).toHaveBeenCalledWith('test-bag-1');
-    }, { timeout: 5000 });
+    }, { timeout: 3000 });
 
     await waitFor(() => {
       expect(bagService.getLostDiscCountForBag).toHaveBeenCalledWith('test-bag-1');
-    }, { timeout: 5000 });
+    }, { timeout: 3000 });
 
     // Debug the component structure if needed
     // debug();
@@ -163,7 +163,7 @@ describe('BagDetailScreen - Contextual Lost Discs Button', () => {
     await waitFor(() => {
       const lostDiscsButton = queryByTestId('contextual-lost-discs-button');
       expect(lostDiscsButton).toBeTruthy();
-    }, { timeout: 5000 });
+    }, { timeout: 3000 });
   });
 
   it('should not display contextual Lost Discs button when bag has no lost discs', async () => {
