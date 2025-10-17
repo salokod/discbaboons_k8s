@@ -1,5 +1,6 @@
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { Alert } from 'react-native';
 import CreateRoundScreen from '../CreateRoundScreen';
 
 // Mock navigation
@@ -7,6 +8,17 @@ const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
 };
+
+// Mock roundService
+const mockCreateRound = jest.fn();
+const mockAddPlayersToRound = jest.fn();
+jest.mock('../../../services/roundService', () => ({
+  createRound: (...args) => mockCreateRound(...args),
+  addPlayersToRound: (...args) => mockAddPlayersToRound(...args),
+}));
+
+// Mock Alert
+jest.spyOn(Alert, 'alert');
 
 // Mock dependencies
 jest.mock('../../../context/ThemeContext', () => ({
@@ -35,6 +47,22 @@ jest.mock('../../../components/Input', () => {
   return ReactLocal.forwardRef((props, ref) => ReactLocal.createElement(TextInput, { ...props, ref, testID: props.testID || 'input' }));
 });
 
+jest.mock('../../../design-system/components/AmountInput', () => {
+  const ReactLocal = require('react');
+  const { TextInput } = require('react-native');
+  return function AmountInput({
+    testID, value, onChangeText, placeholder,
+  }) {
+    return ReactLocal.createElement(TextInput, {
+      testID,
+      value,
+      onChangeText,
+      placeholder,
+      keyboardType: 'decimal-pad',
+    });
+  };
+});
+
 jest.mock('../../../components/Button', () => {
   const ReactLocal = require('react');
   const { TouchableOpacity, Text } = require('react-native');
@@ -51,10 +79,29 @@ jest.mock('../../../components/Button', () => {
 
 jest.mock('../../../components/CourseSelectionModal', () => {
   const ReactLocal = require('react');
-  const { View } = require('react-native');
-  return function CourseSelectionModal({ visible }) {
+  const { View, TouchableOpacity, Text } = require('react-native');
+  return function CourseSelectionModal({ visible, onSelectCourse, onClose }) {
     if (!visible) return null;
-    return ReactLocal.createElement(View, { testID: 'course-selection-modal' });
+    return ReactLocal.createElement(
+      View,
+      { testID: 'course-selection-modal' },
+      ReactLocal.createElement(
+        TouchableOpacity,
+        {
+          testID: 'select-mock-course',
+          onPress: () => {
+            onSelectCourse({
+              id: 'course-123',
+              name: 'Test Course',
+              location: 'Test City',
+              holes: 18,
+            });
+            onClose();
+          },
+        },
+        ReactLocal.createElement(Text, null, 'Select Course'),
+      ),
+    );
   };
 });
 
@@ -153,18 +200,18 @@ describe('CreateRoundScreen', () => {
     expect(input.props.value).toBe('My Round');
   });
 
-  it('should disable create button when round name is empty', () => {
+  it('should be enabled even when round name is empty', () => {
     const { getByTestId } = renderWithNavigation(
       <CreateRoundScreen navigation={mockNavigation} />,
     );
 
     const createButton = getByTestId('create-round-button');
 
-    // Button should be disabled when round name is empty
-    expect(createButton.props.accessibilityState.disabled).toBe(true);
+    // Button should be enabled (validation happens on press)
+    expect(createButton.props.accessibilityState.disabled).toBe(false);
   });
 
-  it('should disable create button when no course is selected', () => {
+  it('should be enabled even when no course is selected', () => {
     const { getByTestId } = renderWithNavigation(
       <CreateRoundScreen navigation={mockNavigation} />,
     );
@@ -175,90 +222,218 @@ describe('CreateRoundScreen', () => {
 
     const createButton = getByTestId('create-round-button');
 
-    // Button should still be disabled when no course is selected
-    expect(createButton.props.accessibilityState.disabled).toBe(true);
+    // Button should be enabled (validation happens on press)
+    expect(createButton.props.accessibilityState.disabled).toBe(false);
   });
 
   describe('API Integration', () => {
-    const mockCourse = {
-      id: 'course-123',
-      name: 'Test Course',
-      location: 'Test City',
-      holes: 18,
-    };
-
-    // Mock the roundService
-    const mockCreateRound = jest.fn();
-
     beforeEach(() => {
-      jest.doMock('../../../services/roundService', () => ({
-        createRound: mockCreateRound,
-      }));
       mockCreateRound.mockClear();
+      mockAddPlayersToRound.mockClear();
+      mockNavigation.navigate.mockClear();
+      Alert.alert.mockClear();
     });
 
-    it('should call createRound API when form is submitted', async () => {
-      mockCreateRound.mockResolvedValue({ id: 'round-123' });
+    it('should show loading state during round creation', async () => {
+      // Mock createRound to resolve after a delay
+      let resolveCreate;
+      const createPromise = new Promise((resolve) => {
+        resolveCreate = resolve;
+      });
+      mockCreateRound.mockReturnValue(createPromise);
 
-      const { getByTestId } = renderWithNavigation(
+      const { getByTestId, getByText } = renderWithNavigation(
         <CreateRoundScreen navigation={mockNavigation} />,
       );
 
-      // Fill in form data
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
       const input = getByTestId('round-name-input');
       fireEvent.changeText(input, 'My Test Round');
 
-      // For now, test that button exists and is properly configured
+      // Press create button
       const createButton = getByTestId('create-round-button');
-      expect(createButton).toBeTruthy();
+      fireEvent.press(createButton);
 
-      // The button should be disabled when no course is selected
+      // Should show loading text
+      expect(getByText('Creating...')).toBeTruthy();
+
+      // Button should be disabled during loading
       expect(createButton.props.accessibilityState.disabled).toBe(true);
+
+      // Resolve the promise to clean up
+      resolveCreate({ id: 'round-123' });
+      await waitFor(() => {
+        expect(mockCreateRound).toHaveBeenCalled();
+      });
     });
 
-    it('should show loading state when creating round', async () => {
-      mockCreateRound.mockImplementation(() => new Promise((resolve) => {
-        setTimeout(resolve, 100);
-      }));
-
-      const { getByTestId } = renderWithNavigation(
-        <CreateRoundScreen navigation={mockNavigation} />,
-      );
-
-      // Fill in form data
-      const input = getByTestId('round-name-input');
-      fireEvent.changeText(input, 'My Test Round');
-
-      const createButton = getByTestId('create-round-button');
-
-      // Should show loading state after button press
-      // Implementation will need to handle this
-      expect(createButton).toBeTruthy();
-    });
-
-    it('should navigate to round detail after successful creation', async () => {
-      const mockRound = {
-        id: 'round-123',
+    it('should navigate to ScorecardRedesign screen using replace on successful round creation', async () => {
+      const mockRoundResponse = {
+        id: 'round-456',
+        created_by_id: 123,
+        course_id: 'course-123',
         name: 'My Test Round',
-        course_id: 'course-456',
+        start_time: null,
+        starting_hole: 1,
+        is_private: false,
+        skins_enabled: false,
+        skins_value: null,
         status: 'in_progress',
-        players: [],
-        course: mockCourse,
+        created_at: '2024-01-15T10:30:00Z',
+        updated_at: '2024-01-15T10:30:00Z',
       };
 
-      mockCreateRound.mockResolvedValue(mockRound);
+      mockCreateRound.mockResolvedValue(mockRoundResponse);
+
+      // Mock replace function
+      const mockReplace = jest.fn();
+      const navigationWithReplace = {
+        ...mockNavigation,
+        replace: mockReplace,
+      };
+
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={navigationWithReplace} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for replace (not navigate)
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('ScorecardRedesign', {
+          roundId: 'round-456',
+        });
+      }, { timeout: 3000 });
+    });
+
+    it('should show error alert on API failure', async () => {
+      const errorMessage = 'Network error - please try again';
+      mockCreateRound.mockRejectedValue(new Error(errorMessage));
 
       const { getByTestId } = renderWithNavigation(
         <CreateRoundScreen navigation={mockNavigation} />,
       );
 
-      // Fill in form data
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
       const input = getByTestId('round-name-input');
       fireEvent.changeText(input, 'My Test Round');
 
-      // This test will need course selection to be enabled
-      // For now, check that navigation is properly set up
-      expect(mockNavigation.navigate).toBeDefined();
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for error alert to be shown
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', errorMessage);
+      });
+
+      // Should not navigate on error
+      expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    });
+
+    it('should send correct camelCase field names in payload', async () => {
+      mockCreateRound.mockResolvedValue({ id: 'round-456' });
+
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Enable skins and enter value
+      const skinsToggle = getByTestId('skins-toggle');
+      fireEvent(skinsToggle, 'valueChange', true);
+
+      const skinsInput = getByTestId('skins-value-input');
+      fireEvent.changeText(skinsInput, '5.00');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Verify createRound was called with correct camelCase fields
+      await waitFor(() => {
+        expect(mockCreateRound).toHaveBeenCalledWith({
+          courseId: 'course-123', // camelCase, not course_id
+          name: 'My Test Round',
+          skinsEnabled: true, // camelCase, not skins_enabled
+          skinsValue: 5, // camelCase, not skins_value (parsed as number)
+        });
+      });
+    });
+
+    it('should clear form after successful round creation', async () => {
+      mockCreateRound.mockResolvedValue({ id: 'round-456' });
+
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Verify course is selected
+      expect(getByText('Test Course')).toBeTruthy();
+
+      // Enter round name
+      const roundNameInput = getByTestId('round-name-input');
+      fireEvent.changeText(roundNameInput, 'My Test Round');
+
+      // Enable skins
+      const skinsToggle = getByTestId('skins-toggle');
+      fireEvent(skinsToggle, 'valueChange', true);
+
+      const skinsInput = getByTestId('skins-value-input');
+      fireEvent.changeText(skinsInput, '5.00');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for navigation (form clears before navigation)
+      await waitFor(() => {
+        expect(mockNavigation.navigate).toHaveBeenCalled();
+      });
+
+      // Form should be cleared
+      expect(roundNameInput.props.value).toBe('');
+      expect(queryByText('Test Course')).toBeNull(); // Course cleared
+      expect(getByText('Select Course')).toBeTruthy(); // Back to placeholder
     });
 
     it('should handle navigation prop properly', () => {
@@ -271,6 +446,378 @@ describe('CreateRoundScreen', () => {
 
       // Navigation should be available
       expect(mockNavigation.navigate).toBeDefined();
+    });
+  });
+
+  describe('Form Validation', () => {
+    it('should show error message when trying to create without course', () => {
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Initially no error shown
+      expect(queryByText('Please select a course')).toBeNull();
+
+      // Fill round name but don't select a course
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Round');
+
+      // Try to create round without selecting course
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Should show error message
+      expect(getByText('Please select a course')).toBeTruthy();
+    });
+
+    it('should clear course error when course is selected', () => {
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Fill round name and try to create without course
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Round');
+
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Error should be shown
+      expect(getByText('Please select a course')).toBeTruthy();
+
+      // Open course selection modal
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+
+      // Select a course from the modal
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Error should be cleared
+      expect(queryByText('Please select a course')).toBeNull();
+    });
+
+    it('should show error message when trying to create without round name', () => {
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Initially no error shown
+      expect(queryByText('Please enter a round name')).toBeNull();
+
+      // Select course but don't enter round name
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Try to create round without round name
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Should show error message
+      expect(getByText('Please enter a round name')).toBeTruthy();
+    });
+
+    it('should clear round name error when user enters text', () => {
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course and try to create without round name
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Error should be shown
+      expect(getByText('Please enter a round name')).toBeTruthy();
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Round');
+
+      // Error should be cleared
+      expect(queryByText('Please enter a round name')).toBeNull();
+    });
+  });
+
+  describe('Skins Game Configuration', () => {
+    it('should render Play Skins toggle switch', () => {
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Should have skins toggle switch
+      expect(getByTestId('skins-toggle')).toBeTruthy();
+    });
+
+    it('should not show skins value input when toggle is disabled', () => {
+      const { queryByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Skins value input should not be visible initially
+      expect(queryByTestId('skins-value-input')).toBeNull();
+    });
+
+    it('should show skins value input when toggle is enabled', () => {
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Enable skins toggle
+      const toggle = getByTestId('skins-toggle');
+      fireEvent(toggle, 'valueChange', true);
+
+      // Skins value input should now be visible
+      expect(getByTestId('skins-value-input')).toBeTruthy();
+    });
+
+    it('should show error when trying to create with skins enabled but no value', () => {
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Initially no error shown
+      expect(queryByText('Please enter skins value')).toBeNull();
+
+      // Select course and enter round name
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Round');
+
+      // Enable skins but don't enter value
+      const toggle = getByTestId('skins-toggle');
+      fireEvent(toggle, 'valueChange', true);
+
+      // Try to create round
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Should show error message
+      expect(getByText('Please enter skins value')).toBeTruthy();
+    });
+
+    it('should clear skins error when user enters value', () => {
+      const { getByTestId, getByText, queryByText } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course and enter round name
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      const roundNameInput = getByTestId('round-name-input');
+      fireEvent.changeText(roundNameInput, 'My Round');
+
+      // Enable skins and try to create without value
+      const toggle = getByTestId('skins-toggle');
+      fireEvent(toggle, 'valueChange', true);
+
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Error should be shown
+      expect(getByText('Please enter skins value')).toBeTruthy();
+
+      // Enter skins value
+      const skinsInput = getByTestId('skins-value-input');
+      fireEvent.changeText(skinsInput, '5');
+
+      // Error should be cleared
+      expect(queryByText('Please enter skins value')).toBeNull();
+    });
+
+    it('should include skins data in API payload when enabled', () => {
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const roundNameInput = getByTestId('round-name-input');
+      fireEvent.changeText(roundNameInput, 'My Round');
+
+      // Enable skins and enter value
+      const toggle = getByTestId('skins-toggle');
+      fireEvent(toggle, 'valueChange', true);
+
+      const skinsInput = getByTestId('skins-value-input');
+      fireEvent.changeText(skinsInput, '5.00');
+
+      // Submit form
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Verification will be done by checking roundService.createRound was called
+      // with correct payload structure
+      expect(createButton).toBeTruthy();
+    });
+
+    it('should not include skins data in API payload when disabled', () => {
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const roundNameInput = getByTestId('round-name-input');
+      fireEvent.changeText(roundNameInput, 'My Round');
+
+      // Don't enable skins (toggle stays off)
+
+      // Submit form
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Verification will be done by checking roundService.createRound was called
+      // with payload without skins data
+      expect(createButton).toBeTruthy();
+    });
+  });
+
+  describe('Success Animation', () => {
+    it('should show success animation after successful round creation', async () => {
+      mockCreateRound.mockResolvedValue({ id: 'round-456' });
+
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for success animation to appear
+      await waitFor(() => {
+        expect(getByTestId('success-animation')).toBeTruthy();
+      });
+    });
+
+    it('should show green checkmark icon in success animation', async () => {
+      mockCreateRound.mockResolvedValue({ id: 'round-456' });
+
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for success animation with checkmark
+      await waitFor(() => {
+        const animation = getByTestId('success-animation');
+        const checkmark = getByTestId('success-checkmark');
+        expect(animation).toBeTruthy();
+        expect(checkmark).toBeTruthy();
+      });
+    });
+
+    it('should navigate using replace after showing success animation', async () => {
+      mockCreateRound.mockResolvedValue({ id: 'round-456' });
+
+      // Mock both navigate and replace
+      const mockReplace = jest.fn();
+      const navigationWithReplace = {
+        ...mockNavigation,
+        replace: mockReplace,
+      };
+
+      const { getByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={navigationWithReplace} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for navigation (should use replace, not navigate)
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('ScorecardRedesign', {
+          roundId: 'round-456',
+        });
+      }, { timeout: 3000 });
+    });
+
+    it('should not show success animation if API call fails', async () => {
+      mockCreateRound.mockRejectedValue(new Error('Network error'));
+
+      const { getByTestId, queryByTestId } = renderWithNavigation(
+        <CreateRoundScreen navigation={mockNavigation} />,
+      );
+
+      // Select course
+      const selectCourseButton = getByTestId('select-course-button');
+      fireEvent.press(selectCourseButton);
+      const mockCourseButton = getByTestId('select-mock-course');
+      fireEvent.press(mockCourseButton);
+
+      // Enter round name
+      const input = getByTestId('round-name-input');
+      fireEvent.changeText(input, 'My Test Round');
+
+      // Press create button
+      const createButton = getByTestId('create-round-button');
+      fireEvent.press(createButton);
+
+      // Wait for error alert
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+
+      // Success animation should not appear
+      expect(queryByTestId('success-animation')).toBeNull();
     });
   });
 

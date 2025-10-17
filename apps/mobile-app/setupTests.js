@@ -137,8 +137,10 @@ jest.mock('@react-navigation/native', () => {
       params: {},
     })),
     useFocusEffect: jest.fn((callback) => {
-      // Execute callback immediately for testing
-      callback();
+      // Execute callback immediately for testing and handle cleanup
+      const cleanup = callback();
+      // Return cleanup function if provided
+      return typeof cleanup === 'function' ? cleanup : undefined;
     }),
     useIsFocused: jest.fn(() => true),
     useTheme: jest.fn(() => ({
@@ -288,4 +290,12 @@ jest.mock('./src/components/StatusBarSafeView', () => {
   return function StatusBarSafeView({ children, testID, ...props }) {
     return React.createElement(View, { testID, ...props }, children);
   };
+});
+
+// Global test cleanup to prevent timeouts
+afterEach(() => {
+  // Clear all timers to prevent hanging tests
+  jest.clearAllTimers();
+  // Clear all mocks to prevent state leakage
+  jest.clearAllMocks();
 });

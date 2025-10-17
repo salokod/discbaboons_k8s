@@ -13,6 +13,7 @@ import {
   getRoundPars,
   submitScores,
   getRecentCourses,
+  getRoundSideBets,
 } from '../../src/services/roundService';
 import { getTokens } from '../../src/services/tokenStorage';
 
@@ -1065,6 +1066,134 @@ describe('RoundService Functions', () => {
 
       // Should return empty array when not authenticated
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getRoundSideBets', () => {
+    it('should export a getRoundSideBets function', () => {
+      expect(getRoundSideBets).toBeDefined();
+      expect(typeof getRoundSideBets).toBe('function');
+    });
+
+    it('should throw error when roundId is missing, null, or empty', async () => {
+      await expect(getRoundSideBets()).rejects.toThrow('Round ID is required');
+      await expect(getRoundSideBets(null)).rejects.toThrow('Round ID is required');
+      await expect(getRoundSideBets('')).rejects.toThrow('Round ID is required');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('should make GET request to /api/rounds/:id/side-bets with auth', async () => {
+      const mockResponse = [
+        {
+          id: 'bet-1',
+          name: 'Closest to Pin',
+          amount: 10,
+          participants: [
+            { id: 'player-1', username: 'alice' },
+            { id: 'player-2', username: 'bob' },
+          ],
+        },
+      ];
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      await getRoundSideBets('round-123');
+
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/rounds/round-123/side-bets', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-access-token',
+        },
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('should return array of side bets directly', async () => {
+      const mockResponse = [
+        {
+          id: 'bet-1',
+          name: 'Closest to Pin',
+          amount: 10,
+          participants: [
+            { id: 'player-1', username: 'alice' },
+          ],
+        },
+        {
+          id: 'bet-2',
+          name: 'Longest Drive',
+          amount: 5,
+          participants: [
+            { id: 'player-2', username: 'bob' },
+          ],
+        },
+      ];
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getRoundSideBets('round-123');
+
+      expect(result).toEqual(mockResponse);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(2);
+    });
+
+    it('should handle 404 error when round not found', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Round not found',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => errorResponse,
+      });
+
+      await expect(getRoundSideBets('nonexistent-round')).rejects.toThrow('Round not found');
+    });
+
+    it('should handle 401 authentication error', async () => {
+      const errorResponse = {
+        success: false,
+        message: 'Unauthorized',
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => errorResponse,
+      });
+
+      await expect(getRoundSideBets('round-123')).rejects.toThrow('Unauthorized');
+    });
+
+    it('should handle empty side bets array', async () => {
+      const mockResponse = [];
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getRoundSideBets('round-123');
+
+      expect(result).toEqual([]);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle network error', async () => {
+      const networkError = new Error('Network request failed');
+      fetch.mockRejectedValueOnce(networkError);
+
+      await expect(getRoundSideBets('round-123')).rejects.toThrow('Network request failed');
     });
   });
 });

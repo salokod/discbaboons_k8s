@@ -88,7 +88,7 @@ describe('BagDetailScreen Status Bar Fix', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(getByTestId('bag-detail-screen')).toBeTruthy();
-      }, { timeout: 5000 });
+      }, { timeout: 3000 });
 
       // The container should be wrapped with StatusBarSafeView
       // which provides proper Android status bar protection

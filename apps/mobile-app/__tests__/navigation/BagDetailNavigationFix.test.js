@@ -115,7 +115,7 @@ describe('BagDetailScreen Navigation Fix', () => {
       // Wait for bag data to load and find Add Disc button
       await waitFor(() => {
         expect(getByText('Add Disc')).toBeTruthy();
-      }, { timeout: 5000 });
+      }, { timeout: 3000 });
 
       // Find and press the Add Disc button in the header
       const addButton = getByText('Add Disc');
@@ -145,7 +145,7 @@ describe('BagDetailScreen Navigation Fix', () => {
       // Wait for component to load and find Add Disc button
       await waitFor(() => {
         expect(getByText('Add Disc')).toBeTruthy();
-      }, { timeout: 5000 });
+      }, { timeout: 3000 });
 
       // Press the button
       const addButton = getByText('Add Disc');
@@ -174,7 +174,7 @@ describe('BagDetailScreen Navigation Fix', () => {
       // Wait for component to load and find Add Disc button
       await waitFor(() => {
         expect(getByText('Add Disc')).toBeTruthy();
-      }, { timeout: 5000 });
+      }, { timeout: 3000 });
 
       // Press the button
       const addButton = getByText('Add Disc');

@@ -846,3 +846,72 @@ export async function submitScores(roundId, scores) {
     throw error; // Re-throw the error to be handled by caller
   }
 }
+
+/**
+ * Get side bets for a round
+ * @param {string} roundId - Round ID to get side bets for
+ * @returns {Promise<Array>} Array of side bet objects with participants
+ * @throws {Error} Get side bets failed error with message
+ */
+export async function getRoundSideBets(roundId) {
+  // Validate inputs before making API call
+  if (!roundId || typeof roundId !== 'string') {
+    throw new Error('Round ID is required');
+  }
+
+  const trimmedId = roundId.trim();
+  if (trimmedId.length === 0) {
+    throw new Error('Round ID is required');
+  }
+
+  // Create an AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    // Get auth headers with access token
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`${API_BASE_URL}/api/rounds/${roundId}/side-bets`, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout on successful response
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle different error types based on backend error responses
+      if (response.status === 401) {
+        // Authentication required
+        throw new Error(data.message || 'Authentication required. Please log in again.');
+      }
+      if (response.status === 400) {
+        // Backend validation errors
+        throw new Error(data.message || 'Invalid round ID format');
+      }
+      if (response.status === 404) {
+        // Round not found
+        throw new Error(data.message || 'Round not found');
+      }
+      if (response.status >= 500) {
+        // Backend returns "Internal Server Error" for server issues
+        throw new Error('Something went wrong. Please try again.');
+      }
+      // Other network or connection errors
+      throw new Error(data.message || 'Unable to connect. Please check your internet.');
+    }
+
+    // Validate response format - backend returns array of side bets directly
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid response from server');
+    }
+
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId); // Clear timeout on error
+    throw error; // Re-throw the error to be handled by caller
+  }
+}

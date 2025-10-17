@@ -2,7 +2,9 @@
  * CreateRoundScreen Component
  */
 
-import { memo, useState, useCallback } from 'react';
+import {
+  memo, useState, useCallback, useRef, useEffect,
+} from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +14,9 @@ import {
   Keyboard,
   TouchableOpacity,
   Alert,
+  Platform,
+  Switch,
+  Animated,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from '@react-native-vector-icons/ionicons';
@@ -23,6 +28,7 @@ import StatusBarSafeView from '../../components/StatusBarSafeView';
 import NavigationHeader from '../../components/NavigationHeader';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
+import AmountInput from '../../design-system/components/AmountInput';
 import CourseSelectionModal from '../../components/CourseSelectionModal';
 import PlayerSelectionModal from '../../components/modals/PlayerSelectionModal';
 import { createRound, addPlayersToRound } from '../../services/roundService';
@@ -36,6 +42,14 @@ function CreateRoundScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState([]);
   const [guests, setGuests] = useState([]);
+  const [showCourseError, setShowCourseError] = useState(false);
+  const [showRoundNameError, setShowRoundNameError] = useState(false);
+  const [skinsEnabled, setSkinsEnabled] = useState(false);
+  const [skinsValue, setSkinsValue] = useState('');
+  const [showSkinsValueError, setShowSkinsValueError] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const navigationTimeoutRef = useRef(null);
 
   const styles = StyleSheet.create({
     container: {
@@ -101,10 +115,96 @@ function CreateRoundScreen({ navigation }) {
     courseButtonIcon: {
       marginLeft: spacing.sm,
     },
+    errorContainer: {
+      backgroundColor: colors.error,
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginTop: spacing.sm,
+      ...Platform.select({
+        android: { elevation: 2 },
+        ios: {
+          shadowColor: colors.error,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        },
+      }),
+    },
+    errorText: {
+      ...typography.body,
+      color: colors.white,
+      textAlign: 'center',
+      fontSize: Platform.select({
+        ios: typography.body.fontSize,
+        android: typography.body.fontSize + 1,
+      }),
+    },
+    skinsToggleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.lg,
+      minHeight: 56,
+    },
+    skinsToggleText: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    successAnimationOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    successAnimationContainer: {
+      width: 100,
+      height: 100,
+      backgroundColor: colors.white,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...Platform.select({
+        android: { elevation: 8 },
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+        },
+      }),
+    },
   });
 
   const handleCreateRound = useCallback(async () => {
-    if (isLoading || !roundName.trim() || !selectedCourse) {
+    // Validate form
+    if (!selectedCourse) {
+      setShowCourseError(true);
+      return;
+    }
+
+    if (!roundName.trim()) {
+      setShowRoundNameError(true);
+      return;
+    }
+
+    if (skinsEnabled && !skinsValue.trim()) {
+      setShowSkinsValueError(true);
+      return;
+    }
+
+    if (isLoading) {
       return;
     }
 
@@ -114,6 +214,8 @@ function CreateRoundScreen({ navigation }) {
       const roundData = {
         courseId: selectedCourse.id,
         name: roundName.trim(),
+        skinsEnabled,
+        skinsValue: skinsEnabled ? parseFloat(skinsValue) : null,
       };
 
       const newRound = await createRound(roundData);
@@ -144,33 +246,78 @@ function CreateRoundScreen({ navigation }) {
       setSelectedCourse(null);
       setSelectedFriends([]);
       setGuests([]);
+      setSkinsEnabled(false);
+      setSkinsValue('');
 
-      // Navigate to round detail screen with the new round data
-      if (navigation?.navigate) {
-        navigation.navigate('RoundDetail', {
-          roundId: newRound.id,
-          round: {
-            ...newRound,
-            course: selectedCourse, // Include course data for immediate display
-          },
-        });
-      } else {
-        // Fallback for when navigation is not available
-        Alert.alert('Success', 'Round created successfully!');
-      }
+      // Show success animation
+      setShowSuccessAnimation(true);
+
+      // Fade in animation
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+
+      // Navigate after animation completes (500ms total)
+      navigationTimeoutRef.current = setTimeout(() => {
+        setShowSuccessAnimation(false);
+        fadeAnim.setValue(0);
+
+        if (navigation?.replace) {
+          navigation.replace('ScorecardRedesign', {
+            roundId: newRound.id,
+          });
+        } else if (navigation?.navigate) {
+          navigation.navigate('ScorecardRedesign', {
+            roundId: newRound.id,
+          });
+        } else {
+          // Fallback for when navigation is not available
+          Alert.alert('Success', 'Round created successfully!');
+        }
+      }, 500);
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to create round. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [roundName, selectedCourse, isLoading, navigation, selectedFriends, guests]);
+  }, [
+    roundName,
+    selectedCourse,
+    isLoading,
+    navigation,
+    selectedFriends,
+    guests,
+    skinsEnabled,
+    skinsValue,
+    fadeAnim,
+  ]);
 
-  // Validation helper - disable create button if required fields are missing or loading
-  const isCreateDisabled = !roundName.trim() || !selectedCourse || isLoading;
+  // Validation helper - disable create button only when loading
+  const isCreateDisabled = isLoading;
 
   const handleCourseSelect = useCallback((course) => {
     setSelectedCourse(course);
+    // Clear error when course is selected
+    setShowCourseError(false);
   }, []);
+
+  const handleRoundNameChange = useCallback((text) => {
+    setRoundName(text);
+    // Clear error when user types
+    if (showRoundNameError && text.trim()) {
+      setShowRoundNameError(false);
+    }
+  }, [showRoundNameError]);
+
+  const handleSkinsValueChange = useCallback((text) => {
+    setSkinsValue(text);
+    // Clear error when user types
+    if (showSkinsValueError && text.trim()) {
+      setShowSkinsValueError(false);
+    }
+  }, [showSkinsValueError]);
 
   const handleOpenCourseModal = useCallback(() => {
     setShowCourseModal(true);
@@ -233,6 +380,14 @@ function CreateRoundScreen({ navigation }) {
     setShowPlayerModal(false);
   }, []);
 
+  // Cleanup timeout on unmount to prevent memory leak
+  useEffect(() => () => {
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+      navigationTimeoutRef.current = null;
+    }
+  }, []);
+
   return (
     <StatusBarSafeView testID="create-round-screen" style={styles.container}>
       <AppContainer>
@@ -290,6 +445,11 @@ function CreateRoundScreen({ navigation }) {
                     style={styles.courseButtonIcon}
                   />
                 </TouchableOpacity>
+                {showCourseError && (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>Please select a course</Text>
+                  </View>
+                )}
               </View>
 
               {/* Participants Section */}
@@ -330,6 +490,42 @@ function CreateRoundScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
+              {/* Skins Section */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Icon
+                    name="cash-outline"
+                    size={20}
+                    color={colors.primary}
+                    style={styles.sectionIcon}
+                  />
+                  <Text style={styles.sectionTitle}>Skins Game</Text>
+                </View>
+                <View style={styles.skinsToggleContainer}>
+                  <Text style={styles.skinsToggleText}>Play Skins</Text>
+                  <Switch
+                    testID="skins-toggle"
+                    value={skinsEnabled}
+                    onValueChange={setSkinsEnabled}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={colors.white}
+                  />
+                </View>
+                {skinsEnabled && (
+                  <AmountInput
+                    testID="skins-value-input"
+                    placeholder="0.00"
+                    value={skinsValue}
+                    onChangeText={handleSkinsValueChange}
+                  />
+                )}
+                {showSkinsValueError && (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>Please enter skins value</Text>
+                  </View>
+                )}
+              </View>
+
               {/* Round Name Section */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -345,12 +541,17 @@ function CreateRoundScreen({ navigation }) {
                   testID="round-name-input"
                   placeholder="Enter a name for your round"
                   value={roundName}
-                  onChangeText={setRoundName}
+                  onChangeText={handleRoundNameChange}
                   autoCapitalize="words"
                   returnKeyType="done"
                   accessibilityLabel="Round name"
                   accessibilityHint="Enter a name for your disc golf round"
                 />
+                {showRoundNameError && (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>Please enter a round name</Text>
+                  </View>
+                )}
               </View>
 
               {/* Create Button */}
@@ -384,6 +585,23 @@ function CreateRoundScreen({ navigation }) {
           ...guests.map((guest) => ({ guestName: guest.name })),
         ]}
       />
+
+      {/* Success Animation */}
+      {showSuccessAnimation && (
+        <Animated.View
+          testID="success-animation"
+          style={[styles.successAnimationOverlay, { opacity: fadeAnim }]}
+        >
+          <View style={styles.successAnimationContainer}>
+            <Icon
+              testID="success-checkmark"
+              name="checkmark-circle"
+              size={60}
+              color={colors.success || colors.primary}
+            />
+          </View>
+        </Animated.View>
+      )}
     </StatusBarSafeView>
   );
 }
@@ -391,6 +609,7 @@ function CreateRoundScreen({ navigation }) {
 CreateRoundScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func,
+    replace: PropTypes.func,
     goBack: PropTypes.func,
   }),
 };
