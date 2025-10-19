@@ -218,9 +218,9 @@ describe('RoundsListScreen', () => {
     fireEvent.press(roundCard);
 
     // Verify navigation was called with correct params
-    // Should navigate to ScorecardRedesign for in_progress rounds
+    // All rounds now navigate to RoundDetail (changed in Phase 2 Slice 8)
     expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('ScorecardRedesign', {
+    expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
       roundId: 'round-123',
     });
   });
@@ -1209,6 +1209,236 @@ describe('RoundsListScreen', () => {
 
       const retryButton = getByTestId('error-retry-button');
       expect(retryButton.props.style.backgroundColor).toBe('#007AFF');
+    });
+  });
+
+  describe('Phase 2 Slice 8: Simplified Navigation - All Statuses to RoundDetail', () => {
+    it('should navigate pending round to RoundDetail', async () => {
+      const mockRounds = [
+        {
+          id: 'round-pending',
+          name: 'Pending Round',
+          course_id: 'course-1',
+          course_name: 'Test Course',
+          status: 'pending',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const roundCard = getByTestId('round-card-round-pending');
+      fireEvent.press(roundCard);
+
+      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+        roundId: 'round-pending',
+      });
+    });
+
+    it('should navigate confirmed round to RoundDetail', async () => {
+      const mockRounds = [
+        {
+          id: 'round-confirmed',
+          name: 'Confirmed Round',
+          course_id: 'course-1',
+          course_name: 'Test Course',
+          status: 'confirmed',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const roundCard = getByTestId('round-card-round-confirmed');
+      fireEvent.press(roundCard);
+
+      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+        roundId: 'round-confirmed',
+      });
+    });
+
+    it('should navigate in_progress round to RoundDetail (CHANGED from ScorecardRedesign)', async () => {
+      const mockRounds = [
+        {
+          id: 'round-in-progress',
+          name: 'In Progress Round',
+          course_id: 'course-1',
+          course_name: 'Test Course',
+          status: 'in_progress',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const roundCard = getByTestId('round-card-round-in-progress');
+      fireEvent.press(roundCard);
+
+      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+        roundId: 'round-in-progress',
+      });
+    });
+
+    it('should navigate completed round to RoundDetail (CHANGED from RoundSummary)', async () => {
+      const mockRounds = [
+        {
+          id: 'round-completed',
+          name: 'Completed Round',
+          course_id: 'course-1',
+          course_name: 'Test Course',
+          status: 'completed',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const roundCard = getByTestId('round-card-round-completed');
+      fireEvent.press(roundCard);
+
+      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+        roundId: 'round-completed',
+      });
+    });
+
+    it('should navigate cancelled round to RoundDetail', async () => {
+      const mockRounds = [
+        {
+          id: 'round-cancelled',
+          name: 'Cancelled Round',
+          course_id: 'course-1',
+          course_name: 'Test Course',
+          status: 'cancelled',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const roundCard = getByTestId('round-card-round-cancelled');
+      fireEvent.press(roundCard);
+
+      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+        roundId: 'round-cancelled',
+      });
+    });
+
+    it('should pass correct roundId parameter for all statuses', async () => {
+      const mockRounds = [
+        {
+          id: 'unique-round-id-123',
+          name: 'Test Round',
+          course_id: 'course-1',
+          course_name: 'Test Course',
+          status: 'in_progress',
+          start_time: '2024-01-15T10:00:00Z',
+          player_count: 2,
+          skins_enabled: false,
+        },
+      ];
+
+      getRounds.mockResolvedValue({
+        rounds: mockRounds,
+        pagination: {
+          total: 1,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+
+      const { queryByTestId, getByTestId } = render(<RoundsListScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('skeleton-card')).toBeNull();
+      });
+
+      const roundCard = getByTestId('round-card-unique-round-id-123');
+      fireEvent.press(roundCard);
+
+      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+        roundId: 'unique-round-id-123',
+      });
     });
   });
 });

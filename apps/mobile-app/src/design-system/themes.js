@@ -26,11 +26,18 @@ const adminColors = {
   adminAccent: '#FFF8DC', // Light cream/golden
 };
 
+// Creator colors that remain consistent across all themes
+const creatorColors = {
+  creatorPrimary: '#ec7032', // Orange (matches primary brand color)
+  creatorSecondary: '#FFFFFF', // White text for contrast
+};
+
 export const themes = {
   [THEME_NAMES.LIGHT]: {
     ...brandColors,
     ...semanticColors,
     ...adminColors,
+    ...creatorColors,
     background: '#FAFBFC', // Very soft, warm off-white background
     surface: '#FFFFFF', // Pure white for cards/inputs
     text: '#212121',
@@ -46,6 +53,7 @@ export const themes = {
     ...brandColors,
     ...semanticColors,
     ...adminColors,
+    ...creatorColors,
     background: '#121212',
     surface: '#1E1E1E',
     text: '#FFFFFF',
@@ -60,6 +68,7 @@ export const themes = {
   [THEME_NAMES.BLACKOUT]: {
     ...brandColors,
     ...adminColors,
+    ...creatorColors,
     background: '#000000',
     surface: '#000000',
     text: '#FFFFFF',

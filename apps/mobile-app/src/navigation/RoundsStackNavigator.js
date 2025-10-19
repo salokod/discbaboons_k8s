@@ -4,7 +4,7 @@ import CreateRoundScreen from '../screens/rounds/CreateRoundScreen';
 import RoundDetailScreen from '../screens/rounds/RoundDetailScreen';
 import ScorecardScreen from '../screens/rounds/ScorecardScreen';
 import ScorecardRedesignScreen from '../screens/rounds/ScorecardRedesignScreen';
-import RoundSummaryScreen from '../screens/rounds/RoundSummaryScreen';
+// RoundSummaryScreen removed in Phase 2 Slice 9 - all rounds now navigate to RoundDetail
 
 const Stack = createNativeStackNavigator();
 
@@ -21,7 +21,7 @@ export default function RoundsStackNavigator() {
       <Stack.Screen name="RoundDetail" component={RoundDetailScreen} />
       <Stack.Screen name="Scorecard" component={ScorecardScreen} />
       <Stack.Screen name="ScorecardRedesign" component={ScorecardRedesignScreen} />
-      <Stack.Screen name="RoundSummary" component={RoundSummaryScreen} />
+      {/* RoundSummary screen removed in Phase 2 Slice 9 - all rounds navigate to RoundDetail */}
     </Stack.Navigator>
   );
 }
