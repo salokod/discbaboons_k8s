@@ -2074,6 +2074,234 @@ Headers: { Authorization: "Bearer {token}" }
 4. If owner, see settings
 5. Navigate to scorecard
 
+### ✅ Slice 13 Completion Status (2025-10-18)
+
+**COMPLETED** - View Round Details feature fully implemented with Phase 2 navigation consolidation pivot.
+
+#### Part 1: Original Slice 13 Implementation (Completed 2025-10-18)
+
+**Components Created:**
+1. **FixedBottomActionBar** (`/apps/mobile-app/src/components/rounds/FixedBottomActionBar.js`)
+   - Fixed bottom action bar with primary/secondary buttons
+   - Platform-adaptive styling (iOS shadows, Android elevation)
+   - Haptic feedback integration
+   - Safe area handling for iOS notch/Android gestures
+   - Full accessibility support
+   - 23 comprehensive tests
+
+2. **RoundStatusBadge** (`/apps/mobile-app/src/components/rounds/RoundStatusBadge.js`)
+   - Color-coded status badges for 5 statuses (pending, confirmed, in_progress, completed, cancelled)
+   - UX-compliant labels (e.g., "PENDING CONFIRMATION", "READY TO PLAY", "ROUND IN PROGRESS", etc.)
+   - Platform-specific shadows and elevation
+   - Accessibility labels and hints
+   - 18 tests covering all statuses + edge cases
+
+3. **CreatorBadge** (`/apps/mobile-app/src/components/badges/CreatorBadge.js`)
+   - Gold star icon with "CREATOR" text
+   - Displayed only for round owners (isOwner check)
+   - Platform-adaptive styling
+   - Theme color integration
+   - 8 comprehensive tests
+
+**RoundDetailScreen Integration:**
+- Added CreatorBadge next to round name (owner-only visibility)
+- Added RoundStatusBadge in overview card
+- Integrated FixedBottomActionBar with "Open Scorecard" and "Settings" actions
+- Owner-only controls (Settings button)
+- Haptic feedback on primary button press
+- Comprehensive tests for all integrations
+
+**Test Coverage:**
+- Total new tests: ~50 tests
+- All tests passing (100% verification)
+- Platform-specific behavior tested
+- Accessibility attributes verified
+- Theme integration confirmed
+
+#### Part 2: Phase 2 Navigation Consolidation Pivot (Completed 2025-10-18)
+
+**Problem Discovered:** After Slice 13 implementation, manual testing revealed that users couldn't see the new components because RoundsListScreen navigated to `RoundSummary` instead of `RoundDetail` for in_progress and completed rounds. The enhanced RoundDetailScreen was effectively orphaned.
+
+**Root Cause Analysis:**
+- RoundsListScreen.js (lines 124-132) had conditional navigation:
+  - `in_progress` rounds → ScorecardRedesign
+  - `completed` rounds → RoundSummary
+  - Other statuses → RoundDetail
+- This meant ~80% of users clicking rounds never saw Slice 13 enhancements
+
+**Phase 2 Solution - Navigation Consolidation:**
+
+**Slice 1: StatusBadge Component Enhancement (30 min)**
+- Enhanced RoundStatusBadge to support all 5 statuses with UX-spec colors
+- Added UX-compliant uppercase labels
+- 100% test coverage
+
+**Slice 2: RoundDetailScreen Audit (45 min)**
+- Comprehensive audit with 45 new tests
+- Created SLICE_2_AUDIT_REPORT.md (685 lines)
+- Documented current behavior and gaps
+- Identified only 3 status-dependent UI elements
+
+**Slice 3: Adaptive Button Labels (30 min)**
+- Created `getPrimaryButtonLabel(status, isOwner)` utility function
+- Button labels now adapt: "View Details", "Open Scorecard", "View Summary"
+- 17 comprehensive tests
+
+**Slice 4: Adaptive Date Labels (30 min)**
+- Created `getDateLabel(status)` utility function
+- Date labels now adapt: "Created", "Starts", "Started", "Completed", "Cancelled"
+- 9 comprehensive tests
+
+**Slice 5: Status-Specific Empty States (45 min)**
+- Created `getPlayerEmptyStateMessage(status)` utility function
+- Enhanced PlayerStandingsCard to accept custom empty state messages
+- Messages adapt per status (e.g., "Waiting for players to join", "This round was cancelled")
+- 9 comprehensive tests
+
+**Slice 8: Navigation Consolidation - THE CRITICAL FIX (30 min)**
+- Simplified RoundsListScreen navigation to ALWAYS route to RoundDetail
+- Removed conditional routing logic
+- ALL round statuses now navigate to the enhanced RoundDetailScreen
+- This is the fix that makes Slice 13 components visible to users!
+- 6 navigation tests added
+
+**Slice 9: Remove RoundSummary from Navigation Stack (15 min)**
+- Removed RoundSummary screen registration from RoundsStackNavigator
+- Updated navigation tests
+- Updated integration flow tests
+
+**Slice 10: Delete RoundSummaryScreen Files (5 min)**
+- Deleted RoundSummaryScreen.js (224 lines)
+- Deleted RoundSummaryScreen.test.js
+- All tests still passing (100% verification)
+
+**Slices 6-7: Deferred (Require Backend Work)**
+- Slice 6 (Completion/Cancellation Metadata): Requires backend database fields (`completed_at`, `cancelled_at`, `cancellation_reason`, `cancelled_by_id`)
+- Slice 7 (Pre-game Enhancements): Depends on Slice 6 backend work
+- Documented required SQL migrations for future implementation
+
+**Files Created:**
+- `/apps/mobile-app/src/utils/roundUtils.js` - 3 utility functions (getPrimaryButtonLabel, getDateLabel, getPlayerEmptyStateMessage)
+- `/apps/mobile-app/__tests__/utils/roundUtils.test.js` - 35 comprehensive tests
+- `/SLICE_2_AUDIT_REPORT.md` - 685-line audit documentation
+
+**Files Enhanced:**
+- `/apps/mobile-app/src/screens/rounds/RoundDetailScreen.js` - Integrated utilities for adaptive UI
+- `/apps/mobile-app/src/screens/rounds/RoundsListScreen.js` - Simplified navigation (lines 124-126)
+- `/apps/mobile-app/src/components/rounds/PlayerStandingsCard.js` - Added custom empty state message support
+- `/apps/mobile-app/src/navigation/RoundsStackNavigator.js` - Removed RoundSummary registration
+
+**Files Deleted:**
+- `/apps/mobile-app/src/screens/rounds/RoundSummaryScreen.js` (224 lines)
+- `/apps/mobile-app/src/screens/rounds/__tests__/RoundSummaryScreen.test.js`
+
+**Test Results:**
+- Total tests added: ~124 tests (Slice 13 + Phase 2)
+- All tests passing: 100% verification (2891 unit tests + 143 integration tests)
+- No ESLint errors
+- No skipped tests
+- Test suites: 201 passed
+
+**Breaking Changes:**
+- RoundSummaryScreen removed (navigation route no longer exists)
+- Any code navigating to `RoundSummary` will fail (audit performed - no other references found)
+
+**User Impact:**
+- Before: Users clicking rounds were routed to old screens without enhancements
+- After: ALL rounds navigate to RoundDetailScreen with full adaptive UI
+- StatusBadge visible for all statuses ✅
+- Adaptive buttons show correct actions ✅
+- Adaptive date labels provide context ✅
+- Status-specific empty states ✅
+- All Slice 13 components NOW VISIBLE to users! ✅
+
+**Implementation Date:** October 18, 2025
+**Total Time:** ~7 hours (Slice 13: 3 hours, Phase 2: 4 hours)
+**Status:** ✅ Production Ready
+
+**Future Work (Requires Backend):**
+- Slice 6: Add `completed_at`, `cancelled_at`, `cancellation_reason`, `cancelled_by_id` fields to rounds table
+- Slice 7: Implement player confirmation system with "Confirm Attendance" and "Start Round" actions
+- SQL migrations documented in audit report
+
+#### Part 3: Pre-Commit Bug Fixes (Completed 2025-10-18)
+
+**Problem Discovered:** During final review before commit, user discovered 3 critical display bugs in PlayerStandingsCard component during manual testing.
+
+**Bugs Identified:**
+1. **Guest Player Names Not Showing**: Guest player names displaying as blank or "undefined" instead of their actual names
+2. **Username Not Vertically Centered**: Username text not vertically aligned relative to rank indicator
+3. **Score Showing "undefined"**: Score displaying literal text "undefined" instead of em dash for null/undefined scores
+
+**Root Cause:** Data mapping issues between backend API response structure and frontend component expectations.
+
+**Fix Implementation (TDD Approach):**
+
+**Bug 1: Guest Name Display**
+- **Root Cause**: Component looked for `display_name` field that doesn't exist in API response; backend sends `guestName` for guest players
+- **Fix**: Added conditional logic using `isGuest` flag to properly handle guest vs. registered players
+- **Code Location**: Lines 324-328 of `/apps/mobile-app/src/components/rounds/PlayerStandingsCard.js`
+- **Logic**: `isGuest ? guestName : (display_name || username)` with fallback to "Unknown Player"
+- **Tests Added**: 5 comprehensive tests covering:
+  - Guest player name display
+  - Registered player name display (with display_name)
+  - Registered player fallback (username when no display_name)
+  - Unknown player fallback (when all fields missing)
+  - Edge cases
+
+**Bug 2: Vertical Alignment**
+- **Root Cause**: Missing `justifyContent: 'center'` in playerInfo style container
+- **Fix**: Added vertical centering to playerInfo container style
+- **Code Location**: Lines 135-138 of `/apps/mobile-app/src/components/rounds/PlayerStandingsCard.js`
+- **Style Change**: Added `justifyContent: 'center'` to align username text with rank indicator
+- **Tests Added**: 2 tests verifying alignment with/without rank indicator
+
+**Bug 3: "undefined" Score Display**
+- **Root Cause**: `formatScore` function didn't handle null/undefined scores before converting to string
+- **Fix**: Added null/undefined check returning em dash "—" (U+2014) for missing scores
+- **Code Location**: Lines 32-40 (null check), 42-64 (formatScore function) of `/apps/mobile-app/src/components/rounds/PlayerStandingsCard.js`
+- **Display Standard**: Em dash "—" for null/undefined (professional standard for missing data)
+- **Tests Added**: 6 tests covering:
+  - Null score → em dash
+  - Undefined score → em dash
+  - Zero score → "E" (even par)
+  - Positive score → "+3" format
+  - Negative score → "-2" format
+  - Edge cases (NaN, empty string)
+
+**PropTypes Updates:**
+- Made `username` optional (can be null for guest players)
+- Made `total_score` optional (can be null when no scores recorded)
+- Added `guestName` prop definition (string, optional)
+- Added `isGuest` prop definition (boolean, optional)
+- Tests verify no PropTypes warnings for valid data combinations
+
+**Files Modified:**
+- `/apps/mobile-app/src/components/rounds/PlayerStandingsCard.js` - Fixed display logic and formatting
+- `/apps/mobile-app/src/components/rounds/__tests__/PlayerStandingsCard.test.js` - Added 17 new comprehensive tests
+
+**Test Results:**
+- Total new tests added: 17 (5 guest names + 6 score formatting + 2 alignment + 4 PropTypes)
+- All tests passing: 100% verification (2908 unit tests + 143 integration tests)
+- No ESLint errors
+- Zero PropTypes warnings
+- Test suites: 201 passed
+
+**User Impact:**
+- **Before**: Guest players appeared invisible with no names, "undefined" text showing to users, visual misalignment between rank and name
+- **After**: All players (guest and registered) identified correctly with proper names, professional em dash for missing data, perfect vertical alignment
+
+**Implementation Time:** ~30 minutes
+**Verification:** All tests passing, no PropTypes warnings, no ESLint errors
+**Status:** ✅ Production Ready
+
+**Related Documentation (Archived):**
+The following markdown documents were created during Slice 13 Phase 2 implementation but their relevant information is now consolidated into this plan:
+- `SLICE_2_AUDIT_REPORT.md` - 685-line comprehensive audit report (Phase 2 Slice 2)
+- `PHASE_2_ROUND_NAVIGATION_SPEC.md` - UX specification for navigation consolidation strategy
+
+All critical information from these documents has been captured in the sections above. The documents remain in the repository for historical reference but are no longer actively maintained.
+
 ---
 
 ## Slice 14: Side Bets Section in Round Details

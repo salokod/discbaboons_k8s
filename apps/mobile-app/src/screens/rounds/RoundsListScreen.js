@@ -122,13 +122,7 @@ function RoundsListScreen({ navigation: navigationProp }) {
   };
 
   const handleRoundPress = (round) => {
-    if (round.status === 'in_progress') {
-      navigation.navigate('ScorecardRedesign', { roundId: round.id });
-    } else if (round.status === 'completed') {
-      navigation.navigate('RoundSummary', { roundId: round.id });
-    } else {
-      navigation.navigate('RoundDetail', { roundId: round.id });
-    }
+    navigation.navigate('RoundDetail', { roundId: round.id });
   };
 
   if (loading) {

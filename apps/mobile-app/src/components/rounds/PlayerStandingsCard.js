@@ -8,10 +8,12 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
 } from 'react-native';
 import PropTypes from 'prop-types';
+import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { spacing } from '../../design-system/spacing';
 import { typography } from '../../design-system/typography';
 import RankIndicator from '../../design-system/components/RankIndicator';
+import Button from '../Button';
 
 function PlayerStandingsCard({
   players,
@@ -20,18 +22,30 @@ function PlayerStandingsCard({
   error = null,
   onRetry = null,
   showRoundState = false,
+  onEmptyAction = null,
+  emptyStateMessage = null,
 }) {
   const colors = useThemeColors();
   const isCompactLayout = players.length <= 4;
   const layoutTestId = isCompactLayout ? 'compact-layout' : 'expanded-layout';
 
   const formatScore = (score) => {
+    // Handle null/undefined - show em dash
+    if (score === null || score === undefined) {
+      return '—';
+    }
+
     if (score === 0) return 'E';
     return score > 0 ? `+${score}` : `${score}`;
   };
 
   const formatScoreWithContext = (player) => {
     const baseScore = formatScore(player.total_score);
+
+    // If score is em dash, return it as-is without context
+    if (baseScore === '—') {
+      return baseScore;
+    }
 
     if (!showContext || !player.round_par) {
       return baseScore;
@@ -120,6 +134,7 @@ function PlayerStandingsCard({
     },
     playerInfo: {
       flex: 1,
+      justifyContent: 'center',
     },
     progressText: {
       ...typography.caption,
@@ -200,6 +215,25 @@ function PlayerStandingsCard({
       ...typography.caption,
       color: colors.textLight,
     },
+    emptyState: {
+      alignItems: 'center',
+      paddingVertical: spacing.xl,
+    },
+    emptyStateIcon: {
+      marginBottom: spacing.md,
+    },
+    emptyStateTitle: {
+      ...typography.h3,
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+    },
+    emptyStateSubtitle: {
+      ...typography.body,
+      color: colors.textLight,
+      textAlign: 'center',
+      marginBottom: spacing.lg,
+    },
   }), [colors]);
 
   // Loading state
@@ -243,6 +277,30 @@ function PlayerStandingsCard({
     );
   }
 
+  // Empty state
+  if (players.length === 0) {
+    const subtitle = emptyStateMessage || 'Tap the button below to open the scorecard';
+
+    return (
+      <View testID="player-standings-card" style={styles.card}>
+        <View testID="empty-state" style={styles.emptyState}>
+          <View testID="empty-state-icon" style={styles.emptyStateIcon}>
+            <Icon name="flag-outline" size={48} color={colors.textLight} />
+          </View>
+          <Text style={styles.emptyStateTitle}>Ready to Start Scoring?</Text>
+          <Text style={styles.emptyStateSubtitle}>
+            {subtitle}
+          </Text>
+          <Button
+            title="Start Scoring"
+            onPress={onEmptyAction}
+            variant="primary"
+          />
+        </View>
+      </View>
+    );
+  }
+
   // Normal state
   const roundStatus = getRoundStatus();
   const lastUpdated = getLastUpdated();
@@ -264,7 +322,11 @@ function PlayerStandingsCard({
             <View key={player.id} style={styles.playerRow}>
               <RankIndicator rank={player.position} totalPlayers={players.length} />
               <View style={styles.playerInfo}>
-                <Text style={styles.playerName}>{player.display_name || player.username}</Text>
+                <Text style={styles.playerName}>
+                  {player.isGuest
+                    ? (player.guestName || 'Unknown Player')
+                    : (player.display_name || player.username || 'Unknown Player')}
+                </Text>
                 {progress && <Text style={styles.progressText}>{progress}</Text>}
               </View>
               <Text style={styles.playerScore}>{formatScoreWithContext(player)}</Text>
@@ -279,10 +341,12 @@ function PlayerStandingsCard({
 PlayerStandingsCard.propTypes = {
   players: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number.isRequired,
-    username: PropTypes.string.isRequired,
+    username: PropTypes.string, // Can be null for guests
+    guestName: PropTypes.string, // For guest players
+    isGuest: PropTypes.bool, // Indicates if player is a guest
     display_name: PropTypes.string,
     position: PropTypes.number.isRequired,
-    total_score: PropTypes.number.isRequired,
+    total_score: PropTypes.number, // Can be null when no scores yet
     holes_completed: PropTypes.number,
     round_par: PropTypes.number,
     round_status: PropTypes.string,
@@ -293,6 +357,8 @@ PlayerStandingsCard.propTypes = {
   error: PropTypes.string,
   onRetry: PropTypes.func,
   showRoundState: PropTypes.bool,
+  onEmptyAction: PropTypes.func,
+  emptyStateMessage: PropTypes.string,
 };
 
 PlayerStandingsCard.defaultProps = {
@@ -301,6 +367,8 @@ PlayerStandingsCard.defaultProps = {
   error: null,
   onRetry: null,
   showRoundState: false,
+  onEmptyAction: null,
+  emptyStateMessage: null,
 };
 
 export default PlayerStandingsCard;

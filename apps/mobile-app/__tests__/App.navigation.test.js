@@ -129,6 +129,11 @@ jest.mock('react-native-safe-area-context', () => ({
   })),
 }));
 
+// Mock hapticService for FixedBottomActionBar
+jest.mock('../src/services/hapticService', () => ({
+  triggerSuccessHaptic: jest.fn(),
+}));
+
 describe('App Navigation Configuration', () => {
   beforeEach(() => {
     jest.clearAllMocks();

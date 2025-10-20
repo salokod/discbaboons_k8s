@@ -16,7 +16,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import PropTypes from 'prop-types';
-import Icon from '@react-native-vector-icons/ionicons';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
@@ -27,12 +26,18 @@ import PlayerStandingsCard from '../../components/rounds/PlayerStandingsCard';
 import RoundActionsMenu from '../../components/rounds/RoundActionsMenu';
 import ScoreSummaryCard from '../../components/rounds/ScoreSummaryCard';
 import SideBetsCard from '../../components/rounds/SideBetsCard';
+import CreatorBadge from '../../components/badges/CreatorBadge';
+import RoundStatusBadge from '../../components/rounds/RoundStatusBadge';
+import FixedBottomActionBar from '../../components/rounds/FixedBottomActionBar';
 import {
   getRoundDetails, getRoundLeaderboard, pauseRound, completeRound, getRoundSideBets,
 } from '../../services/roundService';
+import { useAuth } from '../../context/AuthContext';
+import { getPrimaryButtonLabel, getDateLabel, getPlayerEmptyStateMessage } from '../../utils/roundUtils';
 
 function RoundDetailScreen({ route, navigation }) {
   const colors = useThemeColors();
+  const { user } = useAuth();
   const { roundId } = route?.params || {};
 
   // State management for data fetching
@@ -187,7 +192,13 @@ function RoundDetailScreen({ route, navigation }) {
     roundName: {
       ...typography.h2,
       color: colors.text,
+    },
+    roundNameContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
       marginBottom: spacing.sm,
+      flexWrap: 'wrap',
     },
     courseInfo: {
       marginBottom: spacing.md,
@@ -202,47 +213,9 @@ function RoundDetailScreen({ route, navigation }) {
       color: colors.textLight,
       marginBottom: spacing.sm,
     },
-    statusContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: spacing.sm,
-    },
-    statusIcon: {
-      marginRight: spacing.xs,
-    },
-    statusText: {
-      ...typography.body,
-      color: colors.success,
-      fontWeight: '500',
-    },
     dateText: {
       ...typography.caption,
       color: colors.textLight,
-    },
-    playersSection: {
-      backgroundColor: colors.surface,
-      borderRadius: 12,
-      padding: spacing.lg,
-      marginBottom: spacing.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    sectionTitle: {
-      ...typography.h3,
-      color: colors.text,
-      marginBottom: spacing.md,
-    },
-    playerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-    },
-    playerIcon: {
-      marginRight: spacing.sm,
-    },
-    playerName: {
-      ...typography.body,
-      color: colors.text,
     },
     enterScoresButton: {
       backgroundColor: colors.primary,
@@ -283,15 +256,6 @@ function RoundDetailScreen({ route, navigation }) {
     } catch (err) {
       return 'Invalid date';
     }
-  }, []);
-
-  const formatStatus = useCallback((status) => {
-    if (!status) return 'Unknown';
-
-    return status
-      .split('_')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
   }, []);
 
   const handlePauseRound = useCallback(async () => {
@@ -340,6 +304,36 @@ function RoundDetailScreen({ route, navigation }) {
       setRefreshing(false);
     }
   }, [fetchRoundData, fetchLeaderboardData, fetchSideBetsData]);
+
+  // Check if current user is the round owner
+  const isOwner = useMemo(() => {
+    if (!user || !round || !round.created_by_id) {
+      return false;
+    }
+    return user.id === round.created_by_id;
+  }, [user, round]);
+
+  // Handler for opening scorecard
+  const handleOpenScorecard = useCallback(() => {
+    if (navigation?.navigate && roundId) {
+      navigation.navigate('ScorecardRedesign', { roundId });
+    }
+  }, [navigation, roundId]);
+
+  // Handler for opening round settings
+  const handleOpenSettings = useCallback(() => {
+    if (navigation?.navigate && roundId) {
+      navigation.navigate('RoundSettings', { roundId });
+    }
+  }, [navigation, roundId]);
+
+  // Determine if scorecard button should be disabled
+  const isScorecardDisabled = useMemo(() => {
+    if (!round || !round.status) {
+      return true;
+    }
+    return round.status === 'cancelled';
+  }, [round]);
 
   return (
     <StatusBarSafeView testID="round-detail-screen" style={styles.container}>
@@ -414,7 +408,10 @@ function RoundDetailScreen({ route, navigation }) {
               <>
                 {/* Round Information Card */}
                 <View testID="round-overview-card" style={styles.roundCard}>
-                  <Text style={styles.roundName}>{round.name}</Text>
+                  <View style={styles.roundNameContainer}>
+                    <Text style={styles.roundName}>{round.name}</Text>
+                    {isOwner && <CreatorBadge />}
+                  </View>
 
                   {round.course && (
                   <View style={styles.courseInfo}>
@@ -430,46 +427,13 @@ function RoundDetailScreen({ route, navigation }) {
                   </View>
                   )}
 
-                  <View style={styles.statusContainer}>
-                    <Icon
-                      name="checkmark-circle-outline"
-                      size={16}
-                      color={colors.success}
-                      style={styles.statusIcon}
-                    />
-                    <Text style={styles.statusText}>
-                      {formatStatus(round.status)}
-                    </Text>
-                  </View>
+                  <RoundStatusBadge status={round.status} />
 
                   <Text testID="round-date" style={styles.dateText}>
-                    Started
+                    {getDateLabel(round.status)}
                     {' '}
                     {formatDate(round.start_time)}
                   </Text>
-                </View>
-
-                {/* Players Section */}
-                <View testID="players-section" style={styles.playersSection}>
-                  <Text style={styles.sectionTitle}>Players</Text>
-
-                  {round.players && round.players.length > 0 ? (
-                    round.players.map((player, index) => (
-                      <View key={player.id || index} style={styles.playerRow}>
-                        <Icon
-                          name="person-outline"
-                          size={20}
-                          color={colors.primary}
-                          style={styles.playerIcon}
-                        />
-                        <Text style={styles.playerName}>
-                          {player.display_name || player.username}
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.dateText}>No players yet</Text>
-                  )}
                 </View>
 
                 {/* Leaderboard Section */}
@@ -478,6 +442,8 @@ function RoundDetailScreen({ route, navigation }) {
                   loading={leaderboardLoading}
                   error={leaderboardError}
                   showRoundState
+                  onEmptyAction={handleOpenScorecard}
+                  emptyStateMessage={getPlayerEmptyStateMessage(round?.status)}
                 />
 
                 {/* Side Bets Section */}
@@ -496,6 +462,18 @@ function RoundDetailScreen({ route, navigation }) {
               </>
               )}
             </ScrollView>
+
+            {/* Fixed Bottom Action Bar */}
+            {round && (
+              <FixedBottomActionBar
+                primaryLabel={getPrimaryButtonLabel(round.status, isOwner)}
+                onPrimaryPress={handleOpenScorecard}
+                primaryDisabled={isScorecardDisabled}
+                secondaryLabel={isOwner ? 'Settings' : undefined}
+                secondaryIcon={isOwner ? 'settings-outline' : undefined}
+                onSecondaryPress={isOwner ? handleOpenSettings : undefined}
+              />
+            )}
           </>
         )}
       </AppContainer>

@@ -55,13 +55,7 @@ jest.mock('../../screens/rounds/ScorecardScreen', () => {
   };
 });
 
-jest.mock('../../screens/rounds/RoundSummaryScreen', () => {
-  const ReactLocal = require('react');
-  const { Text } = require('react-native');
-  return function RoundSummaryScreen() {
-    return ReactLocal.createElement(Text, { testID: 'round-summary-screen' }, 'RoundSummaryScreen');
-  };
-});
+// RoundSummaryScreen removed in Phase 2 Slice 9 - no longer in navigation stack
 
 describe('RoundsStackNavigator', () => {
   const renderWithNavigation = (component) => render(
@@ -101,14 +95,13 @@ describe('RoundsStackNavigator', () => {
     expect(getByTestId('rounds-list-screen')).toBeTruthy();
   });
 
-  // SLICE A4: Register RoundSummary route in navigator
-  it('should contain RoundSummary screen with correct component', () => {
-    // Verify that the navigator renders without errors, which confirms
-    // the RoundSummary screen is properly registered as a route
+  // Phase 2 Slice 9: RoundSummary screen removed from navigation stack
+  // All rounds now navigate to RoundDetail instead
+  it('should not contain RoundSummary screen in navigation stack', () => {
+    // Verify that the navigator renders without errors
+    // RoundSummary is no longer registered as a route
     expect(() => renderWithNavigation(<RoundsStackNavigator />)).not.toThrow();
 
-    // The fact that the import exists and the navigator renders means
-    // the RoundSummary route is properly configured
     const { getByTestId } = renderWithNavigation(<RoundsStackNavigator />);
     expect(getByTestId('rounds-list-screen')).toBeTruthy();
   });

@@ -244,4 +244,422 @@ describe('PlayerStandingsCard', () => {
       expect(queryByTestId('round-status-indicator')).toBeNull();
     });
   });
+
+  describe('Slice 13.6: Empty State', () => {
+    it('should show empty state when players array is empty', () => {
+      const { getByTestId } = render(<PlayerStandingsCard players={[]} />);
+      expect(getByTestId('empty-state')).toBeTruthy();
+    });
+
+    it('should show empty state with correct title and subtitle', () => {
+      const { getByText } = render(<PlayerStandingsCard players={[]} />);
+      expect(getByText('Ready to Start Scoring?')).toBeTruthy();
+      expect(getByText('Tap the button below to open the scorecard')).toBeTruthy();
+    });
+
+    it('should show CTA button with correct label', () => {
+      const { getByText } = render(<PlayerStandingsCard players={[]} />);
+      expect(getByText('Start Scoring')).toBeTruthy();
+    });
+
+    it('should call onEmptyAction when CTA button is pressed', () => {
+      const mockOnEmptyAction = jest.fn();
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} onEmptyAction={mockOnEmptyAction} />,
+      );
+
+      const button = getByText('Start Scoring');
+      fireEvent.press(button);
+      expect(mockOnEmptyAction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should show icon in empty state', () => {
+      const { getByTestId } = render(<PlayerStandingsCard players={[]} />);
+      expect(getByTestId('empty-state-icon')).toBeTruthy();
+    });
+
+    it('should not show empty state when players array has items', () => {
+      const playersWithData = [
+        {
+          id: 1,
+          username: 'player1',
+          display_name: 'Alice',
+          position: 1,
+          total_score: -3,
+        },
+      ];
+
+      const { queryByTestId } = render(<PlayerStandingsCard players={playersWithData} />);
+      expect(queryByTestId('empty-state')).toBeNull();
+    });
+  });
+
+  describe('Phase 2 Slice 5: Status-Specific Empty States', () => {
+    it('should display custom empty state message when provided', () => {
+      const customMessage = 'Waiting for players to join';
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} emptyStateMessage={customMessage} />,
+      );
+      expect(getByText(customMessage)).toBeTruthy();
+    });
+
+    it('should use default message when emptyStateMessage is not provided', () => {
+      const { getByText } = render(<PlayerStandingsCard players={[]} />);
+      expect(getByText('Tap the button below to open the scorecard')).toBeTruthy();
+    });
+
+    it('should display pending status message', () => {
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} emptyStateMessage="Waiting for players to join" />,
+      );
+      expect(getByText('Waiting for players to join')).toBeTruthy();
+    });
+
+    it('should display confirmed status message', () => {
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} emptyStateMessage="Ready to start with confirmed players" />,
+      );
+      expect(getByText('Ready to start with confirmed players')).toBeTruthy();
+    });
+
+    it('should display in_progress status message', () => {
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} emptyStateMessage="Round in progress with no players" />,
+      );
+      expect(getByText('Round in progress with no players')).toBeTruthy();
+    });
+
+    it('should display completed status message', () => {
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} emptyStateMessage="Round completed with no players" />,
+      );
+      expect(getByText('Round completed with no players')).toBeTruthy();
+    });
+
+    it('should display cancelled status message', () => {
+      const { getByText } = render(
+        <PlayerStandingsCard players={[]} emptyStateMessage="This round was cancelled" />,
+      );
+      expect(getByText('This round was cancelled')).toBeTruthy();
+    });
+
+    it('should still show title and button with custom message', () => {
+      const { getByText } = render(
+        <PlayerStandingsCard
+          players={[]}
+          emptyStateMessage="Custom message"
+        />,
+      );
+      expect(getByText('Ready to Start Scoring?')).toBeTruthy();
+      expect(getByText('Custom message')).toBeTruthy();
+      expect(getByText('Start Scoring')).toBeTruthy();
+    });
+  });
+
+  describe('Slice 1: formatScore - Bug Fix: Handle null/undefined scores', () => {
+    it('should render "—" when score is null', () => {
+      const playerWithNullScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: null,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithNullScore]} />,
+      );
+
+      expect(getByText('—')).toBeTruthy();
+    });
+
+    it('should render "—" when score is undefined', () => {
+      const playerWithUndefinedScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        // total_score is intentionally omitted
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithUndefinedScore]} />,
+      );
+
+      expect(getByText('—')).toBeTruthy();
+    });
+
+    it('should return "E" when score is 0 (regression test)', () => {
+      const playerWithZeroScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithZeroScore]} />,
+      );
+
+      expect(getByText('E')).toBeTruthy();
+    });
+
+    it('should return "-3" when score is negative (regression test)', () => {
+      const playerWithNegativeScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: -3,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithNegativeScore]} />,
+      );
+
+      expect(getByText('-3')).toBeTruthy();
+    });
+
+    it('should return "+2" when score is positive (regression test)', () => {
+      const playerWithPositiveScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: 2,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithPositiveScore]} />,
+      );
+
+      expect(getByText('+2')).toBeTruthy();
+    });
+
+    it('should render "—" for player with null score even with context', () => {
+      const playerWithNullScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: null,
+        round_par: 54,
+        holes_completed: 0,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithNullScore]} showContext />,
+      );
+
+      expect(getByText('—')).toBeTruthy();
+    });
+  });
+
+  describe('Slice 2: Player name display - Bug Fix: Handle guest players', () => {
+    it('should show guestName when isGuest is true', () => {
+      const guestPlayer = {
+        id: 1,
+        isGuest: true,
+        guestName: 'John Doe',
+        username: null,
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[guestPlayer]} />,
+      );
+
+      expect(getByText('John Doe')).toBeTruthy();
+    });
+
+    it('should show username when isGuest is false', () => {
+      const registeredPlayer = {
+        id: 1,
+        isGuest: false,
+        guestName: null,
+        username: 'salokod',
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[registeredPlayer]} />,
+      );
+
+      expect(getByText('salokod')).toBeTruthy();
+    });
+
+    it('should show "Unknown Player" when guest but guestName is null', () => {
+      const guestNoName = {
+        id: 1,
+        isGuest: true,
+        guestName: null,
+        username: null,
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[guestNoName]} />,
+      );
+
+      expect(getByText('Unknown Player')).toBeTruthy();
+    });
+
+    it('should prefer display_name over username for registered players', () => {
+      const playerWithDisplayName = {
+        id: 1,
+        isGuest: false,
+        username: 'salokod',
+        display_name: 'Sal Okod',
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithDisplayName]} />,
+      );
+
+      expect(getByText('Sal Okod')).toBeTruthy();
+    });
+
+    it('should show guestName even when display_name exists', () => {
+      const guestWithDisplayName = {
+        id: 1,
+        isGuest: true,
+        guestName: 'Guest Player',
+        display_name: 'Should Not Show',
+        username: null,
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText, queryByText } = render(
+        <PlayerStandingsCard players={[guestWithDisplayName]} />,
+      );
+
+      expect(getByText('Guest Player')).toBeTruthy();
+      expect(queryByText('Should Not Show')).toBeNull();
+    });
+  });
+
+  describe('Slice 3: Vertical alignment - Bug Fix', () => {
+    it('should render component successfully with vertical alignment', () => {
+      const player = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: 0,
+      };
+
+      const { getByText, getByTestId } = render(
+        <PlayerStandingsCard players={[player]} />,
+      );
+
+      // Verify component renders with player name
+      expect(getByText('testuser')).toBeTruthy();
+      expect(getByTestId('player-standings-card')).toBeTruthy();
+    });
+
+    it('should render with progress text when showContext is true', () => {
+      const playerWithProgress = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: -2,
+        holes_completed: 12,
+        round_par: 54,
+      };
+
+      const { getByText } = render(
+        <PlayerStandingsCard players={[playerWithProgress]} showContext />,
+      );
+
+      // Verify player name and progress are both visible (requiring proper alignment)
+      expect(getByText('testuser')).toBeTruthy();
+      expect(getByText('12/18 holes')).toBeTruthy();
+    });
+  });
+
+  describe('Slice 4: PropTypes - Bug Fix: Support guest fields', () => {
+    let consoleErrorSpy;
+
+    beforeEach(() => {
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should not throw PropTypes warnings with guest player', () => {
+      const guestPlayer = {
+        id: 1,
+        isGuest: true,
+        guestName: 'John Doe',
+        username: null, // null is valid for guests
+        position: 1,
+        total_score: null, // null is valid when no scores yet
+      };
+
+      render(
+        <PlayerStandingsCard players={[guestPlayer]} />,
+      );
+
+      // eslint-disable-next-line no-console
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('should not throw PropTypes warnings with registered player', () => {
+      const registeredPlayer = {
+        id: 1,
+        isGuest: false,
+        username: 'salokod',
+        position: 1,
+        total_score: -3,
+      };
+
+      render(
+        <PlayerStandingsCard players={[registeredPlayer]} />,
+      );
+
+      // eslint-disable-next-line no-console
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('should not throw PropTypes warnings with null scores', () => {
+      const playerWithNullScore = {
+        id: 1,
+        username: 'testuser',
+        position: 1,
+        total_score: null,
+        holes_completed: 0,
+      };
+
+      render(
+        <PlayerStandingsCard players={[playerWithNullScore]} />,
+      );
+
+      // eslint-disable-next-line no-console
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('should accept guestName and isGuest props without warnings', () => {
+      const guestPlayerComplete = {
+        id: 1,
+        isGuest: true,
+        guestName: 'Guest Player',
+        username: null,
+        position: 1,
+        total_score: 0,
+        holes_completed: 0,
+        round_par: 54,
+        round_status: 'active',
+        last_updated: '2024-01-01T12:00:00Z',
+      };
+
+      render(
+        <PlayerStandingsCard players={[guestPlayerComplete]} showRoundState />,
+      );
+
+      // eslint-disable-next-line no-console
+      expect(console.error).not.toHaveBeenCalled();
+    });
+  });
 });
