@@ -270,11 +270,11 @@ function CreateRoundScreen({ navigation }) {
         fadeAnim.setValue(0);
 
         if (navigation?.replace) {
-          navigation.replace('ScorecardRedesign', {
+          navigation.replace('Scorecard', {
             roundId: newRound.id,
           });
         } else if (navigation?.navigate) {
-          navigation.navigate('ScorecardRedesign', {
+          navigation.navigate('Scorecard', {
             roundId: newRound.id,
           });
         } else {

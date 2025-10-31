@@ -273,7 +273,7 @@ describe('CreateRoundScreen', () => {
       });
     });
 
-    it('should navigate to ScorecardRedesign screen using replace on successful round creation', async () => {
+    it('should navigate to Scorecard screen using replace on successful round creation', async () => {
       const mockRoundResponse = {
         id: 'round-456',
         created_by_id: 123,
@@ -318,7 +318,7 @@ describe('CreateRoundScreen', () => {
 
       // Wait for replace (not navigate)
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith('ScorecardRedesign', {
+        expect(mockReplace).toHaveBeenCalledWith('Scorecard', {
           roundId: 'round-456',
         });
       }, { timeout: 3000 });
@@ -389,10 +389,10 @@ describe('CreateRoundScreen', () => {
 
       // Wait for navigation after successful retry
       await waitFor(() => {
-        expect(mockNavigation.navigate).toHaveBeenCalledWith('ScorecardRedesign', {
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('Scorecard', {
           roundId: 'round-456',
         });
-      });
+      }, { timeout: 3000 });
     });
 
     it('should close error modal when cancel button is pressed', async () => {
@@ -859,7 +859,7 @@ describe('CreateRoundScreen', () => {
 
       // Wait for navigation (should use replace, not navigate)
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith('ScorecardRedesign', {
+        expect(mockReplace).toHaveBeenCalledWith('Scorecard', {
           roundId: 'round-456',
         });
       }, { timeout: 3000 });

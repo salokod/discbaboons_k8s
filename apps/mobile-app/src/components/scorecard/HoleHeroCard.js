@@ -20,13 +20,13 @@ export default function HoleHeroCard({
       ...shadows.md,
     },
     holeNumber: {
-      fontSize: 48,
+      fontSize: 64,
       fontWeight: 'bold',
       color: colors.text,
       textAlign: 'center',
     },
     parText: {
-      fontSize: 20,
+      fontSize: 24,
       color: colors.textSecondary,
       textAlign: 'center',
       marginTop: spacing.xs,

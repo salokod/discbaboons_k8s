@@ -39,23 +39,13 @@ jest.mock('../../screens/rounds/CreateRoundScreen', () => {
   };
 });
 
-jest.mock('../../screens/rounds/RoundDetailScreen', () => {
+jest.mock('../../screens/rounds/ScorecardRedesignScreen', () => {
   const ReactLocal = require('react');
   const { Text } = require('react-native');
-  return function RoundDetailScreen() {
-    return ReactLocal.createElement(Text, { testID: 'round-detail-screen' }, 'RoundDetailScreen');
+  return function ScorecardRedesignScreen() {
+    return ReactLocal.createElement(Text, { testID: 'scorecard-redesign-screen' }, 'ScorecardRedesignScreen');
   };
 });
-
-jest.mock('../../screens/rounds/ScorecardScreen', () => {
-  const ReactLocal = require('react');
-  const { Text } = require('react-native');
-  return function ScorecardScreen() {
-    return ReactLocal.createElement(Text, { testID: 'scorecard-screen' }, 'ScorecardScreen');
-  };
-});
-
-// RoundSummaryScreen removed in Phase 2 Slice 9 - no longer in navigation stack
 
 describe('RoundsStackNavigator', () => {
   const renderWithNavigation = (component) => render(
@@ -76,9 +66,9 @@ describe('RoundsStackNavigator', () => {
     expect(getByTestId('rounds-list-screen')).toBeTruthy();
   });
 
-  // SLICE A1: Import ScorecardScreen without errors
-  it('should import ScorecardScreen without errors', () => {
-    // This test verifies that the navigator file can import ScorecardScreen
+  // SLICE A1: Import ScorecardRedesignScreen without errors
+  it('should import ScorecardRedesignScreen without errors', () => {
+    // This test verifies that the navigator file can import ScorecardRedesignScreen
     // If the import fails, the test file itself would fail to run
     expect(() => renderWithNavigation(<RoundsStackNavigator />)).not.toThrow();
   });
@@ -86,7 +76,7 @@ describe('RoundsStackNavigator', () => {
   // SLICE A2: Register Scorecard route in navigator
   it('should contain Scorecard screen with correct component', () => {
     // Verify that the navigator renders without errors, which confirms
-    // the Scorecard screen is properly registered as a route
+    // the Scorecard screen is properly registered as a route (using ScorecardRedesignScreen)
     expect(() => renderWithNavigation(<RoundsStackNavigator />)).not.toThrow();
 
     // The fact that the import exists and the navigator renders means

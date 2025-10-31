@@ -75,10 +75,10 @@ describe('QuickScoreInput', () => {
     const minusStyle = minusAnimatedView.props.style.find((s) => s.width);
     const plusStyle = plusAnimatedView.props.style.find((s) => s.width);
 
-    expect(minusStyle.width).toBe(48);
-    expect(minusStyle.height).toBe(48);
-    expect(plusStyle.width).toBe(48);
-    expect(plusStyle.height).toBe(48);
+    expect(minusStyle.width).toBe(56);
+    expect(minusStyle.height).toBe(56);
+    expect(plusStyle.width).toBe(56);
+    expect(plusStyle.height).toBe(56);
   });
 
   it('should use borderRadius 12 (rounded square, not circular)', () => {
@@ -294,6 +294,46 @@ describe('QuickScoreInput', () => {
 
       // Double bogey or worse (par + 2+) should be red/error color
       expect(displayStyle.color).toBe('#D32F2F'); // error color from theme
+    });
+  });
+
+  describe('Haptic Feedback', () => {
+    it('should trigger selection haptic on increment button press', () => {
+      const mockIncrement = jest.fn();
+      const hapticService = require('../../../src/services/hapticService');
+      jest.spyOn(hapticService, 'triggerSelectionHaptic');
+
+      const { getByTestId } = renderWithTheme(
+        <QuickScoreInput
+          score={3}
+          par={3}
+          onIncrement={mockIncrement}
+        />,
+      );
+
+      const plusButton = getByTestId('quick-score-plus');
+      fireEvent.press(plusButton);
+
+      expect(hapticService.triggerSelectionHaptic).toHaveBeenCalled();
+    });
+
+    it('should trigger selection haptic on decrement button press', () => {
+      const mockDecrement = jest.fn();
+      const hapticService = require('../../../src/services/hapticService');
+      jest.spyOn(hapticService, 'triggerSelectionHaptic');
+
+      const { getByTestId } = renderWithTheme(
+        <QuickScoreInput
+          score={3}
+          par={3}
+          onDecrement={mockDecrement}
+        />,
+      );
+
+      const minusButton = getByTestId('quick-score-minus');
+      fireEvent.press(minusButton);
+
+      expect(hapticService.triggerSelectionHaptic).toHaveBeenCalled();
     });
   });
 });

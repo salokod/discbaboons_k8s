@@ -2304,7 +2304,568 @@ All critical information from these documents has been captured in the sections 
 
 ---
 
-## Slice 14: Side Bets Section in Round Details
+## MAJOR PIVOT: ONE-PAGE ROUND IMPLEMENTATION (2025-10-25)
+
+### Overview
+Based on UX research and user feedback, we are pivoting from the multi-screen approach to a **single-page round experience** with bottom sheets for secondary actions. This simplifies navigation and keeps users in context while managing their round.
+
+### Key Changes from Original Plan
+
+#### What's Changing:
+1. **Navigation Model**: From multi-screen to single page + bottom sheets
+2. **Score Entry**: Inline on main page, not separate scorecard screen
+3. **Player Management**: Bottom sheet instead of separate screen
+4. **Side Bets**: Bottom sheet instead of separate view
+5. **Settings**: Bottom sheet for editing round details
+6. **State Management**: Single source of truth on main page
+
+#### What Stays the Same:
+- **Slice 14 Core Logic**: Score entry validation, auto-save, API calls remain identical
+- **Backend Endpoints**: All existing API integrations unchanged
+- **Business Logic**: Scoring rules, skins calculations, side bet logic preserved
+- **Test Coverage**: Existing test patterns still apply
+
+### New Architecture
+
+#### Main Round Page (`RoundPage.js`)
+Single scrollable page containing:
+- **Header Section**: Round title, course, date, status
+- **Score Grid**: Inline editable scores for all players/holes
+- **Leaderboard**: Live-updating standings
+- **Side Bets Section**: Active bets with settle buttons
+- **Skins Section**: Current skins status and payouts
+- **Action Bar**: Floating buttons for common actions
+
+#### Bottom Sheets (Using `@gorhom/bottom-sheet`)
+- **PlayerManagementSheet**: Add/remove players
+- **SideBetSheet**: Create/view/settle side bets
+- **SettingsSheet**: Edit round details, delete round
+- **ShareSheet**: Share round link/QR code
+- **CompletionSheet**: Finalize round and view summary
+
+### Modified Implementation Slices
+
+#### Slice 14A: One-Page Foundation (NEW)
+**Objective**: Create the main round page structure
+**Test Scenarios**:
+1. Component renders with loading state
+2. Fetches and displays round data
+3. Shows all sections (scores, leaderboard, bets, skins)
+4. Handles scroll performance with 18+ holes
+
+**Implementation**:
+```javascript
+// RoundPage.js structure
+const RoundPage = ({ roundId }) => {
+  const [roundData, setRoundData] = useState(null);
+  const [scores, setScores] = useState({});
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [sideBets, setSideBets] = useState([]);
+  const [skins, setSkins] = useState(null);
+
+  return (
+    <ScrollView>
+      <RoundHeader />
+      <ScoreGrid />
+      <Leaderboard />
+      <SideBetsSection />
+      <SkinsSection />
+      <FloatingActionBar />
+    </ScrollView>
+  );
+};
+```
+
+#### Slice 14B: Bottom Sheet Integration (NEW)
+**Objective**: Add bottom sheet infrastructure
+**Test Scenarios**:
+1. Bottom sheets open/close properly
+2. Backdrop dismisses sheets
+3. Keyboard avoidance works
+4. Nested scrolling handled correctly
+
+**Implementation**:
+```javascript
+// Using @gorhom/bottom-sheet
+import BottomSheet from '@gorhom/bottom-sheet';
+
+const RoundPage = () => {
+  const playerSheetRef = useRef(null);
+  const betSheetRef = useRef(null);
+  const settingsSheetRef = useRef(null);
+
+  return (
+    <>
+      <ScrollView>{/* Main content */}</ScrollView>
+
+      <BottomSheet ref={playerSheetRef}>
+        <PlayerManagementSheet />
+      </BottomSheet>
+
+      <BottomSheet ref={betSheetRef}>
+        <SideBetSheet />
+      </BottomSheet>
+
+      <BottomSheet ref={settingsSheetRef}>
+        <SettingsSheet />
+      </BottomSheet>
+    </>
+  );
+};
+```
+
+#### Slice 14C: Inline Score Entry (MODIFIED from original Slice 14)
+**Objective**: Enable inline score editing on main page
+**Changes from Original**:
+- No navigation to scorecard
+- Inline TextInput cells in grid
+- Immediate visual feedback
+- Same validation and auto-save logic
+
+**Test Scenarios** (Same as original):
+1. Score inputs accept 1-2 digit numbers
+2. Auto-saves after 2 seconds of inactivity
+3. Shows saving indicator
+4. Validates score ranges (1-15)
+5. Handles offline mode
+
+**Implementation Differences**:
+```javascript
+// Before: Separate ScorecardScreen
+<TouchableOpacity onPress={() => navigate('Scorecard')}>
+  <Text>Enter Scores</Text>
+</TouchableOpacity>
+
+// After: Inline ScoreGrid
+<ScoreGrid
+  scores={scores}
+  onScoreChange={handleScoreChange}
+  autoSave={true}
+/>
+```
+
+#### Slice 14D: Real-Time Updates (ENHANCED from original Slice 17)
+**Objective**: Live sync across all sections
+**Enhancements**:
+- Single polling mechanism for entire page
+- Optimistic updates with rollback
+- Conflict resolution for concurrent edits
+- Visual indicators for stale data
+
+### Migration Strategy
+
+#### Phase 1: Page Structure (Slices 14A-14B)
+1. Create `RoundPage.js` with all sections
+2. Integrate bottom sheet library
+3. Wire up navigation from RoundsList
+4. Keep existing screens as fallback
+
+#### Phase 2: Feature Migration (Slices 14C-14H)
+1. Port score entry logic to inline grid
+2. Move player management to bottom sheet
+3. Migrate side bets to bottom sheet
+4. Move settings to bottom sheet
+
+#### Phase 3: Deprecation (Slice 14I)
+1. Remove old screen files
+2. Update all navigation references
+3. Clean up unused components
+4. Update documentation
+
+### Benefits of New Approach
+
+1. **Better UX**: Everything in one place, no navigation confusion
+2. **Faster Performance**: Single data fetch, shared state
+3. **Easier Testing**: One component tree to test
+4. **Simpler State**: No cross-screen state synchronization
+5. **Mobile-First**: Bottom sheets are native mobile pattern
+
+### Risks and Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Page too heavy | Lazy load sections below fold |
+| Complex state | Use reducer pattern for predictable updates |
+| Sheet conflicts | Queue system for sequential sheets |
+| Scroll performance | Virtualize score grid for 18+ holes |
+
+### Updated Slice Timeline
+
+**Immediate Priority (Next Week)**:
+- Slice 14A: One-Page Foundation (4 hours)
+- Slice 14B: Bottom Sheet Integration (2 hours)
+- Slice 14C: Inline Score Entry (3 hours) - Reuse existing logic
+- Slice 14D: Real-Time Updates (2 hours)
+
+**Following Week**:
+- Slice 15: Player Management Sheet (2 hours)
+- Slice 16: Side Bet Sheet (3 hours)
+- Slice 17: Settings Sheet (2 hours)
+- Slice 18: Completion Flow (2 hours)
+
+**Future Slices** (19-30): Remain largely unchanged, just implemented within new architecture
+
+---
+
+## SLICE REORGANIZATION NOTE (2025-10-19)
+
+**Slices have been renumbered to prioritize score entry functionality:**
+- **Slices 14-18**: Score Entry (formerly Slices 26-30) - WORK ON THESE NEXT
+- **Slices 19-30**: Side Bets, Skins, Settings (formerly Slices 14-25) - Deferred until after score entry
+
+This reorganization ensures core gameplay (entering and viewing scores) is implemented before advanced features like side bets and skins. All slice content has been preserved, only numbers changed.
+
+---
+
+## Slice 14: Score Entry - Basic Input (Formerly Slice 26)
+
+### Endpoints Used
+**POST /api/rounds/:id/scores**
+```json
+// Request (Batch format for efficiency)
+POST /api/rounds/round-uuid/scores
+Headers: { Authorization: "Bearer {token}" }
+Body: {
+  "scores": [
+    {
+      "playerId": "player-uuid-from-round_players",
+      "holeNumber": 3,
+      "strokes": 4
+    }
+  ]
+}
+
+// Response
+{
+  "success": true,
+  "scoresSubmitted": 1
+}
+```
+
+**IMPORTANT NOTES**:
+- `playerId` is the UUID from the `round_players` table (NOT the user ID)
+- Batch format allows submitting multiple scores in one request
+- Single score submissions still use array format for API consistency
+
+### User Flow
+1. User on scorecard screen
+2. Taps hole 3 input
+3. Number pad appears
+4. Enters score (4)
+5. Score saves automatically
+6. Input highlights briefly
+
+### UI Design
+**Components**: ScoreInput, NumberPad, SaveIndicator
+**Layout**: Grid of holes, 3 columns
+**Input**: Large touch targets, 44px minimum
+**Feedback**: Green flash on save
+
+### Notes for Implementer
+**Tests to Write**:
+1. Backend test: Saves score for hole
+2. Backend test: Updates existing score
+3. Frontend test: Number pad opens on tap
+4. Frontend test: Score saves on entry
+5. Frontend test: Shows save indicator
+
+**Implementation Notes**:
+- Use optimistic UI updates: Show score immediately, then sync to server
+- If server save fails, revert the optimistic update and show error
+- Store local state in component until server confirms
+- Green flash indicates successful server save (not just local update)
+
+### Notes for Human to Review
+1. Open scorecard
+2. Enter score for hole 3
+3. See save indicator
+4. Change score
+5. Verify updates
+
+---
+
+## Slice 15: Score Entry - Auto-Save (Formerly Slice 27)
+
+### Endpoints Used
+**POST /api/rounds/:id/scores** (debounced)
+
+### User Flow
+1. User enters score
+2. 1 second delay
+3. Auto-saves to server
+4. Small checkmark appears
+5. If offline, queues for later
+6. Syncs when online
+
+### UI Design
+**Components**: AutoSave, SyncIndicator, OfflineQueue
+**Timing**: 1 second debounce
+**Indicator**: Small checkmark fade-in
+**Offline**: Orange indicator, "Saved locally"
+
+### Notes for Implementer
+**Tests to Write**:
+1. Frontend test: Debounces save calls
+2. Frontend test: Shows checkmark on success
+3. Frontend test: Queues when offline
+4. Frontend test: Syncs queue when online
+5. Frontend test: Handles save failures
+
+**AsyncStorage Backup Strategy**:
+- Save scores to AsyncStorage immediately on entry (synchronous backup)
+- Key format: `round_scores_${roundId}` -> JSON array of all scores
+- Debounce server saves to reduce API calls (1 second)
+- On app restart, check AsyncStorage for unsaved scores and sync
+- Clear AsyncStorage for round only after server confirms all scores saved
+
+**Offline Queue & Sync-on-Reconnect**:
+- Maintain in-memory queue of pending API calls
+- Persist queue to AsyncStorage to survive app restarts
+- On reconnect, process queue in FIFO order
+- Show sync progress indicator (e.g., "Syncing 3 of 5 scores...")
+- Handle conflicts: Server version wins, but warn user if local changes differ
+
+### Notes for Human to Review
+1. Enter score rapidly
+2. Verify saves after pause
+3. Turn on airplane mode
+4. Enter score
+5. Turn off airplane mode
+6. Verify syncs
+
+---
+
+## Slice 16: Score Entry - Validation (Formerly Slice 28)
+
+### Endpoints Used
+None (client-side validation)
+
+### User Flow
+1. User enters score
+2. Validation checks range (1-20)
+3. Invalid shows red border (< 1 or > 20)
+4. Warning for unusual scores (> 10)
+5. Can override warning
+6. Cannot save invalid
+
+### UI Design
+**Components**: ValidationBorder, WarningToast
+**Colors**: Red border for invalid
+**Warning**: "That's a high score. Sure?"
+**Range**: 1-20 valid, warning above 10
+
+**Validation Thresholds**:
+- **Hard minimum**: 1 (cannot be less, red border + error)
+- **Hard maximum**: 20 (cannot be more, red border + error)
+- **Warning threshold**: 10+ (yellow warning, can confirm to save)
+- **Error messages**:
+  - "Score must be at least 1" (for 0 or negative)
+  - "Score cannot exceed 20" (for 21+)
+  - "That's a high score (10+). Confirm?" (for 10-20)
+
+### Notes for Implementer
+**Tests to Write**:
+1. Frontend test: Rejects scores < 1
+2. Frontend test: Shows red border for invalid
+3. Frontend test: Warning for scores > 10
+4. Frontend test: Can confirm high score
+5. Frontend test: Clears validation on fix
+
+### Notes for Human to Review
+1. Try entering 0
+2. Verify shows error
+3. Enter 15
+4. See warning
+5. Confirm to save
+
+---
+
+## Slice 17: Real-Time Score Sync (Formerly Slice 29)
+
+### Endpoints Used
+**USE POLLING** - No WebSocket support in backend
+
+**IMPLEMENTATION APPROACH**:
+Reuse the `usePolling` hook from Slice 5 to poll for score updates.
+
+```javascript
+// Reuse existing polling hook
+import { usePolling } from '../hooks/usePolling';
+
+const ScorecardScreen = ({ roundId }) => {
+  const { data: scores, loading } = usePolling(
+    () => api.getRoundScores(roundId),
+    {
+      interval: 10000, // 10 seconds for active gameplay
+      enabled: true
+    }
+  );
+
+  // Scores update automatically every 10 seconds
+};
+```
+
+**POLLING STRATEGY**:
+- Poll `GET /api/rounds/:id/scores` every 10 seconds during active gameplay
+- Use Slice 5's polling implementation (already tested and working)
+- Cancel polling when screen is not focused (memory optimization)
+- Show subtle animation when scores update
+
+**POLLING IMPLEMENTATION DETAILS**:
+```javascript
+// Polling configuration
+const POLLING_INTERVAL = 10000; // 10 seconds
+const POLLING_TIMEOUT = 5000;   // 5 second API timeout
+
+// Component implementation
+const ScorecardScreen = ({ roundId }) => {
+  const { data: remoteScores, loading, error } = usePolling(
+    () => api.getRoundScores(roundId),
+    {
+      interval: POLLING_INTERVAL,
+      enabled: true,
+      onError: (err) => console.warn('Score sync failed:', err)
+    }
+  );
+
+  // Merge remote scores with local optimistic updates
+  const mergedScores = useMemo(() =>
+    mergeScores(localScores, remoteScores),
+    [localScores, remoteScores]
+  );
+};
+```
+
+**MERGE STRATEGY** (Critical for correctness):
+1. **Local optimistic updates take precedence** during debounce window
+2. After server confirms save, **server version is source of truth**
+3. On conflict (remote differs from local after save):
+   - Show warning: "Score updated by another player"
+   - Display both values briefly, then accept server version
+   - Log conflict for analytics
+4. Track last update timestamp per score to detect conflicts
+
+**VISUAL FEEDBACK**:
+- **Own scores**: Instant update (optimistic), green checkmark on server confirm
+- **Other players' scores**: Light blue pulse animation when updated
+- **Conflict**: Yellow flash + toast message
+- **Sync indicator**: Small icon showing last sync time ("Updated 5s ago")
+
+**PREREQUISITES**:
+- **MUST implement Slice 5 first** - `usePolling` hook is required
+- Slice 5 provides polling infrastructure, error handling, and cleanup
+- Without Slice 5, this slice cannot be implemented
+
+**EDGE CASES TO HANDLE**:
+1. **Stale data after offline period**: Compare timestamps, show "Syncing..." until caught up
+2. **Rapid updates from multiple players**: Debounce UI updates to prevent flickering
+3. **Server returns deleted score**: Remove from local state with animation
+4. **Network timeout during poll**: Keep showing last known data, show "Connection issues" banner
+5. **Concurrent edits to same hole**: Server timestamp wins, show conflict notification
+
+**WHY NO WEBSOCKET**:
+- WebSocket requires significant backend infrastructure (Socket.io, Redis pub/sub, horizontal scaling)
+- Polling provides acceptable UX for disc golf (not real-time critical like gaming)
+- Can upgrade to WebSocket later without breaking existing implementation
+- 10-second polling uses minimal bandwidth (~360 requests/hour for 1 round)
+
+**FUTURE ENHANCEMENT** (major backend work required):
+- Add Socket.io server
+- Implement Redis pub/sub for multi-instance scaling
+- Create room-based subscriptions for rounds
+- Handle reconnection logic and missed updates
+
+### User Flow
+1. Multiple players in round
+2. Player A enters score
+3. Player B sees update immediately
+4. Score appears with animation
+5. Leaderboard updates
+6. No page refresh needed
+
+### UI Design
+**Components**: WebSocketProvider, ScoreUpdate
+**Animation**: Fade in for others' scores
+**Color**: Light blue flash for updates
+**Leaderboard**: Instant reorder with animation
+
+### Notes for Implementer
+**Tests to Write**:
+1. Backend test: GET /api/rounds/:id/scores returns all scores
+2. Frontend test: Polls for score updates using usePolling hook
+3. Frontend test: Merges remote scores with local optimistic updates
+4. Frontend test: Shows animation when other players' scores update
+5. Frontend test: Handles merge conflicts correctly (server wins)
+6. Frontend test: Stops polling when screen loses focus
+7. Frontend test: Shows "Updated Xs ago" sync indicator
+
+### Notes for Human to Review
+1. Open round on 2 devices
+2. Enter score on device 1
+3. See update on device 2
+4. Check no delay
+5. Verify leaderboard updates
+
+---
+
+## Slice 18: Round Completion (Formerly Slice 30)
+
+### Endpoints Used
+**POST /api/rounds/:id/complete**
+```json
+// Request
+POST /api/rounds/round-uuid/complete
+Headers: { Authorization: "Bearer {token}" }
+
+// Response
+{
+  "success": true,
+  "round": {
+    "status": "completed",
+    "completed_at": "2024-01-15T12:00:00Z",
+    "final_scores": [
+      {
+        "player_id": "user1-uuid",
+        "total_strokes": 56,
+        "score": "+2"
+      }
+    ]
+  }
+}
+```
+
+### User Flow
+1. All holes have scores
+2. "Complete Round" button appears
+3. User taps button
+4. Confirmation modal
+5. Round marked complete
+6. Shows final standings
+
+### UI Design
+**Components**: CompleteButton, StandingsModal
+**Button**: Green, bottom of scorecard
+**Modal**: Final scores, podium view
+**Trophy**: Winner gets gold trophy icon
+
+### Notes for Implementer
+**Tests to Write**:
+1. Backend test: Validates all holes scored
+2. Backend test: Calculates final scores
+3. Frontend test: Button appears when complete
+4. Frontend test: Shows confirmation
+5. Frontend test: Displays final standings
+
+### Notes for Human to Review
+1. Complete all holes
+2. See complete button
+3. Tap to complete
+4. Confirm in modal
+5. View final standings
+
+---
+
+## Slice 19: Side Bets Section in Round Details (Formerly Slice 14)
 
 ### Endpoints Used
 **GET /api/rounds/:id/side-bets** (ACTUAL EXISTING ENDPOINT)
@@ -2381,7 +2942,7 @@ Headers: { Authorization: "Bearer {token}" }
 
 ---
 
-## Slice 15: Create Side Bet from Round Details
+## Slice 20: Create Side Bet from Round Details (Formerly Slice 15)
 
 ### Endpoints Used
 **POST /api/rounds/:id/side-bets** (ACTUAL EXISTING ENDPOINT)
@@ -2455,7 +3016,9 @@ Body: {
 6. Select 2-3 players
 7. Create bet and verify it appears
 
-## Slice 16: Join Existing Side Bet (REMOVED - Not Supported)
+---
+
+## Slice 21: Join Existing Side Bet (Formerly Slice 16) (REMOVED - Not Supported)
 
 **NOTE**: There is NO dedicated /join endpoint. Side bet participants are set at creation time only via the `participants` array in POST /api/rounds/:id/side-bets. Players cannot join bets after creation.
 
@@ -2509,7 +3072,7 @@ Body: {
 
 ---
 
-## Slice 16: Settle Side Bet (Declare Winner)
+## Slice 22: Settle Side Bet (Declare Winner) (Formerly Slice 16)
 
 ### Endpoints Used
 **PUT /api/rounds/:id/side-bets/:betId** (ACTUAL EXISTING ENDPOINT)
@@ -2585,7 +3148,7 @@ Body: {
 
 ---
 
-## Slice 17: Track Side Bet Status
+## Slice 23: Track Side Bet Status (Formerly Slice 17)
 
 ### Endpoints Used
 **GET /api/rounds/:id/side-bets** (polling)
@@ -2620,7 +3183,7 @@ Body: {
 
 ---
 
-## Slice 19: Enable Skins Game
+## Slice 24: Enable Skins Game (Formerly Slice 19)
 
 ### Endpoints Used
 **PUT /api/rounds/:id** (ACTUAL EXISTING ENDPOINT)
@@ -2697,7 +3260,7 @@ Body: {
 
 ---
 
-## Slice 20: Track Skins During Round
+## Slice 25: Track Skins During Round (Formerly Slice 20)
 
 ### Endpoints Used
 **GET /api/rounds/:id/skins** (ACTUAL EXISTING ENDPOINT)
@@ -2790,7 +3353,7 @@ Headers: { Authorization: "Bearer {token}" }
 
 ---
 
-## Slice 21: Calculate Skins Payouts
+## Slice 26: Calculate Skins Payouts (Formerly Slice 21)
 
 ### Endpoints Used
 **GET /api/rounds/:id/skins** (ACTUAL EXISTING ENDPOINT - includes payouts)
@@ -2865,7 +3428,7 @@ Headers: { Authorization: "Bearer {token}" }
 
 ---
 
-## Slice 22: View Round Details
+## Slice 27: View Round Details (Formerly Slice 22)
 
 ### Endpoints Used
 **GET /api/rounds/:id** (ACTUAL EXISTING ENDPOINT)
@@ -2955,7 +3518,7 @@ Headers: { Authorization: "Bearer {token}" }
 
 ---
 
-## Slice 23: Edit Round Settings
+## Slice 28: Edit Round Settings (Formerly Slice 23)
 
 ### Endpoints Used
 **PUT /api/rounds/:id** (ACTUAL EXISTING ENDPOINT)
@@ -3038,7 +3601,7 @@ Body: {
 
 ---
 
-## Slice 24: Delete Round
+## Slice 29: Delete Round (Formerly Slice 24)
 
 ### Endpoints Used
 **DELETE /api/rounds/:id**
@@ -3086,7 +3649,7 @@ Headers: { Authorization: "Bearer {token}" }
 
 ---
 
-## Slice 25: Share Round
+## Slice 30: Share Round (Formerly Slice 25)
 
 ### Endpoints Used
 **NO BACKEND ENDPOINT** - Client-side implementation only
@@ -3159,263 +3722,88 @@ Headers: { Authorization: "Bearer {token}" }
 
 ---
 
-## Slice 26: Score Entry - Basic Input
+## Success Criteria for Score Entry Feature (After Slice 18)
 
-### Endpoints Used
-**POST /api/rounds/:id/scores**
-```json
-// Request
-POST /api/rounds/round-uuid/scores
-Headers: { Authorization: "Bearer {token}" }
-Body: {
-  "hole_number": 3,
-  "strokes": 4
-}
+These criteria define when the score entry feature (Slices 14-18) is complete and ready for production use.
 
-// Response
-{
-  "success": true,
-  "score": {
-    "id": "score-uuid",
-    "hole_number": 3,
-    "strokes": 4,
-    "created_at": "2024-01-15T10:45:00Z"
-  }
-}
-```
+### Functional Requirements
+- [ ] Users can enter scores for any hole (1-20 strokes)
+- [ ] Scores save automatically within 1 second of entry (debounced)
+- [ ] Scores persist locally in AsyncStorage immediately
+- [ ] Invalid scores (< 1 or > 20) show red border and cannot be saved
+- [ ] High scores (10+) show warning but can be confirmed and saved
+- [ ] Offline scores queue locally and sync when connection restored
+- [ ] Multiple players' scores sync via polling (10-second intervals)
+- [ ] Score conflicts resolve correctly (server version wins)
+- [ ] Round can be completed when all holes have scores
+- [ ] Final standings display correctly after round completion
 
-### User Flow
-1. User on scorecard screen
-2. Taps hole 3 input
-3. Number pad appears
-4. Enters score (4)
-5. Score saves automatically
-6. Input highlights briefly
+### UX Quality Metrics
+- [ ] Optimistic UI updates: Scores appear instantly before server confirms
+- [ ] Save indicator: Green checkmark appears after successful server save
+- [ ] Sync indicator: "Updated Xs ago" shows last sync time
+- [ ] Animation feedback: Light blue pulse when other players' scores update
+- [ ] Conflict handling: Yellow flash + toast when score conflict detected
+- [ ] Offline handling: Orange "Saved locally" indicator when offline
+- [ ] Sync progress: "Syncing X of Y scores..." when reconnecting
+- [ ] Touch targets: Minimum 44px for all score inputs (accessibility)
+- [ ] No flickering: Debounced UI updates prevent rapid re-renders
 
-### UI Design
-**Components**: ScoreInput, NumberPad, SaveIndicator
-**Layout**: Grid of holes, 3 columns
-**Input**: Large touch targets, 44px minimum
-**Feedback**: Green flash on save
+### Technical Quality Standards
+- [ ] All tests pass: `npm run verify` returns 100% success
+- [ ] No console errors or warnings during normal operation
+- [ ] AsyncStorage cleanup: Old round scores cleared after server confirms
+- [ ] Memory optimization: Polling stops when screen loses focus
+- [ ] API efficiency: Batch score submission format used
+- [ ] Error handling: Network failures handled gracefully with retry logic
+- [ ] Data integrity: No score data loss during offline/online transitions
+- [ ] Timestamp tracking: Server timestamps used for conflict resolution
+- [ ] Code quality: All linting passes (`npm run lint:fix`)
 
-### Notes for Implementer
-**Tests to Write**:
-1. Backend test: Saves score for hole
-2. Backend test: Updates existing score
-3. Frontend test: Number pad opens on tap
-4. Frontend test: Score saves on entry
-5. Frontend test: Shows save indicator
+### Performance Benchmarks
+- [ ] Score entry response time: < 100ms (optimistic update)
+- [ ] Server save confirmation: < 2 seconds (includes 1s debounce + network)
+- [ ] Polling overhead: < 5KB per poll request
+- [ ] AsyncStorage operations: < 50ms for read/write
+- [ ] Merge conflicts resolved: < 100ms computation time
+- [ ] UI animation frame rate: 60 FPS during score updates
+- [ ] Offline queue processing: < 1 second per queued score
 
-### Notes for Human to Review
-1. Open scorecard
-2. Enter score for hole 3
-3. See save indicator
-4. Change score
-5. Verify updates
+### Edge Cases Handled
+- [ ] App restart with unsaved scores: Syncs from AsyncStorage on mount
+- [ ] Concurrent edits to same hole: Server timestamp wins, conflict shown
+- [ ] Network timeout during poll: Shows last known data, no crash
+- [ ] Rapid score changes: Debounce prevents API spam
+- [ ] Deleted scores from server: Removed from UI with animation
+- [ ] Round completed by another player: Reflects on all devices
+- [ ] Invalid API responses: Graceful degradation, error messages shown
+- [ ] Storage quota exceeded: Warns user, prioritizes recent scores
 
----
+### Cross-Platform Consistency
+- [ ] iOS and Android: Identical behavior and visual design
+- [ ] Number pad: Native keyboard for score entry on both platforms
+- [ ] AsyncStorage: Works correctly on both platforms
+- [ ] Share API: Platform-specific share sheets work correctly
+- [ ] Animations: Smooth 60 FPS on both platforms
+- [ ] Touch feedback: Proper haptic/visual feedback on both platforms
 
-## Slice 27: Score Entry - Auto-Save
+### Accessibility Standards
+- [ ] VoiceOver/TalkBack: Screen readers announce score changes
+- [ ] Touch targets: All inputs meet 44x44px minimum size
+- [ ] Color contrast: Text readable in light/dark modes
+- [ ] Error messages: Clear, actionable text (not just colors)
+- [ ] Keyboard navigation: Can navigate scorecard without touch
+- [ ] Dynamic text: Respects system font size preferences
 
-### Endpoints Used
-**POST /api/rounds/:id/scores** (debounced)
+### Documentation & Handoff
+- [ ] API format documented: Batch score submission format clear
+- [ ] Merge strategy documented: Conflict resolution logic explained
+- [ ] Testing guide: Human review steps listed for each slice
+- [ ] Known limitations: Polling vs WebSocket tradeoffs noted
+- [ ] Future enhancements: WebSocket upgrade path documented
+- [ ] Error scenarios: All error messages and recovery flows documented
 
-### User Flow
-1. User enters score
-2. 1 second delay
-3. Auto-saves to server
-4. Small checkmark appears
-5. If offline, queues for later
-6. Syncs when online
-
-### UI Design
-**Components**: AutoSave, SyncIndicator, OfflineQueue
-**Timing**: 1 second debounce
-**Indicator**: Small checkmark fade-in
-**Offline**: Orange indicator, "Saved locally"
-
-### Notes for Implementer
-**Tests to Write**:
-1. Frontend test: Debounces save calls
-2. Frontend test: Shows checkmark on success
-3. Frontend test: Queues when offline
-4. Frontend test: Syncs queue when online
-5. Frontend test: Handles save failures
-
-### Notes for Human to Review
-1. Enter score rapidly
-2. Verify saves after pause
-3. Turn on airplane mode
-4. Enter score
-5. Turn off airplane mode
-6. Verify syncs
-
----
-
-## Slice 28: Score Entry - Validation
-
-### Endpoints Used
-None (client-side validation)
-
-### User Flow
-1. User enters score
-2. Validation checks range (1-10)
-3. Invalid shows red border
-4. Warning for unusual scores
-5. Can override warning
-6. Cannot save invalid
-
-### UI Design
-**Components**: ValidationBorder, WarningToast
-**Colors**: Red border for invalid
-**Warning**: "That's a high score. Sure?"
-**Range**: 1-10 normal, warning above
-
-### Notes for Implementer
-**Tests to Write**:
-1. Frontend test: Rejects scores < 1
-2. Frontend test: Shows red border for invalid
-3. Frontend test: Warning for scores > 10
-4. Frontend test: Can confirm high score
-5. Frontend test: Clears validation on fix
-
-### Notes for Human to Review
-1. Try entering 0
-2. Verify shows error
-3. Enter 15
-4. See warning
-5. Confirm to save
-
----
-
-## Slice 29: Real-Time Score Sync
-
-### Endpoints Used
-**USE POLLING** - No WebSocket support in backend
-
-**IMPLEMENTATION APPROACH**:
-Reuse the `usePolling` hook from Slice 5 to poll for score updates.
-
-```javascript
-// Reuse existing polling hook
-import { usePolling } from '../hooks/usePolling';
-
-const ScorecardScreen = ({ roundId }) => {
-  const { data: scores, loading } = usePolling(
-    () => api.getRoundScores(roundId),
-    {
-      interval: 10000, // 10 seconds for active gameplay
-      enabled: true
-    }
-  );
-
-  // Scores update automatically every 10 seconds
-};
-```
-
-**POLLING STRATEGY**:
-- Poll `GET /api/rounds/:id/scores` every 10 seconds during active gameplay
-- Use Slice 5's polling implementation (already tested and working)
-- Cancel polling when screen is not focused (memory optimization)
-- Show subtle animation when scores update
-
-**WHY NO WEBSOCKET**:
-- WebSocket requires significant backend infrastructure (Socket.io, Redis pub/sub, horizontal scaling)
-- Polling provides acceptable UX for disc golf (not real-time critical like gaming)
-- Can upgrade to WebSocket later without breaking existing implementation
-- 10-second polling uses minimal bandwidth
-
-**FUTURE ENHANCEMENT** (major backend work required):
-- Add Socket.io server
-- Implement Redis pub/sub for multi-instance scaling
-- Create room-based subscriptions for rounds
-- Handle reconnection logic and missed updates
-
-### User Flow
-1. Multiple players in round
-2. Player A enters score
-3. Player B sees update immediately
-4. Score appears with animation
-5. Leaderboard updates
-6. No page refresh needed
-
-### UI Design
-**Components**: WebSocketProvider, ScoreUpdate
-**Animation**: Fade in for others' scores
-**Color**: Light blue flash for updates
-**Leaderboard**: Instant reorder with animation
-
-### Notes for Implementer
-**Tests to Write**:
-1. Backend test: Broadcasts score updates
-2. Frontend test: Connects to WebSocket
-3. Frontend test: Receives score updates
-4. Frontend test: Updates UI on message
-5. Frontend test: Reconnects on disconnect
-
-### Notes for Human to Review
-1. Open round on 2 devices
-2. Enter score on device 1
-3. See update on device 2
-4. Check no delay
-5. Verify leaderboard updates
-
----
-
-## Slice 30: Round Completion
-
-### Endpoints Used
-**POST /api/rounds/:id/complete**
-```json
-// Request
-POST /api/rounds/round-uuid/complete
-Headers: { Authorization: "Bearer {token}" }
-
-// Response
-{
-  "success": true,
-  "round": {
-    "status": "completed",
-    "completed_at": "2024-01-15T12:00:00Z",
-    "final_scores": [
-      {
-        "player_id": "user1-uuid",
-        "total_strokes": 56,
-        "score": "+2"
-      }
-    ]
-  }
-}
-```
-
-### User Flow
-1. All holes have scores
-2. "Complete Round" button appears
-3. User taps button
-4. Confirmation modal
-5. Round marked complete
-6. Shows final standings
-
-### UI Design
-**Components**: CompleteButton, StandingsModal
-**Button**: Green, bottom of scorecard
-**Modal**: Final scores, podium view
-**Trophy**: Winner gets gold trophy icon
-
-### Notes for Implementer
-**Tests to Write**:
-1. Backend test: Validates all holes scored
-2. Backend test: Calculates final scores
-3. Frontend test: Button appears when complete
-4. Frontend test: Shows confirmation
-5. Frontend test: Displays final standings
-
-### Notes for Human to Review
-1. Complete all holes
-2. See complete button
-3. Tap to complete
-4. Confirm in modal
-5. View final standings
+**Definition of Done**: All checkboxes above must be checked before marking Slices 14-18 as complete. This ensures the score entry feature provides a reliable, performant, and delightful user experience.
 
 ---
 
@@ -3496,10 +3884,10 @@ GET /api/rounds/my-rounds (with pagination)
 This implementation plan provides 32 thin slices covering:
 - **Rounds List**: Display, refresh, empty states, errors, polling (Slices 1-5)
 - **Round Creation**: Course selection, players, bets, validation, submission (Slices 6-13)
-- **Side Bets**: View, create, join, settle, track (Slices 14-18)
-- **Skins**: Enable, track, calculate payouts (Slices 19-21)
-- **Round Management**: View, edit, delete, share (Slices 22-25)
-- **Scorecard**: Entry, auto-save, validation, sync, completion (Slices 26-30)
+- **Scorecard**: Entry, auto-save, validation, sync, completion (Slices 14-18)
+- **Side Bets**: View, create, join, settle, track (Slices 19-23)
+- **Skins**: Enable, track, calculate payouts (Slices 24-26)
+- **Round Management**: View, edit, delete, share (Slices 27-30)
 - **Infrastructure**: Offline support, performance (Slices 31-32)
 
 Each slice is designed to be:

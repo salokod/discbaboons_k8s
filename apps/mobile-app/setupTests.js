@@ -85,6 +85,45 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   getAllKeys: jest.fn(() => Promise.resolve([])),
 }));
 
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    SafeAreaProvider: ({ children }) => React.createElement(View, { testID: 'safe-area-provider' }, children),
+    SafeAreaView: ({ children, ...props }) => React.createElement(View, props, children),
+    SafeAreaConsumer: ({ children }) => children({
+      insets: {
+        top: 0, bottom: 0, left: 0, right: 0,
+      },
+      frame: {
+        x: 0, y: 0, width: 0, height: 0,
+      },
+    }),
+    useSafeAreaInsets: () => ({
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+    }),
+    useSafeAreaFrame: () => ({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    }),
+    initialWindowMetrics: {
+      insets: {
+        top: 0, bottom: 0, left: 0, right: 0,
+      },
+      frame: {
+        x: 0, y: 0, width: 0, height: 0,
+      },
+    },
+  };
+});
+
 // Mock react-native-haptic-feedback
 jest.mock('react-native-haptic-feedback', () => ({
   trigger: jest.fn(),
@@ -136,12 +175,7 @@ jest.mock('@react-navigation/native', () => {
       name: 'TestScreen',
       params: {},
     })),
-    useFocusEffect: jest.fn((callback) => {
-      // Execute callback immediately for testing and handle cleanup
-      const cleanup = callback();
-      // Return cleanup function if provided
-      return typeof cleanup === 'function' ? cleanup : undefined;
-    }),
+    useFocusEffect: jest.fn(() => undefined),
     useIsFocused: jest.fn(() => true),
     useTheme: jest.fn(() => ({
       dark: false,
@@ -292,10 +326,57 @@ jest.mock('./src/components/StatusBarSafeView', () => {
   };
 });
 
+// Mock @gorhom/bottom-sheet
+jest.mock('@gorhom/bottom-sheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const BottomSheetModal = React.forwardRef(({ children, onDismiss }, ref) => {
+    const [isPresented, setIsPresented] = React.useState(false);
+
+    React.useImperativeHandle(ref, () => ({
+      present: jest.fn(() => {
+        setIsPresented(true);
+      }),
+      dismiss: jest.fn(() => {
+        setIsPresented(false);
+        if (onDismiss) onDismiss();
+      }),
+      close: jest.fn(() => setIsPresented(false)),
+      collapse: jest.fn(),
+      expand: jest.fn(),
+    }));
+
+    // Only render children when presented (simulates real behavior)
+    if (!isPresented) return null;
+
+    return React.createElement(View, { testID: 'bottom-sheet-modal' }, children);
+  });
+
+  function BottomSheetBackdrop({ onPress }) {
+    return React.createElement(View, {
+      testID: 'bottom-sheet-backdrop',
+      onTouchEnd: onPress,
+    });
+  }
+
+  function BottomSheetScrollView({ children }) {
+    const { ScrollView } = require('react-native');
+    return React.createElement(ScrollView, null, children);
+  }
+
+  return {
+    __esModule: true,
+    default: BottomSheetModal,
+    BottomSheetModal,
+    BottomSheetBackdrop,
+    BottomSheetScrollView,
+    BottomSheetModalProvider: ({ children }) => children,
+  };
+});
+
 // Global test cleanup to prevent timeouts
 afterEach(() => {
-  // Clear all timers to prevent hanging tests
-  jest.clearAllTimers();
   // Clear all mocks to prevent state leakage
   jest.clearAllMocks();
 });
