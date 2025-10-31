@@ -32,12 +32,15 @@ const getRoundService = async (roundId, userId) => {
     throw error;
   }
 
-  // Get full round details
+  // Get full round details with course data
   const roundQuery = `
-    SELECT id, created_by_id, course_id, name, start_time, starting_hole, 
-           is_private, skins_enabled, skins_value, status, created_at, updated_at
-    FROM rounds 
-    WHERE id = $1
+    SELECT r.id, r.created_by_id, r.course_id, r.name, r.start_time, r.starting_hole,
+           r.is_private, r.skins_enabled, r.skins_value, r.status, r.created_at, r.updated_at,
+           c.name as course_name,
+           CONCAT(c.city, ', ', c.state_province) as course_location
+    FROM rounds r
+    LEFT JOIN courses c ON r.course_id = c.id
+    WHERE r.id = $1
   `;
   const round = await queryOne(roundQuery, [roundId]);
 
@@ -72,9 +75,9 @@ const getRoundService = async (roundId, userId) => {
 
   // Get pars for the round
   const parsQuery = `
-    SELECT hole_number, par, set_by_player_id, created_at 
-    FROM round_hole_pars 
-    WHERE round_id = $1 
+    SELECT hole_number, par, set_by_player_id, created_at
+    FROM round_hole_pars
+    WHERE round_id = $1
     ORDER BY hole_number
   `;
   const parsResult = await queryRows(parsQuery, [roundId]);
@@ -85,8 +88,35 @@ const getRoundService = async (roundId, userId) => {
     pars[row.hole_number] = row.par;
   });
 
+  // Get hole_count from courses table
+  let holeCount = null;
+  if (round.course_id) {
+    const courseQuery = 'SELECT hole_count FROM courses WHERE id = $1';
+    const courseData = await queryOne(courseQuery, [round.course_id]);
+    holeCount = courseData?.hole_count || null;
+  }
+
+  // Build holes array from pars data
+  const holes = parsResult.map((row) => ({
+    number: row.hole_number,
+    par: row.par,
+  }));
+
+  // Extract course data and build nested structure
+  // eslint-disable-next-line camelcase
+  const { course_name, course_location, ...roundData } = round;
+
   return {
-    ...round,
+    ...roundData,
+    // eslint-disable-next-line camelcase
+    course: course_name ? {
+      // eslint-disable-next-line camelcase
+      name: course_name,
+      // eslint-disable-next-line camelcase
+      location: course_location,
+      holeCount,
+      holes,
+    } : null,
     players,
     pars,
   };

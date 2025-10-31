@@ -103,4 +103,44 @@ describe('NavigationHeader', () => {
     fireEvent.press(getByTestId('right-action'));
     expect(mockRightAction).toHaveBeenCalledTimes(1);
   });
+
+  it('should render custom right component when provided', () => {
+    const { Text } = require('react-native');
+    const mockOnBack = jest.fn();
+    function CustomComponent() {
+      return <Text testID="custom-component">Custom</Text>;
+    }
+
+    const { getByTestId, getByText } = render(
+      <NavigationHeader
+        title="Test Title"
+        onBack={mockOnBack}
+        rightComponent={<CustomComponent />}
+      />,
+    );
+
+    expect(getByTestId('custom-component')).toBeTruthy();
+    expect(getByText('Custom')).toBeTruthy();
+  });
+
+  it('should prefer rightComponent over rightAction when both provided', () => {
+    const { Text } = require('react-native');
+    const mockOnBack = jest.fn();
+    const mockRightAction = jest.fn();
+    function CustomComponent() {
+      return <Text testID="custom-component">Custom</Text>;
+    }
+
+    const { getByTestId, queryByTestId } = render(
+      <NavigationHeader
+        title="Test Title"
+        onBack={mockOnBack}
+        rightAction={mockRightAction}
+        rightComponent={<CustomComponent />}
+      />,
+    );
+
+    expect(getByTestId('custom-component')).toBeTruthy();
+    expect(queryByTestId('right-action')).toBeNull();
+  });
 });

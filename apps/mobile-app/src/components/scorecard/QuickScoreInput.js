@@ -7,6 +7,7 @@ import {
 import PropTypes from 'prop-types';
 import { useThemeColors } from '../../context/ThemeContext';
 import { spacing, shadows, borderRadius } from '../../design-system/tokens';
+import { triggerSelectionHaptic } from '../../services/hapticService';
 
 export default function QuickScoreInput({
   score, par, onIncrement, onDecrement,
@@ -17,6 +18,9 @@ export default function QuickScoreInput({
 
   const handleIncrement = () => {
     if (!onIncrement) return;
+
+    // Trigger haptic feedback
+    triggerSelectionHaptic();
 
     if (score === null && par !== null) {
       onIncrement(par);
@@ -29,6 +33,9 @@ export default function QuickScoreInput({
 
   const handleDecrement = () => {
     if (!onDecrement) return;
+
+    // Trigger haptic feedback
+    triggerSelectionHaptic();
 
     if (score === null && par !== null) {
       onDecrement(par - 1);
@@ -88,8 +95,8 @@ export default function QuickScoreInput({
       justifyContent: 'center',
     },
     button: {
-      width: 48,
-      height: 48,
+      width: 56,
+      height: 56,
       borderRadius: borderRadius.lg,
       backgroundColor: colors.surface,
       borderWidth: 1,
@@ -123,6 +130,7 @@ export default function QuickScoreInput({
         testID="quick-score-minus"
         onPress={() => animatePress(minusScale, handleDecrement)}
         accessibilityLabel="Decrease score"
+        accessibilityHint="Decrease score by 1 stroke"
         accessibilityRole="button"
       >
         <Animated.View style={[styles.button, { transform: [{ scale: minusScale }] }]}>
@@ -140,6 +148,7 @@ export default function QuickScoreInput({
         testID="quick-score-plus"
         onPress={() => animatePress(plusScale, handleIncrement)}
         accessibilityLabel="Increase score"
+        accessibilityHint="Increase score by 1 stroke"
         accessibilityRole="button"
       >
         <Animated.View style={[styles.button, { transform: [{ scale: plusScale }] }]}>

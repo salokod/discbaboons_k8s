@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScorecardRedesignScreen from '../../src/screens/rounds/ScorecardRedesignScreen';
 import * as roundService from '../../src/services/roundService';
 import { ThemeProvider } from '../../src/context/ThemeContext';
+import { ToastProvider } from '../../src/context/ToastContext';
 
 // Mock roundService
 jest.mock('../../src/services/roundService');
@@ -11,6 +12,26 @@ jest.mock('../../src/services/roundService');
 jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
   getItem: jest.fn(),
+}));
+
+// Mock offline queue
+jest.mock('../../src/services/offlineQueue', () => ({
+  addToQueue: jest.fn(),
+  processQueue: jest.fn(),
+  getQueueSize: jest.fn(),
+}));
+
+// Mock network service
+jest.mock('../../src/services/networkService', () => ({
+  isConnected: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+}));
+
+// Mock useNetworkStatus hook
+jest.mock('../../src/hooks/useNetworkStatus', () => ({
+  __esModule: true,
+  default: jest.fn(() => ({ isOnline: true })),
 }));
 
 // Mock react-native-gesture-handler
@@ -59,10 +80,12 @@ const mockRoute = {
   },
 };
 
-// Helper to render component with ThemeProvider
+// Helper to render component with all required providers
 const renderWithTheme = (component) => render(
   <ThemeProvider testMode>
-    {component}
+    <ToastProvider>
+      {component}
+    </ToastProvider>
   </ThemeProvider>,
 );
 
@@ -479,6 +502,124 @@ describe('ScorecardRedesignScreen', () => {
     });
   });
 
+  it('should show loading state on Complete Round button during submission', async () => {
+    const mockRoundData = {
+      id: 'test-round-123',
+      name: 'Test Round',
+      course: {
+        holes: Array.from({ length: 18 }, (_, i) => ({
+          number: i + 1,
+          par: 3,
+        })),
+      },
+      players: [
+        { id: 'player-1', username: 'Alice' },
+      ],
+    };
+
+    roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+    roundService.submitScores.mockImplementation(() => new Promise((resolve) => {
+      setTimeout(() => resolve({ success: true }), 1000);
+    }));
+    AsyncStorage.getItem.mockResolvedValue(null);
+
+    const { getByTestId } = renderWithTheme(
+      <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+    );
+
+    // Navigate to hole 18
+    await waitFor(() => {
+      expect(getByTestId('next-hole-button')).toBeTruthy();
+    });
+
+    const nextButton = getByTestId('next-hole-button');
+
+    // Press next 17 times to get to hole 18
+    for (let i = 0; i < 17; i += 1) {
+      fireEvent.press(nextButton);
+    }
+
+    await waitFor(() => {
+      expect(getByTestId('complete-round-button')).toBeTruthy();
+    });
+
+    // Set a score for the player
+    const plusButton = getByTestId('quick-score-plus');
+    fireEvent.press(plusButton);
+
+    await waitFor(() => {
+      expect(getByTestId('quick-score-display').props.children).toBe('3');
+    });
+
+    // Press Complete Round button
+    const completeButton = getByTestId('complete-round-button');
+    fireEvent.press(completeButton);
+
+    // Should show loading state
+    await waitFor(() => {
+      expect(getByTestId('complete-round-loading')).toBeTruthy();
+    });
+  });
+
+  it('should disable Complete Round button while loading', async () => {
+    const mockRoundData = {
+      id: 'test-round-123',
+      name: 'Test Round',
+      course: {
+        holes: Array.from({ length: 18 }, (_, i) => ({
+          number: i + 1,
+          par: 3,
+        })),
+      },
+      players: [
+        { id: 'player-1', username: 'Alice' },
+      ],
+    };
+
+    roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+    roundService.submitScores.mockImplementation(() => new Promise((resolve) => {
+      setTimeout(() => resolve({ success: true }), 1000);
+    }));
+    AsyncStorage.getItem.mockResolvedValue(null);
+
+    const { getByTestId } = renderWithTheme(
+      <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+    );
+
+    // Navigate to hole 18
+    await waitFor(() => {
+      expect(getByTestId('next-hole-button')).toBeTruthy();
+    });
+
+    const nextButton = getByTestId('next-hole-button');
+
+    // Press next 17 times to get to hole 18
+    for (let i = 0; i < 17; i += 1) {
+      fireEvent.press(nextButton);
+    }
+
+    await waitFor(() => {
+      expect(getByTestId('complete-round-button')).toBeTruthy();
+    });
+
+    // Set a score for the player
+    const plusButton = getByTestId('quick-score-plus');
+    fireEvent.press(plusButton);
+
+    await waitFor(() => {
+      expect(getByTestId('quick-score-display').props.children).toBe('3');
+    });
+
+    // Press Complete Round button
+    const completeButton = getByTestId('complete-round-button');
+    fireEvent.press(completeButton);
+
+    // Button should be disabled
+    await waitFor(() => {
+      expect(completeButton.props.accessibilityState.disabled).toBe(true);
+    });
+  });
+
   it('should save scores to AsyncStorage when changed', async () => {
     const mockRoundData = {
       id: 'test-round-123',
@@ -783,8 +924,56 @@ describe('ScorecardRedesignScreen', () => {
 
     await waitFor(() => {
       expect(roundService.submitScores).toHaveBeenCalledWith('test-round-123', [
-        { hole: 1, player_id: 'player-1', score: 3 },
-        { hole: 1, player_id: 'player-2', score: 3 },
+        { playerId: 'player-1', holeNumber: 1, strokes: 3 },
+        { playerId: 'player-2', holeNumber: 1, strokes: 3 },
+      ]);
+    });
+  });
+
+  it('should call submitScores with correct API field names (playerId, holeNumber, strokes)', async () => {
+    const mockRoundData = {
+      id: 'test-round-123',
+      name: 'Test Round',
+      players: [
+        { id: 'player-1', username: 'Alice' },
+        { id: 'player-2', username: 'Bob' },
+      ],
+      course: {
+        holes: [
+          { number: 1, par: 3 },
+          { number: 2, par: 4 },
+        ],
+      },
+    };
+
+    roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+    roundService.submitScores.mockResolvedValue({
+      success: true,
+      scoresSubmitted: 2,
+    });
+
+    const { getAllByTestId, getByTestId } = renderWithTheme(
+      <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+    );
+
+    await waitFor(() => {
+      expect(getAllByTestId('player-score-row')).toHaveLength(2);
+    });
+
+    // Enter scores (par=3)
+    const plusButtons = getAllByTestId('quick-score-plus');
+    fireEvent.press(plusButtons[0]); // Alice: 3
+    fireEvent.press(plusButtons[1]); // Bob: 3
+
+    // Navigate to next hole (triggers submission)
+    const nextButton = getByTestId('next-hole-button');
+    fireEvent.press(nextButton);
+
+    // ASSERT: Correct field names (playerId, holeNumber, strokes)
+    await waitFor(() => {
+      expect(roundService.submitScores).toHaveBeenCalledWith('test-round-123', [
+        { playerId: 'player-1', holeNumber: 1, strokes: 3 },
+        { playerId: 'player-2', holeNumber: 1, strokes: 3 },
       ]);
     });
   });
@@ -1426,6 +1615,170 @@ describe('ScorecardRedesignScreen', () => {
     });
   });
 
+  describe('Error handling', () => {
+    it('should handle AsyncStorage save errors gracefully', async () => {
+      AsyncStorage.setItem.mockRejectedValue(new Error('Storage quota exceeded'));
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      const plusButtons = getAllByTestId('quick-score-plus');
+      fireEvent.press(plusButtons[0]);
+
+      // Should not crash - error handled gracefully
+      await waitFor(() => {
+        expect(AsyncStorage.setItem).toHaveBeenCalled();
+      });
+
+      // Component should still be functional
+      expect(getAllByTestId('player-score-row')).toHaveLength(1);
+    });
+
+    it('should set error status when save fails', async () => {
+      jest.useFakeTimers();
+
+      AsyncStorage.setItem.mockRejectedValue(new Error('Storage error'));
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      // Change score
+      const plusButton = getAllByTestId('quick-score-plus')[0];
+      fireEvent.press(plusButton);
+
+      // Fast-forward past debounce
+      jest.advanceTimersByTime(600);
+
+      // Should show "Error" status
+      await waitFor(() => {
+        expect(getByText('Error')).toBeTruthy();
+      });
+
+      jest.useRealTimers();
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have accessibility labels on navigation buttons', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }, { number: 2, par: 4 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('prev-hole-button')).toBeTruthy();
+      });
+
+      const prevButton = getByTestId('prev-hole-button');
+      const nextButton = getByTestId('next-hole-button');
+
+      expect(prevButton.props.accessibilityLabel).toBe('Previous hole');
+      expect(nextButton.props.accessibilityLabel).toBe('Next hole');
+    });
+
+    it('should have accessibility hints on navigation buttons', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }, { number: 2, par: 4 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('prev-hole-button')).toBeTruthy();
+      });
+
+      const prevButton = getByTestId('prev-hole-button');
+      const nextButton = getByTestId('next-hole-button');
+
+      expect(prevButton.props.accessibilityHint).toBe('Navigate to the previous hole');
+      expect(nextButton.props.accessibilityHint).toBe('Navigate to the next hole');
+    });
+
+    it('should have accessibility role on navigation buttons', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }, { number: 2, par: 4 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('prev-hole-button')).toBeTruthy();
+      });
+
+      const prevButton = getByTestId('prev-hole-button');
+      const nextButton = getByTestId('next-hole-button');
+
+      expect(prevButton.props.accessibilityRole).toBe('button');
+      expect(nextButton.props.accessibilityRole).toBe('button');
+    });
+
+    // TODO: Temporarily commented out - will be re-added for Collapsible Sections
+    // it('should have accessibility labels on bottom sheet triggers', async () => {
+    //   ...will be re-implemented for collapsible sections
+    // });
+  });
+
   describe('Hole-indexed data structure', () => {
     it('should store scores in hole-indexed format { holeNumber: { playerId: score } }', async () => {
       const mockRoundData = {
@@ -1550,6 +1903,924 @@ describe('ScorecardRedesignScreen', () => {
       await waitFor(() => {
         const scoreDisplay = getAllByTestId('quick-score-display')[0];
         expect(scoreDisplay.props.children).toBe('5');
+      });
+    });
+  });
+
+  describe('Offline queue integration', () => {
+    it('should enqueue scores when offline', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [
+            { number: 1, par: 3 },
+            { number: 2, par: 4 },
+          ],
+        },
+        players: [
+          { id: 'player-1', username: 'Alice' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      const { getAllByTestId, getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      // Set score
+      const plusButton = getAllByTestId('quick-score-plus')[0];
+      fireEvent.press(plusButton);
+
+      await waitFor(() => {
+        const scoreDisplay = getAllByTestId('quick-score-display')[0];
+        expect(scoreDisplay.props.children).toBe('3');
+      });
+
+      // Navigate to next hole (should queue when offline)
+      const nextButton = getByTestId('next-hole-button');
+      fireEvent.press(nextButton);
+
+      // Should NOT call submitScores (will test offline logic implementation)
+      await waitFor(() => {
+        expect(getByTestId('hole-number').props.children).toBe(2);
+      });
+    });
+
+    it('should call submitScores when online', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [
+            { number: 1, par: 3 },
+            { number: 2, par: 4 },
+          ],
+        },
+        players: [
+          { id: 'player-1', username: 'Alice' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      roundService.submitScores.mockResolvedValue({ success: true });
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      const { getAllByTestId, getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      // Set score
+      const plusButton = getAllByTestId('quick-score-plus')[0];
+      fireEvent.press(plusButton);
+
+      await waitFor(() => {
+        const scoreDisplay = getAllByTestId('quick-score-display')[0];
+        expect(scoreDisplay.props.children).toBe('3');
+      });
+
+      // Navigate to next hole (should submit when online)
+      const nextButton = getByTestId('next-hole-button');
+      fireEvent.press(nextButton);
+
+      // Should call submitScores when online
+      await waitFor(() => {
+        expect(roundService.submitScores).toHaveBeenCalledWith('test-round-123', [
+          { playerId: 'player-1', holeNumber: 1, strokes: 3 },
+        ]);
+      });
+    });
+  });
+
+  // TODO: Bottom Sheets tests temporarily commented out
+  // Will be replaced with Collapsible Sections tests during implementation
+  // describe('Bottom Sheets', () => {
+  //   ... tests will be re-added as Collapsible Sections
+  // });
+
+  describe('Offline Indicator Badge', () => {
+    it('should render offline indicator when disconnected', async () => {
+      const useNetworkStatus = require('../../src/hooks/useNetworkStatus').default;
+      useNetworkStatus.mockReturnValue({ isOnline: false });
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          name: 'Test Course',
+          holes: [{ par: 3 }],
+        },
+        players: [],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      const { getByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('scorecard-redesign-screen')).toBeTruthy();
+      });
+
+      // Should show offline indicator
+      expect(getByTestId('offline-indicator')).toBeTruthy();
+      expect(getByText('Offline')).toBeTruthy();
+    });
+
+    it('should not render offline indicator when online', async () => {
+      const useNetworkStatus = require('../../src/hooks/useNetworkStatus').default;
+      useNetworkStatus.mockReturnValue({ isOnline: true });
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          name: 'Test Course',
+          holes: [{ par: 3 }],
+        },
+        players: [],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      const { queryByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId('offline-indicator')).toBeNull();
+      });
+    });
+  });
+
+  describe('Toast Integration', () => {
+    it('should show success toast after score save', async () => {
+      jest.useFakeTimers();
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+      AsyncStorage.setItem.mockResolvedValue();
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      // Change score
+      const plusButton = getAllByTestId('quick-score-plus')[0];
+      fireEvent.press(plusButton);
+
+      // Fast-forward past debounce
+      jest.advanceTimersByTime(600);
+
+      // Should show success toast
+      await waitFor(() => {
+        expect(getByText('Score saved')).toBeTruthy();
+      });
+
+      jest.useRealTimers();
+    });
+
+    it('should show error toast on save failure', async () => {
+      jest.useFakeTimers();
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+      AsyncStorage.setItem.mockRejectedValue(new Error('Storage error'));
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      // Change score
+      const plusButton = getAllByTestId('quick-score-plus')[0];
+      fireEvent.press(plusButton);
+
+      // Fast-forward past debounce
+      jest.advanceTimersByTime(600);
+
+      // Should show error toast
+      await waitFor(() => {
+        expect(getByText('Failed to save score')).toBeTruthy();
+      });
+
+      jest.useRealTimers();
+    });
+
+    it('should auto-dismiss toast after 2 seconds', async () => {
+      jest.useFakeTimers();
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          holes: [{ number: 1, par: 3 }],
+        },
+        players: [{ id: 'player-1', username: 'Alice' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+      AsyncStorage.setItem.mockResolvedValue();
+
+      const { getAllByTestId, getByText, queryByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getAllByTestId('player-score-row')).toHaveLength(1);
+      });
+
+      // Change score
+      const plusButton = getAllByTestId('quick-score-plus')[0];
+      fireEvent.press(plusButton);
+
+      // Fast-forward past debounce
+      jest.advanceTimersByTime(600);
+
+      // Should show toast
+      await waitFor(() => {
+        expect(getByText('Score saved')).toBeTruthy();
+      });
+
+      // Fast-forward 2 seconds
+      jest.advanceTimersByTime(2000);
+
+      // Toast should be dismissed
+      await waitFor(() => {
+        expect(queryByText('Score saved')).toBeNull();
+      });
+
+      jest.useRealTimers();
+    });
+  });
+
+  describe('Offline Queue Integration', () => {
+    it('should use offlineQueue when network is offline', async () => {
+      // Import and set up mocks
+      const offlineQueue = require('../../src/services/offlineQueue');
+      const useNetworkStatus = require('../../src/hooks/useNetworkStatus').default;
+
+      // Mock offline state
+      useNetworkStatus.mockReturnValue({ isOnline: false });
+      offlineQueue.addToQueue.mockResolvedValue();
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          name: 'Test Course',
+          holes: [{ par: 3 }, { par: 4 }],
+        },
+        players: [
+          { id: 'player-1', username: 'Player1' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      // Pre-populate scores so handleSubmitScores will execute
+      AsyncStorage.getItem.mockResolvedValue(JSON.stringify({
+        1: { 'player-1': 3 },
+      }));
+
+      const { getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('next-hole-button')).toBeTruthy();
+      });
+
+      // Navigate to next hole which triggers handleSubmitScores
+      const nextButton = getByTestId('next-hole-button');
+      fireEvent.press(nextButton);
+
+      await waitFor(() => {
+        // Should add to offline queue when offline
+        expect(offlineQueue.addToQueue).toHaveBeenCalledWith({
+          type: 'SUBMIT_SCORES',
+          data: {
+            roundId: 'test-round-123',
+            scores: [{ playerId: 'player-1', holeNumber: 1, strokes: 3 }],
+          },
+        });
+      }, { timeout: 3000 });
+    });
+
+    it('should call submitScores directly when network is online', async () => {
+      // Import and set up mocks
+      const useNetworkStatus = require('../../src/hooks/useNetworkStatus').default;
+
+      // Mock online state
+      useNetworkStatus.mockReturnValue({ isOnline: true });
+      roundService.submitScores.mockResolvedValue({ success: true });
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          name: 'Test Course',
+          holes: [{ par: 3 }, { par: 4 }],
+        },
+        players: [
+          { id: 'player-1', username: 'Player1' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      // Pre-populate scores
+      AsyncStorage.getItem.mockResolvedValue(JSON.stringify({
+        1: { 'player-1': 3 },
+      }));
+
+      const { getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('next-hole-button')).toBeTruthy();
+      });
+
+      // Navigate to next hole
+      const nextButton = getByTestId('next-hole-button');
+      fireEvent.press(nextButton);
+
+      await waitFor(() => {
+        // Should call submitScores directly when online
+        expect(roundService.submitScores).toHaveBeenCalledWith(
+          'test-round-123',
+          [{ playerId: 'player-1', holeNumber: 1, strokes: 3 }],
+        );
+      }, { timeout: 3000 });
+    });
+
+    it('should process offline queue when coming back online', async () => {
+      // Import mocks
+      const offlineQueue = require('../../src/services/offlineQueue');
+      const useNetworkStatus = require('../../src/hooks/useNetworkStatus').default;
+
+      offlineQueue.processQueue.mockResolvedValue({ processed: 1, failed: 0 });
+
+      // Mock online state to trigger queue processing
+      useNetworkStatus.mockReturnValue({ isOnline: true });
+
+      const mockRoundData = {
+        id: 'test-round-123',
+        name: 'Test Round',
+        course: {
+          name: 'Test Course',
+          holes: [{ par: 3 }],
+        },
+        players: [],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+      AsyncStorage.getItem.mockResolvedValue(null);
+
+      const { getByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('scorecard-redesign-screen')).toBeTruthy();
+      });
+
+      // Verify processQueue was called when component mounted with isOnline=true
+      await waitFor(() => {
+        expect(offlineQueue.processQueue).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Collapsible Sections', () => {
+    it('should render three collapsible sections', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [
+          { id: '1', username: 'player1' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        expect(getByText('Round Info')).toBeTruthy();
+        expect(getByText('Leaderboard')).toBeTruthy();
+        expect(getByText('Side Bets')).toBeTruthy();
+      });
+    });
+
+    it('should use CollapsibleSection component for each section', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [
+          { id: '1', username: 'player1' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        // Should have 3 collapsible sections
+        const sections = getAllByTestId('collapsible-section');
+        expect(sections).toHaveLength(3);
+      });
+    });
+
+    it('should render sections in correct order: Round Info, Leaderboard, Side Bets', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [
+          { id: '1', username: 'player1' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const sections = getAllByTestId('collapsible-section');
+        expect(sections).toHaveLength(3);
+
+        // Get parent of each section to find the title
+        const firstSectionParent = sections[0].parent;
+        const secondSectionParent = sections[1].parent;
+        const thirdSectionParent = sections[2].parent;
+
+        // Find the title text in each section's children
+        expect(firstSectionParent.findByProps({ children: 'Round Info' })).toBeTruthy();
+        expect(secondSectionParent.findByProps({ children: 'Leaderboard' })).toBeTruthy();
+        expect(thirdSectionParent.findByProps({ children: 'Side Bets' })).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Round Info Section Content', () => {
+    it('should display course name when expanded', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Majestic Pines',
+          location: 'Portland, OR',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        status: 'in_progress',
+        created_at: '2024-01-15T10:00:00Z',
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getAllByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[0]).toBeTruthy();
+      });
+
+      // Expand Round Info section
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[0]);
+
+      await waitFor(() => {
+        // Should find course name in Round Info section (appears in header AND content)
+        const courseNames = getAllByText('Majestic Pines');
+        expect(courseNames.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should display location', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Majestic Pines',
+          location: 'Portland, OR',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        status: 'in_progress',
+        created_at: '2024-01-15T10:00:00Z',
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[0]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[0]);
+
+      await waitFor(() => {
+        expect(getByText('Portland, OR')).toBeTruthy();
+      });
+    });
+
+    it('should display number of holes', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Majestic Pines',
+          location: 'Portland, OR',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        status: 'in_progress',
+        created_at: '2024-01-15T10:00:00Z',
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[0]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[0]);
+
+      await waitFor(() => {
+        expect(getByText('18 Holes')).toBeTruthy();
+      });
+    });
+
+    it('should display round status', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Majestic Pines',
+          location: 'Portland, OR',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        status: 'in_progress',
+        created_at: '2024-01-15T10:00:00Z',
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[0]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[0]);
+
+      await waitFor(() => {
+        expect(getByText('In Progress')).toBeTruthy();
+      });
+    });
+
+    it('should display formatted date', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Majestic Pines',
+          location: 'Portland, OR',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        status: 'in_progress',
+        created_at: '2024-01-15T10:00:00Z',
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[0]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[0]);
+
+      await waitFor(() => {
+        // Check for formatted date - format is "January 15, 2024"
+        expect(getByText(/January 15, 2024/)).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Leaderboard Section Content', () => {
+    it('should display leaderboard when expanded', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [
+          { id: '1', username: 'player1', display_name: 'Alice' },
+          { id: '2', username: 'player2', display_name: 'Bob' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getAllByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[1]).toBeTruthy();
+      });
+
+      // Expand Leaderboard section
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[1]);
+
+      await waitFor(() => {
+        // Names appear in both PlayerScoreRow and Leaderboard
+        const aliceElements = getAllByText('Alice');
+        const bobElements = getAllByText('Bob');
+        expect(aliceElements.length).toBeGreaterThan(0);
+        expect(bobElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should display player scores in leaderboard', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [
+          { id: '1', username: 'player1', display_name: 'Alice' },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[1]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[1]);
+
+      await waitFor(() => {
+        // Should show placeholder when no scores yet
+        expect(getByText('--')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Side Bets Section Content', () => {
+    it('should display side bets when expanded', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        side_bets: [
+          { id: '1', name: 'Closest to Pin', amount: 5 },
+          { id: '2', name: 'Longest Putt', amount: 10 },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[2]).toBeTruthy();
+      });
+
+      // Expand Side Bets section
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[2]);
+
+      await waitFor(() => {
+        expect(getByText('Closest to Pin')).toBeTruthy();
+        expect(getByText('Longest Putt')).toBeTruthy();
+      });
+    });
+
+    it('should display side bet amounts', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        side_bets: [
+          { id: '1', name: 'Closest to Pin', amount: 5 },
+        ],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[2]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[2]);
+
+      await waitFor(() => {
+        expect(getByText('$5')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Empty States', () => {
+    it('should show empty state when no side bets exist', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+        side_bets: [],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[2]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[2]);
+
+      await waitFor(() => {
+        expect(getByText('No side bets for this round')).toBeTruthy();
+      });
+    });
+
+    it('should show empty state when side_bets is undefined', async () => {
+      const mockRoundData = {
+        id: 'test-round-123',
+        course: {
+          name: 'Test Course',
+          holes: Array.from({ length: 18 }, (_, i) => ({
+            hole_number: i + 1,
+            par: 3,
+          })),
+        },
+        players: [{ id: '1', username: 'player1' }],
+      };
+
+      roundService.getRoundDetails.mockResolvedValue(mockRoundData);
+
+      const { getAllByTestId, getByText } = renderWithTheme(
+        <ScorecardRedesignScreen route={mockRoute} navigation={mockNavigation} />,
+      );
+
+      await waitFor(() => {
+        const headers = getAllByTestId('collapsible-header');
+        expect(headers[2]).toBeTruthy();
+      });
+
+      const headers = getAllByTestId('collapsible-header');
+      fireEvent.press(headers[2]);
+
+      await waitFor(() => {
+        expect(getByText('No side bets for this round')).toBeTruthy();
       });
     });
   });

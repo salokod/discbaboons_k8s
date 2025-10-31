@@ -2,7 +2,9 @@
  * RoundsListScreen Tests
  */
 
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import {
+  render, waitFor, fireEvent, cleanup,
+} from '@testing-library/react-native';
 import { Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import RoundsListScreen from '../RoundsListScreen';
@@ -113,6 +115,10 @@ describe('RoundsListScreen', () => {
     });
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('should export RoundsListScreen component', () => {
     expect(RoundsListScreen).toBeTruthy();
   });
@@ -182,7 +188,7 @@ describe('RoundsListScreen', () => {
     expect(getByTestId('round-card-round-2')).toBeTruthy();
   });
 
-  it('should navigate to RoundDetail when card is pressed', async () => {
+  it('should navigate to Scorecard when in-progress card is pressed', async () => {
     const mockRounds = [
       {
         id: 'round-123',
@@ -218,9 +224,9 @@ describe('RoundsListScreen', () => {
     fireEvent.press(roundCard);
 
     // Verify navigation was called with correct params
-    // All rounds now navigate to RoundDetail (changed in Phase 2 Slice 8)
+    // In-progress rounds navigate to Scorecard (Slice 14A: One-Page Round)
     expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+    expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
       roundId: 'round-123',
     });
   });
@@ -598,7 +604,9 @@ describe('RoundsListScreen', () => {
       const flatList = getByTestId('rounds-flatlist');
       await flatList.props.refreshControl.props.onRefresh();
 
-      expect(getRounds).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(getRounds).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
@@ -1212,8 +1220,8 @@ describe('RoundsListScreen', () => {
     });
   });
 
-  describe('Phase 2 Slice 8: Simplified Navigation - All Statuses to RoundDetail', () => {
-    it('should navigate pending round to RoundDetail', async () => {
+  describe('One-Page Round Design: All Rounds Navigate to Scorecard', () => {
+    it('should navigate pending round to Scorecard', async () => {
       const mockRounds = [
         {
           id: 'round-pending',
@@ -1246,12 +1254,12 @@ describe('RoundsListScreen', () => {
       const roundCard = getByTestId('round-card-round-pending');
       fireEvent.press(roundCard);
 
-      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+      expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'round-pending',
       });
     });
 
-    it('should navigate confirmed round to RoundDetail', async () => {
+    it('should navigate confirmed round to Scorecard', async () => {
       const mockRounds = [
         {
           id: 'round-confirmed',
@@ -1284,12 +1292,12 @@ describe('RoundsListScreen', () => {
       const roundCard = getByTestId('round-card-round-confirmed');
       fireEvent.press(roundCard);
 
-      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+      expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'round-confirmed',
       });
     });
 
-    it('should navigate in_progress round to RoundDetail (CHANGED from ScorecardRedesign)', async () => {
+    it('should navigate in_progress round to Scorecard (Slice 14A: One-Page Round)', async () => {
       const mockRounds = [
         {
           id: 'round-in-progress',
@@ -1322,12 +1330,12 @@ describe('RoundsListScreen', () => {
       const roundCard = getByTestId('round-card-round-in-progress');
       fireEvent.press(roundCard);
 
-      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+      expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'round-in-progress',
       });
     });
 
-    it('should navigate completed round to RoundDetail (CHANGED from RoundSummary)', async () => {
+    it('should navigate completed round to Scorecard (one-page round design)', async () => {
       const mockRounds = [
         {
           id: 'round-completed',
@@ -1360,12 +1368,12 @@ describe('RoundsListScreen', () => {
       const roundCard = getByTestId('round-card-round-completed');
       fireEvent.press(roundCard);
 
-      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+      expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'round-completed',
       });
     });
 
-    it('should navigate cancelled round to RoundDetail', async () => {
+    it('should navigate cancelled round to Scorecard', async () => {
       const mockRounds = [
         {
           id: 'round-cancelled',
@@ -1398,7 +1406,7 @@ describe('RoundsListScreen', () => {
       const roundCard = getByTestId('round-card-round-cancelled');
       fireEvent.press(roundCard);
 
-      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+      expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'round-cancelled',
       });
     });
@@ -1436,7 +1444,7 @@ describe('RoundsListScreen', () => {
       const roundCard = getByTestId('round-card-unique-round-id-123');
       fireEvent.press(roundCard);
 
-      expect(mockNavigate).toHaveBeenCalledWith('RoundDetail', {
+      expect(mockNavigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'unique-round-id-123',
       });
     });

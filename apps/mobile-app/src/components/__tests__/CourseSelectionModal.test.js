@@ -30,6 +30,11 @@ describe('CourseSelectionModal', () => {
     mockGetRecentCourses.mockResolvedValue([]);
   });
 
+  afterEach(() => {
+    // Ensure real timers are restored after each test
+    jest.useRealTimers();
+  });
+
   it('should render modal with search input when visible', () => {
     render(
       <ThemeProvider>
@@ -203,14 +208,19 @@ describe('CourseSelectionModal', () => {
       </ThemeProvider>,
     );
 
+    // Wait for initial load
     await waitFor(() => {
       expect(screen.getByText('Morley Field')).toBeTruthy();
     });
+
+    // Clear the initial search call
+    mockSearchCourses.mockClear();
 
     // Search for "Kit"
     const searchInput = screen.getByPlaceholderText('Search courses...');
     fireEvent.changeText(searchInput, 'Kit');
 
+    // Wait for debounced search to trigger
     await waitFor(() => {
       expect(mockSearchCourses).toHaveBeenCalledWith({
         q: 'Kit',

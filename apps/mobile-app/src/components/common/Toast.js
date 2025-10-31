@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '../../context/ThemeContext';
 import { typography } from '../../design-system/typography';
 import { spacing } from '../../design-system/spacing';
@@ -23,6 +24,7 @@ function Toast({
   duration = 2000,
 }) {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const [fadeAnim] = useState(() => new Animated.Value(0));
 
   const hideToast = useCallback(() => {
@@ -59,10 +61,7 @@ function Toast({
   const styles = StyleSheet.create({
     container: {
       position: 'absolute',
-      bottom: Platform.select({
-        ios: 100,
-        android: 80,
-      }),
+      top: insets.top + spacing.md,
       left: spacing.lg,
       right: spacing.lg,
       backgroundColor: colors.surface,
@@ -104,7 +103,7 @@ function Toast({
             {
               translateY: fadeAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50, 0],
+                outputRange: [-50, 0],
               }),
             },
           ],

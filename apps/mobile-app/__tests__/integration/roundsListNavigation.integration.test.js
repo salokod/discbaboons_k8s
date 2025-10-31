@@ -34,11 +34,11 @@ describe('Rounds List Navigation Integration Tests', () => {
 
       // Simulate handleRoundPress logic from RoundsListScreen
       if (activeRound.status === 'in_progress') {
-        mockNavigation.navigate('ScorecardRedesign', { roundId: activeRound.id });
+        mockNavigation.navigate('Scorecard', { roundId: activeRound.id });
       }
 
       // Verify navigation was called correctly
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('ScorecardRedesign', {
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Scorecard', {
         roundId: 'active-round-1',
       });
       expect(mockNavigation.navigate).toHaveBeenCalledTimes(1);

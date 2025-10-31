@@ -27,8 +27,15 @@ describe('rounds.get.service', () => {
     const roundId = chance.guid();
     const userId = chance.integer({ min: 1, max: 1000 });
 
-    queryOne.mockResolvedValue({ id: roundId, created_by_id: userId });
-    queryRows.mockResolvedValue([]); // players query only for now
+    queryOne.mockResolvedValue({
+      id: roundId,
+      created_by_id: userId,
+      course_name: 'Test Course',
+      course_location: 'Test Location',
+    });
+    queryRows
+      .mockResolvedValueOnce([]) // players query
+      .mockResolvedValueOnce([]); // pars query
 
     const result = await getRoundService(roundId, userId);
 
@@ -93,6 +100,8 @@ describe('rounds.get.service', () => {
     const userId = chance.integer({ min: 1, max: 1000 });
     const roundName = chance.sentence({ words: 3 });
     const courseId = chance.word();
+    const courseName = 'Test Course';
+    const courseLocation = 'Test Location';
     const mockRound = {
       id: roundId,
       created_by_id: userId,
@@ -106,6 +115,8 @@ describe('rounds.get.service', () => {
       status: 'in_progress',
       created_at: new Date(),
       updated_at: new Date(),
+      course_name: courseName,
+      course_location: courseLocation,
     };
 
     const mockPlayers = [
@@ -120,7 +131,9 @@ describe('rounds.get.service', () => {
       },
     ];
 
-    queryOne.mockResolvedValue(mockRound);
+    queryOne
+      .mockResolvedValueOnce(mockRound) // round query
+      .mockResolvedValueOnce({ hole_count: null }); // course query
     queryRows
       .mockResolvedValueOnce(mockPlayers) // players query
       .mockResolvedValueOnce([]); // pars query
@@ -128,7 +141,24 @@ describe('rounds.get.service', () => {
     const result = await getRoundService(roundId, userId);
 
     expect(result).toEqual({
-      ...mockRound,
+      id: roundId,
+      created_by_id: userId,
+      course_id: courseId,
+      name: roundName,
+      start_time: mockRound.start_time,
+      starting_hole: 1,
+      is_private: false,
+      skins_enabled: false,
+      skins_value: null,
+      status: 'in_progress',
+      created_at: mockRound.created_at,
+      updated_at: mockRound.updated_at,
+      course: {
+        name: courseName,
+        location: courseLocation,
+        holeCount: null,
+        holes: [],
+      },
       players: mockPlayers,
       pars: {},
     });
@@ -150,6 +180,8 @@ describe('rounds.get.service', () => {
       status: 'in_progress',
       created_at: new Date(),
       updated_at: new Date(),
+      course_name: 'Test Course',
+      course_location: 'Test Location',
     };
 
     const mockParsRows = [
@@ -158,7 +190,9 @@ describe('rounds.get.service', () => {
       { hole_number: 18, par: 5 },
     ];
 
-    queryOne.mockResolvedValue(mockRound);
+    queryOne
+      .mockResolvedValueOnce(mockRound) // round query
+      .mockResolvedValueOnce({ hole_count: 18 }); // course query
     queryRows
       .mockResolvedValueOnce([]) // players query
       .mockResolvedValueOnce(mockParsRows); // pars query
@@ -167,5 +201,16 @@ describe('rounds.get.service', () => {
 
     expect(result).toHaveProperty('pars');
     expect(result.pars).toEqual({ 1: 3, 2: 4, 18: 5 });
+    expect(result).toHaveProperty('course');
+    expect(result.course).toEqual({
+      name: 'Test Course',
+      location: 'Test Location',
+      holeCount: 18,
+      holes: [
+        { number: 1, par: 3 },
+        { number: 2, par: 4 },
+        { number: 18, par: 5 },
+      ],
+    });
   });
 });

@@ -361,6 +361,7 @@ describe('ThemePicker', () => {
     });
 
     it('should auto-dismiss toast after 2 seconds', async () => {
+      jest.useFakeTimers();
       mockThemeStorage.storeTheme.mockResolvedValue(true);
 
       render(
@@ -371,9 +372,7 @@ describe('ThemePicker', () => {
 
       // Wait for haptic support check to complete
       await act(async () => {
-        await new Promise((resolve) => {
-          setTimeout(resolve, 0);
-        });
+        jest.advanceTimersByTime(0);
       });
 
       const darkThemeOption = screen.getByTestId('theme-option-dark');
@@ -381,9 +380,7 @@ describe('ThemePicker', () => {
       await act(async () => {
         fireEvent.press(darkThemeOption);
         // Wait for theme change to complete
-        await new Promise((resolve) => {
-          setTimeout(resolve, 0);
-        });
+        jest.advanceTimersByTime(0);
       });
 
       // Toast should be visible initially
@@ -391,13 +388,12 @@ describe('ThemePicker', () => {
 
       // Wait for auto-dismiss (2 seconds + animation time)
       await act(async () => {
-        await new Promise((resolve) => {
-          setTimeout(resolve, 2500);
-        });
+        jest.advanceTimersByTime(2500);
       });
 
       // Toast should be hidden
       expect(screen.queryByTestId('toast')).toBeNull();
+      jest.useRealTimers();
     });
 
     it('should show toast even when storage fails due to graceful degradation', async () => {

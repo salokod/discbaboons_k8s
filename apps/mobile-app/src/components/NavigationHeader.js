@@ -25,6 +25,7 @@ function NavigationHeader({
   rightAction,
   rightIconName = 'settings-outline',
   rightAccessibilityLabel = 'Actions',
+  rightComponent,
 }) {
   const colors = useThemeColors();
 
@@ -94,7 +95,7 @@ function NavigationHeader({
       </View>
 
       <View style={styles.rightSection}>
-        {rightAction && (
+        {rightComponent || (rightAction && (
           <TouchableOpacity
             testID="right-action"
             style={styles.rightButton}
@@ -108,7 +109,7 @@ function NavigationHeader({
               color={colors.text}
             />
           </TouchableOpacity>
-        )}
+        ))}
       </View>
     </View>
   );
@@ -121,6 +122,7 @@ NavigationHeader.propTypes = {
   rightAction: PropTypes.func,
   rightIconName: PropTypes.string,
   rightAccessibilityLabel: PropTypes.string,
+  rightComponent: PropTypes.node,
 };
 
 NavigationHeader.defaultProps = {
@@ -129,6 +131,7 @@ NavigationHeader.defaultProps = {
   rightAction: null,
   rightIconName: 'settings-outline',
   rightAccessibilityLabel: 'Actions',
+  rightComponent: null,
 };
 
 NavigationHeader.displayName = 'NavigationHeader';

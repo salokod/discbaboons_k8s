@@ -122,7 +122,8 @@ function RoundsListScreen({ navigation: navigationProp }) {
   };
 
   const handleRoundPress = (round) => {
-    navigation.navigate('RoundDetail', { roundId: round.id });
+    // All rounds now go directly to Scorecard for one-page round experience
+    navigation.navigate('Scorecard', { roundId: round.id });
   };
 
   if (loading) {

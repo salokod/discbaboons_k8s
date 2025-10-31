@@ -15,34 +15,36 @@ function PlayerScoreRow({
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
+      gap: spacing.sm,
     },
     playerNameSection: {
       flex: 1,
+      minWidth: 0,
+      paddingRight: spacing.sm,
     },
     playerNameText: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: '700',
       color: colors.text,
     },
     scoreSection: {
-      flex: 1,
+      width: 184,
       alignItems: 'center',
     },
     totalSection: {
-      flex: 1,
-      alignItems: 'flex-end',
+      width: 72,
+      alignItems: 'center',
     },
   });
 
   return (
     <View testID="player-score-row" style={styles.container}>
       <View style={styles.playerNameSection}>
-        <Text testID="player-name" style={styles.playerNameText}>
+        <Text testID="player-name" style={styles.playerNameText} numberOfLines={1} ellipsizeMode="tail">
           {playerName}
         </Text>
       </View>

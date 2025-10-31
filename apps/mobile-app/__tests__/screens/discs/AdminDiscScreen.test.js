@@ -344,10 +344,12 @@ describe('AdminDiscScreen', () => {
   it('should prevent double approval attempts', async () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
 
-    // Mock a slow approval
-    approveDisc.mockImplementation(() => new Promise((resolve) => {
-      setTimeout(() => resolve({ id: '1', approved: true }), 1000);
-    }));
+    // Mock a slow approval - keep it pending
+    let resolveApproval;
+    const approvalPromise = new Promise((resolve) => {
+      resolveApproval = resolve;
+    });
+    approveDisc.mockReturnValue(approvalPromise);
 
     const { getAllByText, getByText } = renderWithTheme(
       <AdminDiscScreen navigation={mockNavigation} />,
@@ -361,11 +363,15 @@ describe('AdminDiscScreen', () => {
 
     // Simulate pressing "Approve" in the confirmation dialog
     const approveButton = alertSpy.mock.calls[0][2][1];
-    await approveButton.onPress();
+    approveButton.onPress();
 
+    // Should show loading state
     await waitFor(() => {
       expect(getByText('Approving...')).toBeTruthy();
-    });
+    }, { timeout: 2000 });
+
+    // Cleanup - resolve to prevent hanging
+    resolveApproval({ id: '1', approved: true });
 
     alertSpy.mockRestore();
   });

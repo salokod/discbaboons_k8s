@@ -2,7 +2,7 @@ import {
   useState, useEffect, useRef, useCallback,
 } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -10,24 +10,34 @@ import { runOnJS } from 'react-native-reanimated';
 import PropTypes from 'prop-types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash.debounce';
-import { getRoundDetails, submitScores } from '../../services/roundService';
+import {
+  getRoundDetails, submitScores,
+} from '../../services/roundService';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useToast } from '../../context/ToastContext';
 import { typography } from '../../design-system/typography';
 import { spacing, borderRadius } from '../../design-system/tokens';
 import PlayerScoreRow from '../../components/scorecard/PlayerScoreRow';
 import NavigationHeader from '../../components/NavigationHeader';
 import SkeletonLoader from '../../components/settings/SkeletonLoader';
 import HoleHeroCard from '../../components/scorecard/HoleHeroCard';
+import OfflineIndicator from '../../components/OfflineIndicator';
+import CollapsibleSection from '../../components/scorecard/CollapsibleSection';
+import { addToQueue, processQueue } from '../../services/offlineQueue';
+import useNetworkStatus from '../../hooks/useNetworkStatus';
 
 function ScorecardRedesignScreen({ route, navigation }) {
   const { roundId } = route?.params || {};
   const colors = useThemeColors();
+  const { show: showToast } = useToast();
+  const { isOnline } = useNetworkStatus();
   const [loading, setLoading] = useState(true);
   const [roundData, setRoundData] = useState(null);
   const [error, setError] = useState(null);
   const [currentHole, setCurrentHole] = useState(1);
   const [scores, setScores] = useState({});
   const [saveStatus, setSaveStatus] = useState('saved');
+  const [submittingRound, setSubmittingRound] = useState(false);
 
   useEffect(() => {
     const fetchRoundDetails = async () => {
@@ -86,11 +96,13 @@ function ScorecardRedesignScreen({ route, navigation }) {
       const storageKey = `scorecard_${roundId}`;
       await AsyncStorage.setItem(storageKey, JSON.stringify(scoresToSave));
       setSaveStatus('saved');
+      showToast('Score saved', 'success', 2000);
     } catch (err) {
       // If saving fails, show error status
       setSaveStatus('error');
+      showToast('Failed to save score', 'error', 2000);
     }
-  }, [roundId]);
+  }, [roundId, showToast]);
 
   useEffect(() => {
     // Initialize debounced save function
@@ -112,6 +124,27 @@ function ScorecardRedesignScreen({ route, navigation }) {
     }
   }, [scores, roundId]);
 
+  // Process offline queue when coming back online
+  useEffect(() => {
+    if (isOnline) {
+      // Process any pending operations in the queue
+      const handleQueueProcessing = async () => {
+        try {
+          await processQueue(async (operation) => {
+            if (operation.type === 'SUBMIT_SCORES') {
+              const { roundId: opRoundId, scores: opScores } = operation.data;
+              await submitScores(opRoundId, opScores);
+            }
+          });
+        } catch (queueError) {
+          // Silently handle queue processing errors
+        }
+      };
+
+      handleQueueProcessing();
+    }
+  }, [isOnline]);
+
   const par = roundData?.course?.holes?.[currentHole - 1]?.par || 3;
 
   const totalHoles = roundData?.course?.holes?.length || 18;
@@ -130,6 +163,7 @@ function ScorecardRedesignScreen({ route, navigation }) {
 
   const handleSubmitScores = async () => {
     try {
+      setSubmittingRound(true);
       // Get all players from roundData
       const players = roundData?.players || [];
       const currentHoleScores = scores[currentHole] || {};
@@ -144,18 +178,32 @@ function ScorecardRedesignScreen({ route, navigation }) {
       if (allPlayersHaveScores && players.length > 0) {
         // Build scores array for submission
         const scoresArray = players.map((player) => ({
-          hole: currentHole,
-          player_id: player.id,
-          score: currentHoleScores[player.id],
+          playerId: player.id,
+          holeNumber: currentHole,
+          strokes: currentHoleScores[player.id],
         }));
 
-        // Submit scores to backend
-        await submitScores(roundId, scoresArray);
+        // Check network status and either submit or queue
+        if (isOnline) {
+          // Submit scores to backend when online
+          await submitScores(roundId, scoresArray);
+        } else {
+          // Add to offline queue when offline
+          await addToQueue({
+            type: 'SUBMIT_SCORES',
+            data: {
+              roundId,
+              scores: scoresArray,
+            },
+          });
+        }
       }
     } catch (submitError) {
       // Silently handle error - don't block navigation
       // Error is logged but not displayed to user
       // Future: Could show a retry option
+    } finally {
+      setSubmittingRound(false);
     }
   };
 
@@ -203,7 +251,6 @@ function ScorecardRedesignScreen({ route, navigation }) {
       paddingBottom: spacing.sm,
     },
     playersSection: {
-      flex: 1,
       backgroundColor: colors.surface,
       marginHorizontal: spacing.sm,
       marginBottom: spacing.sm,
@@ -213,7 +260,7 @@ function ScorecardRedesignScreen({ route, navigation }) {
     },
     navigationContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       gap: spacing.md,
@@ -224,7 +271,7 @@ function ScorecardRedesignScreen({ route, navigation }) {
     navButton: {
       flex: 1,
       paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xxl,
+      paddingHorizontal: spacing.lg,
       backgroundColor: colors.primary,
       borderRadius: borderRadius.md,
       alignItems: 'center',
@@ -242,7 +289,7 @@ function ScorecardRedesignScreen({ route, navigation }) {
     completeButton: {
       flex: 1,
       paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xxl,
+      paddingHorizontal: spacing.lg,
       backgroundColor: colors.success || colors.primary,
       borderRadius: borderRadius.md,
       alignItems: 'center',
@@ -262,6 +309,77 @@ function ScorecardRedesignScreen({ route, navigation }) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+    },
+    collapsibleSectionsContainer: {
+      paddingHorizontal: spacing.sm,
+      paddingBottom: spacing.sm,
+      gap: spacing.xs,
+    },
+    roundInfoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.xs,
+    },
+    roundInfoLabel: {
+      ...typography.body,
+      color: colors.textLight,
+    },
+    roundInfoValue: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    leaderboardRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    leaderboardRowLast: {
+      borderBottomWidth: 0,
+    },
+    leaderboardRank: {
+      ...typography.body,
+      color: colors.textLight,
+      width: 30,
+    },
+    leaderboardName: {
+      ...typography.body,
+      color: colors.text,
+      flex: 1,
+    },
+    leaderboardScore: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    sideBetRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sideBetRowLast: {
+      borderBottomWidth: 0,
+    },
+    sideBetName: {
+      ...typography.body,
+      color: colors.text,
+      flex: 1,
+    },
+    sideBetAmount: {
+      ...typography.body,
+      color: colors.success || colors.primary,
+      fontWeight: '600',
+    },
+    emptyText: {
+      ...typography.body,
+      color: colors.textLight,
+      textAlign: 'center',
+      fontStyle: 'italic',
     },
   });
 
@@ -345,6 +463,7 @@ function ScorecardRedesignScreen({ route, navigation }) {
 
     return relativeTotal;
   };
+
   const renderPlayerRow = ({ item: player }) => {
     const currentHoleScores = scores[currentHole] || {};
     const playerScore = currentHoleScores[player.id] || null;
@@ -362,6 +481,24 @@ function ScorecardRedesignScreen({ route, navigation }) {
 
   const isLastHole = currentHole === totalHoles;
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return '';
+    return status
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaView testID="scorecard-redesign-screen" style={styles.container}>
@@ -369,30 +506,127 @@ function ScorecardRedesignScreen({ route, navigation }) {
           title={roundData?.course?.name || roundData?.name || 'Scorecard'}
           onBack={() => navigation.goBack()}
           backAccessibilityLabel="Go back to round details"
+          rightComponent={<OfflineIndicator />}
         />
         <GestureDetector testID="gesture-detector" gesture={panGesture}>
           <View style={styles.container}>
-            <HoleHeroCard
-              holeNumber={currentHole}
-              par={par}
-              saveStatus={saveStatus}
-              currentHole={currentHole}
-              totalHoles={totalHoles}
-            />
-            <View style={styles.playersSection}>
-              <FlatList
-                testID="players-flatlist"
-                data={players}
-                keyExtractor={(player) => player.id}
-                renderItem={renderPlayerRow}
+            <ScrollView testID="scorecard-scrollview">
+              <HoleHeroCard
+                holeNumber={currentHole}
+                par={par}
+                saveStatus={saveStatus}
+                currentHole={currentHole}
+                totalHoles={totalHoles}
               />
-            </View>
+
+              <View style={styles.playersSection}>
+                <FlatList
+                  testID="players-flatlist"
+                  data={players}
+                  keyExtractor={(player) => player.id}
+                  renderItem={renderPlayerRow}
+                  scrollEnabled={false}
+                />
+              </View>
+
+              <View style={styles.collapsibleSectionsContainer}>
+                <CollapsibleSection title="Round Info">
+                  <View>
+                    <View style={styles.roundInfoRow}>
+                      <Text style={styles.roundInfoLabel}>Course</Text>
+                      <Text style={styles.roundInfoValue}>{roundData?.course?.name || 'N/A'}</Text>
+                    </View>
+                    {roundData?.course?.location && (
+                      <View style={styles.roundInfoRow}>
+                        <Text style={styles.roundInfoLabel}>Location</Text>
+                        <Text style={styles.roundInfoValue}>{roundData.course.location}</Text>
+                      </View>
+                    )}
+                    <View style={styles.roundInfoRow}>
+                      <Text style={styles.roundInfoLabel}>Holes</Text>
+                      <Text style={styles.roundInfoValue}>
+                        {roundData?.course?.holes?.length || 0}
+                        {' '}
+                        Holes
+                      </Text>
+                    </View>
+                    {roundData?.status && (
+                      <View style={styles.roundInfoRow}>
+                        <Text style={styles.roundInfoLabel}>Status</Text>
+                        <Text style={styles.roundInfoValue}>{formatStatus(roundData.status)}</Text>
+                      </View>
+                    )}
+                    {roundData?.created_at && (
+                      <View style={styles.roundInfoRow}>
+                        <Text style={styles.roundInfoLabel}>Date</Text>
+                        <Text style={styles.roundInfoValue}>
+                          {formatDate(roundData.created_at)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </CollapsibleSection>
+
+                <CollapsibleSection title="Leaderboard">
+                  <View>
+                    {players.map((player, index) => {
+                      const runningTotal = calculateRunningTotal(player.id);
+                      const displayScore = runningTotal === null ? '--' : runningTotal;
+                      return (
+                        <View
+                          key={player.id}
+                          style={[
+                            styles.leaderboardRow,
+                            index === players.length - 1 && styles.leaderboardRowLast,
+                          ]}
+                        >
+                          <Text style={styles.leaderboardRank}>{index + 1}</Text>
+                          <Text style={styles.leaderboardName}>
+                            {player.display_name || player.username || 'Guest'}
+                          </Text>
+                          <Text style={styles.leaderboardScore}>{displayScore}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </CollapsibleSection>
+
+                <CollapsibleSection title="Side Bets">
+                  <View>
+                    {(roundData?.side_bets || []).length === 0 ? (
+                      <Text style={styles.emptyText}>No side bets for this round</Text>
+                    ) : (
+                      (roundData?.side_bets || []).map((bet, index) => (
+                        <View
+                          key={bet.id}
+                          style={[
+                            styles.sideBetRow,
+                            index === (roundData?.side_bets || []).length - 1
+                              && styles.sideBetRowLast,
+                          ]}
+                        >
+                          <Text style={styles.sideBetName}>{bet.name}</Text>
+                          <Text style={styles.sideBetAmount}>
+                            $
+                            {bet.amount}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </CollapsibleSection>
+              </View>
+            </ScrollView>
             <View style={styles.navigationContainer}>
               <TouchableOpacity
                 testID="prev-hole-button"
                 style={[styles.navButton, isPrevDisabled && styles.navButtonDisabled]}
                 onPress={handlePrevHole}
                 disabled={isPrevDisabled}
+                accessibilityLabel="Previous hole"
+                accessibilityHint="Navigate to the previous hole"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isPrevDisabled }}
               >
                 <Text
                   style={[styles.navButtonText, isPrevDisabled && styles.navButtonTextDisabled]}
@@ -403,12 +637,21 @@ function ScorecardRedesignScreen({ route, navigation }) {
               {isLastHole ? (
                 <TouchableOpacity
                   testID="complete-round-button"
-                  style={styles.completeButton}
+                  style={[styles.completeButton, submittingRound && styles.navButtonDisabled]}
                   onPress={handleSubmitScores}
+                  disabled={submittingRound}
+                  accessibilityRole="button"
+                  accessibilityLabel="Complete round"
+                  accessibilityHint="Submit all scores and complete the round"
+                  accessibilityState={{ disabled: submittingRound }}
                 >
-                  <Text style={styles.completeButtonText}>
-                    Complete Round
-                  </Text>
+                  {submittingRound ? (
+                    <ActivityIndicator testID="complete-round-loading" color={colors.buttonText} />
+                  ) : (
+                    <Text style={styles.completeButtonText}>
+                      Complete Round
+                    </Text>
+                  )}
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
@@ -416,6 +659,10 @@ function ScorecardRedesignScreen({ route, navigation }) {
                   style={[styles.navButton, isNextDisabled && styles.navButtonDisabled]}
                   onPress={handleNextHole}
                   disabled={isNextDisabled}
+                  accessibilityLabel="Next hole"
+                  accessibilityHint="Navigate to the next hole"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isNextDisabled }}
                 >
                   <Text
                     style={[styles.navButtonText, isNextDisabled && styles.navButtonTextDisabled]}

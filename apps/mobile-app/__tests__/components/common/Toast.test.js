@@ -21,6 +21,11 @@ function TestWrapper({ children }) {
 }
 
 describe('Toast', () => {
+  afterEach(() => {
+    // Ensure real timers are restored after each test
+    jest.useRealTimers();
+  });
+
   it('should export a component', () => {
     expect(Toast).toBeDefined();
     expect(typeof Toast).toBe('object'); // memo returns an object
@@ -60,6 +65,7 @@ describe('Toast', () => {
   });
 
   it('should call onHide after auto-dismiss duration', async () => {
+    jest.useFakeTimers();
     const mockOnHide = jest.fn();
     const shortDuration = 100;
 
@@ -77,17 +83,17 @@ describe('Toast', () => {
     // Should not have called onHide immediately
     expect(mockOnHide).not.toHaveBeenCalled();
 
-    // Wait for duration + animation time
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, shortDuration + 350);
-      });
+    // Advance timers by duration + animation time
+    act(() => {
+      jest.advanceTimersByTime(shortDuration + 350);
     });
 
     expect(mockOnHide).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
   });
 
   it('should use default duration of 2000ms when not specified', async () => {
+    jest.useFakeTimers();
     const mockOnHide = jest.fn();
 
     render(
@@ -101,22 +107,19 @@ describe('Toast', () => {
     );
 
     // Should not have called onHide after short time
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 500);
-      });
+    act(() => {
+      jest.advanceTimersByTime(500);
     });
 
     expect(mockOnHide).not.toHaveBeenCalled();
 
     // Should call onHide after default duration + animation
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 2000 + 350);
-      });
+    act(() => {
+      jest.advanceTimersByTime(2000 + 350);
     });
 
     expect(mockOnHide).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
   });
 
   it('should handle message changes when visible', () => {
